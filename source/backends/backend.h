@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <string>
 #include <string_view>
 
@@ -22,6 +23,7 @@ enum class BackendError : std::uint8_t {
   NotPaused,
   AlreadyPaused,
   InvalidUtf8,
+  InvalidOperation,
   Unknown
 };
 
@@ -30,6 +32,8 @@ using BackendResult = std::expected<T, BackendError>;
 
 class TextToSpeechBackend {
 public:
+  using AudioCallback = std::function<void(void *, const float *, std::size_t,
+                                           std::size_t, std::size_t)>;
   virtual ~TextToSpeechBackend() = default;
   virtual std::string_view get_name() const = 0;
   virtual BackendResult<> initialize() {

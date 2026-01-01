@@ -45,6 +45,25 @@ set(CMAKE_INSTALL_MFC_LIBRARIES ON)
 set(CMAKE_INSTALL_OPENMP_LIBRARIES ON)
 include(InstallRequiredSystemLibraries)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CPM_DOWNLOAD_VERSION 0.42.0)
+if(CPM_SOURCE_CACHE)
+  set(CPM_DOWNLOAD_LOCATION
+      "${CPM_SOURCE_CACHE}/cpm/CPM_${CPM_DOWNLOAD_VERSION}.cmake")
+elseif(DEFINED ENV{CPM_SOURCE_CACHE})
+  set(CPM_DOWNLOAD_LOCATION
+      "$ENV{CPM_SOURCE_CACHE}/cpm/CPM_${CPM_DOWNLOAD_VERSION}.cmake")
+else()
+  set(CPM_DOWNLOAD_LOCATION
+      "${CMAKE_BINARY_DIR}/cmake/CPM_${CPM_DOWNLOAD_VERSION}.cmake")
+endif()
+if(NOT (EXISTS ${CPM_DOWNLOAD_LOCATION}))
+  message(STATUS "Downloading CPM.cmake to ${CPM_DOWNLOAD_LOCATION}")
+  file(
+    DOWNLOAD
+    https://github.com/TheLartians/CPM.cmake/releases/download/v${CPM_DOWNLOAD_VERSION}/CPM.cmake
+    ${CPM_DOWNLOAD_LOCATION})
+endif()
+include(${CPM_DOWNLOAD_LOCATION})
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h")
@@ -95,6 +114,9 @@ elseif(APPLE)
   find_library(AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)
   target_link_libraries(${PROJECT_NAME} PRIVATE ${AVFOUNDATION_FRAMEWORK})
 endif()
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+find_package(NVDAController REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE NVDA::Controller)
 if(MSVC)
   check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
@@ -121,7 +143,8 @@ else()
     )
   endif()
 endif()
-add_import_library(SystemAccess defs/sa.def SAAPI64.dll)
+add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
+                   SAAPI64.dll)
 target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess)
 if(WIN32 OR WINDOWS_STORE)
   get_target_property(defs ${PROJECT_NAME} COMPILE_DEFINITIONS)

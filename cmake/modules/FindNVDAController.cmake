@@ -2,24 +2,29 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 #
-# This module defines the following variables: NVDA_CONTROLLER_FOUND - True if
-# NVDA controller was found NVDA_CONTROLLER_INCLUDE_DIRS - NVDA controller
-# include directories NVDA_CONTROLLER_LIBRARIES - NVDA controller libraries
+# This module defines the following variables:
 #
-# This module defines the following imported targets: NVDA::Controller - The
-# NVDA controller library
+# NVDA_CONTROLLER_FOUND - True if NVDA controller was found
+#
+# NVDA_CONTROLLER_INCLUDE_DIRS - NVDA controller include directories
+#
+# NVDA_CONTROLLER_LIBRARIES - NVDA controller libraries
+#
+# This module defines the following imported targets:
+#
+# NVDA::Controller - The NVDA controller library
 
 include(CMakeDependentOption)
 include(FetchContent)
 include(${CPM_DOWNLOAD_LOCATION})
 set(NVDA_CONTROLLER_VERSION
-    "2025.2"
+    "2025.3.2"
     CACHE STRING "Version of the NVDA controller client to download")
 set(NVDA_CONTROLLER_URL
     "https://download.nvaccess.org/releases/stable/nvda_${NVDA_CONTROLLER_VERSION}_controllerClient.zip"
     CACHE STRING "URL to download NVDA controller client from")
 set(NVDA_CONTROLLER_HASH
-    "77adb83730688277a00ff6dc064935552373db94981326388b8f2705375aa339"
+    "177fe3f2fa92911806939e41f961411ce6f851069b574d15529854f3ed6d1bf8"
     CACHE STRING "Expected hash of the NVDA controller client zip file")
 message(STATUS "Downloading NVDA Controller Client from ${NVDA_CONTROLLER_URL}")
 cpmaddpackage(

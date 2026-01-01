@@ -21,7 +21,7 @@ constexpr BackendId operator""_bid(const char *str, std::size_t len) {
 
 constexpr BackendId make_backend_id(std::string_view str) {
   std::uint64_t hash = 0xCBF29CE484222325;
-  for (std::size_t i = 0; i < len; ++i) {
+  for (std::size_t i = 0; i < str.size(); ++i) {
     hash ^= static_cast<std::uint64_t>(str[i]);
     hash *= 0x100000001B3;
   }

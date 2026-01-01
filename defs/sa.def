@@ -1,0 +1,6 @@
+LIBRARY "SAAPI64.dll"
+EXPORTS
+    SA_SayW
+    SA_BrlShowTextW
+    SA_StopAudio
+    SA_IsRunning

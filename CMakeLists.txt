@@ -1,0 +1,142 @@
+# SPDX-License-Identifier: MPL-2.0
+cmake_minimum_required(VERSION 3.14)
+
+include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
+include(CheckLinkerFlag)
+include(CheckIPOSupported)
+include(CheckCSourceCompiles)
+include(CheckCXXSourceCompiles)
+
+function(add_import_library target def_file dll_name)
+  set(lib_file "${CMAKE_CURRENT_BINARY_DIR}/${target}.lib")
+  if(MSVC)
+    add_custom_command(
+      OUTPUT "${lib_file}"
+      COMMAND lib /nologo /def:"${def_file}" /out:"${lib_file}"
+              /machine:${MSVC_CXX_ARCHITECTURE_ID}
+      DEPENDS "${def_file}"
+      COMMENT "Generating import library ${target}.lib")
+  elseif(MINGW)
+    add_custom_command(
+      OUTPUT "${lib_file}"
+      COMMAND dlltool -d "${def_file}" -l "${lib_file}"
+      DEPENDS "${def_file}"
+      COMMENT "Generating import library ${target}.lib")
+  endif()
+  add_custom_target(${target}_gen DEPENDS "${lib_file}")
+  add_library(${target} SHARED IMPORTED GLOBAL)
+  set_target_properties(
+    ${target} PROPERTIES IMPORTED_IMPLIB "${lib_file}"
+                         IMPORTED_LOCATION "${dll_name}" # or full path to DLL
+  )
+  add_dependencies(${target} ${target}_gen)
+endfunction()
+
+project(
+  prism
+  VERSION 0.1.0
+  DESCRIPTION
+    "The Platform-agnostic Reader Interface library for Speech and Messages"
+  LANGUAGES C CXX)
+set(CMAKE_INSTALL_DEBUG_LIBRARIES ON)
+set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
+set(CMAKE_INSTALL_MFC_LIBRARIES ON)
+set(CMAKE_INSTALL_OPENMP_LIBRARIES ON)
+include(InstallRequiredSystemLibraries)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+file(GLOB_RECURSE headers CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h")
+if(APPLE)
+  enable_language(Swift)
+  file(
+    GLOB_RECURSE
+    sources
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/*.swift")
+else()
+  file(GLOB_RECURSE sources CONFIGURE_DEPENDS
+       "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
+       "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c")
+endif()
+if(NOT WIN32)
+  list(REMOVE sources source/backends/raw/fsapi.c
+       source/backends/raw/sapibridge.c source/backends/raw/wineyes.c
+       source/backends/raw/zt.c)
+endif()
+add_library(${PROJECT_NAME} SHARED ${headers} ${sources})
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
+                                               MATCHES "MSVC")
+  find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+  if(CLANG_TIDY_EXE)
+    set(CLANG_TIDY_COMMAND
+        "${CLANG_TIDY_EXE}"
+        "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*")
+    set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
+                                                     "${CLANG_TIDY_COMMAND}")
+    set_source_files_properties(source/simdutf.cpp source/simdutf.hpp
+                                PROPERTIES SKIP_LINTING ON)
+  endif()
+endif()
+set_property(TARGET ${PROJECT_NAME} PROPERTY OUTPUT_NAME ${PROJECT_NAME})
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+if(MSVC)
+  set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/STACK:8388608")
+elseif(APPLE)
+  set_target_properties(
+    ${PROJECT_NAME} PROPERTIES LINK_FLAGS "-Wl,-headerpad_max_install_names")
+  find_library(AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${AVFOUNDATION_FRAMEWORK})
+endif()
+if(MSVC)
+  check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
+  check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
+  if(MSVC_HAS_UTF8_OPTION)
+    target_compile_options(${PROJECT_NAME} PUBLIC /utf-8)
+  endif()
+  if(MSVC_HAS_BIGOBJ)
+    target_compile_options(${PROJECT_NAME} PUBLIC /bigobj)
+  endif()
+else()
+  check_cxx_compiler_flag(-march=x86-64-v3 COMPILER_SUPPORTS_X86_64_V3)
+  check_cxx_compiler_flag(-march=armv8.9-a COMPILER_SUPPORTS_ARMV89_A)
+  check_cxx_compiler_flag(-march=armv9.5-a COMPILER_SUPPORTS_ARMV95_A)
+  if(COMPILER_SUPPORTS_X86_64_V3)
+    target_compile_options(${PROJECT_NAME} PUBLIC -march=x86-64-v3)
+  elseif(COMPILER_SUPPORTS_ARMV95_A)
+    target_compile_options(${PROJECT_NAME} PUBLIC -march=armv9.5-a)
+  elseif(COMPILER_SUPPORTS_ARMV95_A)
+    target_compile_options(${PROJECT_NAME} PUBLIC -march=armv8.9-a)
+  else()
+    message(
+      STATUS
+        "Architecture ISA extensions are disabled for this build: no instruction sets are supported"
+    )
+  endif()
+endif()
+add_import_library(SystemAccess defs/sa.def SAAPI64.dll)
+target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess)
+if(WIN32 OR WINDOWS_STORE)
+  get_target_property(defs ${PROJECT_NAME} COMPILE_DEFINITIONS)
+  list(FIND defs "_HAS_EXCEPTIONS" ARE_EXCEPTIONS_ENABLED)
+  if(ARE_EXCEPTIONS_ENABLED EQUAL 0)
+    message(FATAL_ERROR "Exceptions are disabled!")
+  endif()
+  target_compile_definitions(
+    ${PROJECT_NAME}
+    PUBLIC _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
+           _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1)
+endif()
+target_compile_definitions(${PROJECT_NAME} PUBLIC NOMINMAX)
+if(WIN32)
+  target_link_libraries(${PROJECT_NAME} PRIVATE onecore.lib)
+endif()
+check_ipo_supported()
+set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)

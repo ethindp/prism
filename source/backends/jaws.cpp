@@ -111,5 +111,5 @@ return std::unexpected(BackendError::InternalBackendError);
 }
 };
 
-REGISTER_BACKEND_WITH_ID(JawsBackend, Backends::JAWS, "JAWS", 1);
+REGISTER_BACKEND_WITH_ID(JawsBackend, Backends::JAWS, "JAWS", 101);
 #endif

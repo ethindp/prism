@@ -67,5 +67,5 @@ public:
   }
 };
 
-REGISTER_BACKEND_WITH_ID(NvdaBackend, Backends::NVDA, "NVDA", 0);
+REGISTER_BACKEND_WITH_ID(NvdaBackend, Backends::NVDA, "NVDA", 100);
 #endif

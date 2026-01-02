@@ -220,5 +220,5 @@ public:
   }
 };
 
-REGISTER_BACKEND_WITH_ID(SapiBackend, Backends::SAPI, "SAPI", 100);
+REGISTER_BACKEND_WITH_ID(SapiBackend, Backends::SAPI, "SAPI", 98);
 #endif

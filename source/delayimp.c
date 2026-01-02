@@ -1,8 +1,8 @@
 #ifdef _WIN32
+#include <windows.h>
 #include <delayimp.h>
 #include <nvdaController.h>
 #include <string.h>
-#include <windows.h>
 
 typedef struct {
   const char *dll;

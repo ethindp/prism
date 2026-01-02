@@ -15,10 +15,10 @@ public:
   BackendResult<> initialize() override { return {}; }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (nvdaController_testIfRunning() == 0)
+    if (nvdaController_testIfRunning())
       return std::unexpected(BackendError::NotInitialized);
     if (interrupt) {
-      if (!nvdaController_cancelSpeech())
+      if (nvdaController_cancelSpeech())
         return std::unexpected(BackendError::InternalBackendError);
     }
     const auto str = std::string(text);
@@ -29,13 +29,13 @@ public:
             str.c_str(), str.size(), reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (!nvdaController_speakText(wstr.c_str()))
+    if (nvdaController_speakText(wstr.c_str()))
       return std::unexpected(BackendError::InternalBackendError);
     return {};
   }
 
   BackendResult<> braille(std::string_view text) override {
-    if (!nvdaController_testIfRunning())
+    if (nvdaController_testIfRunning())
       return std::unexpected(BackendError::NotInitialized);
     const auto str = std::string(text);
     const auto len = simdutf::utf16_length_from_utf8(str.c_str(), str.size());
@@ -45,7 +45,7 @@ public:
             str.c_str(), str.size(), reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (!nvdaController_brailleMessage(wstr.c_str()))
+    if (nvdaController_brailleMessage(wstr.c_str()))
       return std::unexpected(BackendError::InternalBackendError);
     return {};
   }
@@ -59,9 +59,9 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (!nvdaController_testIfRunning())
+    if (nvdaController_testIfRunning())
       return std::unexpected(BackendError::NotInitialized);
-    if (!nvdaController_cancelSpeech())
+    if (nvdaController_cancelSpeech())
       return std::unexpected(BackendError::InternalBackendError);
     return {};
   }

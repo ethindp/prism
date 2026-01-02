@@ -11,21 +11,28 @@
 
 class SapiBackend final : public TextToSpeechBackend {
 private:
-  sb_sapi *sapi;
+  sb_sapi *sapi{nullptr};
   std::atomic_flag initialized;
   std::atomic_flag paused;
 
 public:
   ~SapiBackend() override {
-    if (sapi)
+    if (sapi) {
       sb_sapi_cleanup(sapi);
+      delete sapi;
+      sapi = nullptr;
+    }
   }
 
   std::string_view get_name() const override { return "SAPI"; }
 
   BackendResult<> initialize() override {
-    if (sapi)
+    if (sapi) {
       sb_sapi_cleanup(sapi);
+      delete sapi;
+      sapi = nullptr;
+    }
+    sapi = new sb_sapi{};
     if (!sb_sapi_initialise(sapi))
       return std::unexpected(BackendError::InternalBackendError);
     initialized.test_and_set();
@@ -74,6 +81,7 @@ public:
       return std::unexpected(BackendError::AlreadyPaused);
     if (!sb_sapi_pause(sapi))
       return std::unexpected(BackendError::InternalBackendError);
+    paused.test_and_set();
     return {};
   }
 
@@ -84,6 +92,7 @@ public:
       return std::unexpected(BackendError::NotPaused);
     if (!sb_sapi_resume(sapi))
       return std::unexpected(BackendError::InternalBackendError);
+    paused.clear();
     return {};
   }
 

@@ -87,6 +87,9 @@ if(NOT WIN32)
        source/backends/raw/zt.c)
 endif()
 add_library(${PROJECT_NAME} SHARED ${headers} ${sources})
+target_include_directories(${PROJECT_NAME}
+                           PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_compile_definitions(${PROJECT_NAME} PRIVATE PRISM_BUILDING)
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
                                                MATCHES "MSVC")
   find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
@@ -107,7 +110,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 if(MSVC)
-  set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "/STACK:8388608")
+  set_target_properties(
+    ${PROJECT_NAME}
+    PROPERTIES
+      LINK_FLAGS
+      "/STACK:8388608 /delayload:nvdaControllerClient.dll /delayload:SAAPI64.dll"
+  )
 elseif(APPLE)
   set_target_properties(
     ${PROJECT_NAME} PROPERTIES LINK_FLAGS "-Wl,-headerpad_max_install_names")
@@ -115,8 +123,11 @@ elseif(APPLE)
   target_link_libraries(${PROJECT_NAME} PRIVATE ${AVFOUNDATION_FRAMEWORK})
 endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
-find_package(NVDAController REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE NVDA::Controller)
+if(WIN32)
+  find_package(NVDAController REQUIRED)
+  target_link_libraries(${PROJECT_NAME} PRIVATE NVDA::Controller)
+  target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib)
+endif()
 if(MSVC)
   check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)

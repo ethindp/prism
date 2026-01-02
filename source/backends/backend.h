@@ -24,6 +24,8 @@ enum class BackendError : std::uint8_t {
   AlreadyPaused,
   InvalidUtf8,
   InvalidOperation,
+  AlreadyInitialized,
+  BackendNotAvailable,
   Unknown
 };
 

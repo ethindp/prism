@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 #include "prism.h"
 #include "backends/backend_registry.h"
 #include <new>

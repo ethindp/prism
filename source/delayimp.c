@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 #ifdef _WIN32
 #include <windows.h>
 #include <delayimp.h>

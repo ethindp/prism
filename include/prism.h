@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 #pragma once
 #ifndef PRISM_H
 #define PRISM_H

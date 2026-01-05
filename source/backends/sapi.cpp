@@ -6,7 +6,10 @@
 #include "utils.h"
 #include <atomic>
 #include <cmath>
+#include <cstdint>
+#include <cstdlib>
 #include <limits>
+#include <vector>
 #ifdef _WIN32
 #include "raw/sapibridge.h"
 
@@ -46,6 +49,8 @@ public:
     if (!simdutf::validate_utf8(text.data(), text.size())) {
       return std::unexpected(BackendError::InvalidUtf8);
     }
+    if (text.size() >= std::numeric_limits<int>::max())
+      return std::unexpected(BackendError::RangeOutOfBounds);
     auto str = std::string(text);
     if (interrupt) {
       if (sb_sapi_is_speaking(sapi)) {
@@ -54,8 +59,43 @@ public:
         }
       }
     }
-    if (!sb_sapi_speak(sapi, str.data(), str.size()))
+    if (!sb_sapi_speak(sapi, str.data(), static_cast<int>(str.size())))
       return std::unexpected(BackendError::SpeakFailure);
+    return {};
+  }
+
+  BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
+                                  void *userdata) override {
+    if (!sapi || !initialized.test())
+      return std::unexpected(BackendError::NotInitialized);
+    if (!simdutf::validate_utf8(text.data(), text.size())) {
+      return std::unexpected(BackendError::InvalidUtf8);
+    }
+    if (text.size() >= std::numeric_limits<int>::max())
+      return std::unexpected(BackendError::RangeOutOfBounds);
+    auto str = std::string(text);
+    void *buffer = nullptr;
+    int size = 0;
+    if (!sb_sapi_speak_to_memory(sapi, str.data(), &buffer, &size))
+      return std::unexpected(BackendError::InternalBackendError);
+    int channels = sb_sapi_get_channels(sapi);
+    int sample_rate = sb_sapi_get_sample_rate(sapi);
+    int bit_depth = sb_sapi_get_bit_depth(sapi);
+    std::size_t sample_count = size / (bit_depth / 8);
+    std::vector<float> samples(sample_count);
+    if (bit_depth == 16) {
+      const int16_t *src = static_cast<const int16_t *>(buffer);
+      for (std::size_t i = 0; i < sample_count; ++i) {
+        samples[i] = src[i] / 32768.0f;
+      }
+    } else if (bit_depth == 8) {
+      const uint8_t *src = static_cast<const uint8_t *>(buffer);
+      for (std::size_t i = 0; i < sample_count; ++i) {
+        samples[i] = (src[i] - 128) / 128.0f;
+      }
+    }
+    std::free(buffer);
+    callback(userdata, samples.data(), sample_count, channels, sample_rate);
     return {};
   }
 
@@ -118,7 +158,8 @@ public:
     if (!sapi || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     const auto val = sb_sapi_get_volume(sapi);
-    return std::round(range_convert_midpoint(val, -10, 0, 10, 0.0, 0.5, 1.0));
+    return std::round(range_convert_midpoint(static_cast<float>(val), -10, 0,
+                                             10, 0.0, 0.5, 1.0));
   }
 
   BackendResult<> set_rate(float rate) override {
@@ -139,7 +180,8 @@ public:
     if (!sapi || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     const auto val = sb_sapi_get_rate(sapi);
-    return std::round(range_convert_midpoint(val, -10, 0, 10, 0.0, 0.5, 1.0));
+    return std::round(range_convert_midpoint(static_cast<float>(val), -10, 0,
+                                             10, 0.0, 0.5, 1.0));
   }
 
   BackendResult<> set_pitch(float pitch) override {
@@ -160,7 +202,8 @@ public:
     if (!sapi || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     const auto val = sb_sapi_get_pitch(sapi);
-    return std::round(range_convert_midpoint(val, -10, 0, 10, 0.0, 0.5, 1.0));
+    return std::round(range_convert_midpoint(static_cast<float>(val), -10, 0,
+                                             10, 0.0, 0.5, 1.0));
   }
 
   BackendResult<> refresh_voices() override {

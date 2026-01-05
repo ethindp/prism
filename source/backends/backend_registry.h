@@ -3,6 +3,7 @@
 #include "backend.h"
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <memory>
 #include <shared_mutex>
 #include <string_view>

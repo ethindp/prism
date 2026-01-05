@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
-import AVFoundation
-
 import Foundation
+import AVFoundation
 
 enum SpeechError: Int32 {
   case ok = 0
@@ -15,8 +14,20 @@ enum SpeechError: Int32 {
   case memoryFailed
   case unknown
 }
+
+@inline(__always)
+private func onMainActor<T>(_ body: @MainActor () -> T) -> T {
+  if Thread.isMainThread {
+    return MainActor.assumeIsolated { body() }
+  } else {
+    return DispatchQueue.main.sync {
+      MainActor.assumeIsolated { body() }
+    }
+  }
+}
+
 @MainActor
-final class AVSpeechContextImpl: NSObject, AVSpeechSynthesizerDelegate {
+final class AVSpeechContextImpl: NSObject, @preconcurrency AVSpeechSynthesizerDelegate {
   let synthesizer = AVSpeechSynthesizer()
   var volume: Float = 0.5
   var pitch: Float = 1.0
@@ -79,23 +90,14 @@ final class AVSpeechContextImpl: NSObject, AVSpeechSynthesizerDelegate {
     audioUserdata = nil
   }
 }
-@inline(__always)
-private func onMainActor<T>(_ body: @MainActor () -> T) -> T {
-  if Thread.isMainThread {
-    return MainActor.assumeIsolated { body() }
-  } else {
-    return DispatchQueue.main.sync {
-      MainActor.assumeIsolated { body() }
-    }
-  }
-}
-private func withContext(
-  _ ctx: UnsafeMutableRawPointer?, _ body: (AVSpeechContextImpl) -> SpeechError
-) -> Int32 {
+
+private func withContext(_ ctx: UnsafeMutableRawPointer?, _ body: @MainActor (AVSpeechContextImpl) -> SpeechError) -> Int32 {
   guard let ctx else { return SpeechError.notInitialized.rawValue }
-  return onMainActor { body(Unmanaged<AVSpeechContextImpl>.fromOpaque(ctx).takeUnretainedValue()) }
-    .rawValue
+  return onMainActor {
+    body(Unmanaged<AVSpeechContextImpl>.fromOpaque(ctx).takeUnretainedValue())
+  }.rawValue
 }
+
 @_cdecl("avspeech_initialize")
 func avspeech_initialize(_ ctx: UnsafeMutablePointer<UnsafeMutableRawPointer?>) -> Int32 {
   onMainActor {
@@ -103,6 +105,7 @@ func avspeech_initialize(_ ctx: UnsafeMutablePointer<UnsafeMutableRawPointer?>) 
   }
   return SpeechError.ok.rawValue
 }
+
 @_cdecl("avspeech_cleanup")
 func avspeech_cleanup(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
   guard let ctx else { return SpeechError.notInitialized.rawValue }
@@ -111,6 +114,7 @@ func avspeech_cleanup(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
   }
   return SpeechError.ok.rawValue
 }
+
 @_cdecl("avspeech_speak")
 func avspeech_speak(_ ctx: UnsafeMutableRawPointer?, _ text: UnsafePointer<CChar>?) -> Int32 {
   withContext(ctx) { impl in
@@ -119,45 +123,47 @@ func avspeech_speak(_ ctx: UnsafeMutableRawPointer?, _ text: UnsafePointer<CChar
     return .ok
   }
 }
+
 @_cdecl("avspeech_speak_to_memory")
 func avspeech_speak_to_memory(
   _ ctx: UnsafeMutableRawPointer?, _ text: UnsafePointer<CChar>?,
-  _ callback: (
-    @convention(c) (UnsafeMutableRawPointer?, UnsafePointer<Float>?, Int, Int32, Int32) -> Void
-  )?, _ userdata: UnsafeMutableRawPointer?
+  _ callback: (@convention(c) (UnsafeMutableRawPointer?, UnsafePointer<Float>?, Int, Int32, Int32) ->
+    Void)?, _ userdata: UnsafeMutableRawPointer?
 ) -> Int32 {
   withContext(ctx) { impl in
     guard let text, let callback else { return .invalidParam }
     impl.audioCallback = callback
     impl.audioUserdata = userdata
-    impl.synthesizer.write(impl.makeUtterance(for: String(cString: text))) { [weak impl] buffer in
-      guard let impl,
-        let callback = impl.audioCallback,
-        let pcmBuffer = buffer as? AVAudioPCMBuffer,
-        let floatData = pcmBuffer.floatChannelData
-      else { return }
-      let frameCount = Int(pcmBuffer.frameLength)
-      let channelCount = Int32(pcmBuffer.format.channelCount)
-      let sampleRate = Int32(pcmBuffer.format.sampleRate)
-      impl.outputChannels = channelCount
-      impl.outputSampleRate = sampleRate
-      if channelCount == 1 {
-        callback(impl.audioUserdata, floatData[0], frameCount, channelCount, sampleRate)
-      } else {
-        var interleaved = [Float](repeating: 0, count: frameCount * Int(channelCount))
-        for frame in 0..<frameCount {
-          for ch in 0..<Int(channelCount) {
-            interleaved[frame * Int(channelCount) + ch] = floatData[ch][frame]
+    impl.synthesizer.write(impl.makeUtterance(for: String(cString: text))) { buffer in
+      onMainActor {
+        guard let callback = impl.audioCallback,
+          let pcmBuffer = buffer as? AVAudioPCMBuffer,
+          let floatData = pcmBuffer.floatChannelData
+        else { return }
+        let frameCount = Int(pcmBuffer.frameLength)
+        let channelCount = Int32(pcmBuffer.format.channelCount)
+        let sampleRate = Int32(pcmBuffer.format.sampleRate)
+        impl.outputChannels = channelCount
+        impl.outputSampleRate = sampleRate
+        if channelCount == 1 {
+          callback(impl.audioUserdata, floatData[0], frameCount, channelCount, sampleRate)
+        } else {
+          var interleaved = [Float](repeating: 0, count: frameCount * Int(channelCount))
+          for frame in 0..<frameCount {
+            for ch in 0..<Int(channelCount) {
+              interleaved[frame * Int(channelCount) + ch] = floatData[ch][frame]
+            }
           }
-        }
-        interleaved.withUnsafeBufferPointer { ptr in
-          callback(impl.audioUserdata, ptr.baseAddress, frameCount, channelCount, sampleRate)
+          interleaved.withUnsafeBufferPointer { ptr in
+            callback(impl.audioUserdata, ptr.baseAddress, frameCount, channelCount, sampleRate)
+          }
         }
       }
     }
     return .ok
   }
 }
+
 @_cdecl("avspeech_stop")
 func avspeech_stop(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
   withContext(ctx) { impl in
@@ -165,6 +171,7 @@ func avspeech_stop(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
     return .ok
   }
 }
+
 @_cdecl("avspeech_pause")
 func avspeech_pause(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
   withContext(ctx) { impl in
@@ -172,6 +179,7 @@ func avspeech_pause(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
     return .ok
   }
 }
+
 @_cdecl("avspeech_resume")
 func avspeech_resume(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
   withContext(ctx) { impl in
@@ -179,6 +187,7 @@ func avspeech_resume(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
     return .ok
   }
 }
+
 @_cdecl("avspeech_is_speaking")
 func avspeech_is_speaking(_ ctx: UnsafeMutableRawPointer?) -> Bool {
   guard let ctx else { return false }
@@ -186,6 +195,7 @@ func avspeech_is_speaking(_ ctx: UnsafeMutableRawPointer?) -> Bool {
     Unmanaged<AVSpeechContextImpl>.fromOpaque(ctx).takeUnretainedValue().synthesizer.isSpeaking
   }
 }
+
 @_cdecl("avspeech_set_volume")
 func avspeech_set_volume(_ ctx: UnsafeMutableRawPointer?, _ volume: Float) -> Int32 {
   withContext(ctx) { impl in
@@ -193,6 +203,7 @@ func avspeech_set_volume(_ ctx: UnsafeMutableRawPointer?, _ volume: Float) -> In
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_volume")
 func avspeech_get_volume(_ ctx: UnsafeMutableRawPointer?, _ volume: UnsafeMutablePointer<Float>?)
   -> Int32
@@ -203,6 +214,7 @@ func avspeech_get_volume(_ ctx: UnsafeMutableRawPointer?, _ volume: UnsafeMutabl
     return .ok
   }
 }
+
 @_cdecl("avspeech_set_pitch")
 func avspeech_set_pitch(_ ctx: UnsafeMutableRawPointer?, _ pitch: Float) -> Int32 {
   withContext(ctx) { impl in
@@ -210,6 +222,7 @@ func avspeech_set_pitch(_ ctx: UnsafeMutableRawPointer?, _ pitch: Float) -> Int3
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_pitch")
 func avspeech_get_pitch(_ ctx: UnsafeMutableRawPointer?, _ pitch: UnsafeMutablePointer<Float>?)
   -> Int32
@@ -220,6 +233,7 @@ func avspeech_get_pitch(_ ctx: UnsafeMutableRawPointer?, _ pitch: UnsafeMutableP
     return .ok
   }
 }
+
 @_cdecl("avspeech_set_rate")
 func avspeech_set_rate(_ ctx: UnsafeMutableRawPointer?, _ rate: Float) -> Int32 {
   withContext(ctx) { impl in
@@ -227,6 +241,7 @@ func avspeech_set_rate(_ ctx: UnsafeMutableRawPointer?, _ rate: Float) -> Int32 
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_rate")
 func avspeech_get_rate(_ ctx: UnsafeMutableRawPointer?, _ rate: UnsafeMutablePointer<Float>?)
   -> Int32
@@ -237,18 +252,22 @@ func avspeech_get_rate(_ ctx: UnsafeMutableRawPointer?, _ rate: UnsafeMutablePoi
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_rate_min")
 func avspeech_get_rate_min() -> Float {
   AVSpeechUtteranceMinimumSpeechRate
 }
+
 @_cdecl("avspeech_get_rate_max")
 func avspeech_get_rate_max() -> Float {
   AVSpeechUtteranceMaximumSpeechRate
 }
+
 @_cdecl("avspeech_get_rate_default")
 func avspeech_get_rate_default() -> Float {
   AVSpeechUtteranceDefaultSpeechRate
 }
+
 @_cdecl("avspeech_refresh_voices")
 func avspeech_refresh_voices(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
   withContext(ctx) { impl in
@@ -256,6 +275,7 @@ func avspeech_refresh_voices(_ ctx: UnsafeMutableRawPointer?) -> Int32 {
     return .ok
   }
 }
+
 @_cdecl("avspeech_count_voices")
 func avspeech_count_voices(_ ctx: UnsafeMutableRawPointer?, _ count: UnsafeMutablePointer<Int32>?)
   -> Int32
@@ -266,6 +286,7 @@ func avspeech_count_voices(_ ctx: UnsafeMutableRawPointer?, _ count: UnsafeMutab
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_voice_name")
 func avspeech_get_voice_name(
   _ ctx: UnsafeMutableRawPointer?, _ voiceId: Int32,
@@ -278,6 +299,7 @@ func avspeech_get_voice_name(
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_voice_language")
 func avspeech_get_voice_language(
   _ ctx: UnsafeMutableRawPointer?, _ voiceId: Int32,
@@ -290,6 +312,7 @@ func avspeech_get_voice_language(
     return .ok
   }
 }
+
 @_cdecl("avspeech_set_voice")
 func avspeech_set_voice(_ ctx: UnsafeMutableRawPointer?, _ voiceId: Int32) -> Int32 {
   withContext(ctx) { impl in
@@ -298,6 +321,7 @@ func avspeech_set_voice(_ ctx: UnsafeMutableRawPointer?, _ voiceId: Int32) -> In
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_voice")
 func avspeech_get_voice(_ ctx: UnsafeMutableRawPointer?, _ voiceId: UnsafeMutablePointer<Int32>?)
   -> Int32
@@ -314,6 +338,7 @@ func avspeech_get_voice(_ ctx: UnsafeMutableRawPointer?, _ voiceId: UnsafeMutabl
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_channels")
 func avspeech_get_channels(
   _ ctx: UnsafeMutableRawPointer?, _ channels: UnsafeMutablePointer<Int32>?
@@ -324,6 +349,7 @@ func avspeech_get_channels(
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_sample_rate")
 func avspeech_get_sample_rate(
   _ ctx: UnsafeMutableRawPointer?, _ sampleRate: UnsafeMutablePointer<Int32>?
@@ -334,6 +360,7 @@ func avspeech_get_sample_rate(
     return .ok
   }
 }
+
 @_cdecl("avspeech_get_bit_depth")
 func avspeech_get_bit_depth(
   _ ctx: UnsafeMutableRawPointer?, _ bitDepth: UnsafeMutablePointer<Int32>?

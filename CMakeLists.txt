@@ -172,18 +172,22 @@ if(MSVC)
   endif()
 endif()
 if(APPLE)
-target_link_options(${PROJECT_NAME} PRIVATE "LINKER:-headerpad_max_install_names")
+  target_link_options(${PROJECT_NAME} PRIVATE
+                      "LINKER:-headerpad_max_install_names")
 endif()
 if(NOT MSVC)
   check_cxx_compiler_flag(-march=x86-64-v3 COMPILER_SUPPORTS_X86_64_V3)
   check_cxx_compiler_flag(-march=armv8.9-a COMPILER_SUPPORTS_ARMV89_A)
   check_cxx_compiler_flag(-march=armv9.5-a COMPILER_SUPPORTS_ARMV95_A)
   if(COMPILER_SUPPORTS_X86_64_V3)
-    target_compile_options(${PROJECT_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-march=x86-64-v3>)
+    target_compile_options(${PROJECT_NAME}
+                           PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-march=x86-64-v3>)
   elseif(COMPILER_SUPPORTS_ARMV95_A)
-    target_compile_options(${PROJECT_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-march=armv9.5-a>)
+    target_compile_options(${PROJECT_NAME}
+                           PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-march=armv9.5-a>)
   elseif(COMPILER_SUPPORTS_ARMV89_A)
-    target_compile_options(${PROJECT_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-march=armv8.9-a>)
+    target_compile_options(${PROJECT_NAME}
+                           PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-march=armv8.9-a>)
   else()
     message(
       STATUS

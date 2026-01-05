@@ -112,8 +112,8 @@ public:
       return std::unexpected(BackendError::RangeOutOfBounds);
     }
     const auto val = range_convert_midpoint(
-        rate, 0.0, 0.5, 1.0, avspeech_get_rate_min(ctx),
-        avspeech_get_rate_default(ctx), avspeech_get_rate_max(ctx));
+        rate, 0.0, 0.5, 1.0, avspeech_get_rate_min(),
+        avspeech_get_rate_default(), avspeech_get_rate_max());
     if (const auto res = avspeech_set_rate(ctx, val); res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
     }
@@ -127,9 +127,9 @@ public:
     if (const auto res = avspeech_get_rate(ctx, &rate); res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
     }
-    return range_convert_midpoint(rate, avspeech_get_rate_min(ctx),
-                                  avspeech_get_rate_default(ctx),
-                                  avspeech_get_rate_max(ctx), 0.0, 0.5, 1.0);
+    return range_convert_midpoint(rate, avspeech_get_rate_min(),
+                                  avspeech_get_rate_default(),
+                                  avspeech_get_rate_max(), 0.0, 0.5, 1.0);
   }
 
   BackendResult<> set_pitch(float pitch) override {

@@ -188,14 +188,14 @@ public:
     return std::string(name);
   }
 
-  BackendResult<std::string> get_voice_name(std::size_t id) override {
+  BackendResult<std::string> get_voice_language(std::size_t id) override {
     if (!ctx)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
     const char *name;
     if (const auto res =
-            avspeech_get_voice_name(ctx, static_cast<int>(id), &name);
+            avspeech_get_voice_language(ctx, static_cast<int>(id), &name);
         res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
     }

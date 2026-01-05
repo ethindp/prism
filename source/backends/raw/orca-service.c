@@ -291,8 +291,8 @@ _g_dbus_codegen_marshal_BOOLEAN__OBJECT_STRING (
  */
 
 /**
- * SECTION:OrgGnomeOrcaService
- * @title: OrgGnomeOrcaService
+ * SECTION:OrcaServiceOrgGnomeOrcaService
+ * @title: OrcaServiceOrgGnomeOrcaService
  * @short_description: Generated C code for the org.gnome.Orca.Service D-Bus interface
  *
  * This section contains code for working with the <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link> D-Bus interface in C.
@@ -300,97 +300,97 @@ _g_dbus_codegen_marshal_BOOLEAN__OBJECT_STRING (
 
 /* ---- Introspection data for org.gnome.Orca.Service ---- */
 
-static const _ExtendedGDBusArgInfo _org_gnome_orca_service_method_info_get_version_OUT_ARG_return =
+static const _ExtendedGDBusArgInfo _orca_service_org_gnome_orca_service_method_info_get_version_OUT_ARG_result =
 {
   {
     -1,
-    (gchar *) "return",
+    (gchar *) "result",
     (gchar *) "s",
     NULL
   },
   FALSE
 };
 
-static const GDBusArgInfo * const _org_gnome_orca_service_method_info_get_version_OUT_ARG_pointers[] =
+static const GDBusArgInfo * const _orca_service_org_gnome_orca_service_method_info_get_version_OUT_ARG_pointers[] =
 {
-  &_org_gnome_orca_service_method_info_get_version_OUT_ARG_return.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_get_version_OUT_ARG_result.parent_struct,
   NULL
 };
 
-static const _ExtendedGDBusMethodInfo _org_gnome_orca_service_method_info_get_version =
+static const _ExtendedGDBusMethodInfo _orca_service_org_gnome_orca_service_method_info_get_version =
 {
   {
     -1,
     (gchar *) "GetVersion",
     NULL,
-    (GDBusArgInfo **) &_org_gnome_orca_service_method_info_get_version_OUT_ARG_pointers,
+    (GDBusArgInfo **) &_orca_service_org_gnome_orca_service_method_info_get_version_OUT_ARG_pointers,
     NULL
   },
   "handle-get-version",
   FALSE
 };
 
-static const _ExtendedGDBusArgInfo _org_gnome_orca_service_method_info_list_commands_OUT_ARG_return =
+static const _ExtendedGDBusArgInfo _orca_service_org_gnome_orca_service_method_info_list_commands_OUT_ARG_result =
 {
   {
     -1,
-    (gchar *) "return",
+    (gchar *) "result",
     (gchar *) "a(ss)",
     NULL
   },
   FALSE
 };
 
-static const GDBusArgInfo * const _org_gnome_orca_service_method_info_list_commands_OUT_ARG_pointers[] =
+static const GDBusArgInfo * const _orca_service_org_gnome_orca_service_method_info_list_commands_OUT_ARG_pointers[] =
 {
-  &_org_gnome_orca_service_method_info_list_commands_OUT_ARG_return.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_list_commands_OUT_ARG_result.parent_struct,
   NULL
 };
 
-static const _ExtendedGDBusMethodInfo _org_gnome_orca_service_method_info_list_commands =
+static const _ExtendedGDBusMethodInfo _orca_service_org_gnome_orca_service_method_info_list_commands =
 {
   {
     -1,
     (gchar *) "ListCommands",
     NULL,
-    (GDBusArgInfo **) &_org_gnome_orca_service_method_info_list_commands_OUT_ARG_pointers,
+    (GDBusArgInfo **) &_orca_service_org_gnome_orca_service_method_info_list_commands_OUT_ARG_pointers,
     NULL
   },
   "handle-list-commands",
   FALSE
 };
 
-static const _ExtendedGDBusArgInfo _org_gnome_orca_service_method_info_list_modules_OUT_ARG_return =
+static const _ExtendedGDBusArgInfo _orca_service_org_gnome_orca_service_method_info_list_modules_OUT_ARG_result =
 {
   {
     -1,
-    (gchar *) "return",
+    (gchar *) "result",
     (gchar *) "as",
     NULL
   },
   FALSE
 };
 
-static const GDBusArgInfo * const _org_gnome_orca_service_method_info_list_modules_OUT_ARG_pointers[] =
+static const GDBusArgInfo * const _orca_service_org_gnome_orca_service_method_info_list_modules_OUT_ARG_pointers[] =
 {
-  &_org_gnome_orca_service_method_info_list_modules_OUT_ARG_return.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_list_modules_OUT_ARG_result.parent_struct,
   NULL
 };
 
-static const _ExtendedGDBusMethodInfo _org_gnome_orca_service_method_info_list_modules =
+static const _ExtendedGDBusMethodInfo _orca_service_org_gnome_orca_service_method_info_list_modules =
 {
   {
     -1,
     (gchar *) "ListModules",
     NULL,
-    (GDBusArgInfo **) &_org_gnome_orca_service_method_info_list_modules_OUT_ARG_pointers,
+    (GDBusArgInfo **) &_orca_service_org_gnome_orca_service_method_info_list_modules_OUT_ARG_pointers,
     NULL
   },
   "handle-list-modules",
   FALSE
 };
 
-static const _ExtendedGDBusArgInfo _org_gnome_orca_service_method_info_present_message_IN_ARG_message =
+static const _ExtendedGDBusArgInfo _orca_service_org_gnome_orca_service_method_info_present_message_IN_ARG_message =
 {
   {
     -1,
@@ -401,119 +401,119 @@ static const _ExtendedGDBusArgInfo _org_gnome_orca_service_method_info_present_m
   FALSE
 };
 
-static const GDBusArgInfo * const _org_gnome_orca_service_method_info_present_message_IN_ARG_pointers[] =
+static const GDBusArgInfo * const _orca_service_org_gnome_orca_service_method_info_present_message_IN_ARG_pointers[] =
 {
-  &_org_gnome_orca_service_method_info_present_message_IN_ARG_message.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_present_message_IN_ARG_message.parent_struct,
   NULL
 };
 
-static const _ExtendedGDBusArgInfo _org_gnome_orca_service_method_info_present_message_OUT_ARG_return =
+static const _ExtendedGDBusArgInfo _orca_service_org_gnome_orca_service_method_info_present_message_OUT_ARG_result =
 {
   {
     -1,
-    (gchar *) "return",
+    (gchar *) "result",
     (gchar *) "b",
     NULL
   },
   FALSE
 };
 
-static const GDBusArgInfo * const _org_gnome_orca_service_method_info_present_message_OUT_ARG_pointers[] =
+static const GDBusArgInfo * const _orca_service_org_gnome_orca_service_method_info_present_message_OUT_ARG_pointers[] =
 {
-  &_org_gnome_orca_service_method_info_present_message_OUT_ARG_return.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_present_message_OUT_ARG_result.parent_struct,
   NULL
 };
 
-static const _ExtendedGDBusMethodInfo _org_gnome_orca_service_method_info_present_message =
+static const _ExtendedGDBusMethodInfo _orca_service_org_gnome_orca_service_method_info_present_message =
 {
   {
     -1,
     (gchar *) "PresentMessage",
-    (GDBusArgInfo **) &_org_gnome_orca_service_method_info_present_message_IN_ARG_pointers,
-    (GDBusArgInfo **) &_org_gnome_orca_service_method_info_present_message_OUT_ARG_pointers,
+    (GDBusArgInfo **) &_orca_service_org_gnome_orca_service_method_info_present_message_IN_ARG_pointers,
+    (GDBusArgInfo **) &_orca_service_org_gnome_orca_service_method_info_present_message_OUT_ARG_pointers,
     NULL
   },
   "handle-present-message",
   FALSE
 };
 
-static const _ExtendedGDBusArgInfo _org_gnome_orca_service_method_info_quit_OUT_ARG_return =
+static const _ExtendedGDBusArgInfo _orca_service_org_gnome_orca_service_method_info_quit_OUT_ARG_result =
 {
   {
     -1,
-    (gchar *) "return",
+    (gchar *) "result",
     (gchar *) "b",
     NULL
   },
   FALSE
 };
 
-static const GDBusArgInfo * const _org_gnome_orca_service_method_info_quit_OUT_ARG_pointers[] =
+static const GDBusArgInfo * const _orca_service_org_gnome_orca_service_method_info_quit_OUT_ARG_pointers[] =
 {
-  &_org_gnome_orca_service_method_info_quit_OUT_ARG_return.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_quit_OUT_ARG_result.parent_struct,
   NULL
 };
 
-static const _ExtendedGDBusMethodInfo _org_gnome_orca_service_method_info_quit =
+static const _ExtendedGDBusMethodInfo _orca_service_org_gnome_orca_service_method_info_quit =
 {
   {
     -1,
     (gchar *) "Quit",
     NULL,
-    (GDBusArgInfo **) &_org_gnome_orca_service_method_info_quit_OUT_ARG_pointers,
+    (GDBusArgInfo **) &_orca_service_org_gnome_orca_service_method_info_quit_OUT_ARG_pointers,
     NULL
   },
   "handle-quit",
   FALSE
 };
 
-static const _ExtendedGDBusArgInfo _org_gnome_orca_service_method_info_show_preferences_OUT_ARG_return =
+static const _ExtendedGDBusArgInfo _orca_service_org_gnome_orca_service_method_info_show_preferences_OUT_ARG_result =
 {
   {
     -1,
-    (gchar *) "return",
+    (gchar *) "result",
     (gchar *) "b",
     NULL
   },
   FALSE
 };
 
-static const GDBusArgInfo * const _org_gnome_orca_service_method_info_show_preferences_OUT_ARG_pointers[] =
+static const GDBusArgInfo * const _orca_service_org_gnome_orca_service_method_info_show_preferences_OUT_ARG_pointers[] =
 {
-  &_org_gnome_orca_service_method_info_show_preferences_OUT_ARG_return.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_show_preferences_OUT_ARG_result.parent_struct,
   NULL
 };
 
-static const _ExtendedGDBusMethodInfo _org_gnome_orca_service_method_info_show_preferences =
+static const _ExtendedGDBusMethodInfo _orca_service_org_gnome_orca_service_method_info_show_preferences =
 {
   {
     -1,
     (gchar *) "ShowPreferences",
     NULL,
-    (GDBusArgInfo **) &_org_gnome_orca_service_method_info_show_preferences_OUT_ARG_pointers,
+    (GDBusArgInfo **) &_orca_service_org_gnome_orca_service_method_info_show_preferences_OUT_ARG_pointers,
     NULL
   },
   "handle-show-preferences",
   FALSE
 };
 
-static const GDBusMethodInfo * const _org_gnome_orca_service_method_info_pointers[] =
+static const GDBusMethodInfo * const _orca_service_org_gnome_orca_service_method_info_pointers[] =
 {
-  &_org_gnome_orca_service_method_info_get_version.parent_struct,
-  &_org_gnome_orca_service_method_info_list_commands.parent_struct,
-  &_org_gnome_orca_service_method_info_list_modules.parent_struct,
-  &_org_gnome_orca_service_method_info_present_message.parent_struct,
-  &_org_gnome_orca_service_method_info_quit.parent_struct,
-  &_org_gnome_orca_service_method_info_show_preferences.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_get_version.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_list_commands.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_list_modules.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_present_message.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_quit.parent_struct,
+  &_orca_service_org_gnome_orca_service_method_info_show_preferences.parent_struct,
   NULL
 };
 
-static const _ExtendedGDBusInterfaceInfo _org_gnome_orca_service_interface_info =
+static const _ExtendedGDBusInterfaceInfo _orca_service_org_gnome_orca_service_interface_info =
 {
   {
     -1,
     (gchar *) "org.gnome.Orca.Service",
-    (GDBusMethodInfo **) &_org_gnome_orca_service_method_info_pointers,
+    (GDBusMethodInfo **) &_orca_service_org_gnome_orca_service_method_info_pointers,
     NULL,
     NULL,
     NULL
@@ -523,37 +523,37 @@ static const _ExtendedGDBusInterfaceInfo _org_gnome_orca_service_interface_info 
 
 
 /**
- * org_gnome_orca_service_interface_info:
+ * orca_service_org_gnome_orca_service_interface_info:
  *
  * Gets a machine-readable description of the <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link> D-Bus interface.
  *
  * Returns: (transfer none): A #GDBusInterfaceInfo. Do not free.
  */
 GDBusInterfaceInfo *
-org_gnome_orca_service_interface_info (void)
+orca_service_org_gnome_orca_service_interface_info (void)
 {
-  return (GDBusInterfaceInfo *) &_org_gnome_orca_service_interface_info.parent_struct;
+  return (GDBusInterfaceInfo *) &_orca_service_org_gnome_orca_service_interface_info.parent_struct;
 }
 
 /**
- * org_gnome_orca_service_override_properties:
+ * orca_service_org_gnome_orca_service_override_properties:
  * @klass: The class structure for a #GObject derived class.
  * @property_id_begin: The property id to assign to the first overridden property.
  *
- * Overrides all #GObject properties in the #OrgGnomeOrcaService interface for a concrete class.
+ * Overrides all #GObject properties in the #OrcaServiceOrgGnomeOrcaService interface for a concrete class.
  * The properties are overridden in the order they are defined.
  *
  * Returns: The last property id.
  */
 guint
-org_gnome_orca_service_override_properties (GObjectClass *klass G_GNUC_UNUSED, guint property_id_begin)
+orca_service_org_gnome_orca_service_override_properties (GObjectClass *klass G_GNUC_UNUSED, guint property_id_begin)
 {
   return property_id_begin - 1;
 }
 
 
 inline static void
-org_gnome_orca_service_method_marshal_get_version (
+orca_service_org_gnome_orca_service_method_marshal_get_version (
     GClosure     *closure,
     GValue       *return_value,
     unsigned int  n_param_values,
@@ -566,7 +566,7 @@ org_gnome_orca_service_method_marshal_get_version (
 }
 
 inline static void
-org_gnome_orca_service_method_marshal_list_commands (
+orca_service_org_gnome_orca_service_method_marshal_list_commands (
     GClosure     *closure,
     GValue       *return_value,
     unsigned int  n_param_values,
@@ -579,7 +579,7 @@ org_gnome_orca_service_method_marshal_list_commands (
 }
 
 inline static void
-org_gnome_orca_service_method_marshal_list_modules (
+orca_service_org_gnome_orca_service_method_marshal_list_modules (
     GClosure     *closure,
     GValue       *return_value,
     unsigned int  n_param_values,
@@ -592,7 +592,7 @@ org_gnome_orca_service_method_marshal_list_modules (
 }
 
 inline static void
-org_gnome_orca_service_method_marshal_present_message (
+orca_service_org_gnome_orca_service_method_marshal_present_message (
     GClosure     *closure,
     GValue       *return_value,
     unsigned int  n_param_values,
@@ -605,7 +605,7 @@ org_gnome_orca_service_method_marshal_present_message (
 }
 
 inline static void
-org_gnome_orca_service_method_marshal_quit (
+orca_service_org_gnome_orca_service_method_marshal_quit (
     GClosure     *closure,
     GValue       *return_value,
     unsigned int  n_param_values,
@@ -618,7 +618,7 @@ org_gnome_orca_service_method_marshal_quit (
 }
 
 inline static void
-org_gnome_orca_service_method_marshal_show_preferences (
+orca_service_org_gnome_orca_service_method_marshal_show_preferences (
     GClosure     *closure,
     GValue       *return_value,
     unsigned int  n_param_values,
@@ -632,160 +632,160 @@ org_gnome_orca_service_method_marshal_show_preferences (
 
 
 /**
- * OrgGnomeOrcaService:
+ * OrcaServiceOrgGnomeOrcaService:
  *
  * Abstract interface type for the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link>.
  */
 
 /**
- * OrgGnomeOrcaServiceIface:
+ * OrcaServiceOrgGnomeOrcaServiceIface:
  * @parent_iface: The parent interface.
- * @handle_get_version: Handler for the #OrgGnomeOrcaService::handle-get-version signal.
- * @handle_list_commands: Handler for the #OrgGnomeOrcaService::handle-list-commands signal.
- * @handle_list_modules: Handler for the #OrgGnomeOrcaService::handle-list-modules signal.
- * @handle_present_message: Handler for the #OrgGnomeOrcaService::handle-present-message signal.
- * @handle_quit: Handler for the #OrgGnomeOrcaService::handle-quit signal.
- * @handle_show_preferences: Handler for the #OrgGnomeOrcaService::handle-show-preferences signal.
+ * @handle_get_version: Handler for the #OrcaServiceOrgGnomeOrcaService::handle-get-version signal.
+ * @handle_list_commands: Handler for the #OrcaServiceOrgGnomeOrcaService::handle-list-commands signal.
+ * @handle_list_modules: Handler for the #OrcaServiceOrgGnomeOrcaService::handle-list-modules signal.
+ * @handle_present_message: Handler for the #OrcaServiceOrgGnomeOrcaService::handle-present-message signal.
+ * @handle_quit: Handler for the #OrcaServiceOrgGnomeOrcaService::handle-quit signal.
+ * @handle_show_preferences: Handler for the #OrcaServiceOrgGnomeOrcaService::handle-show-preferences signal.
  *
  * Virtual table for the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link>.
  */
 
-typedef OrgGnomeOrcaServiceIface OrgGnomeOrcaServiceInterface;
-G_DEFINE_INTERFACE (OrgGnomeOrcaService, org_gnome_orca_service, G_TYPE_OBJECT)
+typedef OrcaServiceOrgGnomeOrcaServiceIface OrcaServiceOrgGnomeOrcaServiceInterface;
+G_DEFINE_INTERFACE (OrcaServiceOrgGnomeOrcaService, orca_service_org_gnome_orca_service, G_TYPE_OBJECT)
 
 static void
-org_gnome_orca_service_default_init (OrgGnomeOrcaServiceIface *iface)
+orca_service_org_gnome_orca_service_default_init (OrcaServiceOrgGnomeOrcaServiceIface *iface)
 {
   /* GObject signals for incoming D-Bus method calls: */
   /**
-   * OrgGnomeOrcaService::handle-get-version:
-   * @object: A #OrgGnomeOrcaService.
+   * OrcaServiceOrgGnomeOrcaService::handle-get-version:
+   * @object: A #OrcaServiceOrgGnomeOrcaService.
    * @invocation: A #GDBusMethodInvocation.
    *
    * Signal emitted when a remote caller is invoking the <link linkend="gdbus-method-org-gnome-Orca-Service.GetVersion">GetVersion()</link> D-Bus method.
    *
-   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call org_gnome_orca_service_complete_get_version() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
+   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call orca_service_org_gnome_orca_service_complete_get_version() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
    *
    * Returns: %G_DBUS_METHOD_INVOCATION_HANDLED or %TRUE if the invocation was handled, %G_DBUS_METHOD_INVOCATION_UNHANDLED or %FALSE to let other signal handlers run.
    */
   g_signal_new ("handle-get-version",
     G_TYPE_FROM_INTERFACE (iface),
     G_SIGNAL_RUN_LAST,
-    G_STRUCT_OFFSET (OrgGnomeOrcaServiceIface, handle_get_version),
+    G_STRUCT_OFFSET (OrcaServiceOrgGnomeOrcaServiceIface, handle_get_version),
     g_signal_accumulator_true_handled,
     NULL,
-      org_gnome_orca_service_method_marshal_get_version,
+      orca_service_org_gnome_orca_service_method_marshal_get_version,
     G_TYPE_BOOLEAN,
     1,
     G_TYPE_DBUS_METHOD_INVOCATION);
 
   /**
-   * OrgGnomeOrcaService::handle-list-commands:
-   * @object: A #OrgGnomeOrcaService.
+   * OrcaServiceOrgGnomeOrcaService::handle-list-commands:
+   * @object: A #OrcaServiceOrgGnomeOrcaService.
    * @invocation: A #GDBusMethodInvocation.
    *
    * Signal emitted when a remote caller is invoking the <link linkend="gdbus-method-org-gnome-Orca-Service.ListCommands">ListCommands()</link> D-Bus method.
    *
-   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call org_gnome_orca_service_complete_list_commands() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
+   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call orca_service_org_gnome_orca_service_complete_list_commands() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
    *
    * Returns: %G_DBUS_METHOD_INVOCATION_HANDLED or %TRUE if the invocation was handled, %G_DBUS_METHOD_INVOCATION_UNHANDLED or %FALSE to let other signal handlers run.
    */
   g_signal_new ("handle-list-commands",
     G_TYPE_FROM_INTERFACE (iface),
     G_SIGNAL_RUN_LAST,
-    G_STRUCT_OFFSET (OrgGnomeOrcaServiceIface, handle_list_commands),
+    G_STRUCT_OFFSET (OrcaServiceOrgGnomeOrcaServiceIface, handle_list_commands),
     g_signal_accumulator_true_handled,
     NULL,
-      org_gnome_orca_service_method_marshal_list_commands,
+      orca_service_org_gnome_orca_service_method_marshal_list_commands,
     G_TYPE_BOOLEAN,
     1,
     G_TYPE_DBUS_METHOD_INVOCATION);
 
   /**
-   * OrgGnomeOrcaService::handle-list-modules:
-   * @object: A #OrgGnomeOrcaService.
+   * OrcaServiceOrgGnomeOrcaService::handle-list-modules:
+   * @object: A #OrcaServiceOrgGnomeOrcaService.
    * @invocation: A #GDBusMethodInvocation.
    *
    * Signal emitted when a remote caller is invoking the <link linkend="gdbus-method-org-gnome-Orca-Service.ListModules">ListModules()</link> D-Bus method.
    *
-   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call org_gnome_orca_service_complete_list_modules() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
+   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call orca_service_org_gnome_orca_service_complete_list_modules() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
    *
    * Returns: %G_DBUS_METHOD_INVOCATION_HANDLED or %TRUE if the invocation was handled, %G_DBUS_METHOD_INVOCATION_UNHANDLED or %FALSE to let other signal handlers run.
    */
   g_signal_new ("handle-list-modules",
     G_TYPE_FROM_INTERFACE (iface),
     G_SIGNAL_RUN_LAST,
-    G_STRUCT_OFFSET (OrgGnomeOrcaServiceIface, handle_list_modules),
+    G_STRUCT_OFFSET (OrcaServiceOrgGnomeOrcaServiceIface, handle_list_modules),
     g_signal_accumulator_true_handled,
     NULL,
-      org_gnome_orca_service_method_marshal_list_modules,
+      orca_service_org_gnome_orca_service_method_marshal_list_modules,
     G_TYPE_BOOLEAN,
     1,
     G_TYPE_DBUS_METHOD_INVOCATION);
 
   /**
-   * OrgGnomeOrcaService::handle-present-message:
-   * @object: A #OrgGnomeOrcaService.
+   * OrcaServiceOrgGnomeOrcaService::handle-present-message:
+   * @object: A #OrcaServiceOrgGnomeOrcaService.
    * @invocation: A #GDBusMethodInvocation.
    * @arg_message: Argument passed by remote caller.
    *
    * Signal emitted when a remote caller is invoking the <link linkend="gdbus-method-org-gnome-Orca-Service.PresentMessage">PresentMessage()</link> D-Bus method.
    *
-   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call org_gnome_orca_service_complete_present_message() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
+   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call orca_service_org_gnome_orca_service_complete_present_message() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
    *
    * Returns: %G_DBUS_METHOD_INVOCATION_HANDLED or %TRUE if the invocation was handled, %G_DBUS_METHOD_INVOCATION_UNHANDLED or %FALSE to let other signal handlers run.
    */
   g_signal_new ("handle-present-message",
     G_TYPE_FROM_INTERFACE (iface),
     G_SIGNAL_RUN_LAST,
-    G_STRUCT_OFFSET (OrgGnomeOrcaServiceIface, handle_present_message),
+    G_STRUCT_OFFSET (OrcaServiceOrgGnomeOrcaServiceIface, handle_present_message),
     g_signal_accumulator_true_handled,
     NULL,
-      org_gnome_orca_service_method_marshal_present_message,
+      orca_service_org_gnome_orca_service_method_marshal_present_message,
     G_TYPE_BOOLEAN,
     2,
     G_TYPE_DBUS_METHOD_INVOCATION, G_TYPE_STRING);
 
   /**
-   * OrgGnomeOrcaService::handle-quit:
-   * @object: A #OrgGnomeOrcaService.
+   * OrcaServiceOrgGnomeOrcaService::handle-quit:
+   * @object: A #OrcaServiceOrgGnomeOrcaService.
    * @invocation: A #GDBusMethodInvocation.
    *
    * Signal emitted when a remote caller is invoking the <link linkend="gdbus-method-org-gnome-Orca-Service.Quit">Quit()</link> D-Bus method.
    *
-   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call org_gnome_orca_service_complete_quit() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
+   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call orca_service_org_gnome_orca_service_complete_quit() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
    *
    * Returns: %G_DBUS_METHOD_INVOCATION_HANDLED or %TRUE if the invocation was handled, %G_DBUS_METHOD_INVOCATION_UNHANDLED or %FALSE to let other signal handlers run.
    */
   g_signal_new ("handle-quit",
     G_TYPE_FROM_INTERFACE (iface),
     G_SIGNAL_RUN_LAST,
-    G_STRUCT_OFFSET (OrgGnomeOrcaServiceIface, handle_quit),
+    G_STRUCT_OFFSET (OrcaServiceOrgGnomeOrcaServiceIface, handle_quit),
     g_signal_accumulator_true_handled,
     NULL,
-      org_gnome_orca_service_method_marshal_quit,
+      orca_service_org_gnome_orca_service_method_marshal_quit,
     G_TYPE_BOOLEAN,
     1,
     G_TYPE_DBUS_METHOD_INVOCATION);
 
   /**
-   * OrgGnomeOrcaService::handle-show-preferences:
-   * @object: A #OrgGnomeOrcaService.
+   * OrcaServiceOrgGnomeOrcaService::handle-show-preferences:
+   * @object: A #OrcaServiceOrgGnomeOrcaService.
    * @invocation: A #GDBusMethodInvocation.
    *
    * Signal emitted when a remote caller is invoking the <link linkend="gdbus-method-org-gnome-Orca-Service.ShowPreferences">ShowPreferences()</link> D-Bus method.
    *
-   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call org_gnome_orca_service_complete_show_preferences() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
+   * If a signal handler returns %TRUE, it means the signal handler will handle the invocation (e.g. take a reference to @invocation and eventually call orca_service_org_gnome_orca_service_complete_show_preferences() or e.g. g_dbus_method_invocation_return_error() on it) and no other signal handlers will run. If no signal handler handles the invocation, the %G_DBUS_ERROR_UNKNOWN_METHOD error is returned.
    *
    * Returns: %G_DBUS_METHOD_INVOCATION_HANDLED or %TRUE if the invocation was handled, %G_DBUS_METHOD_INVOCATION_UNHANDLED or %FALSE to let other signal handlers run.
    */
   g_signal_new ("handle-show-preferences",
     G_TYPE_FROM_INTERFACE (iface),
     G_SIGNAL_RUN_LAST,
-    G_STRUCT_OFFSET (OrgGnomeOrcaServiceIface, handle_show_preferences),
+    G_STRUCT_OFFSET (OrcaServiceOrgGnomeOrcaServiceIface, handle_show_preferences),
     g_signal_accumulator_true_handled,
     NULL,
-      org_gnome_orca_service_method_marshal_show_preferences,
+      orca_service_org_gnome_orca_service_method_marshal_show_preferences,
     G_TYPE_BOOLEAN,
     1,
     G_TYPE_DBUS_METHOD_INVOCATION);
@@ -793,21 +793,21 @@ org_gnome_orca_service_default_init (OrgGnomeOrcaServiceIface *iface)
 }
 
 /**
- * org_gnome_orca_service_call_get_version:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
+ * orca_service_org_gnome_orca_service_call_get_version:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied or %NULL.
  * @user_data: User data to pass to @callback.
  *
  * Asynchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.GetVersion">GetVersion()</link> D-Bus method on @proxy.
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call org_gnome_orca_service_call_get_version_finish() to get the result of the operation.
+ * You can then call orca_service_org_gnome_orca_service_call_get_version_finish() to get the result of the operation.
  *
- * See org_gnome_orca_service_call_get_version_sync() for the synchronous, blocking version of this method.
+ * See orca_service_org_gnome_orca_service_call_get_version_sync() for the synchronous, blocking version of this method.
  */
 void
-org_gnome_orca_service_call_get_version (
-    OrgGnomeOrcaService *proxy,
+orca_service_org_gnome_orca_service_call_get_version (
+    OrcaServiceOrgGnomeOrcaService *proxy,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
@@ -823,20 +823,20 @@ org_gnome_orca_service_call_get_version (
 }
 
 /**
- * org_gnome_orca_service_call_get_version_finish:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to org_gnome_orca_service_call_get_version().
+ * orca_service_org_gnome_orca_service_call_get_version_finish:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_org_gnome_orca_service_call_get_version().
  * @error: Return location for error or %NULL.
  *
- * Finishes an operation started with org_gnome_orca_service_call_get_version().
+ * Finishes an operation started with orca_service_org_gnome_orca_service_call_get_version().
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_get_version_finish (
-    OrgGnomeOrcaService *proxy,
-    gchar **out_return,
+orca_service_org_gnome_orca_service_call_get_version_finish (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    gchar **out_result,
     GAsyncResult *res,
     GError **error)
 {
@@ -846,29 +846,29 @@ org_gnome_orca_service_call_get_version_finish (
     goto _out;
   g_variant_get (_ret,
                  "(s)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_get_version_sync:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * orca_service_org_gnome_orca_service_call_get_version_sync:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @error: Return location for error or %NULL.
  *
  * Synchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.GetVersion">GetVersion()</link> D-Bus method on @proxy. The calling thread is blocked until a reply is received.
  *
- * See org_gnome_orca_service_call_get_version() for the asynchronous version of this method.
+ * See orca_service_org_gnome_orca_service_call_get_version() for the asynchronous version of this method.
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_get_version_sync (
-    OrgGnomeOrcaService *proxy,
-    gchar **out_return,
+orca_service_org_gnome_orca_service_call_get_version_sync (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    gchar **out_result,
     GCancellable *cancellable,
     GError **error)
 {
@@ -884,28 +884,28 @@ org_gnome_orca_service_call_get_version_sync (
     goto _out;
   g_variant_get (_ret,
                  "(s)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_list_commands:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
+ * orca_service_org_gnome_orca_service_call_list_commands:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied or %NULL.
  * @user_data: User data to pass to @callback.
  *
  * Asynchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.ListCommands">ListCommands()</link> D-Bus method on @proxy.
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call org_gnome_orca_service_call_list_commands_finish() to get the result of the operation.
+ * You can then call orca_service_org_gnome_orca_service_call_list_commands_finish() to get the result of the operation.
  *
- * See org_gnome_orca_service_call_list_commands_sync() for the synchronous, blocking version of this method.
+ * See orca_service_org_gnome_orca_service_call_list_commands_sync() for the synchronous, blocking version of this method.
  */
 void
-org_gnome_orca_service_call_list_commands (
-    OrgGnomeOrcaService *proxy,
+orca_service_org_gnome_orca_service_call_list_commands (
+    OrcaServiceOrgGnomeOrcaService *proxy,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
@@ -921,20 +921,20 @@ org_gnome_orca_service_call_list_commands (
 }
 
 /**
- * org_gnome_orca_service_call_list_commands_finish:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to org_gnome_orca_service_call_list_commands().
+ * orca_service_org_gnome_orca_service_call_list_commands_finish:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_org_gnome_orca_service_call_list_commands().
  * @error: Return location for error or %NULL.
  *
- * Finishes an operation started with org_gnome_orca_service_call_list_commands().
+ * Finishes an operation started with orca_service_org_gnome_orca_service_call_list_commands().
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_list_commands_finish (
-    OrgGnomeOrcaService *proxy,
-    GVariant **out_return,
+orca_service_org_gnome_orca_service_call_list_commands_finish (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    GVariant **out_result,
     GAsyncResult *res,
     GError **error)
 {
@@ -944,29 +944,29 @@ org_gnome_orca_service_call_list_commands_finish (
     goto _out;
   g_variant_get (_ret,
                  "(@a(ss))",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_list_commands_sync:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * orca_service_org_gnome_orca_service_call_list_commands_sync:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @error: Return location for error or %NULL.
  *
  * Synchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.ListCommands">ListCommands()</link> D-Bus method on @proxy. The calling thread is blocked until a reply is received.
  *
- * See org_gnome_orca_service_call_list_commands() for the asynchronous version of this method.
+ * See orca_service_org_gnome_orca_service_call_list_commands() for the asynchronous version of this method.
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_list_commands_sync (
-    OrgGnomeOrcaService *proxy,
-    GVariant **out_return,
+orca_service_org_gnome_orca_service_call_list_commands_sync (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    GVariant **out_result,
     GCancellable *cancellable,
     GError **error)
 {
@@ -982,28 +982,28 @@ org_gnome_orca_service_call_list_commands_sync (
     goto _out;
   g_variant_get (_ret,
                  "(@a(ss))",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_list_modules:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
+ * orca_service_org_gnome_orca_service_call_list_modules:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied or %NULL.
  * @user_data: User data to pass to @callback.
  *
  * Asynchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.ListModules">ListModules()</link> D-Bus method on @proxy.
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call org_gnome_orca_service_call_list_modules_finish() to get the result of the operation.
+ * You can then call orca_service_org_gnome_orca_service_call_list_modules_finish() to get the result of the operation.
  *
- * See org_gnome_orca_service_call_list_modules_sync() for the synchronous, blocking version of this method.
+ * See orca_service_org_gnome_orca_service_call_list_modules_sync() for the synchronous, blocking version of this method.
  */
 void
-org_gnome_orca_service_call_list_modules (
-    OrgGnomeOrcaService *proxy,
+orca_service_org_gnome_orca_service_call_list_modules (
+    OrcaServiceOrgGnomeOrcaService *proxy,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
@@ -1019,20 +1019,20 @@ org_gnome_orca_service_call_list_modules (
 }
 
 /**
- * org_gnome_orca_service_call_list_modules_finish:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional) (array zero-terminated=1): Return location for return parameter or %NULL to ignore.
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to org_gnome_orca_service_call_list_modules().
+ * orca_service_org_gnome_orca_service_call_list_modules_finish:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional) (array zero-terminated=1): Return location for return parameter or %NULL to ignore.
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_org_gnome_orca_service_call_list_modules().
  * @error: Return location for error or %NULL.
  *
- * Finishes an operation started with org_gnome_orca_service_call_list_modules().
+ * Finishes an operation started with orca_service_org_gnome_orca_service_call_list_modules().
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_list_modules_finish (
-    OrgGnomeOrcaService *proxy,
-    gchar ***out_return,
+orca_service_org_gnome_orca_service_call_list_modules_finish (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    gchar ***out_result,
     GAsyncResult *res,
     GError **error)
 {
@@ -1042,29 +1042,29 @@ org_gnome_orca_service_call_list_modules_finish (
     goto _out;
   g_variant_get (_ret,
                  "(^as)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_list_modules_sync:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional) (array zero-terminated=1): Return location for return parameter or %NULL to ignore.
+ * orca_service_org_gnome_orca_service_call_list_modules_sync:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional) (array zero-terminated=1): Return location for return parameter or %NULL to ignore.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @error: Return location for error or %NULL.
  *
  * Synchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.ListModules">ListModules()</link> D-Bus method on @proxy. The calling thread is blocked until a reply is received.
  *
- * See org_gnome_orca_service_call_list_modules() for the asynchronous version of this method.
+ * See orca_service_org_gnome_orca_service_call_list_modules() for the asynchronous version of this method.
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_list_modules_sync (
-    OrgGnomeOrcaService *proxy,
-    gchar ***out_return,
+orca_service_org_gnome_orca_service_call_list_modules_sync (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    gchar ***out_result,
     GCancellable *cancellable,
     GError **error)
 {
@@ -1080,15 +1080,15 @@ org_gnome_orca_service_call_list_modules_sync (
     goto _out;
   g_variant_get (_ret,
                  "(^as)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_present_message:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
+ * orca_service_org_gnome_orca_service_call_present_message:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
  * @arg_message: Argument to pass with the method invocation.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied or %NULL.
@@ -1096,13 +1096,13 @@ _out:
  *
  * Asynchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.PresentMessage">PresentMessage()</link> D-Bus method on @proxy.
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call org_gnome_orca_service_call_present_message_finish() to get the result of the operation.
+ * You can then call orca_service_org_gnome_orca_service_call_present_message_finish() to get the result of the operation.
  *
- * See org_gnome_orca_service_call_present_message_sync() for the synchronous, blocking version of this method.
+ * See orca_service_org_gnome_orca_service_call_present_message_sync() for the synchronous, blocking version of this method.
  */
 void
-org_gnome_orca_service_call_present_message (
-    OrgGnomeOrcaService *proxy,
+orca_service_org_gnome_orca_service_call_present_message (
+    OrcaServiceOrgGnomeOrcaService *proxy,
     const gchar *arg_message,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
@@ -1120,20 +1120,20 @@ org_gnome_orca_service_call_present_message (
 }
 
 /**
- * org_gnome_orca_service_call_present_message_finish:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to org_gnome_orca_service_call_present_message().
+ * orca_service_org_gnome_orca_service_call_present_message_finish:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_org_gnome_orca_service_call_present_message().
  * @error: Return location for error or %NULL.
  *
- * Finishes an operation started with org_gnome_orca_service_call_present_message().
+ * Finishes an operation started with orca_service_org_gnome_orca_service_call_present_message().
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_present_message_finish (
-    OrgGnomeOrcaService *proxy,
-    gboolean *out_return,
+orca_service_org_gnome_orca_service_call_present_message_finish (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    gboolean *out_result,
     GAsyncResult *res,
     GError **error)
 {
@@ -1143,31 +1143,31 @@ org_gnome_orca_service_call_present_message_finish (
     goto _out;
   g_variant_get (_ret,
                  "(b)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_present_message_sync:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
+ * orca_service_org_gnome_orca_service_call_present_message_sync:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
  * @arg_message: Argument to pass with the method invocation.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @error: Return location for error or %NULL.
  *
  * Synchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.PresentMessage">PresentMessage()</link> D-Bus method on @proxy. The calling thread is blocked until a reply is received.
  *
- * See org_gnome_orca_service_call_present_message() for the asynchronous version of this method.
+ * See orca_service_org_gnome_orca_service_call_present_message() for the asynchronous version of this method.
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_present_message_sync (
-    OrgGnomeOrcaService *proxy,
+orca_service_org_gnome_orca_service_call_present_message_sync (
+    OrcaServiceOrgGnomeOrcaService *proxy,
     const gchar *arg_message,
-    gboolean *out_return,
+    gboolean *out_result,
     GCancellable *cancellable,
     GError **error)
 {
@@ -1184,28 +1184,28 @@ org_gnome_orca_service_call_present_message_sync (
     goto _out;
   g_variant_get (_ret,
                  "(b)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_quit:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
+ * orca_service_org_gnome_orca_service_call_quit:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied or %NULL.
  * @user_data: User data to pass to @callback.
  *
  * Asynchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.Quit">Quit()</link> D-Bus method on @proxy.
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call org_gnome_orca_service_call_quit_finish() to get the result of the operation.
+ * You can then call orca_service_org_gnome_orca_service_call_quit_finish() to get the result of the operation.
  *
- * See org_gnome_orca_service_call_quit_sync() for the synchronous, blocking version of this method.
+ * See orca_service_org_gnome_orca_service_call_quit_sync() for the synchronous, blocking version of this method.
  */
 void
-org_gnome_orca_service_call_quit (
-    OrgGnomeOrcaService *proxy,
+orca_service_org_gnome_orca_service_call_quit (
+    OrcaServiceOrgGnomeOrcaService *proxy,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
@@ -1221,20 +1221,20 @@ org_gnome_orca_service_call_quit (
 }
 
 /**
- * org_gnome_orca_service_call_quit_finish:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to org_gnome_orca_service_call_quit().
+ * orca_service_org_gnome_orca_service_call_quit_finish:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_org_gnome_orca_service_call_quit().
  * @error: Return location for error or %NULL.
  *
- * Finishes an operation started with org_gnome_orca_service_call_quit().
+ * Finishes an operation started with orca_service_org_gnome_orca_service_call_quit().
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_quit_finish (
-    OrgGnomeOrcaService *proxy,
-    gboolean *out_return,
+orca_service_org_gnome_orca_service_call_quit_finish (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    gboolean *out_result,
     GAsyncResult *res,
     GError **error)
 {
@@ -1244,29 +1244,29 @@ org_gnome_orca_service_call_quit_finish (
     goto _out;
   g_variant_get (_ret,
                  "(b)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_quit_sync:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * orca_service_org_gnome_orca_service_call_quit_sync:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @error: Return location for error or %NULL.
  *
  * Synchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.Quit">Quit()</link> D-Bus method on @proxy. The calling thread is blocked until a reply is received.
  *
- * See org_gnome_orca_service_call_quit() for the asynchronous version of this method.
+ * See orca_service_org_gnome_orca_service_call_quit() for the asynchronous version of this method.
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_quit_sync (
-    OrgGnomeOrcaService *proxy,
-    gboolean *out_return,
+orca_service_org_gnome_orca_service_call_quit_sync (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    gboolean *out_result,
     GCancellable *cancellable,
     GError **error)
 {
@@ -1282,28 +1282,28 @@ org_gnome_orca_service_call_quit_sync (
     goto _out;
   g_variant_get (_ret,
                  "(b)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_show_preferences:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
+ * orca_service_org_gnome_orca_service_call_show_preferences:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied or %NULL.
  * @user_data: User data to pass to @callback.
  *
  * Asynchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.ShowPreferences">ShowPreferences()</link> D-Bus method on @proxy.
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call org_gnome_orca_service_call_show_preferences_finish() to get the result of the operation.
+ * You can then call orca_service_org_gnome_orca_service_call_show_preferences_finish() to get the result of the operation.
  *
- * See org_gnome_orca_service_call_show_preferences_sync() for the synchronous, blocking version of this method.
+ * See orca_service_org_gnome_orca_service_call_show_preferences_sync() for the synchronous, blocking version of this method.
  */
 void
-org_gnome_orca_service_call_show_preferences (
-    OrgGnomeOrcaService *proxy,
+orca_service_org_gnome_orca_service_call_show_preferences (
+    OrcaServiceOrgGnomeOrcaService *proxy,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
@@ -1319,20 +1319,20 @@ org_gnome_orca_service_call_show_preferences (
 }
 
 /**
- * org_gnome_orca_service_call_show_preferences_finish:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to org_gnome_orca_service_call_show_preferences().
+ * orca_service_org_gnome_orca_service_call_show_preferences_finish:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_org_gnome_orca_service_call_show_preferences().
  * @error: Return location for error or %NULL.
  *
- * Finishes an operation started with org_gnome_orca_service_call_show_preferences().
+ * Finishes an operation started with orca_service_org_gnome_orca_service_call_show_preferences().
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_show_preferences_finish (
-    OrgGnomeOrcaService *proxy,
-    gboolean *out_return,
+orca_service_org_gnome_orca_service_call_show_preferences_finish (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    gboolean *out_result,
     GAsyncResult *res,
     GError **error)
 {
@@ -1342,29 +1342,29 @@ org_gnome_orca_service_call_show_preferences_finish (
     goto _out;
   g_variant_get (_ret,
                  "(b)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_call_show_preferences_sync:
- * @proxy: A #OrgGnomeOrcaServiceProxy.
- * @out_return: (out) (optional): Return location for return parameter or %NULL to ignore.
+ * orca_service_org_gnome_orca_service_call_show_preferences_sync:
+ * @proxy: A #OrcaServiceOrgGnomeOrcaServiceProxy.
+ * @out_result: (out) (optional): Return location for return parameter or %NULL to ignore.
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @error: Return location for error or %NULL.
  *
  * Synchronously invokes the <link linkend="gdbus-method-org-gnome-Orca-Service.ShowPreferences">ShowPreferences()</link> D-Bus method on @proxy. The calling thread is blocked until a reply is received.
  *
- * See org_gnome_orca_service_call_show_preferences() for the asynchronous version of this method.
+ * See orca_service_org_gnome_orca_service_call_show_preferences() for the asynchronous version of this method.
  *
  * Returns: (skip): %TRUE if the call succeeded, %FALSE if @error is set.
  */
 gboolean
-org_gnome_orca_service_call_show_preferences_sync (
-    OrgGnomeOrcaService *proxy,
-    gboolean *out_return,
+orca_service_org_gnome_orca_service_call_show_preferences_sync (
+    OrcaServiceOrgGnomeOrcaService *proxy,
+    gboolean *out_result,
     GCancellable *cancellable,
     GError **error)
 {
@@ -1380,180 +1380,180 @@ org_gnome_orca_service_call_show_preferences_sync (
     goto _out;
   g_variant_get (_ret,
                  "(b)",
-                 out_return);
+                 out_result);
   g_variant_unref (_ret);
 _out:
   return _ret != NULL;
 }
 
 /**
- * org_gnome_orca_service_complete_get_version:
- * @object: A #OrgGnomeOrcaService.
+ * orca_service_org_gnome_orca_service_complete_get_version:
+ * @object: A #OrcaServiceOrgGnomeOrcaService.
  * @invocation: (transfer full): A #GDBusMethodInvocation.
- * @return: Parameter to return.
+ * @result: Parameter to return.
  *
  * Helper function used in service implementations to finish handling invocations of the <link linkend="gdbus-method-org-gnome-Orca-Service.GetVersion">GetVersion()</link> D-Bus method. If you instead want to finish handling an invocation by returning an error, use g_dbus_method_invocation_return_error() or similar.
  *
  * This method will free @invocation, you cannot use it afterwards.
  */
 void
-org_gnome_orca_service_complete_get_version (
-    OrgGnomeOrcaService *object G_GNUC_UNUSED,
+orca_service_org_gnome_orca_service_complete_get_version (
+    OrcaServiceOrgGnomeOrcaService *object G_GNUC_UNUSED,
     GDBusMethodInvocation *invocation,
-    const gchar *return)
+    const gchar *result)
 {
   g_dbus_method_invocation_return_value (invocation,
     g_variant_new ("(s)",
-                   return));
+                   result));
 }
 
 /**
- * org_gnome_orca_service_complete_list_commands:
- * @object: A #OrgGnomeOrcaService.
+ * orca_service_org_gnome_orca_service_complete_list_commands:
+ * @object: A #OrcaServiceOrgGnomeOrcaService.
  * @invocation: (transfer full): A #GDBusMethodInvocation.
- * @return: Parameter to return.
+ * @result: Parameter to return.
  *
  * Helper function used in service implementations to finish handling invocations of the <link linkend="gdbus-method-org-gnome-Orca-Service.ListCommands">ListCommands()</link> D-Bus method. If you instead want to finish handling an invocation by returning an error, use g_dbus_method_invocation_return_error() or similar.
  *
  * This method will free @invocation, you cannot use it afterwards.
  */
 void
-org_gnome_orca_service_complete_list_commands (
-    OrgGnomeOrcaService *object G_GNUC_UNUSED,
+orca_service_org_gnome_orca_service_complete_list_commands (
+    OrcaServiceOrgGnomeOrcaService *object G_GNUC_UNUSED,
     GDBusMethodInvocation *invocation,
-    GVariant *return)
+    GVariant *result)
 {
   g_dbus_method_invocation_return_value (invocation,
     g_variant_new ("(@a(ss))",
-                   return));
+                   result));
 }
 
 /**
- * org_gnome_orca_service_complete_list_modules:
- * @object: A #OrgGnomeOrcaService.
+ * orca_service_org_gnome_orca_service_complete_list_modules:
+ * @object: A #OrcaServiceOrgGnomeOrcaService.
  * @invocation: (transfer full): A #GDBusMethodInvocation.
- * @return: Parameter to return.
+ * @result: Parameter to return.
  *
  * Helper function used in service implementations to finish handling invocations of the <link linkend="gdbus-method-org-gnome-Orca-Service.ListModules">ListModules()</link> D-Bus method. If you instead want to finish handling an invocation by returning an error, use g_dbus_method_invocation_return_error() or similar.
  *
  * This method will free @invocation, you cannot use it afterwards.
  */
 void
-org_gnome_orca_service_complete_list_modules (
-    OrgGnomeOrcaService *object G_GNUC_UNUSED,
+orca_service_org_gnome_orca_service_complete_list_modules (
+    OrcaServiceOrgGnomeOrcaService *object G_GNUC_UNUSED,
     GDBusMethodInvocation *invocation,
-    const gchar *const *return)
+    const gchar *const *result)
 {
   g_dbus_method_invocation_return_value (invocation,
     g_variant_new ("(^as)",
-                   return));
+                   result));
 }
 
 /**
- * org_gnome_orca_service_complete_present_message:
- * @object: A #OrgGnomeOrcaService.
+ * orca_service_org_gnome_orca_service_complete_present_message:
+ * @object: A #OrcaServiceOrgGnomeOrcaService.
  * @invocation: (transfer full): A #GDBusMethodInvocation.
- * @return: Parameter to return.
+ * @result: Parameter to return.
  *
  * Helper function used in service implementations to finish handling invocations of the <link linkend="gdbus-method-org-gnome-Orca-Service.PresentMessage">PresentMessage()</link> D-Bus method. If you instead want to finish handling an invocation by returning an error, use g_dbus_method_invocation_return_error() or similar.
  *
  * This method will free @invocation, you cannot use it afterwards.
  */
 void
-org_gnome_orca_service_complete_present_message (
-    OrgGnomeOrcaService *object G_GNUC_UNUSED,
+orca_service_org_gnome_orca_service_complete_present_message (
+    OrcaServiceOrgGnomeOrcaService *object G_GNUC_UNUSED,
     GDBusMethodInvocation *invocation,
-    gboolean return)
+    gboolean result)
 {
   g_dbus_method_invocation_return_value (invocation,
     g_variant_new ("(b)",
-                   return));
+                   result));
 }
 
 /**
- * org_gnome_orca_service_complete_quit:
- * @object: A #OrgGnomeOrcaService.
+ * orca_service_org_gnome_orca_service_complete_quit:
+ * @object: A #OrcaServiceOrgGnomeOrcaService.
  * @invocation: (transfer full): A #GDBusMethodInvocation.
- * @return: Parameter to return.
+ * @result: Parameter to return.
  *
  * Helper function used in service implementations to finish handling invocations of the <link linkend="gdbus-method-org-gnome-Orca-Service.Quit">Quit()</link> D-Bus method. If you instead want to finish handling an invocation by returning an error, use g_dbus_method_invocation_return_error() or similar.
  *
  * This method will free @invocation, you cannot use it afterwards.
  */
 void
-org_gnome_orca_service_complete_quit (
-    OrgGnomeOrcaService *object G_GNUC_UNUSED,
+orca_service_org_gnome_orca_service_complete_quit (
+    OrcaServiceOrgGnomeOrcaService *object G_GNUC_UNUSED,
     GDBusMethodInvocation *invocation,
-    gboolean return)
+    gboolean result)
 {
   g_dbus_method_invocation_return_value (invocation,
     g_variant_new ("(b)",
-                   return));
+                   result));
 }
 
 /**
- * org_gnome_orca_service_complete_show_preferences:
- * @object: A #OrgGnomeOrcaService.
+ * orca_service_org_gnome_orca_service_complete_show_preferences:
+ * @object: A #OrcaServiceOrgGnomeOrcaService.
  * @invocation: (transfer full): A #GDBusMethodInvocation.
- * @return: Parameter to return.
+ * @result: Parameter to return.
  *
  * Helper function used in service implementations to finish handling invocations of the <link linkend="gdbus-method-org-gnome-Orca-Service.ShowPreferences">ShowPreferences()</link> D-Bus method. If you instead want to finish handling an invocation by returning an error, use g_dbus_method_invocation_return_error() or similar.
  *
  * This method will free @invocation, you cannot use it afterwards.
  */
 void
-org_gnome_orca_service_complete_show_preferences (
-    OrgGnomeOrcaService *object G_GNUC_UNUSED,
+orca_service_org_gnome_orca_service_complete_show_preferences (
+    OrcaServiceOrgGnomeOrcaService *object G_GNUC_UNUSED,
     GDBusMethodInvocation *invocation,
-    gboolean return)
+    gboolean result)
 {
   g_dbus_method_invocation_return_value (invocation,
     g_variant_new ("(b)",
-                   return));
+                   result));
 }
 
 /* ------------------------------------------------------------------------ */
 
 /**
- * OrgGnomeOrcaServiceProxy:
+ * OrcaServiceOrgGnomeOrcaServiceProxy:
  *
- * The #OrgGnomeOrcaServiceProxy structure contains only private data and should only be accessed using the provided API.
+ * The #OrcaServiceOrgGnomeOrcaServiceProxy structure contains only private data and should only be accessed using the provided API.
  */
 
 /**
- * OrgGnomeOrcaServiceProxyClass:
+ * OrcaServiceOrgGnomeOrcaServiceProxyClass:
  * @parent_class: The parent class.
  *
- * Class structure for #OrgGnomeOrcaServiceProxy.
+ * Class structure for #OrcaServiceOrgGnomeOrcaServiceProxy.
  */
 
-struct _OrgGnomeOrcaServiceProxyPrivate
+struct _OrcaServiceOrgGnomeOrcaServiceProxyPrivate
 {
   GData *qdata;
 };
 
-static void org_gnome_orca_service_proxy_iface_init (OrgGnomeOrcaServiceIface *iface);
+static void orca_service_org_gnome_orca_service_proxy_iface_init (OrcaServiceOrgGnomeOrcaServiceIface *iface);
 
 #if GLIB_VERSION_MAX_ALLOWED >= GLIB_VERSION_2_38
-G_DEFINE_TYPE_WITH_CODE (OrgGnomeOrcaServiceProxy, org_gnome_orca_service_proxy, G_TYPE_DBUS_PROXY,
-                         G_ADD_PRIVATE (OrgGnomeOrcaServiceProxy)
-                         G_IMPLEMENT_INTERFACE (TYPE_ORG_GNOME_ORCA_SERVICE, org_gnome_orca_service_proxy_iface_init))
+G_DEFINE_TYPE_WITH_CODE (OrcaServiceOrgGnomeOrcaServiceProxy, orca_service_org_gnome_orca_service_proxy, G_TYPE_DBUS_PROXY,
+                         G_ADD_PRIVATE (OrcaServiceOrgGnomeOrcaServiceProxy)
+                         G_IMPLEMENT_INTERFACE (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE, orca_service_org_gnome_orca_service_proxy_iface_init))
 
 #else
-G_DEFINE_TYPE_WITH_CODE (OrgGnomeOrcaServiceProxy, org_gnome_orca_service_proxy, G_TYPE_DBUS_PROXY,
-                         G_IMPLEMENT_INTERFACE (TYPE_ORG_GNOME_ORCA_SERVICE, org_gnome_orca_service_proxy_iface_init))
+G_DEFINE_TYPE_WITH_CODE (OrcaServiceOrgGnomeOrcaServiceProxy, orca_service_org_gnome_orca_service_proxy, G_TYPE_DBUS_PROXY,
+                         G_IMPLEMENT_INTERFACE (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE, orca_service_org_gnome_orca_service_proxy_iface_init))
 
 #endif
 static void
-org_gnome_orca_service_proxy_finalize (GObject *object)
+orca_service_org_gnome_orca_service_proxy_finalize (GObject *object)
 {
-  OrgGnomeOrcaServiceProxy *proxy = ORG_GNOME_ORCA_SERVICE_PROXY (object);
+  OrcaServiceOrgGnomeOrcaServiceProxy *proxy = ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE_PROXY (object);
   g_datalist_clear (&proxy->priv->qdata);
-  G_OBJECT_CLASS (org_gnome_orca_service_proxy_parent_class)->finalize (object);
+  G_OBJECT_CLASS (orca_service_org_gnome_orca_service_proxy_parent_class)->finalize (object);
 }
 
 static void
-org_gnome_orca_service_proxy_get_property (GObject      *object G_GNUC_UNUSED,
+orca_service_org_gnome_orca_service_proxy_get_property (GObject      *object G_GNUC_UNUSED,
   guint         prop_id G_GNUC_UNUSED,
   GValue       *value G_GNUC_UNUSED,
   GParamSpec   *pspec G_GNUC_UNUSED)
@@ -1561,7 +1561,7 @@ org_gnome_orca_service_proxy_get_property (GObject      *object G_GNUC_UNUSED,
 }
 
 static void
-org_gnome_orca_service_proxy_set_property (GObject      *object G_GNUC_UNUSED,
+orca_service_org_gnome_orca_service_proxy_set_property (GObject      *object G_GNUC_UNUSED,
   guint         prop_id G_GNUC_UNUSED,
   const GValue *value G_GNUC_UNUSED,
   GParamSpec   *pspec G_GNUC_UNUSED)
@@ -1569,7 +1569,7 @@ org_gnome_orca_service_proxy_set_property (GObject      *object G_GNUC_UNUSED,
 }
 
 static void
-org_gnome_orca_service_proxy_g_signal (GDBusProxy *proxy,
+orca_service_org_gnome_orca_service_proxy_g_signal (GDBusProxy *proxy,
   const gchar *sender_name G_GNUC_UNUSED,
   const gchar *signal_name,
   GVariant *parameters)
@@ -1581,12 +1581,12 @@ org_gnome_orca_service_proxy_g_signal (GDBusProxy *proxy,
   gsize num_params;
   gsize n;
   guint signal_id;
-  info = (_ExtendedGDBusSignalInfo *) g_dbus_interface_info_lookup_signal ((GDBusInterfaceInfo *) &_org_gnome_orca_service_interface_info.parent_struct, signal_name);
+  info = (_ExtendedGDBusSignalInfo *) g_dbus_interface_info_lookup_signal ((GDBusInterfaceInfo *) &_orca_service_org_gnome_orca_service_interface_info.parent_struct, signal_name);
   if (info == NULL)
     return;
   num_params = g_variant_n_children (parameters);
   paramv = g_new0 (GValue, num_params + 1);
-  g_value_init (&paramv[0], TYPE_ORG_GNOME_ORCA_SERVICE);
+  g_value_init (&paramv[0], ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE);
   g_value_set_object (&paramv[0], proxy);
   g_variant_iter_init (&iter, parameters);
   n = 1;
@@ -1603,7 +1603,7 @@ org_gnome_orca_service_proxy_g_signal (GDBusProxy *proxy,
         g_dbus_gvariant_to_gvalue (child, &paramv[n++]);
       g_variant_unref (child);
     }
-  signal_id = g_signal_lookup (info->signal_name, TYPE_ORG_GNOME_ORCA_SERVICE);
+  signal_id = g_signal_lookup (info->signal_name, ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE);
   g_signal_emitv (paramv, signal_id, 0, NULL);
   for (n = 0; n < num_params + 1; n++)
     g_value_unset (&paramv[n]);
@@ -1611,11 +1611,11 @@ org_gnome_orca_service_proxy_g_signal (GDBusProxy *proxy,
 }
 
 static void
-org_gnome_orca_service_proxy_g_properties_changed (GDBusProxy *_proxy,
+orca_service_org_gnome_orca_service_proxy_g_properties_changed (GDBusProxy *_proxy,
   GVariant *changed_properties,
   const gchar *const *invalidated_properties)
 {
-  OrgGnomeOrcaServiceProxy *proxy = ORG_GNOME_ORCA_SERVICE_PROXY (_proxy);
+  OrcaServiceOrgGnomeOrcaServiceProxy *proxy = ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE_PROXY (_proxy);
   guint n;
   const gchar *key;
   GVariantIter *iter;
@@ -1623,7 +1623,7 @@ org_gnome_orca_service_proxy_g_properties_changed (GDBusProxy *_proxy,
   g_variant_get (changed_properties, "a{sv}", &iter);
   while (g_variant_iter_next (iter, "{&sv}", &key, NULL))
     {
-      info = (_ExtendedGDBusPropertyInfo *) g_dbus_interface_info_lookup_property ((GDBusInterfaceInfo *) &_org_gnome_orca_service_interface_info.parent_struct, key);
+      info = (_ExtendedGDBusPropertyInfo *) g_dbus_interface_info_lookup_property ((GDBusInterfaceInfo *) &_orca_service_org_gnome_orca_service_interface_info.parent_struct, key);
       g_datalist_remove_data (&proxy->priv->qdata, key);
       if (info != NULL)
         g_object_notify (G_OBJECT (proxy), info->hyphen_name);
@@ -1631,7 +1631,7 @@ org_gnome_orca_service_proxy_g_properties_changed (GDBusProxy *_proxy,
   g_variant_iter_free (iter);
   for (n = 0; invalidated_properties[n] != NULL; n++)
     {
-      info = (_ExtendedGDBusPropertyInfo *) g_dbus_interface_info_lookup_property ((GDBusInterfaceInfo *) &_org_gnome_orca_service_interface_info.parent_struct, invalidated_properties[n]);
+      info = (_ExtendedGDBusPropertyInfo *) g_dbus_interface_info_lookup_property ((GDBusInterfaceInfo *) &_orca_service_org_gnome_orca_service_interface_info.parent_struct, invalidated_properties[n]);
       g_datalist_remove_data (&proxy->priv->qdata, invalidated_properties[n]);
       if (info != NULL)
         g_object_notify (G_OBJECT (proxy), info->hyphen_name);
@@ -1639,44 +1639,44 @@ org_gnome_orca_service_proxy_g_properties_changed (GDBusProxy *_proxy,
 }
 
 static void
-org_gnome_orca_service_proxy_init (OrgGnomeOrcaServiceProxy *proxy)
+orca_service_org_gnome_orca_service_proxy_init (OrcaServiceOrgGnomeOrcaServiceProxy *proxy)
 {
 #if GLIB_VERSION_MAX_ALLOWED >= GLIB_VERSION_2_38
-  proxy->priv = org_gnome_orca_service_proxy_get_instance_private (proxy);
+  proxy->priv = orca_service_org_gnome_orca_service_proxy_get_instance_private (proxy);
 #else
-  proxy->priv = G_TYPE_INSTANCE_GET_PRIVATE (proxy, TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, OrgGnomeOrcaServiceProxyPrivate);
+  proxy->priv = G_TYPE_INSTANCE_GET_PRIVATE (proxy, ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, OrcaServiceOrgGnomeOrcaServiceProxyPrivate);
 #endif
 
-  g_dbus_proxy_set_interface_info (G_DBUS_PROXY (proxy), org_gnome_orca_service_interface_info ());
+  g_dbus_proxy_set_interface_info (G_DBUS_PROXY (proxy), orca_service_org_gnome_orca_service_interface_info ());
 }
 
 static void
-org_gnome_orca_service_proxy_class_init (OrgGnomeOrcaServiceProxyClass *klass)
+orca_service_org_gnome_orca_service_proxy_class_init (OrcaServiceOrgGnomeOrcaServiceProxyClass *klass)
 {
   GObjectClass *gobject_class;
   GDBusProxyClass *proxy_class;
 
   gobject_class = G_OBJECT_CLASS (klass);
-  gobject_class->finalize     = org_gnome_orca_service_proxy_finalize;
-  gobject_class->get_property = org_gnome_orca_service_proxy_get_property;
-  gobject_class->set_property = org_gnome_orca_service_proxy_set_property;
+  gobject_class->finalize     = orca_service_org_gnome_orca_service_proxy_finalize;
+  gobject_class->get_property = orca_service_org_gnome_orca_service_proxy_get_property;
+  gobject_class->set_property = orca_service_org_gnome_orca_service_proxy_set_property;
 
   proxy_class = G_DBUS_PROXY_CLASS (klass);
-  proxy_class->g_signal = org_gnome_orca_service_proxy_g_signal;
-  proxy_class->g_properties_changed = org_gnome_orca_service_proxy_g_properties_changed;
+  proxy_class->g_signal = orca_service_org_gnome_orca_service_proxy_g_signal;
+  proxy_class->g_properties_changed = orca_service_org_gnome_orca_service_proxy_g_properties_changed;
 
 #if GLIB_VERSION_MAX_ALLOWED < GLIB_VERSION_2_38
-  g_type_class_add_private (klass, sizeof (OrgGnomeOrcaServiceProxyPrivate));
+  g_type_class_add_private (klass, sizeof (OrcaServiceOrgGnomeOrcaServiceProxyPrivate));
 #endif
 }
 
 static void
-org_gnome_orca_service_proxy_iface_init (OrgGnomeOrcaServiceIface *iface G_GNUC_UNUSED)
+orca_service_org_gnome_orca_service_proxy_iface_init (OrcaServiceOrgGnomeOrcaServiceIface *iface G_GNUC_UNUSED)
 {
 }
 
 /**
- * org_gnome_orca_service_proxy_new:
+ * orca_service_org_gnome_orca_service_proxy_new:
  * @connection: A #GDBusConnection.
  * @flags: Flags from the #GDBusProxyFlags enumeration.
  * @name: (nullable): A bus name (well-known or unique) or %NULL if @connection is not a message bus connection.
@@ -1688,12 +1688,12 @@ org_gnome_orca_service_proxy_iface_init (OrgGnomeOrcaServiceIface *iface G_GNUC_
  * Asynchronously creates a proxy for the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link>. See g_dbus_proxy_new() for more details.
  *
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call org_gnome_orca_service_proxy_new_finish() to get the result of the operation.
+ * You can then call orca_service_org_gnome_orca_service_proxy_new_finish() to get the result of the operation.
  *
- * See org_gnome_orca_service_proxy_new_sync() for the synchronous, blocking version of this constructor.
+ * See orca_service_org_gnome_orca_service_proxy_new_sync() for the synchronous, blocking version of this constructor.
  */
 void
-org_gnome_orca_service_proxy_new (
+orca_service_org_gnome_orca_service_proxy_new (
     GDBusConnection     *connection,
     GDBusProxyFlags      flags,
     const gchar         *name,
@@ -1702,20 +1702,20 @@ org_gnome_orca_service_proxy_new (
     GAsyncReadyCallback  callback,
     gpointer             user_data)
 {
-  g_async_initable_new_async (TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, G_PRIORITY_DEFAULT, cancellable, callback, user_data, "g-flags", flags, "g-name", name, "g-connection", connection, "g-object-path", object_path, "g-interface-name", "org.gnome.Orca.Service", NULL);
+  g_async_initable_new_async (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, G_PRIORITY_DEFAULT, cancellable, callback, user_data, "g-flags", flags, "g-name", name, "g-connection", connection, "g-object-path", object_path, "g-interface-name", "org.gnome.Orca.Service", NULL);
 }
 
 /**
- * org_gnome_orca_service_proxy_new_finish:
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to org_gnome_orca_service_proxy_new().
+ * orca_service_org_gnome_orca_service_proxy_new_finish:
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_org_gnome_orca_service_proxy_new().
  * @error: Return location for error or %NULL
  *
- * Finishes an operation started with org_gnome_orca_service_proxy_new().
+ * Finishes an operation started with orca_service_org_gnome_orca_service_proxy_new().
  *
- * Returns: (transfer full) (type OrgGnomeOrcaServiceProxy): The constructed proxy object or %NULL if @error is set.
+ * Returns: (transfer full) (type OrcaServiceOrgGnomeOrcaServiceProxy): The constructed proxy object or %NULL if @error is set.
  */
-OrgGnomeOrcaService *
-org_gnome_orca_service_proxy_new_finish (
+OrcaServiceOrgGnomeOrcaService *
+orca_service_org_gnome_orca_service_proxy_new_finish (
     GAsyncResult        *res,
     GError             **error)
 {
@@ -1725,13 +1725,13 @@ org_gnome_orca_service_proxy_new_finish (
   ret = g_async_initable_new_finish (G_ASYNC_INITABLE (source_object), res, error);
   g_object_unref (source_object);
   if (ret != NULL)
-    return ORG_GNOME_ORCA_SERVICE (ret);
+    return ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE (ret);
   else
     return NULL;
 }
 
 /**
- * org_gnome_orca_service_proxy_new_sync:
+ * orca_service_org_gnome_orca_service_proxy_new_sync:
  * @connection: A #GDBusConnection.
  * @flags: Flags from the #GDBusProxyFlags enumeration.
  * @name: (nullable): A bus name (well-known or unique) or %NULL if @connection is not a message bus connection.
@@ -1743,12 +1743,12 @@ org_gnome_orca_service_proxy_new_finish (
  *
  * The calling thread is blocked until a reply is received.
  *
- * See org_gnome_orca_service_proxy_new() for the asynchronous version of this constructor.
+ * See orca_service_org_gnome_orca_service_proxy_new() for the asynchronous version of this constructor.
  *
- * Returns: (transfer full) (type OrgGnomeOrcaServiceProxy): The constructed proxy object or %NULL if @error is set.
+ * Returns: (transfer full) (type OrcaServiceOrgGnomeOrcaServiceProxy): The constructed proxy object or %NULL if @error is set.
  */
-OrgGnomeOrcaService *
-org_gnome_orca_service_proxy_new_sync (
+OrcaServiceOrgGnomeOrcaService *
+orca_service_org_gnome_orca_service_proxy_new_sync (
     GDBusConnection     *connection,
     GDBusProxyFlags      flags,
     const gchar         *name,
@@ -1757,16 +1757,16 @@ org_gnome_orca_service_proxy_new_sync (
     GError             **error)
 {
   GInitable *ret;
-  ret = g_initable_new (TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, cancellable, error, "g-flags", flags, "g-name", name, "g-connection", connection, "g-object-path", object_path, "g-interface-name", "org.gnome.Orca.Service", NULL);
+  ret = g_initable_new (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, cancellable, error, "g-flags", flags, "g-name", name, "g-connection", connection, "g-object-path", object_path, "g-interface-name", "org.gnome.Orca.Service", NULL);
   if (ret != NULL)
-    return ORG_GNOME_ORCA_SERVICE (ret);
+    return ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE (ret);
   else
     return NULL;
 }
 
 
 /**
- * org_gnome_orca_service_proxy_new_for_bus:
+ * orca_service_org_gnome_orca_service_proxy_new_for_bus:
  * @bus_type: A #GBusType.
  * @flags: Flags from the #GDBusProxyFlags enumeration.
  * @name: A bus name (well-known or unique).
@@ -1775,15 +1775,15 @@ org_gnome_orca_service_proxy_new_sync (
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied.
  * @user_data: User data to pass to @callback.
  *
- * Like org_gnome_orca_service_proxy_new() but takes a #GBusType instead of a #GDBusConnection.
+ * Like orca_service_org_gnome_orca_service_proxy_new() but takes a #GBusType instead of a #GDBusConnection.
  *
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call org_gnome_orca_service_proxy_new_for_bus_finish() to get the result of the operation.
+ * You can then call orca_service_org_gnome_orca_service_proxy_new_for_bus_finish() to get the result of the operation.
  *
- * See org_gnome_orca_service_proxy_new_for_bus_sync() for the synchronous, blocking version of this constructor.
+ * See orca_service_org_gnome_orca_service_proxy_new_for_bus_sync() for the synchronous, blocking version of this constructor.
  */
 void
-org_gnome_orca_service_proxy_new_for_bus (
+orca_service_org_gnome_orca_service_proxy_new_for_bus (
     GBusType             bus_type,
     GDBusProxyFlags      flags,
     const gchar         *name,
@@ -1792,20 +1792,20 @@ org_gnome_orca_service_proxy_new_for_bus (
     GAsyncReadyCallback  callback,
     gpointer             user_data)
 {
-  g_async_initable_new_async (TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, G_PRIORITY_DEFAULT, cancellable, callback, user_data, "g-flags", flags, "g-name", name, "g-bus-type", bus_type, "g-object-path", object_path, "g-interface-name", "org.gnome.Orca.Service", NULL);
+  g_async_initable_new_async (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, G_PRIORITY_DEFAULT, cancellable, callback, user_data, "g-flags", flags, "g-name", name, "g-bus-type", bus_type, "g-object-path", object_path, "g-interface-name", "org.gnome.Orca.Service", NULL);
 }
 
 /**
- * org_gnome_orca_service_proxy_new_for_bus_finish:
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to org_gnome_orca_service_proxy_new_for_bus().
+ * orca_service_org_gnome_orca_service_proxy_new_for_bus_finish:
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_org_gnome_orca_service_proxy_new_for_bus().
  * @error: Return location for error or %NULL
  *
- * Finishes an operation started with org_gnome_orca_service_proxy_new_for_bus().
+ * Finishes an operation started with orca_service_org_gnome_orca_service_proxy_new_for_bus().
  *
- * Returns: (transfer full) (type OrgGnomeOrcaServiceProxy): The constructed proxy object or %NULL if @error is set.
+ * Returns: (transfer full) (type OrcaServiceOrgGnomeOrcaServiceProxy): The constructed proxy object or %NULL if @error is set.
  */
-OrgGnomeOrcaService *
-org_gnome_orca_service_proxy_new_for_bus_finish (
+OrcaServiceOrgGnomeOrcaService *
+orca_service_org_gnome_orca_service_proxy_new_for_bus_finish (
     GAsyncResult        *res,
     GError             **error)
 {
@@ -1815,13 +1815,13 @@ org_gnome_orca_service_proxy_new_for_bus_finish (
   ret = g_async_initable_new_finish (G_ASYNC_INITABLE (source_object), res, error);
   g_object_unref (source_object);
   if (ret != NULL)
-    return ORG_GNOME_ORCA_SERVICE (ret);
+    return ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE (ret);
   else
     return NULL;
 }
 
 /**
- * org_gnome_orca_service_proxy_new_for_bus_sync:
+ * orca_service_org_gnome_orca_service_proxy_new_for_bus_sync:
  * @bus_type: A #GBusType.
  * @flags: Flags from the #GDBusProxyFlags enumeration.
  * @name: A bus name (well-known or unique).
@@ -1829,16 +1829,16 @@ org_gnome_orca_service_proxy_new_for_bus_finish (
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @error: Return location for error or %NULL
  *
- * Like org_gnome_orca_service_proxy_new_sync() but takes a #GBusType instead of a #GDBusConnection.
+ * Like orca_service_org_gnome_orca_service_proxy_new_sync() but takes a #GBusType instead of a #GDBusConnection.
  *
  * The calling thread is blocked until a reply is received.
  *
- * See org_gnome_orca_service_proxy_new_for_bus() for the asynchronous version of this constructor.
+ * See orca_service_org_gnome_orca_service_proxy_new_for_bus() for the asynchronous version of this constructor.
  *
- * Returns: (transfer full) (type OrgGnomeOrcaServiceProxy): The constructed proxy object or %NULL if @error is set.
+ * Returns: (transfer full) (type OrcaServiceOrgGnomeOrcaServiceProxy): The constructed proxy object or %NULL if @error is set.
  */
-OrgGnomeOrcaService *
-org_gnome_orca_service_proxy_new_for_bus_sync (
+OrcaServiceOrgGnomeOrcaService *
+orca_service_org_gnome_orca_service_proxy_new_for_bus_sync (
     GBusType             bus_type,
     GDBusProxyFlags      flags,
     const gchar         *name,
@@ -1847,9 +1847,9 @@ org_gnome_orca_service_proxy_new_for_bus_sync (
     GError             **error)
 {
   GInitable *ret;
-  ret = g_initable_new (TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, cancellable, error, "g-flags", flags, "g-name", name, "g-bus-type", bus_type, "g-object-path", object_path, "g-interface-name", "org.gnome.Orca.Service", NULL);
+  ret = g_initable_new (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE_PROXY, cancellable, error, "g-flags", flags, "g-name", name, "g-bus-type", bus_type, "g-object-path", object_path, "g-interface-name", "org.gnome.Orca.Service", NULL);
   if (ret != NULL)
-    return ORG_GNOME_ORCA_SERVICE (ret);
+    return ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE (ret);
   else
     return NULL;
 }
@@ -1858,19 +1858,19 @@ org_gnome_orca_service_proxy_new_for_bus_sync (
 /* ------------------------------------------------------------------------ */
 
 /**
- * OrgGnomeOrcaServiceSkeleton:
+ * OrcaServiceOrgGnomeOrcaServiceSkeleton:
  *
- * The #OrgGnomeOrcaServiceSkeleton structure contains only private data and should only be accessed using the provided API.
+ * The #OrcaServiceOrgGnomeOrcaServiceSkeleton structure contains only private data and should only be accessed using the provided API.
  */
 
 /**
- * OrgGnomeOrcaServiceSkeletonClass:
+ * OrcaServiceOrgGnomeOrcaServiceSkeletonClass:
  * @parent_class: The parent class.
  *
- * Class structure for #OrgGnomeOrcaServiceSkeleton.
+ * Class structure for #OrcaServiceOrgGnomeOrcaServiceSkeleton.
  */
 
-struct _OrgGnomeOrcaServiceSkeletonPrivate
+struct _OrcaServiceOrgGnomeOrcaServiceSkeletonPrivate
 {
   GValue *properties;
   GList *changed_properties;
@@ -1880,7 +1880,7 @@ struct _OrgGnomeOrcaServiceSkeletonPrivate
 };
 
 static void
-_org_gnome_orca_service_skeleton_handle_method_call (
+_orca_service_org_gnome_orca_service_skeleton_handle_method_call (
   GDBusConnection *connection G_GNUC_UNUSED,
   const gchar *sender G_GNUC_UNUSED,
   const gchar *object_path G_GNUC_UNUSED,
@@ -1890,7 +1890,7 @@ _org_gnome_orca_service_skeleton_handle_method_call (
   GDBusMethodInvocation *invocation,
   gpointer user_data)
 {
-  OrgGnomeOrcaServiceSkeleton *skeleton = ORG_GNOME_ORCA_SERVICE_SKELETON (user_data);
+  OrcaServiceOrgGnomeOrcaServiceSkeleton *skeleton = ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE_SKELETON (user_data);
   _ExtendedGDBusMethodInfo *info;
   GVariantIter iter;
   GVariant *child;
@@ -1905,7 +1905,7 @@ _org_gnome_orca_service_skeleton_handle_method_call (
   num_params = g_variant_n_children (parameters);
   num_extra = info->pass_fdlist ? 3 : 2;  paramv = g_new0 (GValue, num_params + num_extra);
   n = 0;
-  g_value_init (&paramv[n], TYPE_ORG_GNOME_ORCA_SERVICE);
+  g_value_init (&paramv[n], ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE);
   g_value_set_object (&paramv[n++], skeleton);
   g_value_init (&paramv[n], G_TYPE_DBUS_METHOD_INVOCATION);
   g_value_set_object (&paramv[n++], invocation);
@@ -1932,7 +1932,7 @@ _org_gnome_orca_service_skeleton_handle_method_call (
         g_dbus_gvariant_to_gvalue (child, &paramv[n++]);
       g_variant_unref (child);
     }
-  signal_id = g_signal_lookup (info->signal_name, TYPE_ORG_GNOME_ORCA_SERVICE);
+  signal_id = g_signal_lookup (info->signal_name, ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE);
   g_value_init (&return_value, G_TYPE_BOOLEAN);
   g_signal_emitv (paramv, signal_id, 0, &return_value);
   if (!g_value_get_boolean (&return_value))
@@ -1944,7 +1944,7 @@ _org_gnome_orca_service_skeleton_handle_method_call (
 }
 
 static GVariant *
-_org_gnome_orca_service_skeleton_handle_get_property (
+_orca_service_org_gnome_orca_service_skeleton_handle_get_property (
   GDBusConnection *connection G_GNUC_UNUSED,
   const gchar *sender G_GNUC_UNUSED,
   const gchar *object_path G_GNUC_UNUSED,
@@ -1953,13 +1953,13 @@ _org_gnome_orca_service_skeleton_handle_get_property (
   GError **error,
   gpointer user_data)
 {
-  OrgGnomeOrcaServiceSkeleton *skeleton = ORG_GNOME_ORCA_SERVICE_SKELETON (user_data);
+  OrcaServiceOrgGnomeOrcaServiceSkeleton *skeleton = ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE_SKELETON (user_data);
   GValue value = G_VALUE_INIT;
   GParamSpec *pspec;
   _ExtendedGDBusPropertyInfo *info;
   GVariant *ret;
   ret = NULL;
-  info = (_ExtendedGDBusPropertyInfo *) g_dbus_interface_info_lookup_property ((GDBusInterfaceInfo *) &_org_gnome_orca_service_interface_info.parent_struct, property_name);
+  info = (_ExtendedGDBusPropertyInfo *) g_dbus_interface_info_lookup_property ((GDBusInterfaceInfo *) &_orca_service_org_gnome_orca_service_interface_info.parent_struct, property_name);
   g_assert (info != NULL);
   pspec = g_object_class_find_property (G_OBJECT_GET_CLASS (skeleton), info->hyphen_name);
   if (pspec == NULL)
@@ -1977,7 +1977,7 @@ _org_gnome_orca_service_skeleton_handle_get_property (
 }
 
 static gboolean
-_org_gnome_orca_service_skeleton_handle_set_property (
+_orca_service_org_gnome_orca_service_skeleton_handle_set_property (
   GDBusConnection *connection G_GNUC_UNUSED,
   const gchar *sender G_GNUC_UNUSED,
   const gchar *object_path G_GNUC_UNUSED,
@@ -1987,13 +1987,13 @@ _org_gnome_orca_service_skeleton_handle_set_property (
   GError **error,
   gpointer user_data)
 {
-  OrgGnomeOrcaServiceSkeleton *skeleton = ORG_GNOME_ORCA_SERVICE_SKELETON (user_data);
+  OrcaServiceOrgGnomeOrcaServiceSkeleton *skeleton = ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE_SKELETON (user_data);
   GValue value = G_VALUE_INIT;
   GParamSpec *pspec;
   _ExtendedGDBusPropertyInfo *info;
   gboolean ret;
   ret = FALSE;
-  info = (_ExtendedGDBusPropertyInfo *) g_dbus_interface_info_lookup_property ((GDBusInterfaceInfo *) &_org_gnome_orca_service_interface_info.parent_struct, property_name);
+  info = (_ExtendedGDBusPropertyInfo *) g_dbus_interface_info_lookup_property ((GDBusInterfaceInfo *) &_orca_service_org_gnome_orca_service_interface_info.parent_struct, property_name);
   g_assert (info != NULL);
   pspec = g_object_class_find_property (G_OBJECT_GET_CLASS (skeleton), info->hyphen_name);
   if (pspec == NULL)
@@ -2013,30 +2013,30 @@ _org_gnome_orca_service_skeleton_handle_set_property (
   return ret;
 }
 
-static const GDBusInterfaceVTable _org_gnome_orca_service_skeleton_vtable =
+static const GDBusInterfaceVTable _orca_service_org_gnome_orca_service_skeleton_vtable =
 {
-  _org_gnome_orca_service_skeleton_handle_method_call,
-  _org_gnome_orca_service_skeleton_handle_get_property,
-  _org_gnome_orca_service_skeleton_handle_set_property,
+  _orca_service_org_gnome_orca_service_skeleton_handle_method_call,
+  _orca_service_org_gnome_orca_service_skeleton_handle_get_property,
+  _orca_service_org_gnome_orca_service_skeleton_handle_set_property,
   {NULL}
 };
 
 static GDBusInterfaceInfo *
-org_gnome_orca_service_skeleton_dbus_interface_get_info (GDBusInterfaceSkeleton *skeleton G_GNUC_UNUSED)
+orca_service_org_gnome_orca_service_skeleton_dbus_interface_get_info (GDBusInterfaceSkeleton *skeleton G_GNUC_UNUSED)
 {
-  return org_gnome_orca_service_interface_info ();
+  return orca_service_org_gnome_orca_service_interface_info ();
 }
 
 static GDBusInterfaceVTable *
-org_gnome_orca_service_skeleton_dbus_interface_get_vtable (GDBusInterfaceSkeleton *skeleton G_GNUC_UNUSED)
+orca_service_org_gnome_orca_service_skeleton_dbus_interface_get_vtable (GDBusInterfaceSkeleton *skeleton G_GNUC_UNUSED)
 {
-  return (GDBusInterfaceVTable *) &_org_gnome_orca_service_skeleton_vtable;
+  return (GDBusInterfaceVTable *) &_orca_service_org_gnome_orca_service_skeleton_vtable;
 }
 
 static GVariant *
-org_gnome_orca_service_skeleton_dbus_interface_get_properties (GDBusInterfaceSkeleton *_skeleton)
+orca_service_org_gnome_orca_service_skeleton_dbus_interface_get_properties (GDBusInterfaceSkeleton *_skeleton)
 {
-  OrgGnomeOrcaServiceSkeleton *skeleton = ORG_GNOME_ORCA_SERVICE_SKELETON (_skeleton);
+  OrcaServiceOrgGnomeOrcaServiceSkeleton *skeleton = ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE_SKELETON (_skeleton);
 
   GVariantBuilder builder;
   guint n;
@@ -2045,15 +2045,15 @@ org_gnome_orca_service_skeleton_dbus_interface_get_properties (GDBusInterfaceSke
 #else
   g_variant_builder_init(&builder, G_VARIANT_TYPE ("a{sv}"));
 #endif
-  if (_org_gnome_orca_service_interface_info.parent_struct.properties == NULL)
+  if (_orca_service_org_gnome_orca_service_interface_info.parent_struct.properties == NULL)
     goto out;
-  for (n = 0; _org_gnome_orca_service_interface_info.parent_struct.properties[n] != NULL; n++)
+  for (n = 0; _orca_service_org_gnome_orca_service_interface_info.parent_struct.properties[n] != NULL; n++)
     {
-      GDBusPropertyInfo *info = _org_gnome_orca_service_interface_info.parent_struct.properties[n];
+      GDBusPropertyInfo *info = _orca_service_org_gnome_orca_service_interface_info.parent_struct.properties[n];
       if (info->flags & G_DBUS_PROPERTY_INFO_FLAGS_READABLE)
         {
           GVariant *value;
-          value = _org_gnome_orca_service_skeleton_handle_get_property (g_dbus_interface_skeleton_get_connection (G_DBUS_INTERFACE_SKELETON (skeleton)), NULL, g_dbus_interface_skeleton_get_object_path (G_DBUS_INTERFACE_SKELETON (skeleton)), "org.gnome.Orca.Service", info->name, NULL, skeleton);
+          value = _orca_service_org_gnome_orca_service_skeleton_handle_get_property (g_dbus_interface_skeleton_get_connection (G_DBUS_INTERFACE_SKELETON (skeleton)), NULL, g_dbus_interface_skeleton_get_object_path (G_DBUS_INTERFACE_SKELETON (skeleton)), "org.gnome.Orca.Service", info->name, NULL, skeleton);
           if (value != NULL)
             {
               g_variant_take_ref (value);
@@ -2067,40 +2067,40 @@ out:
 }
 
 static void
-org_gnome_orca_service_skeleton_dbus_interface_flush (GDBusInterfaceSkeleton *_skeleton G_GNUC_UNUSED)
+orca_service_org_gnome_orca_service_skeleton_dbus_interface_flush (GDBusInterfaceSkeleton *_skeleton G_GNUC_UNUSED)
 {
 }
 
-static void org_gnome_orca_service_skeleton_iface_init (OrgGnomeOrcaServiceIface *iface);
+static void orca_service_org_gnome_orca_service_skeleton_iface_init (OrcaServiceOrgGnomeOrcaServiceIface *iface);
 #if GLIB_VERSION_MAX_ALLOWED >= GLIB_VERSION_2_38
-G_DEFINE_TYPE_WITH_CODE (OrgGnomeOrcaServiceSkeleton, org_gnome_orca_service_skeleton, G_TYPE_DBUS_INTERFACE_SKELETON,
-                         G_ADD_PRIVATE (OrgGnomeOrcaServiceSkeleton)
-                         G_IMPLEMENT_INTERFACE (TYPE_ORG_GNOME_ORCA_SERVICE, org_gnome_orca_service_skeleton_iface_init))
+G_DEFINE_TYPE_WITH_CODE (OrcaServiceOrgGnomeOrcaServiceSkeleton, orca_service_org_gnome_orca_service_skeleton, G_TYPE_DBUS_INTERFACE_SKELETON,
+                         G_ADD_PRIVATE (OrcaServiceOrgGnomeOrcaServiceSkeleton)
+                         G_IMPLEMENT_INTERFACE (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE, orca_service_org_gnome_orca_service_skeleton_iface_init))
 
 #else
-G_DEFINE_TYPE_WITH_CODE (OrgGnomeOrcaServiceSkeleton, org_gnome_orca_service_skeleton, G_TYPE_DBUS_INTERFACE_SKELETON,
-                         G_IMPLEMENT_INTERFACE (TYPE_ORG_GNOME_ORCA_SERVICE, org_gnome_orca_service_skeleton_iface_init))
+G_DEFINE_TYPE_WITH_CODE (OrcaServiceOrgGnomeOrcaServiceSkeleton, orca_service_org_gnome_orca_service_skeleton, G_TYPE_DBUS_INTERFACE_SKELETON,
+                         G_IMPLEMENT_INTERFACE (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE, orca_service_org_gnome_orca_service_skeleton_iface_init))
 
 #endif
 static void
-org_gnome_orca_service_skeleton_finalize (GObject *object)
+orca_service_org_gnome_orca_service_skeleton_finalize (GObject *object)
 {
-  OrgGnomeOrcaServiceSkeleton *skeleton = ORG_GNOME_ORCA_SERVICE_SKELETON (object);
+  OrcaServiceOrgGnomeOrcaServiceSkeleton *skeleton = ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE_SKELETON (object);
   g_list_free_full (skeleton->priv->changed_properties, (GDestroyNotify) _changed_property_free);
   if (skeleton->priv->changed_properties_idle_source != NULL)
     g_source_destroy (skeleton->priv->changed_properties_idle_source);
   g_main_context_unref (skeleton->priv->context);
   g_mutex_clear (&skeleton->priv->lock);
-  G_OBJECT_CLASS (org_gnome_orca_service_skeleton_parent_class)->finalize (object);
+  G_OBJECT_CLASS (orca_service_org_gnome_orca_service_skeleton_parent_class)->finalize (object);
 }
 
 static void
-org_gnome_orca_service_skeleton_init (OrgGnomeOrcaServiceSkeleton *skeleton)
+orca_service_org_gnome_orca_service_skeleton_init (OrcaServiceOrgGnomeOrcaServiceSkeleton *skeleton)
 {
 #if GLIB_VERSION_MAX_ALLOWED >= GLIB_VERSION_2_38
-  skeleton->priv = org_gnome_orca_service_skeleton_get_instance_private (skeleton);
+  skeleton->priv = orca_service_org_gnome_orca_service_skeleton_get_instance_private (skeleton);
 #else
-  skeleton->priv = G_TYPE_INSTANCE_GET_PRIVATE (skeleton, TYPE_ORG_GNOME_ORCA_SERVICE_SKELETON, OrgGnomeOrcaServiceSkeletonPrivate);
+  skeleton->priv = G_TYPE_INSTANCE_GET_PRIVATE (skeleton, ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE_SKELETON, OrcaServiceOrgGnomeOrcaServiceSkeletonPrivate);
 #endif
 
   g_mutex_init (&skeleton->priv->lock);
@@ -2108,41 +2108,41 @@ org_gnome_orca_service_skeleton_init (OrgGnomeOrcaServiceSkeleton *skeleton)
 }
 
 static void
-org_gnome_orca_service_skeleton_class_init (OrgGnomeOrcaServiceSkeletonClass *klass)
+orca_service_org_gnome_orca_service_skeleton_class_init (OrcaServiceOrgGnomeOrcaServiceSkeletonClass *klass)
 {
   GObjectClass *gobject_class;
   GDBusInterfaceSkeletonClass *skeleton_class;
 
   gobject_class = G_OBJECT_CLASS (klass);
-  gobject_class->finalize = org_gnome_orca_service_skeleton_finalize;
+  gobject_class->finalize = orca_service_org_gnome_orca_service_skeleton_finalize;
 
   skeleton_class = G_DBUS_INTERFACE_SKELETON_CLASS (klass);
-  skeleton_class->get_info = org_gnome_orca_service_skeleton_dbus_interface_get_info;
-  skeleton_class->get_properties = org_gnome_orca_service_skeleton_dbus_interface_get_properties;
-  skeleton_class->flush = org_gnome_orca_service_skeleton_dbus_interface_flush;
-  skeleton_class->get_vtable = org_gnome_orca_service_skeleton_dbus_interface_get_vtable;
+  skeleton_class->get_info = orca_service_org_gnome_orca_service_skeleton_dbus_interface_get_info;
+  skeleton_class->get_properties = orca_service_org_gnome_orca_service_skeleton_dbus_interface_get_properties;
+  skeleton_class->flush = orca_service_org_gnome_orca_service_skeleton_dbus_interface_flush;
+  skeleton_class->get_vtable = orca_service_org_gnome_orca_service_skeleton_dbus_interface_get_vtable;
 
 #if GLIB_VERSION_MAX_ALLOWED < GLIB_VERSION_2_38
-  g_type_class_add_private (klass, sizeof (OrgGnomeOrcaServiceSkeletonPrivate));
+  g_type_class_add_private (klass, sizeof (OrcaServiceOrgGnomeOrcaServiceSkeletonPrivate));
 #endif
 }
 
 static void
-org_gnome_orca_service_skeleton_iface_init (OrgGnomeOrcaServiceIface *iface G_GNUC_UNUSED)
+orca_service_org_gnome_orca_service_skeleton_iface_init (OrcaServiceOrgGnomeOrcaServiceIface *iface G_GNUC_UNUSED)
 {
 }
 
 /**
- * org_gnome_orca_service_skeleton_new:
+ * orca_service_org_gnome_orca_service_skeleton_new:
  *
  * Creates a skeleton object for the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link>.
  *
- * Returns: (transfer full) (type OrgGnomeOrcaServiceSkeleton): The skeleton object.
+ * Returns: (transfer full) (type OrcaServiceOrgGnomeOrcaServiceSkeleton): The skeleton object.
  */
-OrgGnomeOrcaService *
-org_gnome_orca_service_skeleton_new (void)
+OrcaServiceOrgGnomeOrcaService *
+orca_service_org_gnome_orca_service_skeleton_new (void)
 {
-  return ORG_GNOME_ORCA_SERVICE (g_object_new (TYPE_ORG_GNOME_ORCA_SERVICE_SKELETON, NULL));
+  return ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE (g_object_new (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE_SKELETON, NULL));
 }
 
 /* ------------------------------------------------------------------------
@@ -2151,84 +2151,84 @@ org_gnome_orca_service_skeleton_new (void)
  */
 
 /**
- * SECTION:Object
- * @title: Object
+ * SECTION:OrcaServiceObject
+ * @title: OrcaServiceObject
  * @short_description: Specialized GDBusObject types
  *
- * This section contains the #Object, #ObjectProxy, and #ObjectSkeleton types which make it easier to work with objects implementing generated types for D-Bus interfaces.
+ * This section contains the #OrcaServiceObject, #OrcaServiceObjectProxy, and #OrcaServiceObjectSkeleton types which make it easier to work with objects implementing generated types for D-Bus interfaces.
  */
 
 /**
- * Object:
+ * OrcaServiceObject:
  *
- * The #Object type is a specialized container of interfaces.
+ * The #OrcaServiceObject type is a specialized container of interfaces.
  */
 
 /**
- * ObjectIface:
+ * OrcaServiceObjectIface:
  * @parent_iface: The parent interface.
  *
- * Virtual table for the #Object interface.
+ * Virtual table for the #OrcaServiceObject interface.
  */
 
-typedef ObjectIface ObjectInterface;
-G_DEFINE_INTERFACE_WITH_CODE (Object, object, G_TYPE_OBJECT, g_type_interface_add_prerequisite (g_define_type_id, G_TYPE_DBUS_OBJECT);)
+typedef OrcaServiceObjectIface OrcaServiceObjectInterface;
+G_DEFINE_INTERFACE_WITH_CODE (OrcaServiceObject, orca_service_object, G_TYPE_OBJECT, g_type_interface_add_prerequisite (g_define_type_id, G_TYPE_DBUS_OBJECT);)
 
 static void
-object_default_init (ObjectIface *iface)
+orca_service_object_default_init (OrcaServiceObjectIface *iface)
 {
   /**
-   * Object:org-gnome-orca-service:
+   * OrcaServiceObject:org-gnome-orca-service:
    *
-   * The #OrgGnomeOrcaService instance corresponding to the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link>, if any.
+   * The #OrcaServiceOrgGnomeOrcaService instance corresponding to the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link>, if any.
    *
    * Connect to the #GObject::notify signal to get informed of property changes.
    */
-  g_object_interface_install_property (iface, g_param_spec_object ("org-gnome-orca-service", "org-gnome-orca-service", "org-gnome-orca-service", TYPE_ORG_GNOME_ORCA_SERVICE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  g_object_interface_install_property (iface, g_param_spec_object ("org-gnome-orca-service", "org-gnome-orca-service", "org-gnome-orca-service", ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
 }
 
 /**
- * object_get_org_gnome_orca_service:
- * @object: A #Object.
+ * orca_service_object_get_org_gnome_orca_service:
+ * @object: A #OrcaServiceObject.
  *
- * Gets the #OrgGnomeOrcaService instance for the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link> on @object, if any.
+ * Gets the #OrcaServiceOrgGnomeOrcaService instance for the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link> on @object, if any.
  *
- * Returns: (transfer full) (nullable): A #OrgGnomeOrcaService that must be freed with g_object_unref() or %NULL if @object does not implement the interface.
+ * Returns: (transfer full) (nullable): A #OrcaServiceOrgGnomeOrcaService that must be freed with g_object_unref() or %NULL if @object does not implement the interface.
  */
-OrgGnomeOrcaService *object_get_org_gnome_orca_service (Object *object)
+OrcaServiceOrgGnomeOrcaService *orca_service_object_get_org_gnome_orca_service (OrcaServiceObject *object)
 {
   GDBusInterface *ret;
   ret = g_dbus_object_get_interface (G_DBUS_OBJECT (object), "org.gnome.Orca.Service");
   if (ret == NULL)
     return NULL;
-  return ORG_GNOME_ORCA_SERVICE (ret);
+  return ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE (ret);
 }
 
 
 /**
- * object_peek_org_gnome_orca_service: (skip)
- * @object: A #Object.
+ * orca_service_object_peek_org_gnome_orca_service: (skip)
+ * @object: A #OrcaServiceObject.
  *
- * Like object_get_org_gnome_orca_service() but doesn't increase the reference count on the returned object.
+ * Like orca_service_object_get_org_gnome_orca_service() but doesn't increase the reference count on the returned object.
  *
  * It is not safe to use the returned object if you are on another thread than the one where the #GDBusObjectManagerClient or #GDBusObjectManagerServer for @object is running.
  *
- * Returns: (transfer none) (nullable): A #OrgGnomeOrcaService or %NULL if @object does not implement the interface. Do not free the returned object, it is owned by @object.
+ * Returns: (transfer none) (nullable): A #OrcaServiceOrgGnomeOrcaService or %NULL if @object does not implement the interface. Do not free the returned object, it is owned by @object.
  */
-OrgGnomeOrcaService *object_peek_org_gnome_orca_service (Object *object)
+OrcaServiceOrgGnomeOrcaService *orca_service_object_peek_org_gnome_orca_service (OrcaServiceObject *object)
 {
   GDBusInterface *ret;
   ret = g_dbus_object_get_interface (G_DBUS_OBJECT (object), "org.gnome.Orca.Service");
   if (ret == NULL)
     return NULL;
   g_object_unref (ret);
-  return ORG_GNOME_ORCA_SERVICE (ret);
+  return ORCA_SERVICE_ORG_GNOME_ORCA_SERVICE (ret);
 }
 
 
 static void
-object_notify (GDBusObject *object, GDBusInterface *interface)
+orca_service_object_notify (GDBusObject *object, GDBusInterface *interface)
 {
   _ExtendedGDBusInterfaceInfo *info = (_ExtendedGDBusInterfaceInfo *) g_dbus_interface_get_info (interface);
   /* info can be NULL if the other end is using a D-Bus interface we don't know
@@ -2239,42 +2239,42 @@ object_notify (GDBusObject *object, GDBusInterface *interface)
 }
 
 /**
- * ObjectProxy:
+ * OrcaServiceObjectProxy:
  *
- * The #ObjectProxy structure contains only private data and should only be accessed using the provided API.
+ * The #OrcaServiceObjectProxy structure contains only private data and should only be accessed using the provided API.
  */
 
 /**
- * ObjectProxyClass:
+ * OrcaServiceObjectProxyClass:
  * @parent_class: The parent class.
  *
- * Class structure for #ObjectProxy.
+ * Class structure for #OrcaServiceObjectProxy.
  */
 
 static void
-object_proxy__object_iface_init (ObjectIface *iface G_GNUC_UNUSED)
+orca_service_object_proxy__orca_service_object_iface_init (OrcaServiceObjectIface *iface G_GNUC_UNUSED)
 {
 }
 
 static void
-object_proxy__g_dbus_object_iface_init (GDBusObjectIface *iface)
+orca_service_object_proxy__g_dbus_object_iface_init (GDBusObjectIface *iface)
 {
-  iface->interface_added = object_notify;
-  iface->interface_removed = object_notify;
+  iface->interface_added = orca_service_object_notify;
+  iface->interface_removed = orca_service_object_notify;
 }
 
 
-G_DEFINE_TYPE_WITH_CODE (ObjectProxy, object_proxy, G_TYPE_DBUS_OBJECT_PROXY,
-                         G_IMPLEMENT_INTERFACE (TYPE_OBJECT, object_proxy__object_iface_init)
-                         G_IMPLEMENT_INTERFACE (G_TYPE_DBUS_OBJECT, object_proxy__g_dbus_object_iface_init))
+G_DEFINE_TYPE_WITH_CODE (OrcaServiceObjectProxy, orca_service_object_proxy, G_TYPE_DBUS_OBJECT_PROXY,
+                         G_IMPLEMENT_INTERFACE (ORCA_SERVICE_TYPE_OBJECT, orca_service_object_proxy__orca_service_object_iface_init)
+                         G_IMPLEMENT_INTERFACE (G_TYPE_DBUS_OBJECT, orca_service_object_proxy__g_dbus_object_iface_init))
 
 static void
-object_proxy_init (ObjectProxy *object G_GNUC_UNUSED)
+orca_service_object_proxy_init (OrcaServiceObjectProxy *object G_GNUC_UNUSED)
 {
 }
 
 static void
-object_proxy_set_property (GObject      *gobject,
+orca_service_object_proxy_set_property (GObject      *gobject,
   guint         prop_id,
   const GValue *value G_GNUC_UNUSED,
   GParamSpec   *pspec)
@@ -2283,12 +2283,12 @@ object_proxy_set_property (GObject      *gobject,
 }
 
 static void
-object_proxy_get_property (GObject      *gobject,
+orca_service_object_proxy_get_property (GObject      *gobject,
   guint         prop_id,
   GValue       *value,
   GParamSpec   *pspec)
 {
-  ObjectProxy *object = OBJECT_PROXY (gobject);
+  OrcaServiceObjectProxy *object = ORCA_SERVICE_OBJECT_PROXY (gobject);
   GDBusInterface *interface;
 
   switch (prop_id)
@@ -2305,18 +2305,18 @@ object_proxy_get_property (GObject      *gobject,
 }
 
 static void
-object_proxy_class_init (ObjectProxyClass *klass)
+orca_service_object_proxy_class_init (OrcaServiceObjectProxyClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
-  gobject_class->set_property = object_proxy_set_property;
-  gobject_class->get_property = object_proxy_get_property;
+  gobject_class->set_property = orca_service_object_proxy_set_property;
+  gobject_class->get_property = orca_service_object_proxy_get_property;
 
   g_object_class_override_property (gobject_class, 1, "org-gnome-orca-service");
 }
 
 /**
- * object_proxy_new:
+ * orca_service_object_proxy_new:
  * @connection: A #GDBusConnection.
  * @object_path: An object path.
  *
@@ -2324,57 +2324,57 @@ object_proxy_class_init (ObjectProxyClass *klass)
  *
  * Returns: (transfer full): The proxy object.
  */
-ObjectProxy *
-object_proxy_new (GDBusConnection *connection,
+OrcaServiceObjectProxy *
+orca_service_object_proxy_new (GDBusConnection *connection,
   const gchar *object_path)
 {
   g_return_val_if_fail (G_IS_DBUS_CONNECTION (connection), NULL);
   g_return_val_if_fail (g_variant_is_object_path (object_path), NULL);
-  return OBJECT_PROXY (g_object_new (TYPE_OBJECT_PROXY, "g-connection", connection, "g-object-path", object_path, NULL));
+  return ORCA_SERVICE_OBJECT_PROXY (g_object_new (ORCA_SERVICE_TYPE_OBJECT_PROXY, "g-connection", connection, "g-object-path", object_path, NULL));
 }
 
 /**
- * ObjectSkeleton:
+ * OrcaServiceObjectSkeleton:
  *
- * The #ObjectSkeleton structure contains only private data and should only be accessed using the provided API.
+ * The #OrcaServiceObjectSkeleton structure contains only private data and should only be accessed using the provided API.
  */
 
 /**
- * ObjectSkeletonClass:
+ * OrcaServiceObjectSkeletonClass:
  * @parent_class: The parent class.
  *
- * Class structure for #ObjectSkeleton.
+ * Class structure for #OrcaServiceObjectSkeleton.
  */
 
 static void
-object_skeleton__object_iface_init (ObjectIface *iface G_GNUC_UNUSED)
+orca_service_object_skeleton__orca_service_object_iface_init (OrcaServiceObjectIface *iface G_GNUC_UNUSED)
 {
 }
 
 
 static void
-object_skeleton__g_dbus_object_iface_init (GDBusObjectIface *iface)
+orca_service_object_skeleton__g_dbus_object_iface_init (GDBusObjectIface *iface)
 {
-  iface->interface_added = object_notify;
-  iface->interface_removed = object_notify;
+  iface->interface_added = orca_service_object_notify;
+  iface->interface_removed = orca_service_object_notify;
 }
 
-G_DEFINE_TYPE_WITH_CODE (ObjectSkeleton, object_skeleton, G_TYPE_DBUS_OBJECT_SKELETON,
-                         G_IMPLEMENT_INTERFACE (TYPE_OBJECT, object_skeleton__object_iface_init)
-                         G_IMPLEMENT_INTERFACE (G_TYPE_DBUS_OBJECT, object_skeleton__g_dbus_object_iface_init))
+G_DEFINE_TYPE_WITH_CODE (OrcaServiceObjectSkeleton, orca_service_object_skeleton, G_TYPE_DBUS_OBJECT_SKELETON,
+                         G_IMPLEMENT_INTERFACE (ORCA_SERVICE_TYPE_OBJECT, orca_service_object_skeleton__orca_service_object_iface_init)
+                         G_IMPLEMENT_INTERFACE (G_TYPE_DBUS_OBJECT, orca_service_object_skeleton__g_dbus_object_iface_init))
 
 static void
-object_skeleton_init (ObjectSkeleton *object G_GNUC_UNUSED)
+orca_service_object_skeleton_init (OrcaServiceObjectSkeleton *object G_GNUC_UNUSED)
 {
 }
 
 static void
-object_skeleton_set_property (GObject      *gobject,
+orca_service_object_skeleton_set_property (GObject      *gobject,
   guint         prop_id,
   const GValue *value,
   GParamSpec   *pspec)
 {
-  ObjectSkeleton *object = OBJECT_SKELETON (gobject);
+  OrcaServiceObjectSkeleton *object = ORCA_SERVICE_OBJECT_SKELETON (gobject);
   GDBusInterfaceSkeleton *interface;
 
   switch (prop_id)
@@ -2383,7 +2383,7 @@ object_skeleton_set_property (GObject      *gobject,
       interface = g_value_get_object (value);
       if (interface != NULL)
         {
-          g_warn_if_fail (IS_ORG_GNOME_ORCA_SERVICE (interface));
+          g_warn_if_fail (ORCA_SERVICE_IS_ORG_GNOME_ORCA_SERVICE (interface));
           g_dbus_object_skeleton_add_interface (G_DBUS_OBJECT_SKELETON (object), interface);
         }
       else
@@ -2399,12 +2399,12 @@ object_skeleton_set_property (GObject      *gobject,
 }
 
 static void
-object_skeleton_get_property (GObject      *gobject,
+orca_service_object_skeleton_get_property (GObject      *gobject,
   guint         prop_id,
   GValue       *value,
   GParamSpec   *pspec)
 {
-  ObjectSkeleton *object = OBJECT_SKELETON (gobject);
+  OrcaServiceObjectSkeleton *object = ORCA_SERVICE_OBJECT_SKELETON (gobject);
   GDBusInterface *interface;
 
   switch (prop_id)
@@ -2421,39 +2421,39 @@ object_skeleton_get_property (GObject      *gobject,
 }
 
 static void
-object_skeleton_class_init (ObjectSkeletonClass *klass)
+orca_service_object_skeleton_class_init (OrcaServiceObjectSkeletonClass *klass)
 {
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
-  gobject_class->set_property = object_skeleton_set_property;
-  gobject_class->get_property = object_skeleton_get_property;
+  gobject_class->set_property = orca_service_object_skeleton_set_property;
+  gobject_class->get_property = orca_service_object_skeleton_get_property;
 
   g_object_class_override_property (gobject_class, 1, "org-gnome-orca-service");
 }
 
 /**
- * object_skeleton_new:
+ * orca_service_object_skeleton_new:
  * @object_path: An object path.
  *
  * Creates a new skeleton object.
  *
  * Returns: (transfer full): The skeleton object.
  */
-ObjectSkeleton *
-object_skeleton_new (const gchar *object_path)
+OrcaServiceObjectSkeleton *
+orca_service_object_skeleton_new (const gchar *object_path)
 {
   g_return_val_if_fail (g_variant_is_object_path (object_path), NULL);
-  return OBJECT_SKELETON (g_object_new (TYPE_OBJECT_SKELETON, "g-object-path", object_path, NULL));
+  return ORCA_SERVICE_OBJECT_SKELETON (g_object_new (ORCA_SERVICE_TYPE_OBJECT_SKELETON, "g-object-path", object_path, NULL));
 }
 
 /**
- * object_skeleton_set_org_gnome_orca_service:
- * @object: A #ObjectSkeleton.
- * @interface_: (nullable): A #OrgGnomeOrcaService or %NULL to clear the interface.
+ * orca_service_object_skeleton_set_org_gnome_orca_service:
+ * @object: A #OrcaServiceObjectSkeleton.
+ * @interface_: (nullable): A #OrcaServiceOrgGnomeOrcaService or %NULL to clear the interface.
  *
- * Sets the #OrgGnomeOrcaService instance for the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link> on @object.
+ * Sets the #OrcaServiceOrgGnomeOrcaService instance for the D-Bus interface <link linkend="gdbus-interface-org-gnome-Orca-Service.top_of_page">org.gnome.Orca.Service</link> on @object.
  */
-void object_skeleton_set_org_gnome_orca_service (ObjectSkeleton *object, OrgGnomeOrcaService *interface_)
+void orca_service_object_skeleton_set_org_gnome_orca_service (OrcaServiceObjectSkeleton *object, OrcaServiceOrgGnomeOrcaService *interface_)
 {
   g_object_set (G_OBJECT (object), "org-gnome-orca-service", interface_, NULL);
 }
@@ -2465,40 +2465,40 @@ void object_skeleton_set_org_gnome_orca_service (ObjectSkeleton *object, OrgGnom
  */
 
 /**
- * SECTION:ObjectManagerClient
- * @title: ObjectManagerClient
+ * SECTION:OrcaServiceObjectManagerClient
+ * @title: OrcaServiceObjectManagerClient
  * @short_description: Generated GDBusObjectManagerClient type
  *
- * This section contains a #GDBusObjectManagerClient that uses object_manager_client_get_proxy_type() as the #GDBusProxyTypeFunc.
+ * This section contains a #GDBusObjectManagerClient that uses orca_service_object_manager_client_get_proxy_type() as the #GDBusProxyTypeFunc.
  */
 
 /**
- * ObjectManagerClient:
+ * OrcaServiceObjectManagerClient:
  *
- * The #ObjectManagerClient structure contains only private data and should only be accessed using the provided API.
+ * The #OrcaServiceObjectManagerClient structure contains only private data and should only be accessed using the provided API.
  */
 
 /**
- * ObjectManagerClientClass:
+ * OrcaServiceObjectManagerClientClass:
  * @parent_class: The parent class.
  *
- * Class structure for #ObjectManagerClient.
+ * Class structure for #OrcaServiceObjectManagerClient.
  */
 
-G_DEFINE_TYPE (ObjectManagerClient, object_manager_client, G_TYPE_DBUS_OBJECT_MANAGER_CLIENT)
+G_DEFINE_TYPE (OrcaServiceObjectManagerClient, orca_service_object_manager_client, G_TYPE_DBUS_OBJECT_MANAGER_CLIENT)
 
 static void
-object_manager_client_init (ObjectManagerClient *manager G_GNUC_UNUSED)
+orca_service_object_manager_client_init (OrcaServiceObjectManagerClient *manager G_GNUC_UNUSED)
 {
 }
 
 static void
-object_manager_client_class_init (ObjectManagerClientClass *klass G_GNUC_UNUSED)
+orca_service_object_manager_client_class_init (OrcaServiceObjectManagerClientClass *klass G_GNUC_UNUSED)
 {
 }
 
 /**
- * object_manager_client_get_proxy_type:
+ * orca_service_object_manager_client_get_proxy_type:
  * @manager: A #GDBusObjectManagerClient.
  * @object_path: The object path of the remote object (unused).
  * @interface_name: (nullable): Interface name of the remote object or %NULL to get the object proxy #GType.
@@ -2506,21 +2506,21 @@ object_manager_client_class_init (ObjectManagerClientClass *klass G_GNUC_UNUSED)
  *
  * A #GDBusProxyTypeFunc that maps @interface_name to the generated #GDBusObjectProxy derived and #GDBusProxy derived types.
  *
- * Returns: A #GDBusProxy derived #GType if @interface_name is not %NULL, otherwise the #GType for #ObjectProxy.
+ * Returns: A #GDBusProxy derived #GType if @interface_name is not %NULL, otherwise the #GType for #OrcaServiceObjectProxy.
  */
 GType
-object_manager_client_get_proxy_type (GDBusObjectManagerClient *manager G_GNUC_UNUSED, const gchar *object_path G_GNUC_UNUSED, const gchar *interface_name, gpointer user_data G_GNUC_UNUSED)
+orca_service_object_manager_client_get_proxy_type (GDBusObjectManagerClient *manager G_GNUC_UNUSED, const gchar *object_path G_GNUC_UNUSED, const gchar *interface_name, gpointer user_data G_GNUC_UNUSED)
 {
   static gsize once_init_value = 0;
   static GHashTable *lookup_hash;
   GType ret;
 
   if (interface_name == NULL)
-    return TYPE_OBJECT_PROXY;
+    return ORCA_SERVICE_TYPE_OBJECT_PROXY;
   if (g_once_init_enter (&once_init_value))
     {
       lookup_hash = g_hash_table_new (g_str_hash, g_str_equal);
-      g_hash_table_insert (lookup_hash, (gpointer) "org.gnome.Orca.Service", (gpointer) (guintptr) (TYPE_ORG_GNOME_ORCA_SERVICE_PROXY));
+      g_hash_table_insert (lookup_hash, (gpointer) "org.gnome.Orca.Service", (gpointer) (guintptr) (ORCA_SERVICE_TYPE_ORG_GNOME_ORCA_SERVICE_PROXY));
       g_once_init_leave (&once_init_value, 1);
     }
   ret = (GType) (guintptr) (g_hash_table_lookup (lookup_hash, interface_name));
@@ -2530,7 +2530,7 @@ object_manager_client_get_proxy_type (GDBusObjectManagerClient *manager G_GNUC_U
 }
 
 /**
- * object_manager_client_new:
+ * orca_service_object_manager_client_new:
  * @connection: A #GDBusConnection.
  * @flags: Flags from the #GDBusObjectManagerClientFlags enumeration.
  * @name: (nullable): A bus name (well-known or unique) or %NULL if @connection is not a message bus connection.
@@ -2539,15 +2539,15 @@ object_manager_client_get_proxy_type (GDBusObjectManagerClient *manager G_GNUC_U
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied.
  * @user_data: User data to pass to @callback.
  *
- * Asynchronously creates #GDBusObjectManagerClient using object_manager_client_get_proxy_type() as the #GDBusProxyTypeFunc. See g_dbus_object_manager_client_new() for more details.
+ * Asynchronously creates #GDBusObjectManagerClient using orca_service_object_manager_client_get_proxy_type() as the #GDBusProxyTypeFunc. See g_dbus_object_manager_client_new() for more details.
  *
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call object_manager_client_new_finish() to get the result of the operation.
+ * You can then call orca_service_object_manager_client_new_finish() to get the result of the operation.
  *
- * See object_manager_client_new_sync() for the synchronous, blocking version of this constructor.
+ * See orca_service_object_manager_client_new_sync() for the synchronous, blocking version of this constructor.
  */
 void
-object_manager_client_new (
+orca_service_object_manager_client_new (
     GDBusConnection        *connection,
     GDBusObjectManagerClientFlags  flags,
     const gchar            *name,
@@ -2556,20 +2556,20 @@ object_manager_client_new (
     GAsyncReadyCallback     callback,
     gpointer                user_data)
 {
-  g_async_initable_new_async (TYPE_OBJECT_MANAGER_CLIENT, G_PRIORITY_DEFAULT, cancellable, callback, user_data, "flags", flags, "name", name, "connection", connection, "object-path", object_path, "get-proxy-type-func", object_manager_client_get_proxy_type, NULL);
+  g_async_initable_new_async (ORCA_SERVICE_TYPE_OBJECT_MANAGER_CLIENT, G_PRIORITY_DEFAULT, cancellable, callback, user_data, "flags", flags, "name", name, "connection", connection, "object-path", object_path, "get-proxy-type-func", orca_service_object_manager_client_get_proxy_type, NULL);
 }
 
 /**
- * object_manager_client_new_finish:
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to object_manager_client_new().
+ * orca_service_object_manager_client_new_finish:
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_object_manager_client_new().
  * @error: Return location for error or %NULL
  *
- * Finishes an operation started with object_manager_client_new().
+ * Finishes an operation started with orca_service_object_manager_client_new().
  *
- * Returns: (transfer full) (type ObjectManagerClient): The constructed object manager client or %NULL if @error is set.
+ * Returns: (transfer full) (type OrcaServiceObjectManagerClient): The constructed object manager client or %NULL if @error is set.
  */
 GDBusObjectManager *
-object_manager_client_new_finish (
+orca_service_object_manager_client_new_finish (
     GAsyncResult        *res,
     GError             **error)
 {
@@ -2585,7 +2585,7 @@ object_manager_client_new_finish (
 }
 
 /**
- * object_manager_client_new_sync:
+ * orca_service_object_manager_client_new_sync:
  * @connection: A #GDBusConnection.
  * @flags: Flags from the #GDBusObjectManagerClientFlags enumeration.
  * @name: (nullable): A bus name (well-known or unique) or %NULL if @connection is not a message bus connection.
@@ -2593,16 +2593,16 @@ object_manager_client_new_finish (
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @error: Return location for error or %NULL
  *
- * Synchronously creates #GDBusObjectManagerClient using object_manager_client_get_proxy_type() as the #GDBusProxyTypeFunc. See g_dbus_object_manager_client_new_sync() for more details.
+ * Synchronously creates #GDBusObjectManagerClient using orca_service_object_manager_client_get_proxy_type() as the #GDBusProxyTypeFunc. See g_dbus_object_manager_client_new_sync() for more details.
  *
  * The calling thread is blocked until a reply is received.
  *
- * See object_manager_client_new() for the asynchronous version of this constructor.
+ * See orca_service_object_manager_client_new() for the asynchronous version of this constructor.
  *
- * Returns: (transfer full) (type ObjectManagerClient): The constructed object manager client or %NULL if @error is set.
+ * Returns: (transfer full) (type OrcaServiceObjectManagerClient): The constructed object manager client or %NULL if @error is set.
  */
 GDBusObjectManager *
-object_manager_client_new_sync (
+orca_service_object_manager_client_new_sync (
     GDBusConnection        *connection,
     GDBusObjectManagerClientFlags  flags,
     const gchar            *name,
@@ -2611,7 +2611,7 @@ object_manager_client_new_sync (
     GError                **error)
 {
   GInitable *ret;
-  ret = g_initable_new (TYPE_OBJECT_MANAGER_CLIENT, cancellable, error, "flags", flags, "name", name, "connection", connection, "object-path", object_path, "get-proxy-type-func", object_manager_client_get_proxy_type, NULL);
+  ret = g_initable_new (ORCA_SERVICE_TYPE_OBJECT_MANAGER_CLIENT, cancellable, error, "flags", flags, "name", name, "connection", connection, "object-path", object_path, "get-proxy-type-func", orca_service_object_manager_client_get_proxy_type, NULL);
   if (ret != NULL)
     return G_DBUS_OBJECT_MANAGER (ret);
   else
@@ -2620,7 +2620,7 @@ object_manager_client_new_sync (
 
 
 /**
- * object_manager_client_new_for_bus:
+ * orca_service_object_manager_client_new_for_bus:
  * @bus_type: A #GBusType.
  * @flags: Flags from the #GDBusObjectManagerClientFlags enumeration.
  * @name: A bus name (well-known or unique).
@@ -2629,15 +2629,15 @@ object_manager_client_new_sync (
  * @callback: A #GAsyncReadyCallback to call when the request is satisfied.
  * @user_data: User data to pass to @callback.
  *
- * Like object_manager_client_new() but takes a #GBusType instead of a #GDBusConnection.
+ * Like orca_service_object_manager_client_new() but takes a #GBusType instead of a #GDBusConnection.
  *
  * When the operation is finished, @callback will be invoked in the thread-default main loop of the thread you are calling this method from (see g_main_context_push_thread_default()).
- * You can then call object_manager_client_new_for_bus_finish() to get the result of the operation.
+ * You can then call orca_service_object_manager_client_new_for_bus_finish() to get the result of the operation.
  *
- * See object_manager_client_new_for_bus_sync() for the synchronous, blocking version of this constructor.
+ * See orca_service_object_manager_client_new_for_bus_sync() for the synchronous, blocking version of this constructor.
  */
 void
-object_manager_client_new_for_bus (
+orca_service_object_manager_client_new_for_bus (
     GBusType                bus_type,
     GDBusObjectManagerClientFlags  flags,
     const gchar            *name,
@@ -2646,20 +2646,20 @@ object_manager_client_new_for_bus (
     GAsyncReadyCallback     callback,
     gpointer                user_data)
 {
-  g_async_initable_new_async (TYPE_OBJECT_MANAGER_CLIENT, G_PRIORITY_DEFAULT, cancellable, callback, user_data, "flags", flags, "name", name, "bus-type", bus_type, "object-path", object_path, "get-proxy-type-func", object_manager_client_get_proxy_type, NULL);
+  g_async_initable_new_async (ORCA_SERVICE_TYPE_OBJECT_MANAGER_CLIENT, G_PRIORITY_DEFAULT, cancellable, callback, user_data, "flags", flags, "name", name, "bus-type", bus_type, "object-path", object_path, "get-proxy-type-func", orca_service_object_manager_client_get_proxy_type, NULL);
 }
 
 /**
- * object_manager_client_new_for_bus_finish:
- * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to object_manager_client_new_for_bus().
+ * orca_service_object_manager_client_new_for_bus_finish:
+ * @res: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to orca_service_object_manager_client_new_for_bus().
  * @error: Return location for error or %NULL
  *
- * Finishes an operation started with object_manager_client_new_for_bus().
+ * Finishes an operation started with orca_service_object_manager_client_new_for_bus().
  *
- * Returns: (transfer full) (type ObjectManagerClient): The constructed object manager client or %NULL if @error is set.
+ * Returns: (transfer full) (type OrcaServiceObjectManagerClient): The constructed object manager client or %NULL if @error is set.
  */
 GDBusObjectManager *
-object_manager_client_new_for_bus_finish (
+orca_service_object_manager_client_new_for_bus_finish (
     GAsyncResult        *res,
     GError             **error)
 {
@@ -2675,7 +2675,7 @@ object_manager_client_new_for_bus_finish (
 }
 
 /**
- * object_manager_client_new_for_bus_sync:
+ * orca_service_object_manager_client_new_for_bus_sync:
  * @bus_type: A #GBusType.
  * @flags: Flags from the #GDBusObjectManagerClientFlags enumeration.
  * @name: A bus name (well-known or unique).
@@ -2683,16 +2683,16 @@ object_manager_client_new_for_bus_finish (
  * @cancellable: (nullable): A #GCancellable or %NULL.
  * @error: Return location for error or %NULL
  *
- * Like object_manager_client_new_sync() but takes a #GBusType instead of a #GDBusConnection.
+ * Like orca_service_object_manager_client_new_sync() but takes a #GBusType instead of a #GDBusConnection.
  *
  * The calling thread is blocked until a reply is received.
  *
- * See object_manager_client_new_for_bus() for the asynchronous version of this constructor.
+ * See orca_service_object_manager_client_new_for_bus() for the asynchronous version of this constructor.
  *
- * Returns: (transfer full) (type ObjectManagerClient): The constructed object manager client or %NULL if @error is set.
+ * Returns: (transfer full) (type OrcaServiceObjectManagerClient): The constructed object manager client or %NULL if @error is set.
  */
 GDBusObjectManager *
-object_manager_client_new_for_bus_sync (
+orca_service_object_manager_client_new_for_bus_sync (
     GBusType                bus_type,
     GDBusObjectManagerClientFlags  flags,
     const gchar            *name,
@@ -2701,7 +2701,7 @@ object_manager_client_new_for_bus_sync (
     GError                **error)
 {
   GInitable *ret;
-  ret = g_initable_new (TYPE_OBJECT_MANAGER_CLIENT, cancellable, error, "flags", flags, "name", name, "bus-type", bus_type, "object-path", object_path, "get-proxy-type-func", object_manager_client_get_proxy_type, NULL);
+  ret = g_initable_new (ORCA_SERVICE_TYPE_OBJECT_MANAGER_CLIENT, cancellable, error, "flags", flags, "name", name, "bus-type", bus_type, "object-path", object_path, "get-proxy-type-func", orca_service_object_manager_client_get_proxy_type, NULL);
   if (ret != NULL)
     return G_DBUS_OBJECT_MANAGER (ret);
   else

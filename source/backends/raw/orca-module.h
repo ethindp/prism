@@ -16,139 +16,139 @@ G_BEGIN_DECLS
 /* ------------------------------------------------------------------------ */
 /* Declarations for org.gnome.Orca.Module */
 
-#define TYPE_ORG_GNOME_ORCA_MODULE (org_gnome_orca_module_get_type ())
-#define ORG_GNOME_ORCA_MODULE(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), TYPE_ORG_GNOME_ORCA_MODULE, OrgGnomeOrcaModule))
-#define IS_ORG_GNOME_ORCA_MODULE(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), TYPE_ORG_GNOME_ORCA_MODULE))
-#define ORG_GNOME_ORCA_MODULE_GET_IFACE(o) (G_TYPE_INSTANCE_GET_INTERFACE ((o), TYPE_ORG_GNOME_ORCA_MODULE, OrgGnomeOrcaModuleIface))
+#define ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE (orca_module_org_gnome_orca_module_get_type ())
+#define ORCA_MODULE_ORG_GNOME_ORCA_MODULE(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE, OrcaModuleOrgGnomeOrcaModule))
+#define ORCA_MODULE_IS_ORG_GNOME_ORCA_MODULE(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE))
+#define ORCA_MODULE_ORG_GNOME_ORCA_MODULE_GET_IFACE(o) (G_TYPE_INSTANCE_GET_INTERFACE ((o), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE, OrcaModuleOrgGnomeOrcaModuleIface))
 
-struct _OrgGnomeOrcaModule;
-typedef struct _OrgGnomeOrcaModule OrgGnomeOrcaModule;
-typedef struct _OrgGnomeOrcaModuleIface OrgGnomeOrcaModuleIface;
+struct _OrcaModuleOrgGnomeOrcaModule;
+typedef struct _OrcaModuleOrgGnomeOrcaModule OrcaModuleOrgGnomeOrcaModule;
+typedef struct _OrcaModuleOrgGnomeOrcaModuleIface OrcaModuleOrgGnomeOrcaModuleIface;
 
-struct _OrgGnomeOrcaModuleIface
+struct _OrcaModuleOrgGnomeOrcaModuleIface
 {
   GTypeInterface parent_iface;
 
   gboolean (*handle_execute_command) (
-    OrgGnomeOrcaModule *object,
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
     const gchar *arg_command_name,
     gboolean arg_notify_user);
 
   gboolean (*handle_execute_parameterized_command) (
-    OrgGnomeOrcaModule *object,
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
     const gchar *arg_command_name,
     GVariant *arg_parameters,
     gboolean arg_notify_user);
 
   gboolean (*handle_execute_runtime_getter) (
-    OrgGnomeOrcaModule *object,
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
     const gchar *arg_getter_name);
 
   gboolean (*handle_execute_runtime_setter) (
-    OrgGnomeOrcaModule *object,
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
     const gchar *arg_setter_name,
     GVariant *arg_value);
 
   gboolean (*handle_list_commands) (
-    OrgGnomeOrcaModule *object,
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation);
 
   gboolean (*handle_list_parameterized_commands) (
-    OrgGnomeOrcaModule *object,
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation);
 
   gboolean (*handle_list_runtime_getters) (
-    OrgGnomeOrcaModule *object,
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation);
 
   gboolean (*handle_list_runtime_setters) (
-    OrgGnomeOrcaModule *object,
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation);
 
 };
 
 #if GLIB_CHECK_VERSION(2, 44, 0)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrgGnomeOrcaModule, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrcaModuleOrgGnomeOrcaModule, g_object_unref)
 #endif
 
-GType org_gnome_orca_module_get_type (void) G_GNUC_CONST;
+GType orca_module_org_gnome_orca_module_get_type (void) G_GNUC_CONST;
 
-GDBusInterfaceInfo *org_gnome_orca_module_interface_info (void);
-guint org_gnome_orca_module_override_properties (GObjectClass *klass, guint property_id_begin);
+GDBusInterfaceInfo *orca_module_org_gnome_orca_module_interface_info (void);
+guint orca_module_org_gnome_orca_module_override_properties (GObjectClass *klass, guint property_id_begin);
 
 
 /* D-Bus method call completion functions: */
-void org_gnome_orca_module_complete_execute_command (
-    OrgGnomeOrcaModule *object,
+void orca_module_org_gnome_orca_module_complete_execute_command (
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
-    gboolean return);
+    gboolean result);
 
-void org_gnome_orca_module_complete_execute_parameterized_command (
-    OrgGnomeOrcaModule *object,
+void orca_module_org_gnome_orca_module_complete_execute_parameterized_command (
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
-    GVariant *return);
+    GVariant *result);
 
-void org_gnome_orca_module_complete_execute_runtime_getter (
-    OrgGnomeOrcaModule *object,
+void orca_module_org_gnome_orca_module_complete_execute_runtime_getter (
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
-    GVariant *return);
+    GVariant *result);
 
-void org_gnome_orca_module_complete_execute_runtime_setter (
-    OrgGnomeOrcaModule *object,
+void orca_module_org_gnome_orca_module_complete_execute_runtime_setter (
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
-    gboolean return);
+    gboolean result);
 
-void org_gnome_orca_module_complete_list_commands (
-    OrgGnomeOrcaModule *object,
+void orca_module_org_gnome_orca_module_complete_list_commands (
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
-    GVariant *return);
+    GVariant *result);
 
-void org_gnome_orca_module_complete_list_parameterized_commands (
-    OrgGnomeOrcaModule *object,
+void orca_module_org_gnome_orca_module_complete_list_parameterized_commands (
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
-    GVariant *return);
+    GVariant *result);
 
-void org_gnome_orca_module_complete_list_runtime_getters (
-    OrgGnomeOrcaModule *object,
+void orca_module_org_gnome_orca_module_complete_list_runtime_getters (
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
-    GVariant *return);
+    GVariant *result);
 
-void org_gnome_orca_module_complete_list_runtime_setters (
-    OrgGnomeOrcaModule *object,
+void orca_module_org_gnome_orca_module_complete_list_runtime_setters (
+    OrcaModuleOrgGnomeOrcaModule *object,
     GDBusMethodInvocation *invocation,
-    GVariant *return);
+    GVariant *result);
 
 
 
 /* D-Bus method calls: */
-void org_gnome_orca_module_call_execute_command (
-    OrgGnomeOrcaModule *proxy,
+void orca_module_org_gnome_orca_module_call_execute_command (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     const gchar *arg_command_name,
     gboolean arg_notify_user,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data);
 
-gboolean org_gnome_orca_module_call_execute_command_finish (
-    OrgGnomeOrcaModule *proxy,
-    gboolean *out_return,
+gboolean orca_module_org_gnome_orca_module_call_execute_command_finish (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    gboolean *out_result,
     GAsyncResult *res,
     GError **error);
 
-gboolean org_gnome_orca_module_call_execute_command_sync (
-    OrgGnomeOrcaModule *proxy,
+gboolean orca_module_org_gnome_orca_module_call_execute_command_sync (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     const gchar *arg_command_name,
     gboolean arg_notify_user,
-    gboolean *out_return,
+    gboolean *out_result,
     GCancellable *cancellable,
     GError **error);
 
-void org_gnome_orca_module_call_execute_parameterized_command (
-    OrgGnomeOrcaModule *proxy,
+void orca_module_org_gnome_orca_module_call_execute_parameterized_command (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     const gchar *arg_command_name,
     GVariant *arg_parameters,
     gboolean arg_notify_user,
@@ -156,132 +156,132 @@ void org_gnome_orca_module_call_execute_parameterized_command (
     GAsyncReadyCallback callback,
     gpointer user_data);
 
-gboolean org_gnome_orca_module_call_execute_parameterized_command_finish (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
+gboolean orca_module_org_gnome_orca_module_call_execute_parameterized_command_finish (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
     GAsyncResult *res,
     GError **error);
 
-gboolean org_gnome_orca_module_call_execute_parameterized_command_sync (
-    OrgGnomeOrcaModule *proxy,
+gboolean orca_module_org_gnome_orca_module_call_execute_parameterized_command_sync (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     const gchar *arg_command_name,
     GVariant *arg_parameters,
     gboolean arg_notify_user,
-    GVariant **out_return,
+    GVariant **out_result,
     GCancellable *cancellable,
     GError **error);
 
-void org_gnome_orca_module_call_execute_runtime_getter (
-    OrgGnomeOrcaModule *proxy,
+void orca_module_org_gnome_orca_module_call_execute_runtime_getter (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     const gchar *arg_getter_name,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data);
 
-gboolean org_gnome_orca_module_call_execute_runtime_getter_finish (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
+gboolean orca_module_org_gnome_orca_module_call_execute_runtime_getter_finish (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
     GAsyncResult *res,
     GError **error);
 
-gboolean org_gnome_orca_module_call_execute_runtime_getter_sync (
-    OrgGnomeOrcaModule *proxy,
+gboolean orca_module_org_gnome_orca_module_call_execute_runtime_getter_sync (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     const gchar *arg_getter_name,
-    GVariant **out_return,
+    GVariant **out_result,
     GCancellable *cancellable,
     GError **error);
 
-void org_gnome_orca_module_call_execute_runtime_setter (
-    OrgGnomeOrcaModule *proxy,
+void orca_module_org_gnome_orca_module_call_execute_runtime_setter (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     const gchar *arg_setter_name,
     GVariant *arg_value,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data);
 
-gboolean org_gnome_orca_module_call_execute_runtime_setter_finish (
-    OrgGnomeOrcaModule *proxy,
-    gboolean *out_return,
+gboolean orca_module_org_gnome_orca_module_call_execute_runtime_setter_finish (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    gboolean *out_result,
     GAsyncResult *res,
     GError **error);
 
-gboolean org_gnome_orca_module_call_execute_runtime_setter_sync (
-    OrgGnomeOrcaModule *proxy,
+gboolean orca_module_org_gnome_orca_module_call_execute_runtime_setter_sync (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     const gchar *arg_setter_name,
     GVariant *arg_value,
-    gboolean *out_return,
+    gboolean *out_result,
     GCancellable *cancellable,
     GError **error);
 
-void org_gnome_orca_module_call_list_commands (
-    OrgGnomeOrcaModule *proxy,
-    GCancellable *cancellable,
-    GAsyncReadyCallback callback,
-    gpointer user_data);
-
-gboolean org_gnome_orca_module_call_list_commands_finish (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
-    GAsyncResult *res,
-    GError **error);
-
-gboolean org_gnome_orca_module_call_list_commands_sync (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
-    GCancellable *cancellable,
-    GError **error);
-
-void org_gnome_orca_module_call_list_parameterized_commands (
-    OrgGnomeOrcaModule *proxy,
+void orca_module_org_gnome_orca_module_call_list_commands (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data);
 
-gboolean org_gnome_orca_module_call_list_parameterized_commands_finish (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
+gboolean orca_module_org_gnome_orca_module_call_list_commands_finish (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
     GAsyncResult *res,
     GError **error);
 
-gboolean org_gnome_orca_module_call_list_parameterized_commands_sync (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
+gboolean orca_module_org_gnome_orca_module_call_list_commands_sync (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
     GCancellable *cancellable,
     GError **error);
 
-void org_gnome_orca_module_call_list_runtime_getters (
-    OrgGnomeOrcaModule *proxy,
+void orca_module_org_gnome_orca_module_call_list_parameterized_commands (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data);
 
-gboolean org_gnome_orca_module_call_list_runtime_getters_finish (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
+gboolean orca_module_org_gnome_orca_module_call_list_parameterized_commands_finish (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
     GAsyncResult *res,
     GError **error);
 
-gboolean org_gnome_orca_module_call_list_runtime_getters_sync (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
+gboolean orca_module_org_gnome_orca_module_call_list_parameterized_commands_sync (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
     GCancellable *cancellable,
     GError **error);
 
-void org_gnome_orca_module_call_list_runtime_setters (
-    OrgGnomeOrcaModule *proxy,
+void orca_module_org_gnome_orca_module_call_list_runtime_getters (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
     GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data);
 
-gboolean org_gnome_orca_module_call_list_runtime_setters_finish (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
+gboolean orca_module_org_gnome_orca_module_call_list_runtime_getters_finish (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
     GAsyncResult *res,
     GError **error);
 
-gboolean org_gnome_orca_module_call_list_runtime_setters_sync (
-    OrgGnomeOrcaModule *proxy,
-    GVariant **out_return,
+gboolean orca_module_org_gnome_orca_module_call_list_runtime_getters_sync (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
+    GCancellable *cancellable,
+    GError **error);
+
+void orca_module_org_gnome_orca_module_call_list_runtime_setters (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GCancellable *cancellable,
+    GAsyncReadyCallback callback,
+    gpointer user_data);
+
+gboolean orca_module_org_gnome_orca_module_call_list_runtime_setters_finish (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
+    GAsyncResult *res,
+    GError **error);
+
+gboolean orca_module_org_gnome_orca_module_call_list_runtime_setters_sync (
+    OrcaModuleOrgGnomeOrcaModule *proxy,
+    GVariant **out_result,
     GCancellable *cancellable,
     GError **error);
 
@@ -289,36 +289,36 @@ gboolean org_gnome_orca_module_call_list_runtime_setters_sync (
 
 /* ---- */
 
-#define TYPE_ORG_GNOME_ORCA_MODULE_PROXY (org_gnome_orca_module_proxy_get_type ())
-#define ORG_GNOME_ORCA_MODULE_PROXY(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), TYPE_ORG_GNOME_ORCA_MODULE_PROXY, OrgGnomeOrcaModuleProxy))
-#define ORG_GNOME_ORCA_MODULE_PROXY_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), TYPE_ORG_GNOME_ORCA_MODULE_PROXY, OrgGnomeOrcaModuleProxyClass))
-#define ORG_GNOME_ORCA_MODULE_PROXY_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), TYPE_ORG_GNOME_ORCA_MODULE_PROXY, OrgGnomeOrcaModuleProxyClass))
-#define IS_ORG_GNOME_ORCA_MODULE_PROXY(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), TYPE_ORG_GNOME_ORCA_MODULE_PROXY))
-#define IS_ORG_GNOME_ORCA_MODULE_PROXY_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), TYPE_ORG_GNOME_ORCA_MODULE_PROXY))
+#define ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_PROXY (orca_module_org_gnome_orca_module_proxy_get_type ())
+#define ORCA_MODULE_ORG_GNOME_ORCA_MODULE_PROXY(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_PROXY, OrcaModuleOrgGnomeOrcaModuleProxy))
+#define ORCA_MODULE_ORG_GNOME_ORCA_MODULE_PROXY_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_PROXY, OrcaModuleOrgGnomeOrcaModuleProxyClass))
+#define ORCA_MODULE_ORG_GNOME_ORCA_MODULE_PROXY_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_PROXY, OrcaModuleOrgGnomeOrcaModuleProxyClass))
+#define ORCA_MODULE_IS_ORG_GNOME_ORCA_MODULE_PROXY(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_PROXY))
+#define ORCA_MODULE_IS_ORG_GNOME_ORCA_MODULE_PROXY_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_PROXY))
 
-typedef struct _OrgGnomeOrcaModuleProxy OrgGnomeOrcaModuleProxy;
-typedef struct _OrgGnomeOrcaModuleProxyClass OrgGnomeOrcaModuleProxyClass;
-typedef struct _OrgGnomeOrcaModuleProxyPrivate OrgGnomeOrcaModuleProxyPrivate;
+typedef struct _OrcaModuleOrgGnomeOrcaModuleProxy OrcaModuleOrgGnomeOrcaModuleProxy;
+typedef struct _OrcaModuleOrgGnomeOrcaModuleProxyClass OrcaModuleOrgGnomeOrcaModuleProxyClass;
+typedef struct _OrcaModuleOrgGnomeOrcaModuleProxyPrivate OrcaModuleOrgGnomeOrcaModuleProxyPrivate;
 
-struct _OrgGnomeOrcaModuleProxy
+struct _OrcaModuleOrgGnomeOrcaModuleProxy
 {
   /*< private >*/
   GDBusProxy parent_instance;
-  OrgGnomeOrcaModuleProxyPrivate *priv;
+  OrcaModuleOrgGnomeOrcaModuleProxyPrivate *priv;
 };
 
-struct _OrgGnomeOrcaModuleProxyClass
+struct _OrcaModuleOrgGnomeOrcaModuleProxyClass
 {
   GDBusProxyClass parent_class;
 };
 
-GType org_gnome_orca_module_proxy_get_type (void) G_GNUC_CONST;
+GType orca_module_org_gnome_orca_module_proxy_get_type (void) G_GNUC_CONST;
 
 #if GLIB_CHECK_VERSION(2, 44, 0)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrgGnomeOrcaModuleProxy, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrcaModuleOrgGnomeOrcaModuleProxy, g_object_unref)
 #endif
 
-void org_gnome_orca_module_proxy_new (
+void orca_module_org_gnome_orca_module_proxy_new (
     GDBusConnection     *connection,
     GDBusProxyFlags      flags,
     const gchar         *name,
@@ -326,10 +326,10 @@ void org_gnome_orca_module_proxy_new (
     GCancellable        *cancellable,
     GAsyncReadyCallback  callback,
     gpointer             user_data);
-OrgGnomeOrcaModule *org_gnome_orca_module_proxy_new_finish (
+OrcaModuleOrgGnomeOrcaModule *orca_module_org_gnome_orca_module_proxy_new_finish (
     GAsyncResult        *res,
     GError             **error);
-OrgGnomeOrcaModule *org_gnome_orca_module_proxy_new_sync (
+OrcaModuleOrgGnomeOrcaModule *orca_module_org_gnome_orca_module_proxy_new_sync (
     GDBusConnection     *connection,
     GDBusProxyFlags      flags,
     const gchar         *name,
@@ -337,7 +337,7 @@ OrgGnomeOrcaModule *org_gnome_orca_module_proxy_new_sync (
     GCancellable        *cancellable,
     GError             **error);
 
-void org_gnome_orca_module_proxy_new_for_bus (
+void orca_module_org_gnome_orca_module_proxy_new_for_bus (
     GBusType             bus_type,
     GDBusProxyFlags      flags,
     const gchar         *name,
@@ -345,10 +345,10 @@ void org_gnome_orca_module_proxy_new_for_bus (
     GCancellable        *cancellable,
     GAsyncReadyCallback  callback,
     gpointer             user_data);
-OrgGnomeOrcaModule *org_gnome_orca_module_proxy_new_for_bus_finish (
+OrcaModuleOrgGnomeOrcaModule *orca_module_org_gnome_orca_module_proxy_new_for_bus_finish (
     GAsyncResult        *res,
     GError             **error);
-OrgGnomeOrcaModule *org_gnome_orca_module_proxy_new_for_bus_sync (
+OrcaModuleOrgGnomeOrcaModule *orca_module_org_gnome_orca_module_proxy_new_for_bus_sync (
     GBusType             bus_type,
     GDBusProxyFlags      flags,
     const gchar         *name,
@@ -359,160 +359,160 @@ OrgGnomeOrcaModule *org_gnome_orca_module_proxy_new_for_bus_sync (
 
 /* ---- */
 
-#define TYPE_ORG_GNOME_ORCA_MODULE_SKELETON (org_gnome_orca_module_skeleton_get_type ())
-#define ORG_GNOME_ORCA_MODULE_SKELETON(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), TYPE_ORG_GNOME_ORCA_MODULE_SKELETON, OrgGnomeOrcaModuleSkeleton))
-#define ORG_GNOME_ORCA_MODULE_SKELETON_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), TYPE_ORG_GNOME_ORCA_MODULE_SKELETON, OrgGnomeOrcaModuleSkeletonClass))
-#define ORG_GNOME_ORCA_MODULE_SKELETON_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), TYPE_ORG_GNOME_ORCA_MODULE_SKELETON, OrgGnomeOrcaModuleSkeletonClass))
-#define IS_ORG_GNOME_ORCA_MODULE_SKELETON(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), TYPE_ORG_GNOME_ORCA_MODULE_SKELETON))
-#define IS_ORG_GNOME_ORCA_MODULE_SKELETON_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), TYPE_ORG_GNOME_ORCA_MODULE_SKELETON))
+#define ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_SKELETON (orca_module_org_gnome_orca_module_skeleton_get_type ())
+#define ORCA_MODULE_ORG_GNOME_ORCA_MODULE_SKELETON(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_SKELETON, OrcaModuleOrgGnomeOrcaModuleSkeleton))
+#define ORCA_MODULE_ORG_GNOME_ORCA_MODULE_SKELETON_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_SKELETON, OrcaModuleOrgGnomeOrcaModuleSkeletonClass))
+#define ORCA_MODULE_ORG_GNOME_ORCA_MODULE_SKELETON_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_SKELETON, OrcaModuleOrgGnomeOrcaModuleSkeletonClass))
+#define ORCA_MODULE_IS_ORG_GNOME_ORCA_MODULE_SKELETON(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_SKELETON))
+#define ORCA_MODULE_IS_ORG_GNOME_ORCA_MODULE_SKELETON_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), ORCA_MODULE_TYPE_ORG_GNOME_ORCA_MODULE_SKELETON))
 
-typedef struct _OrgGnomeOrcaModuleSkeleton OrgGnomeOrcaModuleSkeleton;
-typedef struct _OrgGnomeOrcaModuleSkeletonClass OrgGnomeOrcaModuleSkeletonClass;
-typedef struct _OrgGnomeOrcaModuleSkeletonPrivate OrgGnomeOrcaModuleSkeletonPrivate;
+typedef struct _OrcaModuleOrgGnomeOrcaModuleSkeleton OrcaModuleOrgGnomeOrcaModuleSkeleton;
+typedef struct _OrcaModuleOrgGnomeOrcaModuleSkeletonClass OrcaModuleOrgGnomeOrcaModuleSkeletonClass;
+typedef struct _OrcaModuleOrgGnomeOrcaModuleSkeletonPrivate OrcaModuleOrgGnomeOrcaModuleSkeletonPrivate;
 
-struct _OrgGnomeOrcaModuleSkeleton
+struct _OrcaModuleOrgGnomeOrcaModuleSkeleton
 {
   /*< private >*/
   GDBusInterfaceSkeleton parent_instance;
-  OrgGnomeOrcaModuleSkeletonPrivate *priv;
+  OrcaModuleOrgGnomeOrcaModuleSkeletonPrivate *priv;
 };
 
-struct _OrgGnomeOrcaModuleSkeletonClass
+struct _OrcaModuleOrgGnomeOrcaModuleSkeletonClass
 {
   GDBusInterfaceSkeletonClass parent_class;
 };
 
-GType org_gnome_orca_module_skeleton_get_type (void) G_GNUC_CONST;
+GType orca_module_org_gnome_orca_module_skeleton_get_type (void) G_GNUC_CONST;
 
 #if GLIB_CHECK_VERSION(2, 44, 0)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrgGnomeOrcaModuleSkeleton, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrcaModuleOrgGnomeOrcaModuleSkeleton, g_object_unref)
 #endif
 
-OrgGnomeOrcaModule *org_gnome_orca_module_skeleton_new (void);
+OrcaModuleOrgGnomeOrcaModule *orca_module_org_gnome_orca_module_skeleton_new (void);
 
 
 /* ---- */
 
-#define TYPE_OBJECT (object_get_type ())
-#define OBJECT(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), TYPE_OBJECT, Object))
-#define IS_OBJECT(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), TYPE_OBJECT))
-#define OBJECT_GET_IFACE(o) (G_TYPE_INSTANCE_GET_INTERFACE ((o), TYPE_OBJECT, Object))
+#define ORCA_MODULE_TYPE_OBJECT (orca_module_object_get_type ())
+#define ORCA_MODULE_OBJECT(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), ORCA_MODULE_TYPE_OBJECT, OrcaModuleObject))
+#define ORCA_MODULE_IS_OBJECT(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), ORCA_MODULE_TYPE_OBJECT))
+#define ORCA_MODULE_OBJECT_GET_IFACE(o) (G_TYPE_INSTANCE_GET_INTERFACE ((o), ORCA_MODULE_TYPE_OBJECT, OrcaModuleObject))
 
-struct _Object;
-typedef struct _Object Object;
-typedef struct _ObjectIface ObjectIface;
+struct _OrcaModuleObject;
+typedef struct _OrcaModuleObject OrcaModuleObject;
+typedef struct _OrcaModuleObjectIface OrcaModuleObjectIface;
 
-struct _ObjectIface
+struct _OrcaModuleObjectIface
 {
   GTypeInterface parent_iface;
 };
 
-GType object_get_type (void) G_GNUC_CONST;
+GType orca_module_object_get_type (void) G_GNUC_CONST;
 
 #if GLIB_CHECK_VERSION(2, 44, 0)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (Object, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrcaModuleObject, g_object_unref)
 #endif
 
-OrgGnomeOrcaModule *object_get_org_gnome_orca_module (Object *object);
-OrgGnomeOrcaModule *object_peek_org_gnome_orca_module (Object *object);
+OrcaModuleOrgGnomeOrcaModule *orca_module_object_get_org_gnome_orca_module (OrcaModuleObject *object);
+OrcaModuleOrgGnomeOrcaModule *orca_module_object_peek_org_gnome_orca_module (OrcaModuleObject *object);
 
-#define TYPE_OBJECT_PROXY (object_proxy_get_type ())
-#define OBJECT_PROXY(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), TYPE_OBJECT_PROXY, ObjectProxy))
-#define OBJECT_PROXY_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), TYPE_OBJECT_PROXY, ObjectProxyClass))
-#define OBJECT_PROXY_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), TYPE_OBJECT_PROXY, ObjectProxyClass))
-#define IS_OBJECT_PROXY(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), TYPE_OBJECT_PROXY))
-#define IS_OBJECT_PROXY_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), TYPE_OBJECT_PROXY))
+#define ORCA_MODULE_TYPE_OBJECT_PROXY (orca_module_object_proxy_get_type ())
+#define ORCA_MODULE_OBJECT_PROXY(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), ORCA_MODULE_TYPE_OBJECT_PROXY, OrcaModuleObjectProxy))
+#define ORCA_MODULE_OBJECT_PROXY_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), ORCA_MODULE_TYPE_OBJECT_PROXY, OrcaModuleObjectProxyClass))
+#define ORCA_MODULE_OBJECT_PROXY_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), ORCA_MODULE_TYPE_OBJECT_PROXY, OrcaModuleObjectProxyClass))
+#define ORCA_MODULE_IS_OBJECT_PROXY(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), ORCA_MODULE_TYPE_OBJECT_PROXY))
+#define ORCA_MODULE_IS_OBJECT_PROXY_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), ORCA_MODULE_TYPE_OBJECT_PROXY))
 
-typedef struct _ObjectProxy ObjectProxy;
-typedef struct _ObjectProxyClass ObjectProxyClass;
-typedef struct _ObjectProxyPrivate ObjectProxyPrivate;
+typedef struct _OrcaModuleObjectProxy OrcaModuleObjectProxy;
+typedef struct _OrcaModuleObjectProxyClass OrcaModuleObjectProxyClass;
+typedef struct _OrcaModuleObjectProxyPrivate OrcaModuleObjectProxyPrivate;
 
-struct _ObjectProxy
+struct _OrcaModuleObjectProxy
 {
   /*< private >*/
   GDBusObjectProxy parent_instance;
-  ObjectProxyPrivate *priv;
+  OrcaModuleObjectProxyPrivate *priv;
 };
 
-struct _ObjectProxyClass
+struct _OrcaModuleObjectProxyClass
 {
   GDBusObjectProxyClass parent_class;
 };
 
-GType object_proxy_get_type (void) G_GNUC_CONST;
+GType orca_module_object_proxy_get_type (void) G_GNUC_CONST;
 
 #if GLIB_CHECK_VERSION(2, 44, 0)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (ObjectProxy, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrcaModuleObjectProxy, g_object_unref)
 #endif
 
-ObjectProxy *object_proxy_new (GDBusConnection *connection, const gchar *object_path);
+OrcaModuleObjectProxy *orca_module_object_proxy_new (GDBusConnection *connection, const gchar *object_path);
 
-#define TYPE_OBJECT_SKELETON (object_skeleton_get_type ())
-#define OBJECT_SKELETON(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), TYPE_OBJECT_SKELETON, ObjectSkeleton))
-#define OBJECT_SKELETON_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), TYPE_OBJECT_SKELETON, ObjectSkeletonClass))
-#define OBJECT_SKELETON_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), TYPE_OBJECT_SKELETON, ObjectSkeletonClass))
-#define IS_OBJECT_SKELETON(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), TYPE_OBJECT_SKELETON))
-#define IS_OBJECT_SKELETON_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), TYPE_OBJECT_SKELETON))
+#define ORCA_MODULE_TYPE_OBJECT_SKELETON (orca_module_object_skeleton_get_type ())
+#define ORCA_MODULE_OBJECT_SKELETON(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), ORCA_MODULE_TYPE_OBJECT_SKELETON, OrcaModuleObjectSkeleton))
+#define ORCA_MODULE_OBJECT_SKELETON_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), ORCA_MODULE_TYPE_OBJECT_SKELETON, OrcaModuleObjectSkeletonClass))
+#define ORCA_MODULE_OBJECT_SKELETON_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), ORCA_MODULE_TYPE_OBJECT_SKELETON, OrcaModuleObjectSkeletonClass))
+#define ORCA_MODULE_IS_OBJECT_SKELETON(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), ORCA_MODULE_TYPE_OBJECT_SKELETON))
+#define ORCA_MODULE_IS_OBJECT_SKELETON_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), ORCA_MODULE_TYPE_OBJECT_SKELETON))
 
-typedef struct _ObjectSkeleton ObjectSkeleton;
-typedef struct _ObjectSkeletonClass ObjectSkeletonClass;
-typedef struct _ObjectSkeletonPrivate ObjectSkeletonPrivate;
+typedef struct _OrcaModuleObjectSkeleton OrcaModuleObjectSkeleton;
+typedef struct _OrcaModuleObjectSkeletonClass OrcaModuleObjectSkeletonClass;
+typedef struct _OrcaModuleObjectSkeletonPrivate OrcaModuleObjectSkeletonPrivate;
 
-struct _ObjectSkeleton
+struct _OrcaModuleObjectSkeleton
 {
   /*< private >*/
   GDBusObjectSkeleton parent_instance;
-  ObjectSkeletonPrivate *priv;
+  OrcaModuleObjectSkeletonPrivate *priv;
 };
 
-struct _ObjectSkeletonClass
+struct _OrcaModuleObjectSkeletonClass
 {
   GDBusObjectSkeletonClass parent_class;
 };
 
-GType object_skeleton_get_type (void) G_GNUC_CONST;
+GType orca_module_object_skeleton_get_type (void) G_GNUC_CONST;
 
 #if GLIB_CHECK_VERSION(2, 44, 0)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (ObjectSkeleton, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrcaModuleObjectSkeleton, g_object_unref)
 #endif
 
-ObjectSkeleton *object_skeleton_new (const gchar *object_path);
-void object_skeleton_set_org_gnome_orca_module (ObjectSkeleton *object, OrgGnomeOrcaModule *interface_);
+OrcaModuleObjectSkeleton *orca_module_object_skeleton_new (const gchar *object_path);
+void orca_module_object_skeleton_set_org_gnome_orca_module (OrcaModuleObjectSkeleton *object, OrcaModuleOrgGnomeOrcaModule *interface_);
 
 /* ---- */
 
-#define TYPE_OBJECT_MANAGER_CLIENT (object_manager_client_get_type ())
-#define OBJECT_MANAGER_CLIENT(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), TYPE_OBJECT_MANAGER_CLIENT, ObjectManagerClient))
-#define OBJECT_MANAGER_CLIENT_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), TYPE_OBJECT_MANAGER_CLIENT, ObjectManagerClientClass))
-#define OBJECT_MANAGER_CLIENT_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), TYPE_OBJECT_MANAGER_CLIENT, ObjectManagerClientClass))
-#define IS_OBJECT_MANAGER_CLIENT(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), TYPE_OBJECT_MANAGER_CLIENT))
-#define IS_OBJECT_MANAGER_CLIENT_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), TYPE_OBJECT_MANAGER_CLIENT))
+#define ORCA_MODULE_TYPE_OBJECT_MANAGER_CLIENT (orca_module_object_manager_client_get_type ())
+#define ORCA_MODULE_OBJECT_MANAGER_CLIENT(o) (G_TYPE_CHECK_INSTANCE_CAST ((o), ORCA_MODULE_TYPE_OBJECT_MANAGER_CLIENT, OrcaModuleObjectManagerClient))
+#define ORCA_MODULE_OBJECT_MANAGER_CLIENT_CLASS(k) (G_TYPE_CHECK_CLASS_CAST ((k), ORCA_MODULE_TYPE_OBJECT_MANAGER_CLIENT, OrcaModuleObjectManagerClientClass))
+#define ORCA_MODULE_OBJECT_MANAGER_CLIENT_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), ORCA_MODULE_TYPE_OBJECT_MANAGER_CLIENT, OrcaModuleObjectManagerClientClass))
+#define ORCA_MODULE_IS_OBJECT_MANAGER_CLIENT(o) (G_TYPE_CHECK_INSTANCE_TYPE ((o), ORCA_MODULE_TYPE_OBJECT_MANAGER_CLIENT))
+#define ORCA_MODULE_IS_OBJECT_MANAGER_CLIENT_CLASS(k) (G_TYPE_CHECK_CLASS_TYPE ((k), ORCA_MODULE_TYPE_OBJECT_MANAGER_CLIENT))
 
-typedef struct _ObjectManagerClient ObjectManagerClient;
-typedef struct _ObjectManagerClientClass ObjectManagerClientClass;
-typedef struct _ObjectManagerClientPrivate ObjectManagerClientPrivate;
+typedef struct _OrcaModuleObjectManagerClient OrcaModuleObjectManagerClient;
+typedef struct _OrcaModuleObjectManagerClientClass OrcaModuleObjectManagerClientClass;
+typedef struct _OrcaModuleObjectManagerClientPrivate OrcaModuleObjectManagerClientPrivate;
 
-struct _ObjectManagerClient
+struct _OrcaModuleObjectManagerClient
 {
   /*< private >*/
   GDBusObjectManagerClient parent_instance;
-  ObjectManagerClientPrivate *priv;
+  OrcaModuleObjectManagerClientPrivate *priv;
 };
 
-struct _ObjectManagerClientClass
+struct _OrcaModuleObjectManagerClientClass
 {
   GDBusObjectManagerClientClass parent_class;
 };
 
 #if GLIB_CHECK_VERSION(2, 44, 0)
-G_DEFINE_AUTOPTR_CLEANUP_FUNC (ObjectManagerClient, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (OrcaModuleObjectManagerClient, g_object_unref)
 #endif
 
-GType object_manager_client_get_type (void) G_GNUC_CONST;
+GType orca_module_object_manager_client_get_type (void) G_GNUC_CONST;
 
-GType object_manager_client_get_proxy_type (GDBusObjectManagerClient *manager, const gchar *object_path, const gchar *interface_name, gpointer user_data);
+GType orca_module_object_manager_client_get_proxy_type (GDBusObjectManagerClient *manager, const gchar *object_path, const gchar *interface_name, gpointer user_data);
 
-void object_manager_client_new (
+void orca_module_object_manager_client_new (
     GDBusConnection        *connection,
     GDBusObjectManagerClientFlags  flags,
     const gchar            *name,
@@ -520,10 +520,10 @@ void object_manager_client_new (
     GCancellable           *cancellable,
     GAsyncReadyCallback     callback,
     gpointer                user_data);
-GDBusObjectManager *object_manager_client_new_finish (
+GDBusObjectManager *orca_module_object_manager_client_new_finish (
     GAsyncResult        *res,
     GError             **error);
-GDBusObjectManager *object_manager_client_new_sync (
+GDBusObjectManager *orca_module_object_manager_client_new_sync (
     GDBusConnection        *connection,
     GDBusObjectManagerClientFlags  flags,
     const gchar            *name,
@@ -531,7 +531,7 @@ GDBusObjectManager *object_manager_client_new_sync (
     GCancellable           *cancellable,
     GError                **error);
 
-void object_manager_client_new_for_bus (
+void orca_module_object_manager_client_new_for_bus (
     GBusType                bus_type,
     GDBusObjectManagerClientFlags  flags,
     const gchar            *name,
@@ -539,10 +539,10 @@ void object_manager_client_new_for_bus (
     GCancellable           *cancellable,
     GAsyncReadyCallback     callback,
     gpointer                user_data);
-GDBusObjectManager *object_manager_client_new_for_bus_finish (
+GDBusObjectManager *orca_module_object_manager_client_new_for_bus_finish (
     GAsyncResult        *res,
     GError             **error);
-GDBusObjectManager *object_manager_client_new_for_bus_sync (
+GDBusObjectManager *orca_module_object_manager_client_new_for_bus_sync (
     GBusType                bus_type,
     GDBusObjectManagerClientFlags  flags,
     const gchar            *name,

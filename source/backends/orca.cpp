@@ -20,15 +20,15 @@
 class OrcaBackend final : public TextToSpeechBackend {
 private:
   GDBusConnection *conn;
-  OrgGnomeOrcaService *service_proxy;
-  OrgGnomeOrcaModule *module_proxy;
+  OrcaServiceOrgGnomeOrcaService *service_proxy;
+  OrcaModuleOrgGnomeOrcaModule *module_proxy;
 
 public:
-  ~OrcaBackend() {
+  ~OrcaBackend() override {
     if (module_proxy)
       g_object_unref(module_proxy);
     if (service_proxy)
-      g_module_unref(service_proxy);
+      g_object_unref(service_proxy);
     if (conn)
       g_object_unref(conn);
   }
@@ -36,7 +36,7 @@ public:
   std::string_view get_name() const override { return "Orca"; }
 
   BackendResult<> initialize() override {
-    if (con && service_proxy && module_proxy)
+    if (conn && service_proxy && module_proxy)
       return std::unexpected(BackendError::AlreadyInitialized);
     GError *error = nullptr;
     conn = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
@@ -44,14 +44,14 @@ public:
       g_error_free(error);
       return std::unexpected(BackendError::InternalBackendError);
     }
-    service_proxy = org_gnome_orca_service_proxy_new_sync(
+    service_proxy = orca_service_org_gnome_orca_service_proxy_new_sync(
         conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service",
         "/org/gnome/Orca/Service", nullptr, &error);
     if (error) {
       g_error_free(error);
       return std::unexpected(BackendError::InternalBackendError);
     }
-    module_proxy = org_gnome_orca_module_proxy_new_sync(
+    module_proxy = orca_module_org_gnome_orca_module_proxy_new_sync(
         conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service",
         "/org/gnome/Orca/Service/SpeechAndVerbosityManager", nullptr, &error);
     if (error) {
@@ -62,18 +62,20 @@ public:
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (!con || !service_proxy || !module_proxy)
+    if (!conn || !service_proxy || !module_proxy)
       return std::unexpected(BackendError::NotInitialized);
     if (!simdutf::validate_utf8(text.data(), text.size())) {
       return std::unexpected(BackendError::InvalidUtf8);
     }
     if (interrupt)
-      stop();
+      if (const auto res = stop(); !res)
+        return res;
     GError *error = nullptr;
     gboolean success;
-    const auto ok = org_gnome_orca_service_call_present_message_sync(
-        service_proxy, text.data(), &success, nullptr, &error);
-    if (!okay || !success || error) {
+    const auto ok =
+        orca_service_org_gnome_orca_service_call_present_message_sync(
+            service_proxy, text.data(), &success, nullptr, &error);
+    if (!ok || !success || error) {
       if (error)
         g_error_free(error);
       return std::unexpected(BackendError::SpeakFailure);
@@ -86,13 +88,13 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (!con || !service_proxy || !module_proxy)
+    if (!conn || !service_proxy || !module_proxy)
       return std::unexpected(BackendError::NotInitialized);
     GError *error = nullptr;
     gboolean success;
-    const auto okay = org_gnome_orca_module_call_execute_command_sync(
+    const auto ok = orca_module_org_gnome_orca_module_call_execute_command_sync(
         module_proxy, "InterruptSpeech", false, &success, nullptr, &error);
-    if (!okay || !success || error) {
+    if (!ok || !success || error) {
       if (error)
         g_error_free(error);
       return std::unexpected(BackendError::SpeakFailure);

@@ -51,9 +51,9 @@ public:
       return std::unexpected(BackendError::InvalidUtf8);
     }
     if (interrupt)
-      stop();
+      if (const auto res = stop(); !res) return res;
     if (const auto res = spd_say(conn, SPD_TEXT, text.data()); res != 0) {
-      return std::unexpected(BackendError::SpeakFailed);
+      return std::unexpected(BackendError::SpeakFailure);
     }
     return {};
   }
@@ -66,7 +66,7 @@ public:
     if (!conn)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = spd_stop(conn); res != 0)
-      return std::unexpected(BackendError::InternalBackendFailure);
+      return std::unexpected(BackendError::InternalBackendError);
     return {};
   }
 };

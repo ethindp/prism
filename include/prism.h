@@ -85,7 +85,7 @@ typedef enum PrismError {
 
 typedef void(PRISM_CALL *PrismAudioCallback)(
     void *userdata, const float *PRISM_RESTRICT samples, size_t sample_count,
-    size_t channels, size_t bit_depth);
+    size_t channels, size_t sample_rate);
 
 #define PRISM_BACKEND_INVALID UINT64_C(0)
 #define PRISM_BACKEND_SAPI UINT64_C(0x1D6DF72422CEEE66)

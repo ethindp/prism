@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
+#include "../simdutf.h"
 #include "backend.h"
 #include "backend_registry.h"
 #include "utils.h"
@@ -42,6 +43,9 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!sapi || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
+    if (!simdutf::validate_utf8(text.data(), text.size())) {
+      return std::unexpected(BackendError::InvalidUtf8);
+    }
     auto str = std::string(text);
     if (interrupt) {
       if (sb_sapi_is_speaking(sapi)) {

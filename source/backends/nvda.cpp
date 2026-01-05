@@ -12,11 +12,15 @@ public:
 
   std::string_view get_name() const override { return "NVDA"; }
 
-  BackendResult<> initialize() override { return {}; }
+  BackendResult<> initialize() override {
+    if (nvdaController_testIfRunning())
+      return std::unexpected(BackendError::BackendNotAvailable);
+    return {};
+  }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (nvdaController_testIfRunning())
-      return std::unexpected(BackendError::NotInitialized);
+      return std::unexpected(BackendError::BackendNotAvailable);
     if (interrupt) {
       if (nvdaController_cancelSpeech())
         return std::unexpected(BackendError::InternalBackendError);
@@ -36,7 +40,7 @@ public:
 
   BackendResult<> braille(std::string_view text) override {
     if (nvdaController_testIfRunning())
-      return std::unexpected(BackendError::NotInitialized);
+      return std::unexpected(BackendError::BackendNotAvailable);
     const auto str = std::string(text);
     const auto len = simdutf::utf16_length_from_utf8(str.c_str(), str.size());
     std::wstring wstr;
@@ -60,7 +64,7 @@ public:
 
   BackendResult<> stop() override {
     if (nvdaController_testIfRunning())
-      return std::unexpected(BackendError::NotInitialized);
+      return std::unexpected(BackendError::BackendNotAvailable);
     if (nvdaController_cancelSpeech())
       return std::unexpected(BackendError::InternalBackendError);
     return {};

@@ -2,6 +2,7 @@
 
 #include "prism.h"
 #include "backends/backend_registry.h"
+#include <limits>
 #include <new>
 #include <string>
 
@@ -44,14 +45,22 @@ PRISM_API PrismContext *PRISM_CALL prism_init(void) {
   return new (std::nothrow) PrismContext(BackendRegistry::instance());
 }
 
-PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) { delete ctx; }
+PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) {
+  if (!ctx)
+    return;
+  delete ctx;
+}
 
 PRISM_API size_t PRISM_CALL prism_registry_count(PrismContext *ctx) {
+  if (!ctx)
+    return std::numeric_limits<std::size_t>::max();
   return ctx->registry.list().size();
 }
 
 PRISM_API PrismBackendId PRISM_CALL prism_registry_id_at(PrismContext *ctx,
                                                          size_t index) {
+  if (!ctx)
+    return PRISM_BACKEND_INVALID;
   const auto list = ctx->registry.list();
   if (index >= list.size())
     return 0;
@@ -60,66 +69,92 @@ PRISM_API PrismBackendId PRISM_CALL prism_registry_id_at(PrismContext *ctx,
 
 PRISM_API PrismBackendId PRISM_CALL
 prism_registry_id(PrismContext *ctx, const char *PRISM_RESTRICT name) {
+  if (!ctx || !name)
+    return PRISM_BACKEND_INVALID;
   return to_prism_id(ctx->registry.id(name));
 }
 
 PRISM_API const char *PRISM_CALL prism_registry_name(PrismContext *ctx,
                                                      PrismBackendId id) {
+  if (!ctx)
+    return nullptr;
   const auto sv = ctx->registry.name(to_backend_id(id));
   return sv.empty() ? nullptr : sv.data();
 }
 
 PRISM_API int PRISM_CALL prism_registry_priority(PrismContext *ctx,
                                                  PrismBackendId id) {
+  if (!ctx)
+    return -1;
   return ctx->registry.priority(to_backend_id(id));
 }
 
 PRISM_API bool PRISM_CALL prism_registry_exists(PrismContext *ctx,
                                                 PrismBackendId id) {
+  if (!ctx)
+    return false;
   return ctx->registry.has(to_backend_id(id));
 }
 
 PRISM_API PrismBackend *PRISM_CALL prism_registry_get(PrismContext *ctx,
                                                       PrismBackendId id) {
+  if (!ctx)
+    return nullptr;
   return wrap_backend(ctx->registry.get(to_backend_id(id)));
 }
 
 PRISM_API PrismBackend *PRISM_CALL prism_registry_create(PrismContext *ctx,
                                                          PrismBackendId id) {
+  if (!ctx)
+    return nullptr;
   return wrap_backend(ctx->registry.create(to_backend_id(id)));
 }
 
 PRISM_API PrismBackend *PRISM_CALL
 prism_registry_create_best(PrismContext *ctx) {
+  if (!ctx)
+    return nullptr;
   return wrap_backend(ctx->registry.create_best());
 }
 
 PRISM_API PrismBackend *PRISM_CALL prism_registry_acquire(PrismContext *ctx,
                                                           PrismBackendId id) {
+  if (!ctx)
+    return nullptr;
   return wrap_backend(ctx->registry.acquire(to_backend_id(id)));
 }
 
 PRISM_API PrismBackend *PRISM_CALL
 prism_registry_acquire_best(PrismContext *ctx) {
+  if (!ctx)
+    return nullptr;
   return wrap_backend(ctx->registry.acquire_best());
 }
 
 PRISM_API void PRISM_CALL prism_backend_free(PrismBackend *backend) {
+  if (!backend)
+    return;
   delete backend;
 }
 
 PRISM_API const char *PRISM_CALL prism_backend_name(PrismBackend *backend) {
+  if (!backend)
+    return nullptr;
   return backend->impl->get_name().data();
 }
 
 PRISM_API PrismError PRISM_CALL
 prism_backend_initialize(PrismBackend *backend) {
+  if (!backend)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->initialize();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_speak(
     PrismBackend *backend, const char *PRISM_RESTRICT text, bool interrupt) {
+  if (!backend || !text)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->speak(text, interrupt);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
@@ -127,6 +162,8 @@ PRISM_API PrismError PRISM_CALL prism_backend_speak(
 PRISM_API PrismError PRISM_CALL prism_backend_speak_to_memory(
     PrismBackend *backend, const char *PRISM_RESTRICT text,
     PrismAudioCallback callback, void *userdata) {
+  if (!backend || !callback || !text)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->speak_to_memory(
       text,
       [callback, userdata](void *, const float *samples, size_t count,
@@ -139,33 +176,45 @@ PRISM_API PrismError PRISM_CALL prism_backend_speak_to_memory(
 
 PRISM_API PrismError PRISM_CALL
 prism_backend_braille(PrismBackend *backend, const char *PRISM_RESTRICT text) {
+  if (!backend || !text)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->braille(text);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_output(
     PrismBackend *backend, const char *PRISM_RESTRICT text, bool interrupt) {
+  if (!backend || !text)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->output(text, interrupt);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_stop(PrismBackend *backend) {
+  if (!backend)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->stop();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_pause(PrismBackend *backend) {
+  if (!backend)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->pause();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_resume(PrismBackend *backend) {
+  if (!backend)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->resume();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_is_speaking(
     PrismBackend *backend, bool *PRISM_RESTRICT out_speaking) {
+  if (!backend || !out_speaking)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->is_speaking();
   if (!r)
     return to_prism_error(r.error());
@@ -175,24 +224,32 @@ PRISM_API PrismError PRISM_CALL prism_backend_is_speaking(
 
 PRISM_API PrismError PRISM_CALL prism_backend_set_volume(PrismBackend *backend,
                                                          float volume) {
+  if (!backend)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->set_volume(volume);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_set_rate(PrismBackend *backend,
                                                        float rate) {
+  if (!backend)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->set_rate(rate);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_set_pitch(PrismBackend *backend,
                                                         float pitch) {
+  if (!backend)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->set_pitch(pitch);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_get_volume(
     PrismBackend *backend, float *PRISM_RESTRICT out_volume) {
+  if (!backend || !out_volume)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->get_volume();
   if (!r)
     return to_prism_error(r.error());
@@ -202,6 +259,8 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_volume(
 
 PRISM_API PrismError PRISM_CALL
 prism_backend_get_rate(PrismBackend *backend, float *PRISM_RESTRICT out_rate) {
+  if (!backend || !out_rate)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->get_rate();
   if (!r)
     return to_prism_error(r.error());
@@ -211,6 +270,8 @@ prism_backend_get_rate(PrismBackend *backend, float *PRISM_RESTRICT out_rate) {
 
 PRISM_API PrismError PRISM_CALL prism_backend_get_pitch(
     PrismBackend *backend, float *PRISM_RESTRICT out_pitch) {
+  if (!backend || !out_pitch)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->get_pitch();
   if (!r)
     return to_prism_error(r.error());
@@ -220,12 +281,16 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_pitch(
 
 PRISM_API PrismError PRISM_CALL
 prism_backend_refresh_voices(PrismBackend *backend) {
+  if (!backend)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->refresh_voices();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_count_voices(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_count) {
+  if (!backend || !out_count)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->count_voices();
   if (!r)
     return to_prism_error(r.error());
@@ -236,6 +301,8 @@ PRISM_API PrismError PRISM_CALL prism_backend_count_voices(
 PRISM_API PrismError PRISM_CALL
 prism_backend_get_voice_name(PrismBackend *backend, size_t voice_id,
                              const char **PRISM_RESTRICT out_name) {
+  if (!backend || !out_name)
+    return PRISM_ERROR_INVALID_PARAM;
   auto r = backend->impl->get_voice_name(voice_id);
   if (!r)
     return to_prism_error(r.error());
@@ -247,6 +314,8 @@ prism_backend_get_voice_name(PrismBackend *backend, size_t voice_id,
 PRISM_API PrismError PRISM_CALL
 prism_backend_get_voice_language(PrismBackend *backend, size_t voice_id,
                                  const char **PRISM_RESTRICT out_language) {
+  if (!backend || !out_language)
+    return PRISM_ERROR_INVALID_PARAM;
   auto r = backend->impl->get_voice_language(voice_id);
   if (!r)
     return to_prism_error(r.error());
@@ -257,12 +326,16 @@ prism_backend_get_voice_language(PrismBackend *backend, size_t voice_id,
 
 PRISM_API PrismError PRISM_CALL prism_backend_set_voice(PrismBackend *backend,
                                                         size_t voice_id) {
+  if (!backend)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->set_voice(voice_id);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PrismError PRISM_CALL prism_backend_get_voice(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_voice_id) {
+  if (!backend || !out_voice_id)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->get_voice();
   if (!r)
     return to_prism_error(r.error());
@@ -272,6 +345,8 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_voice(
 
 PRISM_API PrismError PRISM_CALL prism_backend_get_channels(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_channels) {
+  if (!backend || !out_channels)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->get_channels();
   if (!r)
     return to_prism_error(r.error());
@@ -281,6 +356,8 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_channels(
 
 PRISM_API PrismError PRISM_CALL prism_backend_get_sample_rate(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_sample_rate) {
+  if (!backend || !out_sample_rate)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->get_sample_rate();
   if (!r)
     return to_prism_error(r.error());
@@ -290,6 +367,8 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_sample_rate(
 
 PRISM_API PrismError PRISM_CALL prism_backend_get_bit_depth(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_bit_depth) {
+  if (!backend || !out_bit_depth)
+    return PRISM_ERROR_INVALID_PARAM;
   const auto r = backend->impl->get_bit_depth();
   if (!r)
     return to_prism_error(r.error());

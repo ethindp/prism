@@ -51,7 +51,8 @@ public:
       return std::unexpected(BackendError::InvalidUtf8);
     }
     if (interrupt)
-      if (const auto res = stop(); !res) return res;
+      if (const auto res = stop(); !res)
+        return res;
     if (const auto res = spd_say(conn, SPD_TEXT, text.data()); res != 0) {
       return std::unexpected(BackendError::SpeakFailure);
     }

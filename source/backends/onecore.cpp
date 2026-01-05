@@ -27,9 +27,14 @@ class OneCoreBackend final : public TextToSpeechBackend {
 private:
   SpeechSynthesizer synth{nullptr};
   MediaPlayer player{nullptr};
+  std::atomic<MediaPlaybackState> current_state{MediaPlaybackState::None};
+  winrt::event_token state_changed_token{};
 
 public:
   ~OneCoreBackend() override {
+    if (player && state_changed_token) {
+      player.PlaybackSession().PlaybackStateChanged(state_changed_token);
+    }
     synth = nullptr;
     player = nullptr;
   }
@@ -40,6 +45,10 @@ public:
     try {
       synth = SpeechSynthesizer();
       player = MediaPlayer();
+      state_changed_token = player.PlaybackSession().PlaybackStateChanged(
+          [this](MediaPlaybackSession const &session, auto const &) {
+            current_state = session.PlaybackState();
+          });
       return {};
     } catch (const winrt::hresult_error &e) {
       return std::unexpected(BackendError::Unknown);
@@ -54,13 +63,16 @@ public:
     }
     try {
       if (interrupt)
-        stop();
+        if (const auto res = stop();
+            !res && res.error() != BackendError::NotSpeaking)
+          return res;
       const auto wtext = to_hstring(text);
       const auto stream = synth.SynthesizeTextToStreamAsync(wtext).get();
       const auto source =
           MediaSource::CreateFromStream(stream, stream.ContentType());
       player.Source(source);
       player.Play();
+      current_state = MediaPlaybackState::Playing;
       return {};
     } catch (const winrt::hresult_error &e) {
       return std::unexpected(BackendError::Unknown);
@@ -75,8 +87,7 @@ public:
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     try {
-      return player.PlaybackSession().PlaybackState() ==
-             MediaPlaybackState::Playing;
+      return current_state == MediaPlaybackState::Playing;
     } catch (const winrt::hresult_error &e) {
       return std::unexpected(BackendError::Unknown);
     }
@@ -85,15 +96,15 @@ public:
   BackendResult<> stop() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
+    const auto state = current_state.load();
+    if (state != MediaPlaybackState::Playing &&
+        state != MediaPlaybackState::Paused)
+      return std::unexpected(BackendError::NotSpeaking);
     try {
-      if (player.PlaybackSession().PlaybackState() ==
-          MediaPlaybackState::Playing) {
-        player.Pause();
-        player.Source(nullptr);
-        return {};
-      } else {
-        return std::unexpected(BackendError::NotSpeaking);
-      }
+      player.Pause();
+      player.Source(nullptr);
+      current_state = MediaPlaybackState::None;
+      return {};
     } catch (const winrt::hresult_error &e) {
       return std::unexpected(BackendError::Unknown);
     }
@@ -102,17 +113,15 @@ public:
   BackendResult<> pause() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
+    const auto state = current_state.load();
+    if (state == MediaPlaybackState::Paused)
+      return std::unexpected(BackendError::AlreadyPaused);
+    if (state != MediaPlaybackState::Playing)
+      return std::unexpected(BackendError::NotSpeaking);
     try {
-      if (player.PlaybackSession().PlaybackState() ==
-          MediaPlaybackState::Playing) {
-        player.Pause();
-        return {};
-      } else if (player.PlaybackSession().PlaybackState() ==
-                 MediaPlaybackState::Paused) {
-        return std::unexpected(BackendError::AlreadyPaused);
-      } else {
-        return std::unexpected(BackendError::NotSpeaking);
-      }
+      player.Pause();
+      current_state = MediaPlaybackState::Paused;
+      return {};
     } catch (const winrt::hresult_error &e) {
       return std::unexpected(BackendError::Unknown);
     }
@@ -121,17 +130,13 @@ public:
   BackendResult<> resume() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
+    const auto state = current_state.load();
+    if (state != MediaPlaybackState::Paused)
+      return std::unexpected(BackendError::NotPaused);
     try {
-      if (player.PlaybackSession().PlaybackState() ==
-          MediaPlaybackState::Paused) {
-        player.Play();
-        return {};
-      } else if (player.PlaybackSession().PlaybackState() ==
-                 MediaPlaybackState::Playing) {
-        return std::unexpected(BackendError::InvalidOperation);
-      } else {
-        return std::unexpected(BackendError::NotSpeaking);
-      }
+      player.Play();
+      current_state = MediaPlaybackState::Playing;
+      return {};
     } catch (const winrt::hresult_error &e) {
       return std::unexpected(BackendError::Unknown);
     }
@@ -169,9 +174,9 @@ public:
       // So, we do this for now. Fix this later.
       if (rate < 0.0 || rate > 1.0)
         return std::unexpected(BackendError::RangeOutOfBounds);
-      const auto val = synth.Options().SpeakingRate();
-      synth.Options().SpeakingRate(
-          range_convert_midpoint(val, 0.5, 3.0, 6.0, 0.0, 0.5, 1.0));
+      const auto val =
+          range_convert_midpoint(rate, 0.0, 0.5, 1.0, 0.5, 3.0, 6.0);
+      synth.Options().SpeakingRate(val);
       return {};
     } catch (const winrt::hresult_error &e) {
       return std::unexpected(BackendError::Unknown);

@@ -33,18 +33,22 @@ extern "C" {
 #define PRISM_PRINTF(fmt, args) __attribute__((format(printf, fmt, args)))
 #define PRISM_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #define PRISM_MALLOC __attribute__((malloc))
+#define PRISM_NULL_TERMINATED_STRING_ARG(n)                                    \
+  __attribute__((null_terminated_string_arg(n)))
 #elif defined(_MSC_VER)
 #define PRISM_NODISCARD _Check_return_
 #define PRISM_NONNULL(...)
 #define PRISM_PRINTF(fmt, args)
 #define PRISM_DEPRECATED(msg) __declspec(deprecated(msg))
 #define PRISM_MALLOC __declspec(restrict)
+#define PRISM_NULL_TERMINATED_STRING_ARG(n)
 #else
 #define PRISM_NODISCARD
 #define PRISM_NONNULL(...)
 #define PRISM_PRINTF(fmt, args)
 #define PRISM_DEPRECATED(msg)
 #define PRISM_MALLOC
+#define PRISM_NULL_TERMINATED_STRING_ARG(n)
 #endif
 #if defined(__cplusplus)
 #define PRISM_RESTRICT
@@ -114,7 +118,8 @@ PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) size_t PRISM_CALL
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismBackendId PRISM_CALL
     prism_registry_id_at(PrismContext *ctx, size_t index);
 
-PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismBackendId PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
+    PRISM_NULL_TERMINATED_STRING_ARG(2) PrismBackendId PRISM_CALL
     prism_registry_id(PrismContext *ctx, const char *PRISM_RESTRICT name);
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) const char *PRISM_CALL
@@ -150,20 +155,24 @@ PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) const char *PRISM_CALL
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
     prism_backend_initialize(PrismBackend *backend);
 
-PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
+    PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
     prism_backend_speak(PrismBackend *backend, const char *PRISM_RESTRICT text,
                         bool interrupt);
 
-PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2, 3) PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2, 3)
+    PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
     prism_backend_speak_to_memory(PrismBackend *backend,
                                   const char *PRISM_RESTRICT text,
                                   PrismAudioCallback callback, void *userdata);
 
-PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
+    PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
     prism_backend_braille(PrismBackend *backend,
                           const char *PRISM_RESTRICT text);
 
-PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
+    PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
     prism_backend_output(PrismBackend *backend, const char *PRISM_RESTRICT text,
                          bool interrupt);
 

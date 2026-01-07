@@ -121,6 +121,12 @@ if(WIN32)
   find_package(NVDAController REQUIRED)
   target_link_libraries(${PROJECT_NAME} PRIVATE NVDA::Controller)
   target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib)
+  add_custom_command(
+    TARGET ${PROJECT_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:NVDA::Controller> $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    COMMENT "Copying NVDA controller client")
   add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
                      SAAPI64.dll)
   target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess)
@@ -225,4 +231,16 @@ if(PRISM_ENABLE_TESTS)
     endif()
     catch_discover_tests(${TEST_NAME})
   endforeach()
+endif()
+if(DEFINED SKBUILD)
+  set(PRISM_PY_NATIVE_DIR "${SKBUILD_PLATLIB_DIR}/prism/_native")
+  install(
+    TARGETS ${project_name}
+    RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"
+    LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
+    ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
+  if(WIN32)
+    get_target_property(_nvda_dll NVDA::Controller IMPORTED_LOCATION)
+    install(FILES "${_nvda_dll}" DESTINATION "${PRISM_PY_NATIVE_DIR}")
+  endif()
 endif()

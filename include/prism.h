@@ -35,8 +35,11 @@ extern "C" {
 #define PRISM_PRINTF(fmt, args) __attribute__((format(printf, fmt, args)))
 #define PRISM_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #define PRISM_MALLOC __attribute__((malloc))
-#define PRISM_NULL_TERMINATED_STRING_ARG(n)                                    \
-  __attribute__((null_terminated_string_arg(n)))
+#if __has_attribute(null_terminated_string_arg)
+  #define PRISM_NULL_TERMINATED_STRING_ARG(n) __attribute__((null_terminated_string_arg(n)))
+#else
+  #define PRISM_NULL_TERMINATED_STRING_ARG(n)
+#endif
 #elif defined(_MSC_VER)
 #define PRISM_NODISCARD _Check_return_
 #define PRISM_NONNULL(...)

@@ -8,7 +8,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
+#ifdef __ANDROID__
+#include <jni.h>
+#endif
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -64,6 +66,12 @@ extern "C" {
 typedef struct PrismContext PrismContext;
 typedef struct PrismBackend PrismBackend;
 typedef uint64_t PrismBackendId;
+typedef struct {
+uint8_t version;
+#ifdef __ANDROID__
+JNIEnv* jni_env;
+#endif
+} PrismConfig;
 
 typedef enum PrismError {
   PRISM_OK = 0,
@@ -106,8 +114,11 @@ PRISM_STATIC_ASSERT(sizeof(PrismBackendId) == 8,
 PRISM_STATIC_ASSERT(alignof(PrismBackendId) >= 4, "PrismBackendId alignment");
 PRISM_STATIC_ASSERT(PRISM_OK == 0, "PRISM_OK must be zero");
 
+PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL
+prism_config_init(void);
+
 PRISM_API PRISM_NODISCARD PRISM_MALLOC PrismContext *PRISM_CALL
-prism_init(void);
+prism_init(PrismConfig* cfg);
 
 PRISM_API
 void PRISM_CALL prism_shutdown(PrismContext *ctx);

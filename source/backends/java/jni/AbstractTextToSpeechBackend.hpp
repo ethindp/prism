@@ -4,7 +4,7 @@
 #pragma once
 
 #include "java/AbstractTextToSpeechBackend.hpp"
-#include "java/support/djinni_support.hpp"
+#include "java/support/jni/djinni_support.hpp"
 
 namespace prism::jni {
 
@@ -34,26 +34,26 @@ private:
         ~JavaProxy();
 
         std::string get_name() override;
-        djinni::expected<void, ::prism::java::BackendError> initialize() override;
-        djinni::expected<void, ::prism::java::BackendError> speak(const ::djinni::DataView & text, bool interrupt) override;
-        djinni::expected<void, ::prism::java::BackendError> speak_to_memory(const ::djinni::DataView & text, const /*not-null*/ std::shared_ptr<::prism::java::AudioCallback> & callback, int64_t userdata) override;
-        djinni::expected<void, ::prism::java::BackendError> braille(const ::djinni::DataView & text) override;
-        djinni::expected<void, ::prism::java::BackendError> output(const ::djinni::DataView & text, bool interrupt) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> initialize() override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> speak(const ::djinni::DataView & text, bool interrupt) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> speak_to_memory(const ::djinni::DataView & text, const /*not-null*/ std::shared_ptr<::prism::java::AudioCallback> & callback, int64_t userdata) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> braille(const ::djinni::DataView & text) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> output(const ::djinni::DataView & text, bool interrupt) override;
         djinni::expected<bool, ::prism::java::BackendError> is_speaking() override;
-        djinni::expected<void, ::prism::java::BackendError> stop() override;
-        djinni::expected<void, ::prism::java::BackendError> pause() override;
-        djinni::expected<void, ::prism::java::BackendError> resume() override;
-        djinni::expected<void, ::prism::java::BackendError> set_volume(float volume) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> stop() override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> pause() override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> resume() override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> set_volume(float volume) override;
         djinni::expected<float, ::prism::java::BackendError> get_volume() override;
-        djinni::expected<void, ::prism::java::BackendError> set_rate(float rate) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> set_rate(float rate) override;
         djinni::expected<float, ::prism::java::BackendError> get_rate() override;
-        djinni::expected<void, ::prism::java::BackendError> set_pitch(float pitch) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> set_pitch(float pitch) override;
         djinni::expected<float, ::prism::java::BackendError> get_pitch() override;
-        djinni::expected<void, ::prism::java::BackendError> refresh_voices() override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> refresh_voices() override;
         djinni::expected<int64_t, ::prism::java::BackendError> count_voices() override;
         djinni::expected<std::string, ::prism::java::BackendError> get_voice_name(int64_t id) override;
         djinni::expected<std::string, ::prism::java::BackendError> get_voice_language(int64_t id) override;
-        djinni::expected<void, ::prism::java::BackendError> set_voice(int64_t id) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> set_voice(int64_t id) override;
         djinni::expected<int64_t, ::prism::java::BackendError> get_voice() override;
         djinni::expected<int64_t, ::prism::java::BackendError> get_channels() override;
         djinni::expected<int64_t, ::prism::java::BackendError> get_sample_rate() override;

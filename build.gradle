@@ -1,33 +1,58 @@
 plugins {
-  id 'com.android.library' version '8.13.2'
+    id "com.android.library" version "8.13.2"
+    id "com.diffplug.spotless" version "8.1.0"
 }
-
+dependencies {
+    implementation "com.ibm.icu:icu4j:78.1"
+}
 android {
-  namespace 'com.github.ethindp.prism'
-  compileSdk 35
-  defaultConfig {
-    minSdk 21
-    ndk {
-      abiFilters 'arm64-v8a', 'x86_64'
+    namespace = 'com.github.ethindp.prism'
+    compileSdk = 36
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_25
+    }
+    defaultConfig {
+        minSdk 30
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+        externalNativeBuild {
+            cmake {
+                targets 'prism'
+                arguments '-DPRISM_ENABLE_TESTS=OFF'
+            }
+        }
+    }
+    sourceSets {
+        main {
+            manifest.srcFile 'source/AndroidManifest.xml'
+            java.srcDirs = ['source/backends/java']
+        }
     }
     externalNativeBuild {
-      cmake {
-        targets 'prism'
-        arguments '-DPRISM_BUILD_TESTS=OFF'
-      }
+        cmake {
+            path file('CMakeLists.txt')
+            buildStagingDirectory = file('build/android/.cxx')
+        }
     }
-  }
-  sourceSets {
-    main {
-      manifest.srcFile 'source/AndroidManifest.xml'
-      java.srcDirs = ['source/backends/java']
+}
+spotless {
+    groovyGradle {
+        target '*.gradle'
+        greclipse()
+        leadingTabsToSpaces(4)
+        trimTrailingWhitespace()
+        endWithNewline()
     }
-  }
-  externalNativeBuild {
-    cmake {
-      path file('CMakeLists.txt')
-      buildStagingDirectory = file('build/android/.cxx')
+    java {
+        target 'source/**/*.java'
+        targetExclude 'source/backends/java/support/**/*.java', 'source/backends/java/jni/**/*.java'
+        cleanthat()
+        googleJavaFormat()
+        leadingTabsToSpaces(4)
+        trimTrailingWhitespace()
+        endWithNewline()
     }
-  }
 }
 buildDir = file('build/android/gradle')

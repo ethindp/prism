@@ -4,9 +4,10 @@
 #include "java/jni/AbstractTextToSpeechBackend.hpp"  // my header
 #include "java/jni/AudioCallback.hpp"
 #include "java/jni/BackendError.hpp"
-#include "java/support/DataView_jni.hpp"
-#include "java/support/Marshal.hpp"
-#include "java/support/Outcome_jni.hpp"
+#include "java/jni/Unit.hpp"
+#include "java/support/jni/DataView_jni.hpp"
+#include "java/support/jni/Marshal.hpp"
+#include "java/support/jni/Outcome_jni.hpp"
 
 namespace prism::jni {
 
@@ -26,15 +27,15 @@ std::string AbstractTextToSpeechBackend::JavaProxy::get_name() {
     ::djinni::jniExceptionCheck(jniEnv);
     return ::djinni::String::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::initialize() {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::initialize() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_initialize);
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::speak(const ::djinni::DataView & c_text, bool c_interrupt) {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::speak(const ::djinni::DataView & c_text, bool c_interrupt) {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
@@ -42,9 +43,9 @@ djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend:
                                          ::djinni::get(::djinni::NativeDataView::fromCpp(jniEnv, c_text)),
                                          ::djinni::get(::djinni::Bool::fromCpp(jniEnv, c_interrupt)));
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::speak_to_memory(const ::djinni::DataView & c_text, const /*not-null*/ std::shared_ptr<::prism::java::AudioCallback> & c_callback, int64_t c_userdata) {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::speak_to_memory(const ::djinni::DataView & c_text, const /*not-null*/ std::shared_ptr<::prism::java::AudioCallback> & c_callback, int64_t c_userdata) {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
@@ -53,18 +54,18 @@ djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend:
                                          ::djinni::get(::prism::jni::AudioCallback::fromCpp(jniEnv, c_callback)),
                                          ::djinni::get(::djinni::I64::fromCpp(jniEnv, c_userdata)));
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::braille(const ::djinni::DataView & c_text) {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::braille(const ::djinni::DataView & c_text) {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_braille,
                                          ::djinni::get(::djinni::NativeDataView::fromCpp(jniEnv, c_text)));
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::output(const ::djinni::DataView & c_text, bool c_interrupt) {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::output(const ::djinni::DataView & c_text, bool c_interrupt) {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
@@ -72,7 +73,7 @@ djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend:
                                          ::djinni::get(::djinni::NativeDataView::fromCpp(jniEnv, c_text)),
                                          ::djinni::get(::djinni::Bool::fromCpp(jniEnv, c_interrupt)));
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
 djinni::expected<bool, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::is_speaking() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
@@ -82,38 +83,38 @@ djinni::expected<bool, ::prism::java::BackendError> AbstractTextToSpeechBackend:
     ::djinni::jniExceptionCheck(jniEnv);
     return ::djinni::Outcome<::djinni::Bool, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::stop() {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::stop() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_stop);
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::pause() {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::pause() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_pause);
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::resume() {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::resume() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_resume);
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::set_volume(float c_volume) {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::set_volume(float c_volume) {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_setVolume,
                                          ::djinni::get(::djinni::F32::fromCpp(jniEnv, c_volume)));
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
 djinni::expected<float, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::get_volume() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
@@ -123,14 +124,14 @@ djinni::expected<float, ::prism::java::BackendError> AbstractTextToSpeechBackend
     ::djinni::jniExceptionCheck(jniEnv);
     return ::djinni::Outcome<::djinni::F32, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::set_rate(float c_rate) {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::set_rate(float c_rate) {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_setRate,
                                          ::djinni::get(::djinni::F32::fromCpp(jniEnv, c_rate)));
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
 djinni::expected<float, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::get_rate() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
@@ -140,14 +141,14 @@ djinni::expected<float, ::prism::java::BackendError> AbstractTextToSpeechBackend
     ::djinni::jniExceptionCheck(jniEnv);
     return ::djinni::Outcome<::djinni::F32, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::set_pitch(float c_pitch) {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::set_pitch(float c_pitch) {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_setPitch,
                                          ::djinni::get(::djinni::F32::fromCpp(jniEnv, c_pitch)));
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
 djinni::expected<float, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::get_pitch() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
@@ -157,13 +158,13 @@ djinni::expected<float, ::prism::java::BackendError> AbstractTextToSpeechBackend
     ::djinni::jniExceptionCheck(jniEnv);
     return ::djinni::Outcome<::djinni::F32, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::refresh_voices() {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::refresh_voices() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_refreshVoices);
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
 djinni::expected<int64_t, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::count_voices() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
@@ -191,14 +192,14 @@ djinni::expected<std::string, ::prism::java::BackendError> AbstractTextToSpeechB
     ::djinni::jniExceptionCheck(jniEnv);
     return ::djinni::Outcome<::djinni::String, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
-djinni::expected<void, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::set_voice(int64_t c_id) {
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::set_voice(int64_t c_id) {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_setVoice,
                                          ::djinni::get(::djinni::I64::fromCpp(jniEnv, c_id)));
     ::djinni::jniExceptionCheck(jniEnv);
-    return ::djinni::Outcome<::djinni::Void, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
 djinni::expected<int64_t, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::get_voice() {
     auto jniEnv = ::djinni::jniGetThreadEnv();

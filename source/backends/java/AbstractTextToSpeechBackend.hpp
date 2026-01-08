@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "java/support/DataView.hpp"
-#include "java/support/expected.hpp"
+#include "java/support/cpp/DataView.hpp"
+#include "java/support/cpp/expected.hpp"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -13,6 +13,7 @@ namespace prism::java {
 
 class AudioCallback;
 enum class BackendError;
+struct Unit;
 
 class AbstractTextToSpeechBackend {
 public:
@@ -20,37 +21,37 @@ public:
 
     virtual std::string get_name() = 0;
 
-    virtual djinni::expected<void, BackendError> initialize() = 0;
+    virtual djinni::expected<Unit, BackendError> initialize() = 0;
 
-    virtual djinni::expected<void, BackendError> speak(const ::djinni::DataView & text, bool interrupt) = 0;
+    virtual djinni::expected<Unit, BackendError> speak(const ::djinni::DataView & text, bool interrupt) = 0;
 
-    virtual djinni::expected<void, BackendError> speak_to_memory(const ::djinni::DataView & text, const /*not-null*/ std::shared_ptr<AudioCallback> & callback, int64_t userdata) = 0;
+    virtual djinni::expected<Unit, BackendError> speak_to_memory(const ::djinni::DataView & text, const /*not-null*/ std::shared_ptr<AudioCallback> & callback, int64_t userdata) = 0;
 
-    virtual djinni::expected<void, BackendError> braille(const ::djinni::DataView & text) = 0;
+    virtual djinni::expected<Unit, BackendError> braille(const ::djinni::DataView & text) = 0;
 
-    virtual djinni::expected<void, BackendError> output(const ::djinni::DataView & text, bool interrupt) = 0;
+    virtual djinni::expected<Unit, BackendError> output(const ::djinni::DataView & text, bool interrupt) = 0;
 
     virtual djinni::expected<bool, BackendError> is_speaking() = 0;
 
-    virtual djinni::expected<void, BackendError> stop() = 0;
+    virtual djinni::expected<Unit, BackendError> stop() = 0;
 
-    virtual djinni::expected<void, BackendError> pause() = 0;
+    virtual djinni::expected<Unit, BackendError> pause() = 0;
 
-    virtual djinni::expected<void, BackendError> resume() = 0;
+    virtual djinni::expected<Unit, BackendError> resume() = 0;
 
-    virtual djinni::expected<void, BackendError> set_volume(float volume) = 0;
+    virtual djinni::expected<Unit, BackendError> set_volume(float volume) = 0;
 
     virtual djinni::expected<float, BackendError> get_volume() = 0;
 
-    virtual djinni::expected<void, BackendError> set_rate(float rate) = 0;
+    virtual djinni::expected<Unit, BackendError> set_rate(float rate) = 0;
 
     virtual djinni::expected<float, BackendError> get_rate() = 0;
 
-    virtual djinni::expected<void, BackendError> set_pitch(float pitch) = 0;
+    virtual djinni::expected<Unit, BackendError> set_pitch(float pitch) = 0;
 
     virtual djinni::expected<float, BackendError> get_pitch() = 0;
 
-    virtual djinni::expected<void, BackendError> refresh_voices() = 0;
+    virtual djinni::expected<Unit, BackendError> refresh_voices() = 0;
 
     virtual djinni::expected<int64_t, BackendError> count_voices() = 0;
 
@@ -58,7 +59,7 @@ public:
 
     virtual djinni::expected<std::string, BackendError> get_voice_language(int64_t id) = 0;
 
-    virtual djinni::expected<void, BackendError> set_voice(int64_t id) = 0;
+    virtual djinni::expected<Unit, BackendError> set_voice(int64_t id) = 0;
 
     virtual djinni::expected<int64_t, BackendError> get_voice() = 0;
 

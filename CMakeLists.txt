@@ -71,7 +71,10 @@ include(${CPM_DOWNLOAD_LOCATION})
 
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
-     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h")
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h"
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.hpp")
+file(GLOB_RECURSE android_headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/java/*.hpp")
+file(GLOB_RECURSE android_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/java/*.cpp")
 if(APPLE)
   file(
     GLOB_RECURSE
@@ -97,7 +100,7 @@ if(NOT WIN32)
   list(REMOVE_ITEM headers
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.h")
 endif()
-if(APPLE
+if(ANDROID OR APPLE
    OR WIN32
    OR WINDOWS_STORE)
   list(REMOVE_ITEM sources
@@ -107,10 +110,19 @@ if(APPLE
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h")
 endif()
+if (NOT ANDROID)
+list(REMOVE_ITEM sources ${android_sources})
+list(REMOVE_ITEM headers ${android_headers})
+endif()
 add_library(${PROJECT_NAME} SHARED ${headers} ${sources})
 set_property(TARGET ${PROJECT_NAME} PROPERTY OUTPUT_NAME ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME}
                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+if (ANDROID)
+target_include_directories(${PROJECT_NAME} PRIVATE
+  "${PROJECT_SOURCE_DIR}/source/backends"
+)
+endif()
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 target_compile_definitions(
   ${PROJECT_NAME}
@@ -135,7 +147,7 @@ if(APPLE)
   find_library(AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)
   target_link_libraries(${PROJECT_NAME} PRIVATE ${AVFOUNDATION_FRAMEWORK})
 endif()
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT ANDROID)
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(GIO gio-2.0)
   if(GIO_FOUND)
@@ -194,8 +206,12 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
                                 PROPERTIES SKIP_LINTING ON)
   endif()
 endif()
-check_ipo_supported()
+check_ipo_supported(RESULT IPO_SUPPORTED)
+if (IPO_SUPPORTED)
 set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+message(STATUS "IPO not supported for this build")
+endif()
 set(CMAKE_INSTALL_DEBUG_LIBRARIES ON)
 set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
 set(CMAKE_INSTALL_MFC_LIBRARIES ON)

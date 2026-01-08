@@ -4,7 +4,7 @@
 #pragma once
 
 #include "java/AudioCallback.hpp"
-#include "java/support/djinni_support.hpp"
+#include "java/support/jni/djinni_support.hpp"
 
 namespace prism::jni {
 

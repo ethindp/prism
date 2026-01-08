@@ -1,0 +1,49 @@
+import os
+PRISM_VERSION = "@VERSION@"
+SUPPORTED_ABIS = @ABIS@
+
+def _detect_abi(env):
+    if 'ANDROID_ABI' in env:
+        return env['ANDROID_ABI']
+    if 'ANDROID_ABI' in os.environ:
+        return os.environ['ANDROID_ABI']
+    if 'CC' in env:
+        cc = str(env['CC'])
+        if 'aarch64' in cc:
+            return 'arm64-v8a'
+        elif 'x86_64' in cc:
+            return 'x86_64'
+    return None
+
+def configure(env, prism_root=None, abi=None):
+    if prism_root is None:
+        prism_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if abi is None:
+        abi = _detect_abi(env)
+        if abi is None:
+            raise ValueError(f"Cannot detect ABI. Set ANDROID_ABI. Supported: {SUPPORTED_ABIS}")
+    if abi not in SUPPORTED_ABIS:
+        raise ValueError(f"Unsupported ABI '{abi}'. Supported: {SUPPORTED_ABIS}")
+    include_dir = os.path.join(prism_root, 'include')
+    lib_dir = os.path.join(prism_root, 'lib', abi)
+    lib_path = os.path.join(lib_dir, 'libprism.so')
+    if not os.path.isdir(include_dir):
+        raise FileNotFoundError(f"Include directory not found: {include_dir}")
+    if not os.path.isfile(lib_path):
+        raise FileNotFoundError(f"Library not found: {lib_path}")
+    env.Append(CPPPATH=[include_dir])
+    env.Append(LIBPATH=[lib_dir])
+    env.Append(LIBS=['prism'])
+    env['PRISM_ROOT'] = prism_root
+    env['PRISM_ABI'] = abi
+    env['PRISM_VERSION'] = PRISM_VERSION
+    env['PRISM_LIB'] = lib_path
+
+def EnablePrism(env, abi=None, prism_root=None):
+    return configure(env, prism_root=prism_root, abi=abi)
+
+def generate(env):
+    env.AddMethod(EnablePrism)
+
+def exists(env):
+    return True

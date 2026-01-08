@@ -1,0 +1,5 @@
+[wrap-file]
+directory = prism-android-sdk-@VERSION@-@BUILD_TYPE@
+
+[provide]
+prism = prism_dep

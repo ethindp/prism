@@ -100,7 +100,7 @@ afterEvaluate {
 }
 spotless {
     groovyGradle {
-        target '*.gradle'
+        target '**/*.gradle'
         greclipse()
         leadingTabsToSpaces(4)
         trimTrailingWhitespace()
@@ -108,7 +108,7 @@ spotless {
         licenseHeader('// SPDX-License-Identifier: MPL-2.0\n', '^.')
     }
     java {
-        target 'source/**/*.java'
+        target 'source/**/*.java', 'tests/**.java'
         targetExclude 'source/backends/java/support/**/*.java', 'source/backends/java/jni/**/*.java'
         cleanthat()
         googleJavaFormat()

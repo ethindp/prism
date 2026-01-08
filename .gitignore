@@ -11,3 +11,4 @@ CMakeUserPresets.json
 compile_commands.json
 doc/book
 dist/
+.gradle

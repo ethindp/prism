@@ -2,10 +2,10 @@
 
 #include "prism.h"
 #include "backends/backend_registry.h"
+#include <cstdint>
 #include <limits>
 #include <new>
 #include <string>
-#include <cstdint>
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
@@ -48,25 +48,27 @@ static PrismBackend *wrap_backend(std::shared_ptr<TextToSpeechBackend> impl) {
 
 extern "C" {
 
-PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL
-prism_config_init(void) {
-PrismConfig cfg;
-cfg.version = PRISM_CONFIG_VERSION;
+PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void) {
+  PrismConfig cfg;
+  cfg.version = PRISM_CONFIG_VERSION;
 #ifdef __ANDROID__
-cfg.jni_env = nullptr;
+  cfg.jni_env = nullptr;
 #endif
-return cfg;
+  return cfg;
 }
 
-PRISM_API PrismContext *PRISM_CALL prism_init(PrismConfig* cfg) {
-if (cfg) {
-if (cfg->version != PRISM_CONFIG_VERSION) return nullptr;
-  auto* ctx = new (std::nothrow) PrismContext(BackendRegistry::instance());
-  if (!ctx) return nullptr;
-  #ifdef __ANDROID__
-  if (cfg->jni_env) ctx->registry.set_jni_env(cfg->jni_env);
-  #endif
-  return std::move(ctx);
+PRISM_API PrismContext *PRISM_CALL prism_init(PrismConfig *cfg) {
+  if (cfg) {
+    if (cfg->version != PRISM_CONFIG_VERSION)
+      return nullptr;
+    auto *ctx = new (std::nothrow) PrismContext(BackendRegistry::instance());
+    if (!ctx)
+      return nullptr;
+#ifdef __ANDROID__
+    if (cfg->jni_env)
+      ctx->registry.set_jni_env(cfg->jni_env);
+#endif
+    return std::move(ctx);
   }
   return new (std::nothrow) PrismContext(BackendRegistry::instance());
 }

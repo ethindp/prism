@@ -105,6 +105,7 @@ spotless {
         leadingTabsToSpaces(4)
         trimTrailingWhitespace()
         endWithNewline()
+        licenseHeader('// SPDX-License-Identifier: MPL-2.0\n', '^.')
     }
     java {
         target 'source/**/*.java'
@@ -114,6 +115,9 @@ spotless {
         leadingTabsToSpaces(4)
         trimTrailingWhitespace()
         endWithNewline()
+        licenseHeader "// SPDX-License-Identifier: MPL-2.0\n"
+        removeUnusedImports()
+        formatAnnotations()
     }
 }
 buildDir = file('build/android/gradle')

@@ -12,7 +12,7 @@
 #include "java/jni/AbstractTextToSpeechBackend.hpp"
 #include <jni.h>
 
-class AndroidTextToSpeechAudioCallbackAdapter
+class AndroidScreenReaderAudioCallbackAdapter
     : public prism::java::AudioCallback {
 public:
   using PrismLambda = TextToSpeechBackend::AudioCallback;
@@ -22,7 +22,7 @@ private:
   void *userdata;
 
 public:
-  AndroidTextToSpeechAudioCallbackAdapter(PrismLambda lambda, void *userdata)
+  AndroidScreenReaderAudioCallbackAdapter(PrismLambda lambda, void *userdata)
       : lambda(std::move(lambda)), userdata(userdata) {}
   void on_audio(std::int64_t java_userdata, const djinni::DataView &samples,
                 int64_t sample_count, int64_t channels,
@@ -37,14 +37,14 @@ public:
   }
 };
 
-class AndroidTextToSpeechBackend final : public TextToSpeechBackend {
+class AndroidScreenReaderBackend final : public TextToSpeechBackend {
 private:
   std::shared_ptr<prism::java::AbstractTextToSpeechBackend> backend{nullptr};
   jclass java_class;
   jobject instance;
 
 public:
-  ~AndroidTextToSpeechBackend() override {
+  ~AndroidScreenReaderBackend() override {
     if (instance)
       jni_env->DeleteLocalRef(instance);
     if (java_class)
@@ -52,14 +52,14 @@ public:
   }
 
   std::string_view get_name() const override {
-    return "Android Text to Speech";
+    return "Android screen reader";
   }
 
   BackendResult<> initialize() override {
     if (!jni_env)
       return std::unexpected(BackendError::BackendNotAvailable);
     java_class = jni_env->FindClass(
-        "com/github/ethindp/prism/AndroidTextToSpeechBackend");
+        "com/github/ethindp/prism/AndroidScreenReaderBackend");
     if (!java_class) {
       jni_env->ExceptionClear();
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -100,7 +100,7 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     djinni::DataView view(reinterpret_cast<const uint8_t *>(text.data()),
                           text.size());
-    auto adapter = std::make_shared<AndroidTextToSpeechAudioCallbackAdapter>(
+    auto adapter = std::make_shared<AndroidScreenReaderAudioCallbackAdapter>(
         callback, userdata);
     if (const auto res = backend->speak_to_memory(
             view, adapter, reinterpret_cast<std::int64_t>(userdata));
@@ -325,7 +325,7 @@ public:
   }
 };
 
-REGISTER_BACKEND_WITH_ID(AndroidTextToSpeechBackend,
-                         Backends::AndroidTextToSpeech,
-                         "Android Text to Speech", 0);
+REGISTER_BACKEND_WITH_ID(AndroidScreenReaderBackend,
+                         Backends::AndroidScreenReader,
+                         "Android Screen Reader", 1);
 #endif

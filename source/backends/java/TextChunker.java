@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 package com.github.ethindp.prism;
 
 import com.ibm.icu.text.BreakIterator;

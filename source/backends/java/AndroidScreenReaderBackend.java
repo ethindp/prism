@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 package com.github.ethindp.prism;
 
 import android.accessibilityservice.AccessibilityServiceInfo;

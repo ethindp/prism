@@ -25,7 +25,6 @@ The backend instance. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Voice list was refreshed. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support voice enumeration. |
 | `PRISM_ERROR_INTERNAL` | An internal error occurred. |
@@ -65,7 +64,6 @@ Pointer to receive the voice count. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Voice count was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_count` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support voice enumeration. |
 
@@ -110,7 +108,6 @@ Pointer to receive the voice name. This parameter MUST NOT be `NULL`. On success
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Voice name was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_name` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_RANGE_OUT_OF_BOUNDS` | `voice_id` is out of range. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support voice enumeration. |
@@ -156,7 +153,6 @@ Pointer to receive the language code or language string. This parameter MUST NOT
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Language was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_language` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_RANGE_OUT_OF_BOUNDS` | `voice_id` is out of range. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support voice enumeration. |
@@ -192,7 +188,6 @@ The zero-based index of the voice to select.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Voice was selected. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_RANGE_OUT_OF_BOUNDS` | `voice_id` is out of range. |
 | `PRISM_ERROR_VOICE_NOT_FOUND` | The voice does not exist. |
@@ -233,7 +228,6 @@ Pointer to receive the voice index. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Voice index was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_voice_id` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support voice selection. |
 | `PRISM_ERROR_INTERNAL` | An internal error occurred. |

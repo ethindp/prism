@@ -31,7 +31,6 @@ The volume level, in the range [0.0, 1.0]. A value of 0.0 is silent; 1.0 is maxi
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Volume was set. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_RANGE_OUT_OF_BOUNDS` | `volume` is outside [0.0, 1.0]. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support volume control. |
@@ -76,7 +75,6 @@ Pointer to receive the volume. This parameter MUST NOT be `NULL`. On success, re
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Volume was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_volume` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support volume control. |
 
@@ -113,7 +111,6 @@ The speech rate, in the range [0.0, 1.0]. A value of 0.0 is the slowest rate; 1.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Rate was set. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_RANGE_OUT_OF_BOUNDS` | `rate` is outside [0.0, 1.0]. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support rate control. |
@@ -156,7 +153,6 @@ Pointer to receive the rate. This parameter MUST NOT be `NULL`. On success, rece
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Rate was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_rate` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support rate control. |
 
@@ -193,7 +189,6 @@ The pitch, in the range [0.0, 1.0].
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Pitch was set. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_RANGE_OUT_OF_BOUNDS` | `pitch` is outside [0.0, 1.0]. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support pitch control. |
@@ -234,7 +229,6 @@ Pointer to receive the pitch. This parameter MUST NOT be `NULL`. On success, rec
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Pitch was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_pitch` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support pitch control. |
 

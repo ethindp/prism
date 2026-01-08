@@ -53,7 +53,7 @@ The backend instance. This parameter MUST NOT be `NULL`.
 
 #### Return Value
 
-Returns a pointer to a null-terminated string containing the backend name on success. Returns `NULL` if `backend` is `NULL`.
+Returns a pointer to a null-terminated string containing the backend name on success.
 
 #### Remarks
 
@@ -93,7 +93,6 @@ The backend instance. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Initialization succeeded. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` is `NULL`. |
 | `PRISM_ERROR_ALREADY_INITIALIZED` | The backend was already initialized. |
 | `PRISM_ERROR_BACKEND_NOT_AVAILABLE` | The backend's underlying system component is unavailable. |
 | `PRISM_ERROR_INTERNAL` | An internal error occurred during initialization. |
@@ -143,7 +142,6 @@ Specifies whether to interrupt currently playing speech. If `true`, any speech i
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Speech synthesis was successfully initiated. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `text` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_INVALID_UTF8` | `text` contains invalid UTF-8 sequences. |
 | `PRISM_ERROR_SPEAK_FAILURE` | Speech synthesis failed. |
@@ -217,7 +215,6 @@ An arbitrary pointer passed to the callback. This parameter MAY be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Synthesis completed and audio was delivered to the callback. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend`, `text`, or `callback` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_INVALID_UTF8` | `text` contains invalid UTF-8 sequences. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support memory synthesis. |
@@ -278,7 +275,6 @@ The text to display. This parameter MUST NOT be `NULL` and MUST be a valid null-
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Text was successfully sent to the braille display. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `text` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_INVALID_UTF8` | `text` contains invalid UTF-8 sequences. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support braille output. |
@@ -326,7 +322,6 @@ Specifies whether to interrupt current output. If `true`, any output in progress
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Output was successfully initiated. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `text` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_INVALID_UTF8` | `text` contains invalid UTF-8 sequences. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support this operation. |
@@ -361,7 +356,6 @@ The backend instance. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Speech was stopped or no speech was playing. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support stopping. |
 | `PRISM_ERROR_INTERNAL` | An internal error occurred. |
@@ -399,7 +393,6 @@ The backend instance. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Speech was paused. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_SPEAKING` | No speech is currently playing. |
 | `PRISM_ERROR_ALREADY_PAUSED` | Speech is already paused. |
@@ -439,7 +432,6 @@ The backend instance. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Speech was resumed. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_PAUSED` | Speech is not currently paused. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support resuming. |
@@ -478,7 +470,6 @@ Pointer to receive the speaking state. This parameter MUST NOT be `NULL`. On suc
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | The speaking state was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_speaking` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend cannot report speaking state. |
 

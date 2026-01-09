@@ -51,10 +51,6 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
                       .build();
               tts.setAudioAttributes(audioAttributes);
               voices = tts.getVoices();
-              for (var voice : voices) {
-                if (voice.isNetworkConnectionRequired()
-                    || voice.getFeatures().contains("notInstalled")) voices.remove(voice);
-              }
             } else isTTSInitialized = false;
             isTTSInitializedLatch.countDown();
           }

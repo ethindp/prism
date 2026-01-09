@@ -5,6 +5,10 @@ plugins {
 android {
     namespace "com.github.ethindp.prism.tests.android.simpleapp"
     compileSdk 35
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_25
+    }
     defaultConfig {
         applicationId "com.github.ethindp.prism.tests.android.simpleapp"
         minSdk 30
@@ -33,6 +37,7 @@ android {
 }
 
 dependencies {
+    implementation rootProject
     implementation "androidx.appcompat:appcompat:1.7.1"
     implementation "com.google.android.material:material:1.13.0"
 }

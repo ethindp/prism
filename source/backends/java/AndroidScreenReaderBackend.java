@@ -80,6 +80,7 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
       if (cr.isOverflow() || cr.isError() || cr.isMalformed() || cr.isUnmappable())
         return Outcome.fromError(BackendError.INVALID_UTF8);
     }
+    out.flip();
     if (interrupt) {
       var res = stop();
       if (res.errorOrNull() != null) {

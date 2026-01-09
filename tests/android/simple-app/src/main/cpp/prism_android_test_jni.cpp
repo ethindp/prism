@@ -48,12 +48,7 @@ Java_com_github_ethindp_prism_tests_android_simpleapp_PrismNative_prism_1backend
     JNIEnv *env, jclass, jlong backendHandle, jstring text,
     jboolean interrupt) {
   auto *backend = from_handle<PrismBackend>(backendHandle);
-  if (!backend || !text) {
-    return static_cast<jint>(-1);
-  }
   const char *utf8 = env->GetStringUTFChars(text, nullptr);
-  if (!utf8)
-    return static_cast<jint>(-2);
   auto err = prism_backend_speak(backend, utf8, static_cast<bool>(interrupt));
   env->ReleaseStringUTFChars(text, utf8);
   return static_cast<jint>(err);

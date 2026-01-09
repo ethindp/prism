@@ -7,6 +7,8 @@ import android.speech.tts.TextToSpeech.*;
 import com.snapchat.djinni.Outcome;
 import java.nio.*;
 import java.nio.charset.*;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -30,6 +32,11 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
 
   @Override
   public Outcome<Unit, BackendError> initialize() {
+    decoder =
+        StandardCharsets.UTF_8
+            .newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT);
     var ctx = PrismContext.get();
     isTTSInitializedLatch = new CountDownLatch(1);
     OnInitListener listener =
@@ -60,6 +67,11 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
       if (!isTTSInitializedLatch.await(10, TimeUnit.SECONDS))
         return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
+    }
+    if (!isTTSInitialized) {
+      return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
     }
     return Outcome.fromResult(new Unit());
   }
@@ -82,8 +94,10 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
       if (cr.isOverflow() || cr.isError() || cr.isMalformed() || cr.isUnmappable())
         return Outcome.fromError(BackendError.INVALID_UTF8);
     }
-    if (out.capacity() >= TextToSpeech.getMaxSpeechInputLength()) {
-      var segments = TextChunker.split(out, 512, TextToSpeech.getMaxSpeechInputLength());
+    out.flip();
+    if (out.remaining() >= TextToSpeech.getMaxSpeechInputLength()) {
+      var segments =
+          TextChunker.split(out, out.remaining(), TextToSpeech.getMaxSpeechInputLength());
       for (int segment = 0; segment < segments.size(); ++segment) {
         if (segment == 0 && interrupt) {
           if (tts.speak(segments.get(segment), TextToSpeech.QUEUE_FLUSH, null, null)

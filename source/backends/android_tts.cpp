@@ -40,25 +40,55 @@ public:
 class AndroidTextToSpeechBackend final : public TextToSpeechBackend {
 private:
   std::shared_ptr<prism::java::AbstractTextToSpeechBackend> backend{nullptr};
-  jclass java_class;
-  jobject instance;
 
 public:
-  ~AndroidTextToSpeechBackend() override {
-    if (instance)
-      jni_env->DeleteLocalRef(instance);
-    if (java_class)
-      jni_env->DeleteLocalRef(java_class);
-  }
+  ~AndroidTextToSpeechBackend() override {}
 
   std::string_view get_name() const override {
     return "Android Text to Speech";
   }
 
   BackendResult<> initialize() override {
+    if (!java_vm)
+      return std::unexpected(BackendError::BackendNotAvailable);
+    JNIEnv *jni_env = nullptr;
+    constexpr jint test_versions[] = {
+#ifdef JNI_VERSION_24
+        JNI_VERSION_24,
+#endif
+#ifdef JNI_VERSION_21
+        JNI_VERSION_21,
+#endif
+#ifdef JNI_VERSION_20
+        JNI_VERSION_20,
+#endif
+#ifdef JNI_VERSION_19
+        JNI_VERSION_19,
+#endif
+#ifdef JNI_VERSION_10
+        JNI_VERSION_10,
+#endif
+#ifdef JNI_VERSION_9
+        JNI_VERSION_9,
+#endif
+#ifdef JNI_VERSION_1_8
+        JNI_VERSION_1_8,
+#endif
+        JNI_VERSION_1_6,
+    };
+    for (const auto version : test_versions) {
+      auto res = java_vm->GetEnv(reinterpret_cast<void **>(&jni_env), version);
+      if (res == JNI_OK)
+        break;
+      if (res == JNI_EDETACHED) {
+        if (java_vm->AttachCurrentThread(&jni_env, nullptr) == JNI_OK)
+          break;
+        return std::unexpected(BackendError::BackendNotAvailable);
+      }
+    }
     if (!jni_env)
       return std::unexpected(BackendError::BackendNotAvailable);
-    java_class = jni_env->FindClass(
+    auto java_class = jni_env->FindClass(
         "com/github/ethindp/prism/AndroidTextToSpeechBackend");
     if (!java_class) {
       jni_env->ExceptionClear();
@@ -67,20 +97,25 @@ public:
     jmethodID constructor = jni_env->GetMethodID(java_class, "<init>", "()V");
     if (!constructor) {
       jni_env->ExceptionClear();
+      jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    instance = jni_env->NewObject(java_class, constructor);
+    auto instance = jni_env->NewObject(java_class, constructor);
     if (!instance) {
       jni_env->ExceptionClear();
+      jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     backend = prism::jni::AbstractTextToSpeechBackend::toCpp(jni_env, instance);
+    jni_env->DeleteLocalRef(java_class);
+    jni_env->DeleteLocalRef(instance);
     if (!backend) {
       jni_env->ExceptionClear();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (const auto res = backend->initialize(); !res)
       return std::unexpected(static_cast<BackendError>(res.error()));
+
     return {};
   }
 

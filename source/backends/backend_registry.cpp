@@ -103,12 +103,13 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::create(BackendId id) {
   for (const auto &e : entries) {
     if (e.id == id) {
       auto b = e.factory();
-      if (!b) return nullptr;
-      #ifdef __ANDROID__
-      b->set_jni_env(env);
-      #endif
+      if (!b)
+        return nullptr;
+#ifdef __ANDROID__
+      b->set_java_vm(java_vm);
+#endif
       return b;
-      }
+    }
   }
   return nullptr;
 }
@@ -118,13 +119,14 @@ BackendRegistry::create(std::string_view name) {
   std::shared_lock lock(mutex);
   for (const auto &e : entries) {
     if (e.name == name) {
-          auto b = e.factory();
-          if (!b) return nullptr;
-      #ifdef __ANDROID__
-      b->set_jni_env(env);
-      #endif
+      auto b = e.factory();
+      if (!b)
+        return nullptr;
+#ifdef __ANDROID__
+      b->set_java_vm(java_vm);
+#endif
       return b;
-}
+    }
   }
   return nullptr;
 }
@@ -133,9 +135,9 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::create_best() {
   std::shared_lock lock(mutex);
   for (const auto &e : entries) {
     if (auto backend = e.factory(); backend) {
-    #ifdef __ANDROID__
-    backend->set_jni_env(env);
-    #endif
+#ifdef __ANDROID__
+      backend->set_java_vm(java_vm);
+#endif
       if (backend->initialize())
         return backend;
     }
@@ -150,9 +152,9 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire(BackendId id) {
       if (auto existing = e.cached; !existing.expired())
         return existing.lock();
       auto backend = e.factory();
-    #ifdef __ANDROID__
-    backend->set_jni_env(env);
-    #endif
+#ifdef __ANDROID__
+      backend->set_java_vm(java_vm);
+#endif
       e.cached = backend;
       return backend;
     }
@@ -168,9 +170,9 @@ BackendRegistry::acquire(std::string_view name) {
       if (auto existing = e.cached; !existing.expired())
         return existing.lock();
       auto backend = e.factory();
-    #ifdef __ANDROID__
-    backend->set_jni_env(env);
-    #endif
+#ifdef __ANDROID__
+      backend->set_java_vm(java_vm);
+#endif
       e.cached = backend;
       return backend;
     }
@@ -184,9 +186,9 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire_best() {
     if (auto existing = e.cached; !existing.expired())
       return existing.lock();
     if (auto backend = e.factory(); backend) {
-    #ifdef __ANDROID__
-    backend->set_jni_env(env);
-    #endif
+#ifdef __ANDROID__
+      backend->set_java_vm(java_vm);
+#endif
       if (backend->initialize()) {
         e.cached = backend;
         return backend;
@@ -203,8 +205,6 @@ void BackendRegistry::clear_cache() {
   }
 }
 
-  #ifdef __ANDROID__
-  void BackendRegistry::set_jni_env(JNIEnv* env) {
-  this->env = env;
-  }
-  #endif
+#ifdef __ANDROID__
+void BackendRegistry::set_java_vm(JavaVM *vm) { this->java_vm = vm; }
+#endif

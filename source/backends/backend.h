@@ -38,7 +38,7 @@ using BackendResult = std::expected<T, BackendError>;
 class TextToSpeechBackend {
 #ifdef __ANDROID__
 protected:
-JNIEnv* jni_env { nullptr };
+  JavaVM *java_vm{nullptr};
 #endif
 public:
   using AudioCallback = std::function<void(void *, const float *, std::size_t,
@@ -119,9 +119,7 @@ public:
   virtual BackendResult<std::size_t> get_bit_depth() {
     return std::unexpected(BackendError::NotImplemented);
   }
-  #ifdef __ANDROID__
-  virtual void set_jni_env(JNIEnv* env) {
-  this->jni_env = env;
-  }
-  #endif
+#ifdef __ANDROID__
+  virtual void set_java_vm(JavaVM *vm) { this->java_vm = vm; }
+#endif
 };

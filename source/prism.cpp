@@ -65,8 +65,14 @@ PRISM_API PrismContext *PRISM_CALL prism_init(PrismConfig *cfg) {
     if (!ctx)
       return nullptr;
 #ifdef __ANDROID__
-    if (cfg->jni_env)
-      ctx->registry.set_jni_env(cfg->jni_env);
+    if (cfg->jni_env) {
+      JavaVM *vm = nullptr;
+      if (cfg->jni_env->GetJavaVM(&vm) != 0)
+        return nullptr;
+      if (!vm)
+        return nullptr;
+      ctx->registry.set_java_vm(vm);
+    }
 #endif
     return std::move(ctx);
   }

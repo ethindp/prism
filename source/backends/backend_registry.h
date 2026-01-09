@@ -72,9 +72,9 @@ public:
   acquire(std::string_view name);
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend> acquire_best();
   void clear_cache();
-  #ifdef __ANDROID__
-  void set_jni_env(JNIEnv* env);
-  #endif
+#ifdef __ANDROID__
+  void set_java_vm(JavaVM *vm);
+#endif
 
 private:
   struct Entry {
@@ -86,9 +86,9 @@ private:
   };
   BackendRegistry() = default;
   mutable std::shared_mutex mutex;
-  #ifdef __ANDROID__
-  JNIEnv* env;
-  #endif
+#ifdef __ANDROID__
+  JavaVM *java_vm;
+#endif
   std::vector<Entry> entries;
 };
 

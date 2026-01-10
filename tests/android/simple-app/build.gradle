@@ -7,7 +7,7 @@ android {
     compileSdk 35
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_25
+        targetCompatibility JavaVersion.VERSION_21
     }
     defaultConfig {
         applicationId "com.github.ethindp.prism.tests.android.simpleapp"

@@ -17,7 +17,7 @@ public class PrismInstrumentedTest {
         ctx = PrismNative.prism_init();
         assertNotEquals("prism_init failed", 0L, ctx);
         backend = PrismNative.prism_registry_create_best(ctx);
-        assertEquals("create_best failed", 0L, backend);
+        assertNotEquals("create_best failed", 0L, backend);
     }
 
     @After

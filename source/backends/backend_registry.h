@@ -40,12 +40,10 @@ inline constexpr auto SpeechDispatcher = "SpeechDispatcher"_bid;
 inline constexpr auto NVDA = "NVDA"_bid;
 inline constexpr auto JAWS = "JAWS"_bid;
 inline constexpr auto OneCore = "OneCore"_bid;
-inline constexpr auto Dolphin = "Dolphin"_bid;
 inline constexpr auto Orca = "Orca"_bid;
-inline constexpr auto ZoomText = "ZoomText"_bid;
-inline constexpr auto WindowEyes = "WindowEyes"_bid;
 inline constexpr auto AndroidScreenReader = "AndroidScreenReader"_bid;
 inline constexpr auto AndroidTextToSpeech = "AndroidTextToSpeech"_bid;
+inline constexpr auto WebSpeechSynthesis = "WebSpeechSynthesis"_bid;
 } // namespace Backends
 
 class BackendRegistry {

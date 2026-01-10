@@ -35,21 +35,21 @@ public:
     conn = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
     if (error) {
       g_error_free(error);
-      return std::unexpected(BackendError::InternalBackendError);
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     service_proxy = orca_service_org_gnome_orca_service_proxy_new_sync(
         conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service",
         "/org/gnome/Orca/Service", nullptr, &error);
     if (error) {
       g_error_free(error);
-      return std::unexpected(BackendError::InternalBackendError);
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     module_proxy = orca_module_org_gnome_orca_module_proxy_new_sync(
         conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service",
         "/org/gnome/Orca/Service/SpeechAndVerbosityManager", nullptr, &error);
     if (error) {
       g_error_free(error);
-      return std::unexpected(BackendError::InternalBackendError);
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     return {};
   }

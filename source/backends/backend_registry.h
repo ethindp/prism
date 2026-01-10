@@ -44,6 +44,7 @@ inline constexpr auto Orca = "Orca"_bid;
 inline constexpr auto AndroidScreenReader = "AndroidScreenReader"_bid;
 inline constexpr auto AndroidTextToSpeech = "AndroidTextToSpeech"_bid;
 inline constexpr auto WebSpeechSynthesis = "WebSpeechSynthesis"_bid;
+inline constexpr auto UIA = "UIA"_bid;
 } // namespace Backends
 
 class BackendRegistry {

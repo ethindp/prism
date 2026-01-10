@@ -108,7 +108,8 @@ endif()
 if(ANDROID
    OR APPLE
    OR WIN32
-   OR WINDOWS_STORE)
+   OR WINDOWS_STORE
+   OR EMSCRIPTEN)
   list(REMOVE_ITEM sources
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c")
@@ -120,7 +121,11 @@ if(NOT ANDROID)
   list(REMOVE_ITEM sources ${android_sources})
   list(REMOVE_ITEM headers ${android_headers})
 endif()
-add_library(${PROJECT_NAME} SHARED ${headers} ${sources})
+if(NOT EMSCRIPTEN)
+  add_library(${PROJECT_NAME} SHARED ${headers} ${sources})
+else()
+  add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
+endif()
 set_property(TARGET ${PROJECT_NAME} PROPERTY OUTPUT_NAME ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME}
                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -137,7 +142,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 if(WIN32)
   find_package(NVDAController REQUIRED)
   target_link_libraries(${PROJECT_NAME} PRIVATE NVDA::Controller)
-  target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib)
+  target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib
+                                                uiautomationcore.lib)
   add_custom_command(
     TARGET ${PROJECT_NAME}
     POST_BUILD
@@ -154,7 +160,8 @@ if(APPLE)
 endif()
 if(UNIX
    AND NOT APPLE
-   AND NOT ANDROID)
+   AND NOT ANDROID
+   AND NOT EMSCRIPTEN)
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(GIO gio-2.0)
   if(GIO_FOUND)
@@ -178,7 +185,8 @@ if(WIN32 OR WINDOWS_STORE)
   target_compile_definitions(
     ${PROJECT_NAME}
     PUBLIC _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
-           _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1)
+           _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
+           BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
 endif()
 if(MSVC)
   set_target_properties(
@@ -199,6 +207,9 @@ endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE
                       "LINKER:-headerpad_max_install_names")
+endif()
+if(ANDROID)
+  target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
                                                MATCHES "MSVC")

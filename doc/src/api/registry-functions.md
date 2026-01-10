@@ -106,6 +106,8 @@ The names used by Prism backends are:
 | Orca | "Orca" |
 | Android text-to-speech services | "AndroidTextToSpeech" |
 | Android screen readers (via Android's accessibility manager) | "AndroidScreenReader" |
+| Web SpeechSynthesis API | "WebSpeechSynthesis" |
+| UIAutomation | "UIA" |
 
 ### prism_registry_name
 

@@ -6,6 +6,7 @@
 #ifdef _WIN32
 #include "raw/fsapi.h"
 #include <windows.h>
+#include <tchar.h>
 
 class JawsBackend final : public TextToSpeechBackend {
 private:
@@ -25,7 +26,7 @@ public:
   BackendResult<> initialize() override {
     if (controller)
       return std::unexpected(BackendError::AlreadyInitialized);
-    if (!(!!FindWindow("JFWUI2", nullptr)))
+    if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
       return std::unexpected(BackendError::BackendNotAvailable);
     switch (CoInitializeEx(nullptr, COINIT_MULTITHREADED)) {
     case S_OK:
@@ -34,7 +35,7 @@ public:
       switch (CoCreateInstance(CLSID_JawsApi, nullptr, CLSCTX_INPROC_SERVER,
                                IID_IJawsApi, (void **)&controller)) {
       case S_OK: {
-        if (!(!!FindWindow("JFWUI2", nullptr)))
+        if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
           return std::unexpected(BackendError::BackendNotAvailable);
         return {};
       } break;
@@ -59,7 +60,7 @@ public:
     // This is terrible. Find another way.
     if (!controller)
       return std::unexpected(BackendError::NotInitialized);
-    if (!(!!FindWindow("JFWUI2", nullptr)))
+    if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
       return std::unexpected(BackendError::BackendNotAvailable);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
@@ -86,7 +87,7 @@ public:
     // This is terrible. Find another way.
     if (!controller)
       return std::unexpected(BackendError::NotInitialized);
-    if (!(!!FindWindow("JFWUI2", nullptr)))
+    if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
       return std::unexpected(BackendError::BackendNotAvailable);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
@@ -125,7 +126,7 @@ public:
   BackendResult<> stop() override {
     if (!controller)
       return std::unexpected(BackendError::NotInitialized);
-    if (!(!!FindWindow("JFWUI2", nullptr)))
+    if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
       return std::unexpected(BackendError::BackendNotAvailable);
     if (SUCCEEDED(controller->StopSpeech()))
       return {};

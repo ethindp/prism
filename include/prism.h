@@ -36,9 +36,10 @@ extern "C" {
 #define PRISM_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #define PRISM_MALLOC __attribute__((malloc))
 #if __has_attribute(null_terminated_string_arg)
-  #define PRISM_NULL_TERMINATED_STRING_ARG(n) __attribute__((null_terminated_string_arg(n)))
+#define PRISM_NULL_TERMINATED_STRING_ARG(n)                                    \
+  __attribute__((null_terminated_string_arg(n)))
 #else
-  #define PRISM_NULL_TERMINATED_STRING_ARG(n)
+#define PRISM_NULL_TERMINATED_STRING_ARG(n)
 #endif
 #elif defined(_MSC_VER)
 #define PRISM_NODISCARD _Check_return_
@@ -111,6 +112,10 @@ typedef void(PRISM_CALL *PrismAudioCallback)(
 #define PRISM_BACKEND_JAWS UINT64_C(0xAC3D60E9BD84B53E)
 #define PRISM_BACKEND_ONE_CORE UINT64_C(0x6797D32F0D994CB4)
 #define PRISM_BACKEND_ORCA UINT64_C(0x10AA1FC05A17F96C)
+#define PRISM_BACKEND_ANDROID_SCREEN_READER UINT64_C(0xD199C175AEEC494B)
+#define PRISM_BACKEND_ANDROID_TTS UINT64_C(0xBC175831BFE4E5CC)
+#define PRISM_BACKEND_WEB_SPEECH UINT64_C(0x3572538D44D44A8F)
+#define PRISM_BACKEND_UIA UINT64_C(0x6238F019DB678F8E)
 
 PRISM_STATIC_ASSERT(sizeof(PrismBackendId) == 8,
                     "PrismBackendId must be 64 bits");

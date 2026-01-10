@@ -43,19 +43,21 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void tryInit() {
-        prismCtx = PrismNative.prism_init();
-        if (prismCtx == 0L) {
-            status.setText("Status: prism_init() failed (ctx=0)");
-            return;
-        }
+        new Thread(() -> {
+            prismCtx = PrismNative.prism_init();
+            if (prismCtx == 0L) {
+                runOnUiThread(() -> status.setText("Status: prism_init() failed (ctx=0)"));
+                return;
+            }
 
-        backend = PrismNative.prism_registry_create_best(prismCtx);
-        if (backend == 0L) {
-            status.setText("Status: create_best() failed (backend=0)");
-            return;
-        }
+            backend = PrismNative.prism_registry_create_best(prismCtx);
+            if (backend == 0L) {
+                runOnUiThread(() -> status.setText("Status: create_best() failed (backend=0)"));
+                return;
+            }
 
-        status.setText("Status: initialized (best backend created)");
+            runOnUiThread(() -> status.setText("Status: initialized (best backend created)"));
+        }).start();
     }
 
     @Override

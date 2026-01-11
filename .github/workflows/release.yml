@@ -130,14 +130,14 @@ jobs:
         run: |
           cmake -B build-arm64-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DPRISM_ENABLE_TESTS=OFF -G Ninja
           cmake --build build-arm64-release
-          arch-x86_64 cmake -B build-x64-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 -DPRISM_ENABLE_TESTS=OFF -G Ninja
-          arch-x86_64 cmake --build build-x64-release
+          arch -x86_64 cmake -B build-x64-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=x86_64 -DPRISM_ENABLE_TESTS=OFF -G Ninja
+          arch -x86_64 cmake --build build-x64-release
       - name: Build Debug
         run: |
           cmake -B build-arm64-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -G Ninja
           cmake --build build-arm64-debug
-          arch-x86_64 cmake -B build-x64-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=x86_64 -DPRISM_ENABLE_TESTS=OFF -G Ninja
-          arch-x86_64 cmake --build build-x64-debug
+          arch -x86_64 cmake -B build-x64-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_OSX_ARCHITECTURES=x86_64 -DPRISM_ENABLE_TESTS=OFF -G Ninja
+          arch -x86_64 cmake --build build-x64-debug
       - name: Package
         run: |
           mkdir -p dist/release/lib dist/debug/lib dist/include

@@ -1,0 +1,6 @@
+LIBRARY "ZDSRAPI_x64.dll"
+EXPORTS
+    InitTTS
+    Speak
+    GetSpeakState
+    StopSpeak

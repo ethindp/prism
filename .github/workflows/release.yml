@@ -63,8 +63,10 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
-          mkdir -p dist/release/{lib,bin}
-          mkdir -p dist/debug/{lib,bin}
+          mkdir -p dist/release/lib
+          mkdir -p dist/release/bin
+          mkdir -p dist/debug/lib
+          mkdir -p dist/debug/bin
           mkdir -p dist/include
           cp build-release/prism.dll dist/release/bin/
           cp build-release/prism.lib dist/release/lib/
@@ -100,8 +102,10 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
-          mkdir -p dist/release/{lib,bin,include}
-          mkdir -p dist/debug/{lib,bin}
+          mkdir -p dist/release/lib
+          mkdir -p dist/release/bin
+          mkdir -p dist/debug/lib
+          mkdir -p dist/debug/bin
           mkdir -p dist/include
           cp build-release/prism.dll dist/release/bin/
           cp build-release/prism.lib dist/release/lib/

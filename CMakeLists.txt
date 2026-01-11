@@ -17,9 +17,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.1.0
-  DESCRIPTION
-    "The Platform-agnostic Reader Interface library for Speech and Messages"
+  VERSION 0.1.1
+  DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" ON)
 if(APPLE)
@@ -126,6 +125,15 @@ if(NOT EMSCRIPTEN)
 else()
   add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
 endif()
+set(_comp_arch_id "")
+if(DEFINED MSVC_CXX_ARCHITECTURE_ID)
+  set(_comp_arch_id "${MSVC_CXX_ARCHITECTURE_ID}")
+elseif(DEFINED CMAKE_C_COMPILER_ARCHITECTURE_ID)
+  set(_comp_arch_id "${CMAKE_C_COMPILER_ARCHITECTURE_ID}")
+else()
+  set(_comp_arch_id "${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+string(TOLOWER "${_comp_arch_id}" _comp_arch_id_lc)
 set_property(TARGET ${PROJECT_NAME} PROPERTY OUTPUT_NAME ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME}
                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -150,11 +158,13 @@ if(WIN32)
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:NVDA::Controller> $<TARGET_FILE_DIR:${PROJECT_NAME}>
     COMMENT "Copying NVDA controller client")
-  add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
-                     SAAPI64.dll)
-  add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
-                     ZDSRAPI_x64.dll)
-  target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR)
+  if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+    add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
+                       SAAPI64.dll)
+    add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
+                       ZDSRAPI_x64.dll)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR)
+  endif()
 endif()
 if(APPLE)
   find_library(AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)
@@ -191,12 +201,19 @@ if(WIN32 OR WINDOWS_STORE)
            BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
 endif()
 if(MSVC)
-  set_target_properties(
-    ${PROJECT_NAME}
-    PROPERTIES
-      LINK_FLAGS
-      "/STACK:8388608 /delayload:nvdaControllerClient.dll /delayload:SAAPI64.dll"
-  )
+  if(NOT _nvda_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+    set_target_properties(
+      ${PROJECT_NAME}
+      PROPERTIES
+        LINK_FLAGS
+        "/STACK:8388608 /delayload:nvdaControllerClient.dll /delayload:SAAPI64.dll /delayload:ZDSRAPI_x64.dll"
+    )
+  else()
+    set_target_properties(
+      ${PROJECT_NAME}
+      PROPERTIES LINK_FLAGS
+                 "/STACK:8388608 /delayload:nvdaControllerClient.dll")
+  endif()
   check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
   if(MSVC_HAS_UTF8_OPTION)

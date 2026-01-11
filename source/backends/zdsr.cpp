@@ -4,6 +4,8 @@
 #include "backend.h"
 #include "backend_registry.h"
 #ifdef _WIN32
+#if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
+    defined(__amd64) || defined(_M_X64)
 #include "raw/zdsr.h"
 
 class ZdsrBackend final : public TextToSpeechBackend {
@@ -61,4 +63,5 @@ public:
 };
 
 REGISTER_BACKEND_WITH_ID(ZdsrBackend, Backends::ZDSR, "Zhengdu", 102);
+#endif
 #endif

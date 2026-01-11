@@ -96,18 +96,19 @@ The names used by Prism backends are:
 
 | Backend | Name |
 | --- | --- |
-| SAPI | "SAPI" |
-| AVSpeech | "AVSpeech" |
-| VoiceOver | "VoiceOver" |
-| Speech Dispatcher | "Speech Dispatcher" |
-| NVDA | "NVDA" |
-| JAWS | "JAWS" |
-| OneCore | "OneCore" |
-| Orca | "Orca" |
-| Android text-to-speech services | "AndroidTextToSpeech" |
-| Android screen readers (via Android's accessibility manager) | "AndroidScreenReader" |
-| Web SpeechSynthesis API | "WebSpeechSynthesis" |
-| UIAutomation | "UIA" |
+| SAPI | `"SAPI"` |
+| AVSpeech | `"AVSpeech"` |
+| VoiceOver | `"VoiceOver"` |
+| Speech Dispatcher | `"Speech Dispatcher"` |
+| NVDA | `"NVDA"` |
+| JAWS | `"JAWS"` |
+| OneCore | `"OneCore"` |
+| Orca | `"Orca"` |
+| Android text-to-speech services | `"AndroidTextToSpeech"` |
+| Android screen readers (via Android's accessibility manager) | `"AndroidScreenReader"` |
+| Web SpeechSynthesis API | `"WebSpeechSynthesis"` |
+| UIAutomation | `"UIA"` |
+| Zhengdu Screen Reader | `"ZDSR"` |
 
 ### prism_registry_name
 

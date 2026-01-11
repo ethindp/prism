@@ -61,6 +61,19 @@ static BOOL __stdcall stub_SA_StopAudio(void) { return FALSE; }
 
 static BOOL __stdcall stub_SA_IsRunning(void) { return FALSE; }
 
+static int WINAPI stub_zdsr_InitTTS(int type, const WCHAR *channelName,
+                                    BOOL bKeyDownInterrupt) {
+  return 2;
+}
+
+static int WINAPI stub_zdsr_Speak(const WCHAR *text, BOOL bInterrupt) {
+  return 2;
+}
+
+static int WINAPI stub_zdsr_GetSpeakState() { return 2; }
+
+static void WINAPI stub_zdsr_StopSpeak() { return; }
+
 static const StubEntry stubs[] = {
     {"nvdaControllerClient.dll", "nvdaController_setOnSsmlMarkReachedCallback",
      (FARPROC)stub_nvdaController_setOnSsmlMarkReachedCallback},
@@ -82,6 +95,10 @@ static const StubEntry stubs[] = {
     {"SAAPI64.dll", "SA_BrlShowTextW", (FARPROC)stub_SA_BrlShowTextW},
     {"SAAPI64.dll", "SA_StopAudio", (FARPROC)stub_SA_StopAudio},
     {"SAAPI64.dll", "SA_IsRunning", (FARPROC)stub_SA_IsRunning},
+    {"ZDSRAPI_x64.dll", "InitTTS", (FARPROC)stub_zdsr_InitTTS},
+    {"ZDSRAPI_x64.dll", "Speak", (FARPROC)stub_zdsr_Speak},
+    {"ZDSRAPI_x64.dll", "GetSpeakState", (FARPROC)stub_zdsr_GetSpeakState},
+    {"ZDSRAPI_x64.dll", "StopSpeak", (FARPROC)stub_zdsr_StopSpeak},
     {NULL, NULL, NULL}};
 
 static int dummy_count = 0;

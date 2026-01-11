@@ -152,7 +152,9 @@ if(WIN32)
     COMMENT "Copying NVDA controller client")
   add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
                      SAAPI64.dll)
-  target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess)
+  add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
+                     ZDSRAPI_x64.dll)
+  target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR)
 endif()
 if(APPLE)
   find_library(AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)

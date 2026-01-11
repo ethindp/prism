@@ -1036,7 +1036,7 @@ struct __declspec(novtable) __declspec(empty_bases) __declspec(uuid(id)) name : 
 
 #if defined(_M_IX86)
 #define BELT_OBJ_ENTRY_PRAGMA(class) __pragma(comment(linker, "/include:___p2objMap_" #class));
-#elif defined(_M_IA64) || defined(_M_AMD64) || (_M_ARM)
+#elif defined(_M_IA64) || defined(_M_AMD64) || defined(_M_ARM) || defined(_M_ARM64)
 #define BELT_OBJ_ENTRY_PRAGMA(class) __pragma(comment(linker, "/include:__p2objMap_" #class));
 #else
 #error Unknown Platform. define BELT_OBJ_ENTRY_PRAGMA

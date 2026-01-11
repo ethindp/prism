@@ -1,5 +1,58 @@
 ## Context Management
 
+### `PrismConfig`
+
+A struct containing configuration parameters for Prism or it's back-ends to use.
+
+#### Syntax
+
+```c
+typedef struct {
+  uint8_t version;
+  JNIEnv *jni_env;
+} PrismConfig;
+```
+
+#### Members
+
+`version`
+
+The version of this structure. This field MUST NOT be modified.
+
+`jni_env`
+
+An environment for the [Java Native Interface](https://docs.oracle.com/en/java/javase/25/docs/specs/jni/intro.html) (JNI). This field is only available on platforms where the JNI is used.
+
+#### Remarks
+
+This struct contains configuration information for Prism. The version field will be incremented by `1` whenever a new field is added or removed.
+
+Certain fields in this structure may only be available on certain platforms. Attempting to read or write to them on platforms where these fields are not useful is a compilation error.
+
+On Android, `jni_env` MUST be set by the caller for android back-ends to be available. Failure to set this field will cause these back-ends to not initialize.
+
+### prism_config_init
+
+Creates a new configuration structure which can be passed to `prism_init`.
+
+#### Syntax
+
+```c
+PrismConfig prism_config_init(void);
+```
+
+#### Parameters
+
+This function has no parameters.
+
+#### Returns
+
+A stack-allocated `PrismConfig` struct, returned by value.
+
+#### Remarks
+
+This function can be used to create a `PrismConfig` struct which can later be passed to `prism_init`. It is not an error to not call this function or to pass `NULL` to `prism_init`. This struct can be used to perform configuration of Prism before the library is initialized; for example, it is used to pass platform-specific data to the library for back-ends to use.
+
 ### prism_init
 
 Creates a new Prism context.
@@ -7,12 +60,14 @@ Creates a new Prism context.
 #### Syntax
 
 ```c
-PrismContext *prism_init(void);
+PrismContext *prism_init(PrismConfig* cfg);
 ```
 
 #### Parameters
 
-This function has no parameters.
+`cfg`
+
+The configuration struct created by `prism_config_init`. This MAY be `NULL`.
 
 #### Return Value
 
@@ -33,7 +88,7 @@ Applications typically call `prism_init` once at startup and `prism_shutdown` on
 #### Example
 
 ```c
-PrismContext *ctx = prism_init();
+PrismContext *ctx = prism_init(NULL);
 if (!ctx) {
     fprintf(stderr, "Failed to initialize Prism\n");
     return 1;

@@ -69,9 +69,17 @@ if(NOT (EXISTS ${CPM_DOWNLOAD_LOCATION}))
 endif()
 include(${CPM_DOWNLOAD_LOCATION})
 
-file(GLOB_RECURSE headers CONFIGURE_DEPENDS
-     "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
-     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h")
+file(
+  GLOB_RECURSE
+  headers
+  CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/*.hpp")
+file(GLOB_RECURSE android_headers CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/java/*.hpp")
+file(GLOB_RECURSE android_sources CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/java/*.cpp")
 if(APPLE)
   file(
     GLOB_RECURSE
@@ -97,9 +105,11 @@ if(NOT WIN32)
   list(REMOVE_ITEM headers
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.h")
 endif()
-if(APPLE
+if(ANDROID
+   OR APPLE
    OR WIN32
-   OR WINDOWS_STORE)
+   OR WINDOWS_STORE
+   OR EMSCRIPTEN)
   list(REMOVE_ITEM sources
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c")
@@ -107,10 +117,22 @@ if(APPLE
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h")
 endif()
-add_library(${PROJECT_NAME} SHARED ${headers} ${sources})
+if(NOT ANDROID)
+  list(REMOVE_ITEM sources ${android_sources})
+  list(REMOVE_ITEM headers ${android_headers})
+endif()
+if(NOT EMSCRIPTEN)
+  add_library(${PROJECT_NAME} SHARED ${headers} ${sources})
+else()
+  add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
+endif()
 set_property(TARGET ${PROJECT_NAME} PROPERTY OUTPUT_NAME ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME}
                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+if(ANDROID)
+  target_include_directories(${PROJECT_NAME}
+                             PRIVATE "${PROJECT_SOURCE_DIR}/source/backends")
+endif()
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 target_compile_definitions(
   ${PROJECT_NAME}
@@ -120,7 +142,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 if(WIN32)
   find_package(NVDAController REQUIRED)
   target_link_libraries(${PROJECT_NAME} PRIVATE NVDA::Controller)
-  target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib)
+  target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib
+                                                uiautomationcore.lib)
   add_custom_command(
     TARGET ${PROJECT_NAME}
     POST_BUILD
@@ -135,7 +158,10 @@ if(APPLE)
   find_library(AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)
   target_link_libraries(${PROJECT_NAME} PRIVATE ${AVFOUNDATION_FRAMEWORK})
 endif()
-if(UNIX AND NOT APPLE)
+if(UNIX
+   AND NOT APPLE
+   AND NOT ANDROID
+   AND NOT EMSCRIPTEN)
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(GIO gio-2.0)
   if(GIO_FOUND)
@@ -159,7 +185,8 @@ if(WIN32 OR WINDOWS_STORE)
   target_compile_definitions(
     ${PROJECT_NAME}
     PUBLIC _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
-           _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1)
+           _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
+           BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
 endif()
 if(MSVC)
   set_target_properties(
@@ -181,6 +208,9 @@ if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE
                       "LINKER:-headerpad_max_install_names")
 endif()
+if(ANDROID)
+  target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
+endif()
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
                                                MATCHES "MSVC")
   find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
@@ -188,14 +218,26 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
     set(CLANG_TIDY_COMMAND
         "${CLANG_TIDY_EXE}"
         "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*")
-    set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
-                                                     "${CLANG_TIDY_COMMAND}")
-    set_source_files_properties(source/simdutf.cpp source/simdutf.hpp
-                                PROPERTIES SKIP_LINTING ON)
+    set(SKIP_LINT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp
+                        ${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h)
+    if(ANDROID)
+      list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
+      set(LINTED_SOURCES ${sources})
+      list(REMOVE_ITEM LINTED_SOURCES ${SKIP_LINT_FILES})
+      set_source_files_properties(
+        ${LINTED_SOURCES} PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
+    endif()
   endif()
 endif()
-check_ipo_supported()
-set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+if(NOT ANDROID)
+  check_ipo_supported(RESULT IPO_SUPPORTED)
+  if(IPO_SUPPORTED)
+    set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION
+                                                 TRUE)
+  else()
+    message(STATUS "IPO not supported for this build")
+  endif()
+endif()
 set(CMAKE_INSTALL_DEBUG_LIBRARIES ON)
 set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
 set(CMAKE_INSTALL_MFC_LIBRARIES ON)

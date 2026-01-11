@@ -13,5 +13,9 @@ Prism defines constants for all known backend identifiers. These constants are 6
 | `PRISM_BACKEND_JAWS` | JAWS screen reader (Windows) |
 | `PRISM_BACKEND_ONE_CORE` | Windows OneCore speech API (Windows 10+) |
 | `PRISM_BACKEND_ORCA` | Orca screen reader (Linux/BSD) |
+| `PRISM_BACKEND_ANDROID_TTS` | Android TTS engine (Android) |
+| `PRISM_BACKEND_ANDROID_SCREEN_READER` | Android screen readers (Android) |
+| `PRISM_BACKEND_WEB_SPEECH` | Web SpeechSynthesis API (web) |
+| `PRISM_BACKEND_UIA` | UIAutomation backend (Windows only) |
 
 The availability of any given backend depends on the platform Prism is running on and how Prism was compiled. The presence of a constant does not guarantee that the corresponding backend is available at runtime. Use `prism_registry_exists` to check availability.

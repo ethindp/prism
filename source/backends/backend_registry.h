@@ -8,6 +8,9 @@
 #include <shared_mutex>
 #include <string_view>
 #include <vector>
+#ifdef __ANDROID__
+#include <jni.h>
+#endif
 
 enum class BackendId : std::uint64_t {};
 
@@ -37,10 +40,11 @@ inline constexpr auto SpeechDispatcher = "SpeechDispatcher"_bid;
 inline constexpr auto NVDA = "NVDA"_bid;
 inline constexpr auto JAWS = "JAWS"_bid;
 inline constexpr auto OneCore = "OneCore"_bid;
-inline constexpr auto Dolphin = "Dolphin"_bid;
 inline constexpr auto Orca = "Orca"_bid;
-inline constexpr auto ZoomText = "ZoomText"_bid;
-inline constexpr auto WindowEyes = "WindowEyes"_bid;
+inline constexpr auto AndroidScreenReader = "AndroidScreenReader"_bid;
+inline constexpr auto AndroidTextToSpeech = "AndroidTextToSpeech"_bid;
+inline constexpr auto WebSpeechSynthesis = "WebSpeechSynthesis"_bid;
+inline constexpr auto UIA = "UIA"_bid;
 } // namespace Backends
 
 class BackendRegistry {
@@ -67,6 +71,9 @@ public:
   acquire(std::string_view name);
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend> acquire_best();
   void clear_cache();
+#ifdef __ANDROID__
+  void set_java_vm(JavaVM *vm);
+#endif
 
 private:
   struct Entry {
@@ -78,6 +85,9 @@ private:
   };
   BackendRegistry() = default;
   mutable std::shared_mutex mutex;
+#ifdef __ANDROID__
+  JavaVM *java_vm;
+#endif
   std::vector<Entry> entries;
 };
 

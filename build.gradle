@@ -1,0 +1,123 @@
+plugins {
+    id "com.android.library" version "8.13.2"
+    id "com.diffplug.spotless" version "8.1.0"
+}
+dependencies {
+    implementation "com.ibm.icu:icu4j:78.1"
+}
+def gitVersion = providers.exec {
+    commandLine 'git', 'describe', '--tags', '--always', '--dirty'
+}.standardOutput.asText.map { it.trim().replaceFirst('^v', '') }
+def cmakeVersion = providers.fileContents(layout.projectDirectory.file('CMakeLists.txt'))
+        .asText.map { text ->
+            def match = text =~ /project\s*\(\s*\w+\s+VERSION\s+(\d+\.\d+\.\d+)/
+            match.find() ? match.group(1) : null
+        }
+def prismVersion = gitVersion.orElse(cmakeVersion).orElse('0.0.0').get()
+android {
+    namespace = 'com.github.ethindp.prism'
+    compileSdk = 36
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    defaultConfig {
+        minSdk 30
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+        externalNativeBuild {
+            cmake {
+                targets 'prism'
+                arguments '-DPRISM_ENABLE_TESTS=OFF'
+            }
+        }
+    }
+    sourceSets {
+        main {
+            manifest.srcFile 'source/AndroidManifest.xml'
+            java.srcDirs = ['source/backends/java']
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path file('CMakeLists.txt')
+            buildStagingDirectory = file('build/android/.cxx')
+        }
+    }
+    libraryVariants.configureEach { variant ->
+        def variantName = variant.name.capitalize()
+        def buildType = variant.buildType.name
+        def abis = defaultConfig.ndk.abiFilters.toList()
+        def templateDir = file('android/templates')
+        tasks.register("bundleNativeSDK${variantName}", Zip) {
+            dependsOn "assemble${variantName}"
+            def sdkDir = layout.buildDirectory.dir("outputs/sdk/${buildType}")
+            def genDir = layout.buildDirectory.dir("generated/sdk/${buildType}")
+            archiveFileName = "prism-android-sdk-${prismVersion}-${buildType}.zip"
+            destinationDirectory = sdkDir
+            doFirst {
+                def gen = genDir.get().asFile
+                def vars = [
+                    '@VERSION@': prismVersion,
+                    '@BUILD_TYPE@': buildType,
+                    '@ABIS@': abis.inspect()
+                ]
+                templateDir.eachFileRecurse { src ->
+                    if (src.isFile() && src.name.endsWith('.in')) {
+                        def rel = templateDir.toPath().relativize(src.toPath()).toString()
+                        def destName = rel.replaceFirst(/\.in$/, '')
+                        def dest = new File(gen, destName)
+                        dest.parentFile.mkdirs()
+                        def content = src.text
+                        vars.each { k, v -> content = content.replace(k, v) }
+                        dest.text = content
+                    }
+                }
+            }
+            from("include") { into "include" }
+            def aarPath = layout.buildDirectory.file("outputs/aar/prism-${buildType}.aar")
+            from(zipTree(aarPath)) {
+                include "jni/**/*.so"
+                eachFile { it.path = it.path.replaceFirst("jni/", "lib/") }
+                includeEmptyDirs = false
+            }
+            from(genDir) { into "." }
+        }
+    }
+}
+afterEvaluate {
+    android.libraryVariants.configureEach { variant ->
+        def variantName = variant.name.capitalize()
+        tasks.named("assemble${variantName}").configure {
+            finalizedBy "bundleNativeSDK${variantName}"
+        }
+    }
+    tasks.register("bundleAllNativeSDKs") {
+        dependsOn "bundleNativeSDKDebug", "bundleNativeSDKRelease"
+        group = "build"
+    }
+}
+spotless {
+    groovyGradle {
+        target '**/*.gradle'
+        greclipse()
+        leadingTabsToSpaces(4)
+        trimTrailingWhitespace()
+        endWithNewline()
+        licenseHeader('// SPDX-License-Identifier: MPL-2.0\n', '^.')
+    }
+    java {
+        target 'source/**/*.java', 'tests/**.java'
+        targetExclude 'source/backends/java/support/**/*.java', 'source/backends/java/jni/**/*.java'
+        cleanthat()
+        googleJavaFormat()
+        leadingTabsToSpaces(4)
+        trimTrailingWhitespace()
+        endWithNewline()
+        licenseHeader "// SPDX-License-Identifier: MPL-2.0\n"
+        removeUnusedImports()
+        formatAnnotations()
+    }
+}
+buildDir = file('build/android/gradle')

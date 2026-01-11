@@ -4,14 +4,7 @@
 #include "backend.h"
 #include "backend_registry.h"
 #include "utils.h"
-#if defined(linux) || defined(__linux) || defined(__linux__) ||                \
-    defined(__gnu_linux__) || defined(BSD) || defined(_SYSTYPE_BSD) ||         \
-    defined(BSD4_2) || defined(BSD4_3) || defined(BSD4_4) || defined(BSD) ||   \
-    defined(__bsdi__) || defined(__DragonFly__) || defined(__FreeBSD__) ||     \
-    defined(__FreeBSD_version) || defined(__NETBSD__) ||                       \
-    defined(__NetBSD__) || defined(__NETBSD_version) || defined(NetBSD0_8) ||  \
-    defined(NetBSD0_9) || defined(NetBSD1_0) || defined(__NetBSD_Version) ||   \
-    defined(__OpenBSD__)
+#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(__ANDROID__)
 #ifndef NO_LIBSPEECHD
 #include <cstdlib>
 #include <libspeechd.h>

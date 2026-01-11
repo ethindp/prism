@@ -4,14 +4,7 @@
 #include "backend.h"
 #include "backend_registry.h"
 #include "utils.h"
-#if defined(linux) || defined(__linux) || defined(__linux__) ||                \
-    defined(__gnu_linux__) || defined(BSD) || defined(_SYSTYPE_BSD) ||         \
-    defined(BSD4_2) || defined(BSD4_3) || defined(BSD4_4) || defined(BSD) ||   \
-    defined(__bsdi__) || defined(__DragonFly__) || defined(__FreeBSD__) ||     \
-    defined(__FreeBSD_version) || defined(__NETBSD__) ||                       \
-    defined(__NetBSD__) || defined(__NETBSD_version) || defined(NetBSD0_8) ||  \
-    defined(NetBSD0_9) || defined(NetBSD1_0) || defined(__NetBSD_Version) ||   \
-    defined(__OpenBSD__)
+#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(__ANDROID__)
 #ifndef NO_ORCA
 #include "raw/orca-module.h"
 #include "raw/orca-service.h"
@@ -42,21 +35,21 @@ public:
     conn = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
     if (error) {
       g_error_free(error);
-      return std::unexpected(BackendError::InternalBackendError);
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     service_proxy = orca_service_org_gnome_orca_service_proxy_new_sync(
         conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service",
         "/org/gnome/Orca/Service", nullptr, &error);
     if (error) {
       g_error_free(error);
-      return std::unexpected(BackendError::InternalBackendError);
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     module_proxy = orca_module_org_gnome_orca_module_proxy_new_sync(
         conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service",
         "/org/gnome/Orca/Service/SpeechAndVerbosityManager", nullptr, &error);
     if (error) {
       g_error_free(error);
-      return std::unexpected(BackendError::InternalBackendError);
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     return {};
   }

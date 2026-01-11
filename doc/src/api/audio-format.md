@@ -27,7 +27,6 @@ Pointer to receive the channel count. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Channel count was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_channels` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support audio format queries. |
 
@@ -62,7 +61,6 @@ Pointer to receive the sample rate in Hz. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Sample rate was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_sample_rate` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support audio format queries. |
 
@@ -99,7 +97,6 @@ Pointer to receive the bit depth. This parameter MUST NOT be `NULL`.
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | Bit depth was retrieved. |
-| `PRISM_ERROR_INVALID_PARAM` | `backend` or `out_bit_depth` is `NULL`. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support audio format queries. |
 

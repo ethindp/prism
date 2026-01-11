@@ -20,24 +20,13 @@ The Prism context. This parameter MUST NOT be `NULL`.
 
 #### Return Value
 
-Returns the number of registered backends on success. Returns `SIZE_MAX` if `ctx` is `NULL`.
+Returns the number of registered backends.
 
 #### Remarks
 
 The return value represents the number of backends that were compiled into the Prism library and registered themselves at load time. This count is constant for the lifetime of the process; backends cannot be registered or unregistered at runtime.
 
 A return value of zero indicates that no backends are available, which typically means Prism was compiled without any backend support or is running on a platform for which no backends were configured. Applications SHOULD check for this condition and report an appropriate error to the user.
-
-The count returned by this function can be used to iterate over all backends using `prism_registry_id_at`:
-
-```c
-size_t count = prism_registry_count(ctx);
-for (size_t i = 0; i < count; i++) {
-    PrismBackendId id = prism_registry_id_at(ctx, i);
-    const char *name = prism_registry_name(ctx, id);
-    printf("Backend %zu: %s\n", i, name);
-}
-```
 
 Note that the number of registered backends does not necessarily equal the number of usable backends. Some backends may fail to initialize because their underlying system component is not installed. Use `prism_registry_create_best` or `prism_registry_acquire_best` to find a backend that actually works.
 
@@ -63,7 +52,7 @@ The zero-based index into the backend list. This value MUST be less than the val
 
 #### Return Value
 
-Returns the backend ID at the specified index on success. Returns `PRISM_BACKEND_INVALID` if `ctx` is `NULL` or `index` is out of range.
+Returns the backend ID at the specified index on success. Returns `PRISM_BACKEND_INVALID` if `index` is out of range.
 
 #### Remarks
 
@@ -72,18 +61,6 @@ Backends are stored in the registry in descending priority order. Index 0 corres
 The priority ordering reflects a general preference hierarchy. Screen reader backends (such as NVDA, JAWS, and Orca) typically have higher priority than standalone TTS backends (such as SAPI and OneCore) because, when a screen reader is running, applications generally want to route speech through it rather than speaking independently. However, applications that have specific requirements MAY ignore this ordering and select backends by ID or name.
 
 The mapping between indices and IDs is stable for the lifetime of the process. The ID at a given index will not change unless the process is restarted.
-
-Applications that wish to present a list of available backends to the user can use this function in combination with `prism_registry_name`:
-
-```c
-size_t count = prism_registry_count(ctx);
-for (size_t i = 0; i < count; i++) {
-    PrismBackendId id = prism_registry_id_at(ctx, i);
-    const char *name = prism_registry_name(ctx, id);
-    int priority = prism_registry_priority(ctx, id);
-    printf("[%d] %s (priority %d)\n", (int)i, name, priority);
-}
-```
 
 ### prism_registry_id
 
@@ -107,13 +84,11 @@ The backend name to look up. This parameter MUST NOT be `NULL` and MUST be a val
 
 #### Return Value
 
-Returns the backend ID corresponding to the given name on success. Returns `PRISM_BACKEND_INVALID` if `ctx` is `NULL`, `name` is `NULL`, or no backend with the given name exists.
+Returns the backend ID corresponding to the given name on success. Returns `PRISM_BACKEND_INVALID` if no backend with the given name exists.
 
 #### Remarks
 
 Backend names are human-readable strings such as "SAPI", "NVDA", "Speech Dispatcher", etc. Name comparison is exact and case-sensitive. The name "sapi" will not match a backend named "SAPI".
-
-This function is useful when an application has stored a backend preference as a string (for example, in a configuration file) and needs to convert it to an ID for use with other registry functions.
 
 If the application knows the backend it wants at compile time, using the predefined `PRISM_BACKEND_*` constants is more efficient than calling this function, as it avoids the string comparison overhead.
 
@@ -129,8 +104,10 @@ The names used by Prism backends are:
 | JAWS | "JAWS" |
 | OneCore | "OneCore" |
 | Orca | "Orca" |
-
-Applications SHALL NOT hardcode these names but rather allow users to select from the list of available backends at runtime.
+| Android text-to-speech services | "AndroidTextToSpeech" |
+| Android screen readers (via Android's accessibility manager) | "AndroidScreenReader" |
+| Web SpeechSynthesis API | "WebSpeechSynthesis" |
+| UIAutomation | "UIA" |
 
 ### prism_registry_name
 
@@ -154,25 +131,13 @@ The backend ID to look up.
 
 #### Return Value
 
-Returns a pointer to a null-terminated string containing the backend name on success. Returns `NULL` if `ctx` is `NULL` or the ID is not found in the registry.
+Returns a pointer to a null-terminated string containing the backend name on success. Returns `NULL` if the ID is not found in the registry.
 
 #### Remarks
 
 The returned string is owned by the registry and remains valid for the lifetime of the process. Applications MUST NOT modify or free the returned string.
 
 This function is the inverse of `prism_registry_id`. Given an ID obtained from any source (such as `prism_registry_id_at`, a predefined constant, or storage), this function returns the corresponding human-readable name.
-
-The returned name is suitable for display to users. Applications presenting a choice of TTS backends can use this function to populate a menu or list:
-
-```c
-/* Populate a combo box with available backends */
-size_t count = prism_registry_count(ctx);
-for (size_t i = 0; i < count; i++) {
-    PrismBackendId id = prism_registry_id_at(ctx, i);
-    const char *name = prism_registry_name(ctx, id);
-    add_combo_box_item(combo, name, id);
-}
-```
 
 ### prism_registry_priority
 
@@ -196,7 +161,7 @@ The backend ID to look up.
 
 #### Return Value
 
-Returns the priority value of the backend on success. Returns `-1` if `ctx` is `NULL` or the ID is not found in the registry.
+Returns the priority value of the backend on success. Returns `-1` if the ID is not found in the registry.
 
 #### Remarks
 
@@ -228,20 +193,11 @@ The backend ID to check.
 
 #### Return Value
 
-Returns `true` if a backend with the given ID exists in the registry. Returns `false` if the backend does not exist, if `ctx` is `NULL`, or if `id` is `PRISM_BACKEND_INVALID`.
+Returns `true` if a backend with the given ID exists in the registry. Returns `false` if the backend does not exist or if `id` is `PRISM_BACKEND_INVALID`.
 
 #### Remarks
 
 This function checks only whether the backend is registered, not whether it can be successfully initialized. A backend may exist in the registry but fail to initialize because its underlying system component is not installed or not running.
-
-Use this function to validate a backend ID before attempting to create an instance:
-
-```c
-if (!prism_registry_exists(ctx, stored_backend_id)) {
-    fprintf(stderr, "Configured backend is not available\n");
-    stored_backend_id = PRISM_BACKEND_INVALID;
-}
-```
 
 For the predefined `PRISM_BACKEND_*` constants, this function effectively checks whether Prism was compiled with support for that backend and whether it is available on the current platform.
 
@@ -267,7 +223,7 @@ The backend ID to retrieve.
 
 #### Return Value
 
-Returns a pointer to the cached backend instance if one exists and is still alive. Returns `NULL` if no cached instance exists, if the cached instance has been freed, if `ctx` is `NULL`, or if the ID is not found in the registry.
+Returns a pointer to the cached backend instance if one exists and is still alive. Returns `NULL` if no cached instance exists, if the cached instance has been freed, or if the ID is not found in the registry.
 
 #### Remarks
 
@@ -299,7 +255,7 @@ The backend ID to instantiate.
 
 #### Return Value
 
-Returns a pointer to a newly created backend instance on success. Returns `NULL` if `ctx` is `NULL`, if the ID is not found in the registry, or if memory allocation fails.
+Returns a pointer to a newly created backend instance on success. Returns `NULL` if the ID is not found in the registry or if memory allocation fails.
 
 #### Remarks
 
@@ -348,7 +304,7 @@ The Prism context. This parameter MUST NOT be `NULL`.
 
 #### Return Value
 
-Returns a pointer to a newly created and initialized backend instance on success. Returns `NULL` if `ctx` is `NULL` or if no backend could be created and initialized.
+Returns a pointer to a newly created and initialized backend instance on success. Returns `NULL` if no backend could be created and initialized.
 
 #### Remarks
 
@@ -382,7 +338,7 @@ The backend ID to acquire.
 
 #### Return Value
 
-Returns a pointer to a backend instance (either existing or newly created) on success. Returns `NULL` if `ctx` is `NULL`, if the ID is not found in the registry, or if creation fails.
+Returns a pointer to a backend instance (either existing or newly created) on success. Returns `NULL` if the ID is not found in the registry or if creation fails.
 
 #### Remarks
 
@@ -412,7 +368,7 @@ The Prism context. This parameter MUST NOT be `NULL`.
 
 #### Return Value
 
-Returns a pointer to an initialized backend instance on success. Returns `NULL` if `ctx` is `NULL` or if no backend could be acquired and initialized.
+Returns a pointer to an initialized backend instance on success. Returns `NULL` if no backend could be acquired and initialized.
 
 #### Remarks
 

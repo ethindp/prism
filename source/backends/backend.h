@@ -7,6 +7,9 @@
 #include <functional>
 #include <string>
 #include <string_view>
+#ifdef __ANDROID__
+#include <jni.h>
+#endif
 
 enum class BackendError : std::uint8_t {
   Ok = 0,
@@ -33,6 +36,10 @@ template <typename T = void>
 using BackendResult = std::expected<T, BackendError>;
 
 class TextToSpeechBackend {
+#ifdef __ANDROID__
+protected:
+  JavaVM *java_vm{nullptr};
+#endif
 public:
   using AudioCallback = std::function<void(void *, const float *, std::size_t,
                                            std::size_t, std::size_t)>;
@@ -112,4 +119,7 @@ public:
   virtual BackendResult<std::size_t> get_bit_depth() {
     return std::unexpected(BackendError::NotImplemented);
   }
+#ifdef __ANDROID__
+  virtual void set_java_vm(JavaVM *vm) { this->java_vm = vm; }
+#endif
 };

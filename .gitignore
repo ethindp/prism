@@ -12,27 +12,15 @@ compile_commands.json
 doc/book
 dist/
 .gradle
-
-############################################################
-# OS junk
-############################################################
 .DS_Store
 Thumbs.db
 Desktop.ini
-
-############################################################
-# Editor / IDE
-############################################################
 .vscode/
 .idea/
 *.iml
 *.ipr
 *.iws
-
-# CLion / JetBrains CMake build dirs
 cmake-build-*/
-
-# Visual Studio / MSVC
 .vs/
 *.VC.db
 *.VC.VC.opendb
@@ -40,16 +28,11 @@ cmake-build-*/
 *.user
 *.userosscache
 *.sln.docstates
-
-############################################################
-# CMake / general build artifacts
-############################################################
 build*/
 Build*/
 out*/
 bin*/
 lib*/
-
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
@@ -58,17 +41,11 @@ CTestTestfile.cmake
 Testing/
 _compile_commands.json
 compile_commands.json
-
-# Ninja / Make
 .ninja_deps
 .ninja_log
 .ninja_history
 build.ninja
 Makefile
-
-############################################################
-# Compilers / linkers / obj
-############################################################
 *.o
 *.obj
 *.lo
@@ -85,42 +62,25 @@ Makefile
 *.exp
 *.map
 *.dSYM/
-
-# Dependency files
 *.d
 *.dep
-
-############################################################
-# Android / Gradle / NDK / Studio
-############################################################
 # Gradle
 .gradle/
 **/build/
 *.apk
 *.aab
-
 # Android Studio "External Native Build"
 **/.cxx/
 **/.externalNativeBuild/
-
 # NDK intermediate outputs commonly emitted by AGP
 **/obj/
 **/jniLibs/*/*.so
 **/jniLibs/*/*.so.*
-
 # Local config
 local.properties
-
-############################################################
-# Java/Kotlin build outputs
-############################################################
 *.class
 *.dex
 *.jar
-
-############################################################
-# Python (if you have bindings/ tooling)
-############################################################
 __pycache__/
 *.py[cod]
 *.pyo
@@ -131,10 +91,6 @@ pip-wheel-metadata/
 *.egg-info/
 dist/
 wheelhouse/
-
-############################################################
-# Logs / temp
-############################################################
 *.log
 *.tmp
 *.temp
@@ -142,3 +98,4 @@ wheelhouse/
 *.swo
 *~
 .cache/
+!bindings

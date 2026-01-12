@@ -109,6 +109,7 @@ The names used by Prism backends are:
 | Web SpeechSynthesis API | `"WebSpeechSynthesis"` |
 | UIAutomation | `"UIA"` |
 | Zhengdu Screen Reader | `"ZDSR"` |
+| ZoomText | `"ZoomText"` |
 
 ### prism_registry_name
 

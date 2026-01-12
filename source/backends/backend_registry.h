@@ -46,6 +46,7 @@ inline constexpr auto AndroidTextToSpeech = "AndroidTextToSpeech"_bid;
 inline constexpr auto WebSpeechSynthesis = "WebSpeechSynthesis"_bid;
 inline constexpr auto UIA = "UIA"_bid;
 inline constexpr auto ZDSR = "ZDSR"_bid;
+inline constexpr auto ZoomText = "ZoomText"_bid;
 } // namespace Backends
 
 class BackendRegistry {

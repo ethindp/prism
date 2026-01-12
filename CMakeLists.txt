@@ -17,7 +17,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.1.1
+  VERSION 0.2.0
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" ON)

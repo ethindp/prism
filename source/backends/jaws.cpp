@@ -4,75 +4,55 @@
 #include "backend.h"
 #include "backend_registry.h"
 #ifdef _WIN32
-#include "raw/fsapi.h"
 #include <windows.h>
+#include "moderncom/com_ptr.h"
+#include "moderncom/interfaces.h"
+#include "raw/fsapi.h"
+#include <algorithm>
+#include <ranges>
 #include <tchar.h>
 
 class JawsBackend final : public TextToSpeechBackend {
 private:
-  IJawsApi *controller;
+  belt::com::com_ptr<IJawsApi> controller;
 
 public:
-  ~JawsBackend() override {
-    if (controller) {
-      controller->Release();
-      controller = nullptr;
-    }
-    CoUninitialize();
-  }
+  ~JawsBackend() override {}
 
   std::string_view get_name() const override { return "JAWS"; }
 
   BackendResult<> initialize() override {
     if (controller)
       return std::unexpected(BackendError::AlreadyInitialized);
-    if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
+    if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
-    switch (CoInitializeEx(nullptr, COINIT_MULTITHREADED)) {
+    switch (controller.CoCreateInstance(CLSID_JawsApi)) {
     case S_OK:
-    case S_FALSE:
-    case RPC_E_CHANGED_MODE: {
-      switch (CoCreateInstance(CLSID_JawsApi, nullptr, CLSCTX_INPROC_SERVER,
-                               IID_IJawsApi, (void **)&controller)) {
-      case S_OK: {
-        if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
-          return std::unexpected(BackendError::BackendNotAvailable);
-        return {};
-      } break;
-      case REGDB_E_CLASSNOTREG:
-      case E_NOINTERFACE:
-        return std::unexpected(BackendError::BackendNotAvailable);
-      default:
-        return std::unexpected(BackendError::Unknown);
-      }
-    } break;
-    case E_INVALIDARG:
-      return std::unexpected(BackendError::InvalidParam);
-    case E_OUTOFMEMORY:
-      return std::unexpected(BackendError::MemoryFailure);
-    case E_UNEXPECTED:
+      return {};
+    case REGDB_E_CLASSNOTREG:
+    case E_NOINTERFACE:
+      return std::unexpected(BackendError::BackendNotAvailable);
+    default:
       return std::unexpected(BackendError::Unknown);
     }
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    // This is terrible. Find another way.
     if (!controller)
       return std::unexpected(BackendError::NotInitialized);
-    if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
+    if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
-    std::wstring wstr;
-    wstr.resize(len);
-    if (const auto res = simdutf::convert_utf8_to_utf16le(
-            text.data(), text.size(),
-            reinterpret_cast<char16_t *>(wstr.data()));
-        res == 0)
-      return std::unexpected(BackendError::InvalidUtf8);
-    const BSTR bstr = SysAllocString(wstr.c_str());
+    auto bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
     if (!bstr)
       return std::unexpected(BackendError::MemoryFailure);
+    if (const auto res = simdutf::convert_utf8_to_utf16le(
+            text.data(), text.size(), reinterpret_cast<char16_t *>(bstr));
+        res == 0) {
+      SysFreeString(bstr);
+      return std::unexpected(BackendError::InvalidUtf8);
+    }
     VARIANT_BOOL result = VARIANT_FALSE;
     const VARIANT_BOOL flush = interrupt ? VARIANT_TRUE : VARIANT_FALSE;
     const bool succeeded =
@@ -84,29 +64,33 @@ public:
   }
 
   BackendResult<> braille(std::string_view text) override {
-    // This is terrible. Find another way.
     if (!controller)
       return std::unexpected(BackendError::NotInitialized);
-    if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
+    if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
-    const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
-    std::wstring wstr;
-    wstr.resize(len);
-    if (const auto res = simdutf::convert_utf8_to_utf16le(
-            text.data(), text.size(),
-            reinterpret_cast<char16_t *>(wstr.data()));
-        res == 0)
-      return std::unexpected(BackendError::InvalidUtf8);
-    auto i = wstr.find_first_of(L"\"");
-    while (i != std::wstring::npos) {
-      wstr[i] = L'\'';
-      i = wstr.find_first_of(L"\"", i + 1);
-    }
-    wstr.insert(0, L"BrailleString(\"");
-    wstr.append(L"\")");
-    const BSTR bstr = SysAllocString(wstr.c_str());
+    constexpr std::wstring_view prefix = L"BrailleString(\"";
+    constexpr std::wstring_view suffix = L"\")";
+    const auto text_len =
+        simdutf::utf16_length_from_utf8(text.data(), text.size());
+    const auto total_len = prefix.size() + text_len + suffix.size();
+    auto bstr = SysAllocStringLen(nullptr, static_cast<UINT>(total_len));
     if (!bstr)
       return std::unexpected(BackendError::MemoryFailure);
+    wchar_t *ptr = bstr;
+    std::ranges::copy(prefix, ptr);
+    ptr += prefix.size();
+    if (text_len > 0 &&
+        simdutf::convert_utf8_to_utf16le(
+            text.data(), text.size(), reinterpret_cast<char16_t *>(ptr)) == 0) {
+      SysFreeString(bstr);
+      return std::unexpected(BackendError::InvalidUtf8);
+    }
+    for (size_t i = 0; i < text_len; ++i) {
+      if (ptr[i] == L'"')
+        ptr[i] = L'\'';
+    }
+    ptr += text_len;
+    std::ranges::copy(suffix, ptr);
     VARIANT_BOOL result = VARIANT_FALSE;
     const bool succeeded = SUCCEEDED(controller->RunFunction(bstr, &result));
     SysFreeString(bstr);
@@ -126,7 +110,7 @@ public:
   BackendResult<> stop() override {
     if (!controller)
       return std::unexpected(BackendError::NotInitialized);
-    if (!(!!FindWindow(_T("JFWUI2"), nullptr)))
+    if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
     if (SUCCEEDED(controller->StopSpeech()))
       return {};

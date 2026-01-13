@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
+#include <windows.h>
 #include <delayimp.h>
 #include <filesystem>
 #include <nvdaController.h>
 #include <string.h>
-#include <windows.h>
 
 extern "C" {
 typedef struct {

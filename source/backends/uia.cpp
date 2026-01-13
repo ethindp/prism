@@ -4,27 +4,27 @@
 #include "backend.h"
 #include "backend_registry.h"
 #ifdef _WIN32
-#include <windows.h>
 #include "moderncom/com_ptr.h"
 #include "moderncom/interfaces.h"
 #include <UIAutomation.h>
 #include <UIAutomationCore.h>
 #include <UIAutomationCoreApi.h>
 #include <atomic>
+#include <format>
 #include <string>
-#include <thread>
 #include <tchar.h>
+#include <thread>
+#include <windows.h>
 
 using namespace belt::com;
 
-constexpr auto UIA_WINDOW_CLASS = _T("PrismUIANotificationWindow");
 constexpr auto WM_UIA_SPEAK = WM_USER + 1;
 constexpr auto WM_UIA_STOP = WM_USER + 2;
 constexpr auto WM_UIA_SHUTDOWN = WM_USER + 3;
 class UiaNotificationProvider
     : public object<UiaNotificationProvider, IRawElementProviderSimple> {
 private:
-  HWND hwnd{};
+  std::atomic<HWND> hwnd{};
 
 public:
   explicit UiaNotificationProvider(HWND hwnd) noexcept : hwnd{hwnd} {}
@@ -60,7 +60,7 @@ public:
     case UIA_IsContentElementPropertyId:
     case UIA_IsControlElementPropertyId:
       pRetVal->vt = VT_BOOL;
-      pRetVal->boolVal = VARIANT_FALSE;
+      pRetVal->boolVal = VARIANT_TRUE;
       break;
     case UIA_NamePropertyId:
       pRetVal->vt = VT_BSTR;
@@ -88,6 +88,10 @@ public:
       if (!pRetVal->bstrVal)
         return E_OUTOFMEMORY;
       break;
+    case UIA_NativeWindowHandlePropertyId:
+      pRetVal->vt = VT_I4;
+      pRetVal->lVal = static_cast<LONG>(reinterpret_cast<INT_PTR>(hwnd.load()));
+      break;
     }
     return S_OK;
   }
@@ -114,22 +118,22 @@ public:
     const auto hr = UiaRaiseNotificationEvent(
         static_cast<IRawElementProviderSimple *>(this),
         NotificationKind_ActionCompleted, processing, bstr_text, bstr_activity);
-    if (FAILED(hr)) {
-      SysFreeString(bstr_text);
-      SysFreeString(bstr_activity);
-    }
+    SysFreeString(bstr_text);
+    SysFreeString(bstr_activity);
     return hr;
   }
 };
 
 class UiaBackend final : public TextToSpeechBackend {
 private:
-  std::thread thread;
-  HWND hwnd{};
-  DWORD thread_id{};
+  std::jthread thread;
+  std::atomic<HWND> hwnd{};
+  std::atomic<HWND> host{};
+  std::atomic<DWORD> thread_id{};
   std::atomic_flag initialized{};
   std::atomic_flag ready{};
-  UiaNotificationProvider *provider{nullptr};
+  std::atomic<UiaNotificationProvider *> provider{nullptr};
+  std::wstring window_class_name;
 
   static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam,
                                      LPARAM lParam) {
@@ -148,75 +152,87 @@ private:
       if (self && self->provider) {
         auto *data = reinterpret_cast<std::pair<std::wstring, bool> *>(lParam);
         if (data) {
-          self->provider->RaiseNotification(data->first, data->second);
+          self->provider.load()->RaiseNotification(data->first, data->second);
           delete data;
         }
       }
       return 0;
-
     case WM_UIA_STOP:
       if (self && self->provider) {
-        self->provider->RaiseNotification(_T(""), true);
+        self->provider.load()->RaiseNotification(_T(""), true);
       }
       return 0;
-
     case WM_UIA_SHUTDOWN:
       PostQuitMessage(0);
       return 0;
-
     case WM_DESTROY:
-      PostQuitMessage(0);
       return 0;
     }
-
     return DefWindowProc(hwnd, msg, wParam, lParam);
   }
 
   void thread_proc() {
-    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const auto coinit_hr = CoInitializeEx(
+        nullptr, COINIT_APARTMENTTHREADED | COINIT_SPEED_OVER_MEMORY);
+    const bool should_uninit = SUCCEEDED(coinit_hr);
+    if (FAILED(coinit_hr) && coinit_hr != RPC_E_CHANGED_MODE) {
+      ready.test_and_set();
+      return;
+    }
+    window_class_name = std::format(L"PrismUIANotificationWindow_{}",
+                                    reinterpret_cast<uintptr_t>(this));
     WNDCLASSEX wc{};
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = GetModuleHandle(nullptr);
-    wc.lpszClassName = UIA_WINDOW_CLASS;
+    wc.lpszClassName = window_class_name.c_str();
     RegisterClassEx(&wc);
-    hwnd = CreateWindowEx(0, UIA_WINDOW_CLASS, _T("Prism UIA Notification"), 0,
-                          0, 0, 0, 0, HWND_MESSAGE, nullptr,
-                          GetModuleHandle(nullptr), nullptr);
+    hwnd = CreateWindowEx(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+                          window_class_name.c_str(),
+                          _T("Prism UIA Notification"), WS_POPUP, 0, 0, 0, 0,
+                          host, nullptr, GetModuleHandle(nullptr), nullptr);
     if (!hwnd) {
-      CoUninitialize();
+      if (should_uninit)
+        CoUninitialize();
       return;
     }
     SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
     auto holder = UiaNotificationProvider::create_instance(hwnd);
     provider = holder.obj();
     holder.release();
-    provider->AddRef();
+    provider.load()->AddRef();
     thread_id = GetCurrentThreadId();
     ready.test_and_set();
     MSG msg;
-    while (GetMessage(&msg, nullptr, 0, 0)) {
+    while (GetMessage(&msg, nullptr, 0, 0) > 0) {
       TranslateMessage(&msg);
       DispatchMessage(&msg);
     }
+    UiaDisconnectProvider(provider.load());
     if (provider) {
-      provider->Release();
-      provider = nullptr;
+      provider.load()->Release();
+      provider.exchange(nullptr);
     }
-    if (hwnd) {
-      DestroyWindow(hwnd);
-      hwnd = nullptr;
+    if (HWND h = hwnd.exchange(nullptr)) {
+      DestroyWindow(h);
     }
-    UnregisterClass(UIA_WINDOW_CLASS, GetModuleHandle(nullptr));
-    CoUninitialize();
+    UnregisterClass(window_class_name.c_str(), GetModuleHandle(nullptr));
+    if (should_uninit)
+      CoUninitialize();
   }
 
 public:
   ~UiaBackend() override {
-    if (initialized.test() && thread_id) {
-      PostThreadMessage(thread_id, WM_UIA_SHUTDOWN, 0, 0);
-      if (thread.joinable())
+    if (thread.joinable()) {
+      if (HWND h = hwnd.load()) {
+        PostMessage(h, WM_UIA_SHUTDOWN, 0, 0);
+      } else if (DWORD tid = thread_id.load()) {
+        PostThreadMessage(tid, WM_UIA_SHUTDOWN, 0, 0);
+      }
+      try {
         thread.join();
+      } catch (...) {
+      }
     }
   }
 
@@ -225,7 +241,16 @@ public:
   BackendResult<> initialize() override {
     if (initialized.test())
       return std::unexpected(BackendError::AlreadyInitialized);
-    thread = std::thread(&UiaBackend::thread_proc, this);
+    if (!IsWindow(hwnd_in))
+      return std::unexpected(BackendError::InvalidParam);
+    host = GetAncestor(hwnd_in, GA_ROOTOWNER);
+    if (!host)
+      host = hwnd_in;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(host, &pid);
+    if (pid != GetCurrentProcessId())
+      return std::unexpected(BackendError::InvalidParam);
+    thread = std::jthread(&UiaBackend::thread_proc, this);
     int timeout = 100;
     while (!ready.test() && timeout > 0) {
       SleepEx(10, true);
@@ -250,8 +275,7 @@ public:
             reinterpret_cast<char16_t *>(wstr.data())) == 0)
       return std::unexpected(BackendError::InvalidUtf8);
     auto *data = new std::pair<std::wstring, bool>(std::move(wstr), interrupt);
-    if (!PostThreadMessage(thread_id, WM_UIA_SPEAK, 0,
-                           reinterpret_cast<LPARAM>(data))) {
+    if (!PostMessage(hwnd, WM_UIA_SPEAK, 0, reinterpret_cast<LPARAM>(data))) {
       delete data;
       return std::unexpected(BackendError::InternalBackendError);
     }
@@ -265,7 +289,7 @@ public:
   BackendResult<> stop() override {
     if (!initialized.test() || !hwnd)
       return std::unexpected(BackendError::NotInitialized);
-    PostThreadMessage(thread_id, WM_UIA_STOP, 0, 0);
+    PostMessage(hwnd, WM_UIA_STOP, 0, 0);
     return {};
   }
 };

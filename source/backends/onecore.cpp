@@ -9,8 +9,10 @@
 #include <cmath>
 #include <limits>
 #ifdef _WIN32
+#include <tchar.h>
 #include <windows.h>
 #include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.Foundation.Metadata.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Media.Core.h>
 #include <winrt/Windows.Media.Playback.h>
@@ -23,6 +25,7 @@ using namespace Windows::Media::SpeechSynthesis;
 using namespace Windows::Storage::Streams;
 using namespace Windows::Media::Core;
 using namespace Windows::Media::Playback;
+using namespace winrt::Windows::Foundation::Metadata;
 
 class OneCoreBackend final : public TextToSpeechBackend {
 private:
@@ -47,6 +50,11 @@ public:
   std::string_view get_name() const override { return "OneCore"; }
 
   BackendResult<> initialize() override {
+    if (!ApiInformation::IsTypePresent(
+            _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||
+        !ApiInformation::IsTypePresent(
+            _T("Windows.Media.Playback.MediaPlayer")))
+      return std::unexpected(BackendError::BackendNotAvailable);
     try {
       synth = SpeechSynthesizer();
       synth.Options().AppendedSilence(SpeechAppendedSilence::Min);

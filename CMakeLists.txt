@@ -17,10 +17,11 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.2.0
+  VERSION 0.3.0
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" ON)
+option(PRISM_ENABLE_DEMOS "Enable demo applications" OFF)
 if(APPLE)
   enable_language(Swift)
 endif()
@@ -226,6 +227,9 @@ endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE
                       "LINKER:-headerpad_max_install_names")
+  set_target_properties(
+    prism PROPERTIES BUILD_RPATH "@loader_path;/usr/lib/swift"
+                     INSTALL_RPATH "@loader_path;/usr/lib/swift")
 endif()
 if(ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
@@ -257,28 +261,19 @@ if(NOT ANDROID)
     message(STATUS "IPO not supported for this build")
   endif()
 endif()
-set(CMAKE_INSTALL_DEBUG_LIBRARIES ON)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(CMAKE_INSTALL_DEBUG_LIBRARIES ON)
+else()
+  set(CMAKE_INSTALL_DEBUG_LIBRARIES OFF)
+endif()
 set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
-set(CMAKE_INSTALL_MFC_LIBRARIES ON)
-set(CMAKE_INSTALL_OPENMP_LIBRARIES ON)
 include(InstallRequiredSystemLibraries)
 if(PRISM_ENABLE_TESTS)
   enable_testing()
   cpmaddpackage("gh:catchorg/catch2@3.12.0")
   list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
   file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
-  add_executable(prism_test_runner ${TEST_SOURCES})
-  target_link_libraries(prism_test_runner PRIVATE Catch2::Catch2WithMain
-                                                  ${PROJECT_NAME})
-  target_include_directories(prism_test_runner
-                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-  if(MSVC)
-    target_compile_options(prism_test_runner PRIVATE /W4)
-  else()
-    target_compile_options(prism_test_runner PRIVATE -Wall -Wextra -Wpedantic)
-  endif()
   include(Catch)
-  catch_discover_tests(prism_test_runner)
   foreach(TEST_SOURCE ${TEST_SOURCES})
     get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
     add_executable(${TEST_NAME} ${TEST_SOURCE})
@@ -293,15 +288,42 @@ if(PRISM_ENABLE_TESTS)
     catch_discover_tests(${TEST_NAME})
   endforeach()
 endif()
+if(PRISM_ENABLE_DEMOS)
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/demos)
+endif()
 if(DEFINED SKBUILD)
   set(PRISM_PY_NATIVE_DIR "${SKBUILD_PLATLIB_DIR}/prism/_native")
   install(
-    TARGETS ${project_name}
+    TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"
     LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
     ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
   if(WIN32)
     get_target_property(_nvda_dll NVDA::Controller IMPORTED_LOCATION)
     install(FILES "${_nvda_dll}" DESTINATION "${PRISM_PY_NATIVE_DIR}")
+    if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+      install(
+        FILES "${CMAKE_CURRENT_BINARY_DIR}/ZDSRAPI_x64.dll"
+              "${CMAKE_CURRENT_BINARY_DIR}/SAAPI64.dll"
+        DESTINATION "${PRISM_PY_NATIVE_DIR}"
+        OPTIONAL)
+    endif()
+  endif()
+else()
+  install(
+    TARGETS ${PROJECT_NAME}
+    RUNTIME DESTINATION "bin"
+    LIBRARY DESTINATION "lib"
+    ARCHIVE DESTINATION "lib")
+  if(WIN32)
+    get_target_property(_nvda_dll NVDA::Controller IMPORTED_LOCATION)
+    install(FILES "${_nvda_dll}" DESTINATION "bin")
+    if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+      install(
+        FILES "${CMAKE_CURRENT_BINARY_DIR}/ZDSRAPI_x64.dll"
+              "${CMAKE_CURRENT_BINARY_DIR}/SAAPI64.dll"
+        DESTINATION "bin"
+        OPTIONAL)
+    endif()
   endif()
 endif()

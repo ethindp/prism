@@ -1,0 +1,60 @@
+[project]
+name = "prism"
+version = "0.3.0"
+description = "The Platform-Agnostic Reader Interface for Speech and Messages"
+readme = "README.md"
+authors = [
+    { name = "Ethin Probst", email = "ethindp@pm.me" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "cffi>=2.0.0",
+    "win32more>=0.8.0 ; sys_platform == 'win32'",
+]
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.{h,c,hpp,cpp}" }, { file = "CMakeLists.txt" }]
+
+[build-system]
+requires = ["scikit-build-core>=0.10"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+cmake.version = ">=3.31.0"
+cmake.define = { PRISM_ENABLE_TESTS = "OFF" }
+cmake.source-dir = "."
+build.verbose = true
+wheel.packages = ["bindings/py/prism/prism"]
+sdist.include = [
+  "CMakeLists.txt",
+  "cmake/**",
+  "include/**",
+  "source/**",
+  "defs/**",
+  "android/**",
+  "bindings/py/**",
+  "doc/**",
+  "gradle/**",
+  "tests/**",
+  "build.gradle",
+  "gradle.properties",
+  "gradlew",
+  "gradlew.bat",
+  "pyproject.toml",
+  ".python-version",
+  "settings.gradle",
+  "uv.lock",
+  "LICENSE",
+]
+sdist.exclude = [
+  ".venv",
+  ".git",
+  ".vscode",
+  ".idea",
+  "build",
+  "dist",
+  "__pycache__",
+  "*.egg-info",
+]

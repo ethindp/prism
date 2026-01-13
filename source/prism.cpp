@@ -10,8 +10,6 @@
 #include <jni.h>
 #endif
 
-static constexpr std::uint8_t PRISM_CONFIG_VERSION = 0;
-
 struct PrismContext {
   BackendRegistry &registry;
 
@@ -54,10 +52,24 @@ PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void) {
 #ifdef __ANDROID__
   cfg.jni_env = nullptr;
 #endif
+#ifdef _WIN32
+  cfg.hwnd = static_cast<HWND>(INVALID_HANDLE_VALUE);
+#endif
   return cfg;
 }
 
 PRISM_API PrismContext *PRISM_CALL prism_init(PrismConfig *cfg) {
+#ifdef _WIN32
+  switch (CoInitializeEx(nullptr,
+                         COINIT_APARTMENTTHREADED | COINIT_SPEED_OVER_MEMORY)) {
+  case E_INVALIDARG:
+  case E_OUTOFMEMORY:
+  case E_UNEXPECTED:
+    return nullptr;
+  default:
+    break;
+  }
+#endif
   if (cfg) {
     if (cfg->version != PRISM_CONFIG_VERSION)
       return nullptr;
@@ -74,6 +86,9 @@ PRISM_API PrismContext *PRISM_CALL prism_init(PrismConfig *cfg) {
       ctx->registry.set_java_vm(vm);
     }
 #endif
+#ifdef _WIN32
+    ctx->registry.set_hwnd(cfg->hwnd);
+#endif
     return std::move(ctx);
   }
   return new (std::nothrow) PrismContext(BackendRegistry::instance());
@@ -83,6 +98,9 @@ PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) {
   if (!ctx)
     return;
   delete ctx;
+#ifdef _WIN32
+  CoUninitialize();
+#endif
 }
 
 PRISM_API size_t PRISM_CALL prism_registry_count(PrismContext *ctx) {

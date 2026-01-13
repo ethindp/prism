@@ -11,6 +11,9 @@
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -75,6 +78,9 @@ typedef struct {
 #ifdef __ANDROID__
   JNIEnv *jni_env;
 #endif
+#ifdef _WIN32
+  HWND hwnd;
+#endif
 } PrismConfig;
 
 typedef enum PrismError {
@@ -118,6 +124,7 @@ typedef void(PRISM_CALL *PrismAudioCallback)(
 #define PRISM_BACKEND_UIA UINT64_C(0x6238F019DB678F8E)
 #define PRISM_BACKEND_ZDSR UINT64_C(0xAF63B44C8601A843)
 #define PRISM_BACKEND_ZOOM_TEXT UINT64_C(0xAE439D62DC7B1479)
+#define PRISM_CONFIG_VERSION 1
 
 PRISM_STATIC_ASSERT(sizeof(PrismBackendId) == 8,
                     "PrismBackendId must be 64 bits");

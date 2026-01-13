@@ -377,7 +377,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE, LPTSTR, int nCmdShow) {
     g_hRichDll = nullptr;
     return 1;
   }
-  HWND hwnd = CreateWindowEx(0, kClassName, _T("Win32 RichEdit + Say"),
+  HWND hwnd = CreateWindowEx(0, kClassName, _T("Prism UIA demo"),
                              WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
                              560, 140, nullptr, nullptr, hInstance, nullptr);
   if (!hwnd) {

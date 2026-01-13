@@ -5,7 +5,23 @@ import sys
 import importlib
 import contextlib
 
-dll_home = (Path(__file__).parent / "_native").resolve()
+
+def _find_native_dir():
+    local_path = Path(__file__).parent / "_native"
+    if local_path.exists() and any(local_path.iterdir()):
+        return local_path
+    relative_path = Path("prism") / "_native"
+    for path in sys.path:
+        if not path:
+            continue
+        candidate = Path(path) / relative_path
+        if (candidate / "prism.dll").exists():
+            return candidate.resolve()
+
+    return local_path
+
+
+dll_home = _find_native_dir()
 with contextlib.suppress(AttributeError):
     os.add_dll_directory(str(dll_home))
 

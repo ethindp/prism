@@ -13,24 +13,24 @@ public:
   std::string_view get_name() const override { return "NVDA"; }
 
   BackendResult<> initialize() override {
-    if (!nvdaController_testIfRunning())
+    if (nvdaController_testIfRunning() != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (nvdaController_testIfRunning())
+    if (nvdaController_testIfRunning() != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (interrupt) {
       if (nvdaController_cancelSpeech())
         return std::unexpected(BackendError::InternalBackendError);
     }
-    const auto str = std::string(text);
-    const auto len = simdutf::utf16_length_from_utf8(str.c_str(), str.size());
+    const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);
     if (const auto res = simdutf::convert_utf8_to_utf16le(
-            str.c_str(), str.size(), reinterpret_cast<char16_t *>(wstr.data()));
+            text.data(), text.size(),
+            reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
     if (nvdaController_speakText(wstr.c_str()))
@@ -39,14 +39,14 @@ public:
   }
 
   BackendResult<> braille(std::string_view text) override {
-    if (nvdaController_testIfRunning())
+    if (nvdaController_testIfRunning() != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
-    const auto str = std::string(text);
-    const auto len = simdutf::utf16_length_from_utf8(str.c_str(), str.size());
+    const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);
     if (const auto res = simdutf::convert_utf8_to_utf16le(
-            str.c_str(), str.size(), reinterpret_cast<char16_t *>(wstr.data()));
+            text.data(), text.size(),
+            reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
     if (nvdaController_brailleMessage(wstr.c_str()))
@@ -63,7 +63,7 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (nvdaController_testIfRunning())
+    if (nvdaController_testIfRunning() != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (nvdaController_cancelSpeech())
       return std::unexpected(BackendError::InternalBackendError);

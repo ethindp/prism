@@ -48,4 +48,3 @@ sdist.include = [
   "uv.lock",
   "LICENSE",
 ]
-editable.mode = "inplace"

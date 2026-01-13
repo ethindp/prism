@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
-#include <windows.h>
 #include <delayimp.h>
+#include <filesystem>
 #include <nvdaController.h>
 #include <string.h>
+#include <windows.h>
 
+extern "C" {
 typedef struct {
   const char *dll;
   const char *func;
   FARPROC stub;
 } StubEntry;
 
-static error_status_t __stdcall stub_nvdaController_setOnSsmlMarkReachedCallback(
+static error_status_t __stdcall
+stub_nvdaController_setOnSsmlMarkReachedCallback(
     onSsmlMarkReachedFuncType callback) {
   return E_NOTIMPL;
 }
@@ -21,8 +24,8 @@ static error_status_t __stdcall stub_nvdaController_testIfRunning() {
   return E_NOTIMPL;
 }
 
-static error_status_t __stdcall stub_nvdaController_speakText(
-    const wchar_t *text) {
+static error_status_t __stdcall
+stub_nvdaController_speakText(const wchar_t *text) {
   return E_NOTIMPL;
 }
 
@@ -30,13 +33,13 @@ static error_status_t __stdcall stub_nvdaController_cancelSpeech() {
   return E_NOTIMPL;
 }
 
-static error_status_t __stdcall stub_nvdaController_brailleMessage(
-    const wchar_t *message) {
+static error_status_t __stdcall
+stub_nvdaController_brailleMessage(const wchar_t *message) {
   return E_NOTIMPL;
 }
 
-static error_status_t __stdcall stub_nvdaController_getProcessId(
-    unsigned long *pid) {
+static error_status_t __stdcall
+stub_nvdaController_getProcessId(unsigned long *pid) {
   if (pid)
     *pid = 0;
   return E_NOTIMPL;
@@ -48,8 +51,8 @@ static error_status_t __stdcall stub_nvdaController_speakSsml(
   return E_NOTIMPL;
 }
 
-static error_status_t __stdcall stub_nvdaController_onSsmlMarkReached(
-    const wchar_t *mark) {
+static error_status_t __stdcall
+stub_nvdaController_onSsmlMarkReached(const wchar_t *mark) {
   return E_NOTIMPL;
 }
 
@@ -107,6 +110,25 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
                                            PDelayLoadInfo pdli) {
   switch (dliNotify) {
   case dliFailLoadLib: {
+    namespace fs = std::filesystem;
+    static const int anchor = 0;
+    HMODULE hModule = nullptr;
+    if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                              GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                          reinterpret_cast<LPCWSTR>(&anchor), &hModule)) {
+      std::wstring path_buffer;
+      path_buffer.resize(MAX_PATH);
+      const DWORD len = GetModuleFileName(
+          hModule, path_buffer.data(), static_cast<DWORD>(path_buffer.size()));
+      if (len > 0) {
+        path_buffer.resize(len);
+        const auto dll_path =
+            fs::path(path_buffer).replace_filename(pdli->szDll);
+        if (const auto h = LoadLibrary(dll_path.c_str()); h != NULL) {
+          return (FARPROC)h;
+        }
+      }
+    }
     if (dummy_count < 512) {
       HMODULE dummy = (HMODULE)(intptr_t)(0xDEAD0000 + dummy_count);
       dummy_count++;
@@ -128,4 +150,5 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
 }
 
 const PfnDliHook __pfnDliFailureHook2 = DelayLoadFailureHook;
+}
 #endif

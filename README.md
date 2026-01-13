@@ -24,6 +24,10 @@ Currently bindings are an in-progress effort. We are working on bindings to at l
 
 This project is licensed under the Mozilla Public License version 2.0. Full details are available in the LICENSE file.
 
+This project uses code from other projects. Specifically:
+
+* The SAPI bridge is credited to the [NVGT](https://github.com/samtupy/nvgt) project, as well as the functions in utils.h and utils.cpp. Similar attribution goes to NVGT for the Android screen reader backend.
+
 ## Contributing
 
 Contributions are welcome. This includes, but is not limited to, documentation enhancements, new backends, bindings, build system improvements, etc. The project uses C++23 so please ensure that your compiler supports that standard.

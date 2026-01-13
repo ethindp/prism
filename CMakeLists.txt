@@ -289,12 +289,36 @@ endif()
 if(DEFINED SKBUILD)
   set(PRISM_PY_NATIVE_DIR "${SKBUILD_PLATLIB_DIR}/prism/_native")
   install(
-    TARGETS ${project_name}
+    TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"
     LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
     ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
   if(WIN32)
     get_target_property(_nvda_dll NVDA::Controller IMPORTED_LOCATION)
     install(FILES "${_nvda_dll}" DESTINATION "${PRISM_PY_NATIVE_DIR}")
+    if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+      install(
+        FILES "${CMAKE_CURRENT_BINARY_DIR}/ZDSRAPI_x64.dll"
+              "${CMAKE_CURRENT_BINARY_DIR}/SAAPI64.dll"
+        DESTINATION "${PRISM_PY_NATIVE_DIR}"
+        OPTIONAL)
+    endif()
+  endif()
+else()
+  install(
+    TARGETS ${PROJECT_NAME}
+    RUNTIME DESTINATION "bin"
+    LIBRARY DESTINATION "lib"
+    ARCHIVE DESTINATION "lib")
+  if(WIN32)
+    get_target_property(_nvda_dll NVDA::Controller IMPORTED_LOCATION)
+    install(FILES "${_nvda_dll}" DESTINATION "bin")
+    if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+      install(
+        FILES "${CMAKE_CURRENT_BINARY_DIR}/ZDSRAPI_x64.dll"
+              "${CMAKE_CURRENT_BINARY_DIR}/SAAPI64.dll"
+        DESTINATION "bin"
+        OPTIONAL)
+    endif()
   endif()
 endif()

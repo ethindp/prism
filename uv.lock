@@ -37,14 +37,18 @@ wheels = [
 
 [[package]]
 name = "prism"
-version = "0.1.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "cffi" },
+    { name = "win32more", marker = "sys_platform == 'win32'" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "cffi", specifier = ">=2.0.0" }]
+requires-dist = [
+    { name = "cffi", specifier = ">=2.0.0" },
+    { name = "win32more", marker = "sys_platform == 'win32'", specifier = ">=0.8.0" },
+]
 
 [[package]]
 name = "pycparser"
@@ -53,4 +57,105 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fe/cf/d2d3b9f5699fb1e4615c8e32ff220203e43b248e1dfcc6736ad9057731ca/pycparser-2.23.tar.gz", hash = "sha256:78816d4f24add8f10a06d6f05b4d424ad9e96cfebf68a4ddc99c65c0720d00c2", size = 173734, upload-time = "2025-09-09T13:23:47.91Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/e3/59cd50310fc9b59512193629e1984c1f95e5c8ae6e5d8c69532ccc65a7fe/pycparser-2.23-py3-none-any.whl", hash = "sha256:e5c6e8d3fbad53479cab09ac03729e0a9faf2bee3db8208a550daf5af81a5934", size = 118140, upload-time = "2025-09-09T13:23:46.651Z" },
+]
+
+[[package]]
+name = "win32more"
+version = "0.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "win32more-appsdk" },
+    { name = "win32more-core" },
+    { name = "win32more-microsoft-graphics-win2d" },
+    { name = "win32more-microsoft-web-webview2" },
+    { name = "win32more-microsoft-windows-sdk-contracts" },
+    { name = "win32more-microsoft-windows-sdk-win32metadata" },
+    { name = "win32more-microsoft-windowsappsdk" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/75/01/428ea2da9f39b533fdb3705173b4436a83de466242989b3dbedb319beeee/win32more-0.8.0.tar.gz", hash = "sha256:793f19ba9777bdb4f5de36c16702a4f8d340539f466feca7bc247863007de9d6", size = 4837, upload-time = "2025-12-16T12:55:45.314Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cb/13/9e835fba47b95fb14a9e7b9038f5a30cbe089d19781cbd1c3df3cf97d0f2/win32more-0.8.0-py3-none-any.whl", hash = "sha256:d5a188b5280442b813266a1346761fa880e2250bdd93532dc07751515b21ae9d", size = 3671, upload-time = "2025-12-16T12:55:44.149Z" },
+]
+
+[[package]]
+name = "win32more-appsdk"
+version = "0.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "win32more-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ee/62/8202755151f8bd4a4597d879474f516732b0b2b6591a21ff9a1fcc1a96e1/win32more_appsdk-0.8.0.tar.gz", hash = "sha256:0bfbd698795d3add19316774e743cf2800835d6d27c6dc26471ebcc614baab45", size = 10827, upload-time = "2025-12-16T12:55:48.649Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/73/29/bbbfda259e93e8702df63fe8e4d9873ee4a4285185f57a34497cda71218a/win32more_appsdk-0.8.0-py2.py3-none-any.whl", hash = "sha256:f6fe556657bb63d9bb0a7febb30e8011c0b7aaaf408afe40751beaf8385401ef", size = 12140, upload-time = "2025-12-16T12:55:47.621Z" },
+]
+
+[[package]]
+name = "win32more-core"
+version = "0.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/33/eb613b2bab588089ac46d9ff831eecae3165d445299804a1dc9403f52d78/win32more_core-0.8.0.tar.gz", hash = "sha256:04af7281b86f8822be41bd48d4519dcc3445c1f7d0ff9cee29ad386309759585", size = 21598, upload-time = "2025-12-16T12:55:52.998Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/79/55/6433b9f416b5ab669faf3e2ec0d490b5887250a204c9d4dd26a5dc172e21/win32more_core-0.8.0-py2.py3-none-any.whl", hash = "sha256:1718a785af1ffe481771f8a23d555514e2816752ed6d1020b98f8179d8dfc0c1", size = 25849, upload-time = "2025-12-16T12:55:51.301Z" },
+]
+
+[[package]]
+name = "win32more-microsoft-graphics-win2d"
+version = "0.8.1.3.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "win32more-core" },
+    { name = "win32more-microsoft-windowsappsdk" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b4/1f/fd8fbd8fab6f31e9745734e87abd77b1cdb1090de3d29520eb9f5f6348ff/win32more_microsoft_graphics_win2d-0.8.1.3.2.tar.gz", hash = "sha256:067fe6b8793607f3116924d115162dd7d158b4761edd304f62a4d063c9b4d115", size = 1906474, upload-time = "2025-12-16T12:56:18.945Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5f/f0/10ec842d00e7e255ac9ae9cbcbe8f2e45e9d7edab83ccdfac4830eaa3214/win32more_microsoft_graphics_win2d-0.8.1.3.2-py2.py3-none-any.whl", hash = "sha256:6f8981ac1e002986a45f7ee1dfeceec375defc353330ca71064bcdb6b5032990", size = 1964022, upload-time = "2025-12-16T12:56:16.834Z" },
+]
+
+[[package]]
+name = "win32more-microsoft-web-webview2"
+version = "0.8.1.0.3650.58"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "win32more-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/87/e9/5e290876a0068154f48769ff76d24b08b56914a4d83f2e6c41dd23fa84ae/win32more_microsoft_web_webview2-0.8.1.0.3650.58.tar.gz", hash = "sha256:bd0cb0141ea8d1a3b22a2e13bc48420f7581c270d4cbf1e42a12a63a29bf78d7", size = 837363, upload-time = "2025-12-16T12:57:51.804Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/3e/bb6e5198d79749f0a5abaf9e141265aca579ceaa1e0a2b6ac6faca11f19f/win32more_microsoft_web_webview2-0.8.1.0.3650.58-py2.py3-none-any.whl", hash = "sha256:fadc66b1768479fcc23d70c5f5f597b031710cbbfaf09fee998ce1211a17cd17", size = 859586, upload-time = "2025-12-16T12:57:49.979Z" },
+]
+
+[[package]]
+name = "win32more-microsoft-windows-sdk-contracts"
+version = "0.8.10.0.26100.7463"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "win32more-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ac/ac/d688e4c28a11bbd49621d567ffd68d8ccdd7d4fe5b24f883bddf7faf542f/win32more_microsoft_windows_sdk_contracts-0.8.10.0.26100.7463.tar.gz", hash = "sha256:78cf1126120bfb129d9480eabdcb04bc3cd6bad409c0b0f3604bfcd83418d791", size = 1635734, upload-time = "2026-01-11T02:38:55.74Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/77/78/68336914ee39216dec89b68725fb5107ea9b272fdde12363a303a8d4e337/win32more_microsoft_windows_sdk_contracts-0.8.10.0.26100.7463-py2.py3-none-any.whl", hash = "sha256:39f580f0ff339593575c06920098dec59657d04425f026f9fb00957ea6a24de3", size = 1804815, upload-time = "2026-01-11T02:38:57.752Z" },
+]
+
+[[package]]
+name = "win32more-microsoft-windows-sdk-win32metadata"
+version = "0.8.69.0.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "win32more-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/03/ba/6f878d388485279bd261ee24c7be58b1e5ada7811939959b5abda6d5ee0a/win32more_microsoft_windows_sdk_win32metadata-0.8.69.0.7.tar.gz", hash = "sha256:6bd3dc0dcac629e116d82a3f5108550dcb0280a18b76b9b1db2b5af65b1287fb", size = 3881452, upload-time = "2026-01-11T02:39:32.682Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/aa/a2d087d17ff89e746ae21169583a64ec90ebec93f8091326b2430d2b6df0/win32more_microsoft_windows_sdk_win32metadata-0.8.69.0.7-py2.py3-none-any.whl", hash = "sha256:06be05e3d160828bf4b46edc14baeb8e35aacc16d27dafdea7b5179e59f3baec", size = 4026046, upload-time = "2026-01-11T02:39:37.277Z" },
+]
+
+[[package]]
+name = "win32more-microsoft-windowsappsdk"
+version = "0.8.1.8.251106002"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "win32more-core" },
+    { name = "win32more-microsoft-web-webview2" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ca/80/2d05e43e4d19feb1aecf601377a84fb27e261cb7a5ea794edb98083c4f8e/win32more_microsoft_windowsappsdk-0.8.1.8.251106002.tar.gz", hash = "sha256:1cfe960ad4dfbf31256397fa20ea4aae53de811de6ec0e4c11b4386aaaf56132", size = 1157166, upload-time = "2025-12-16T13:03:19.492Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/13/54ce01db14de86a4200d97718d6cccaa3a404edfe9383b7de6fea737a506/win32more_microsoft_windowsappsdk-0.8.1.8.251106002-py2.py3-none-any.whl", hash = "sha256:93afe32255e7922580ddffdfa1905e2aaa6d60e4942d7f4079ca1c07dd0e45fa", size = 1214161, upload-time = "2025-12-16T13:03:20.9Z" },
 ]

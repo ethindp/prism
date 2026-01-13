@@ -1,6 +1,6 @@
 [project]
 name = "prism"
-version = "0.2.0"
+version = "0.3.0"
 description = "The Platform-Agnostic Reader Interface for Speech and Messages"
 readme = "README.md"
 authors = [
@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
     "cffi>=2.0.0",
+    "win32more>=0.8.0 ; sys_platform == 'win32'",
 ]
 
 [tool.uv]
@@ -33,7 +34,7 @@ sdist.include = [
   "source/**",
   "defs/**",
   "android/**",
-  "bindings/**",
+  "bindings/py/**",
   "doc/**",
   "gradle/**",
   "tests/**",
@@ -47,3 +48,4 @@ sdist.include = [
   "uv.lock",
   "LICENSE",
 ]
+editable.mode = "inplace"

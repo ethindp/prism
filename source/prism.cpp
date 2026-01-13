@@ -10,8 +10,6 @@
 #include <jni.h>
 #endif
 
-static constexpr std::uint8_t PRISM_CONFIG_VERSION = 0;
-
 struct PrismContext {
   BackendRegistry &registry;
 

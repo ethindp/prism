@@ -10,6 +10,9 @@
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 enum class BackendError : std::uint8_t {
   Ok = 0,
@@ -39,6 +42,10 @@ class TextToSpeechBackend {
 #ifdef __ANDROID__
 protected:
   JavaVM *java_vm{nullptr};
+#endif
+#ifdef _WIN32
+protected:
+  HWND hwnd_in{static_cast<HWND>(INVALID_HANDLE_VALUE)};
 #endif
 public:
   using AudioCallback = std::function<void(void *, const float *, std::size_t,
@@ -120,6 +127,9 @@ public:
     return std::unexpected(BackendError::NotImplemented);
   }
 #ifdef __ANDROID__
-  virtual void set_java_vm(JavaVM *vm) { this->java_vm = vm; }
+  virtual void set_java_vm(JavaVM *vm) final { this->java_vm = vm; }
+#endif
+#ifdef _WIN32
+  virtual void set_hwnd(HWND hwnd) final { this->hwnd_in = hwnd; }
 #endif
 };

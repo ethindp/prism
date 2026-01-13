@@ -11,6 +11,9 @@
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 enum class BackendId : std::uint64_t {};
 
@@ -76,7 +79,9 @@ public:
 #ifdef __ANDROID__
   void set_java_vm(JavaVM *vm);
 #endif
-
+#ifdef _WIN32
+  void set_hwnd(HWND hwnd);
+#endif
 private:
   struct Entry {
     BackendId id;
@@ -89,6 +94,9 @@ private:
   mutable std::shared_mutex mutex;
 #ifdef __ANDROID__
   JavaVM *java_vm;
+#endif
+#ifdef _WIN32
+  HWND hwnd_in;
 #endif
   std::vector<Entry> entries;
 };

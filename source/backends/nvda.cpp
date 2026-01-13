@@ -13,7 +13,7 @@ public:
   std::string_view get_name() const override { return "NVDA"; }
 
   BackendResult<> initialize() override {
-    if (nvdaController_testIfRunning())
+    if (!nvdaController_testIfRunning())
       return std::unexpected(BackendError::BackendNotAvailable);
     return {};
   }

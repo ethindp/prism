@@ -11,6 +11,9 @@
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -74,6 +77,9 @@ typedef struct {
   uint8_t version;
 #ifdef __ANDROID__
   JNIEnv *jni_env;
+#endif
+#ifdef _WIN32
+  HWND hwnd;
 #endif
 } PrismConfig;
 

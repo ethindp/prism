@@ -48,3 +48,13 @@ sdist.include = [
   "uv.lock",
   "LICENSE",
 ]
+sdist.exclude = [
+  ".venv",
+  ".git",
+  ".vscode",
+  ".idea",
+  "build",
+  "dist",
+  "__pycache__",
+  "*.egg-info",
+]

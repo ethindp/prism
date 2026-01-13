@@ -166,6 +166,16 @@ static LRESULT CALLBACK EditSubclassProc(HWND hwnd, UINT msg, WPARAM wParam,
     RemoveNewlinesFromEdit(hwnd);
     return r;
   }
+  case WM_GETDLGCODE: {
+    LRESULT code = CallWindowProc(g_EditOrigProc, hwnd, msg, wParam, lParam);
+    if (lParam) {
+      const MSG *pMsg = reinterpret_cast<const MSG *>(lParam);
+      if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_TAB) {
+        return code & ~(DLGC_WANTTAB | DLGC_WANTALLKEYS);
+      }
+    }
+    return code & ~DLGC_WANTTAB;
+  }
   }
   return CallWindowProc(g_EditOrigProc, hwnd, msg, wParam, lParam);
 }
@@ -241,6 +251,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam,
                     _T("Failed to query RichEdit text length."));
         return 0;
       }
+      if (cch == 0)
+        return 0;
       std::wstring w;
       w.resize(static_cast<size_t>(cch) + 1);
       GETTEXTEX gte{};
@@ -326,6 +338,11 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam,
     g_hButton = nullptr;
     g_EditOrigProc = nullptr;
     PostQuitMessage(0);
+    return 0;
+  }
+  case WM_SETFOCUS: {
+    if (g_hEdit)
+      SetFocus(g_hEdit);
     return 0;
   }
   }

@@ -17,7 +17,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.2.0
+  VERSION 0.3.0
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" ON)
@@ -227,6 +227,9 @@ endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE
                       "LINKER:-headerpad_max_install_names")
+  set_target_properties(
+    prism PROPERTIES BUILD_RPATH "@loader_path;/usr/lib/swift"
+                     INSTALL_RPATH "@loader_path;/usr/lib/swift")
 endif()
 if(ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
@@ -300,8 +303,8 @@ if(DEFINED SKBUILD)
     install(FILES "${_nvda_dll}" DESTINATION "${PRISM_PY_NATIVE_DIR}")
     if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
       install(
-        FILES "${CMAKE_CURRENT_BINARY_DIR}/ZDSRAPI_x64.dll"
-              "${CMAKE_CURRENT_BINARY_DIR}/SAAPI64.dll"
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
+              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI64.dll"
         DESTINATION "${PRISM_PY_NATIVE_DIR}"
         OPTIONAL)
     endif()
@@ -317,8 +320,8 @@ else()
     install(FILES "${_nvda_dll}" DESTINATION "bin")
     if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
       install(
-        FILES "${CMAKE_CURRENT_BINARY_DIR}/ZDSRAPI_x64.dll"
-              "${CMAKE_CURRENT_BINARY_DIR}/SAAPI64.dll"
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
+              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI64.dll"
         DESTINATION "bin"
         OPTIONAL)
     endif()

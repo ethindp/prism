@@ -303,8 +303,8 @@ if(DEFINED SKBUILD)
     install(FILES "${_nvda_dll}" DESTINATION "${PRISM_PY_NATIVE_DIR}")
     if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
       install(
-        FILES "${CMAKE_CURRENT_BINARY_DIR}/ZDSRAPI_x64.dll"
-              "${CMAKE_CURRENT_BINARY_DIR}/SAAPI64.dll"
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
+              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI64.dll"
         DESTINATION "${PRISM_PY_NATIVE_DIR}"
         OPTIONAL)
     endif()
@@ -320,8 +320,8 @@ else()
     install(FILES "${_nvda_dll}" DESTINATION "bin")
     if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
       install(
-        FILES "${CMAKE_CURRENT_BINARY_DIR}/ZDSRAPI_x64.dll"
-              "${CMAKE_CURRENT_BINARY_DIR}/SAAPI64.dll"
+        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
+              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI64.dll"
         DESTINATION "bin"
         OPTIONAL)
     endif()

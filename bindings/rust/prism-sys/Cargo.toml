@@ -1,0 +1,19 @@
+[package]
+name = "prism-sys"
+version = "0.3.1"
+edition = "2024"
+description = "PRISM: unify your screen reader and TTS needs using one universal library and API"
+homepage = "https://github.com/ethindp/prism"
+repository = "https://github.com/ethindp/prism"
+license = "MPL-2.0"
+links = "prism"
+
+[build-dependencies]
+anyhow = "1.0.100"
+bindgen = "0.72.1"
+cmake = "0.1.57"
+dunce = "1.0.5"
+fs_extra = "1.3.0"
+reqwest = { version = "0.13.1", features = ["blocking"] }
+walkdir = "2.5.0"
+zip = "7.1.0"

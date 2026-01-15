@@ -137,7 +137,7 @@ endif()
 string(TOLOWER "${_comp_arch_id}" _comp_arch_id_lc)
 set_property(TARGET ${PROJECT_NAME} PROPERTY OUTPUT_NAME ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME}
-                           PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+                           PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
 if(ANDROID)
   target_include_directories(${PROJECT_NAME}
                              PRIVATE "${PROJECT_SOURCE_DIR}/source/backends")
@@ -312,6 +312,7 @@ if(DEFINED SKBUILD)
 else()
   install(
     TARGETS ${PROJECT_NAME}
+    EXPORT prismTargets
     RUNTIME DESTINATION "bin"
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib")
@@ -326,4 +327,18 @@ else()
         OPTIONAL)
     endif()
   endif()
+  install(EXPORT prismTargets
+    FILE prism-config.cmake
+    NAMESPACE prism::
+    DESTINATION share/prism
+  )
+    include(CMakePackageConfigHelpers)
+  write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+  )
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
+    DESTINATION share/prism
+  )
 endif()

@@ -100,8 +100,7 @@ if(NOT WIN32)
     sources
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.c")
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c")
   list(REMOVE_ITEM headers
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.h")
 endif()

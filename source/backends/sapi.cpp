@@ -93,6 +93,9 @@ public:
       for (std::size_t i = 0; i < sample_count; ++i) {
         samples[i] = (src[i] - 128) / 128.0f;
       }
+    } else {
+    std::free(buffer);
+    return std::unexpected(BackendError::InternalBackendError);
     }
     std::free(buffer);
     callback(userdata, samples.data(), sample_count, channels, sample_rate);

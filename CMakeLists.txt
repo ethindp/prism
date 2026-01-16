@@ -28,11 +28,24 @@ endif()
 
 function(add_import_library target def_file dll_name)
   set(lib_file "${CMAKE_CURRENT_BINARY_DIR}/${target}.lib")
-  if(MSVC)
+  if(DEFINED MSVC_CXX_ARCHITECTURE_ID)
+    set(_lib_machine "${MSVC_CXX_ARCHITECTURE_ID}")
+  elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(_lib_machine "X64")
+  else()
+    set(_lib_machine "X86")
+  endif()
+  if(MSVC OR (WIN32 AND NOT MINGW))
+    find_program(LIB_TOOL NAMES lib llvm-lib)
+    if(NOT LIB_TOOL)
+      message(
+        FATAL_ERROR
+          "Could not find 'lib' or 'llvm-lib' to generate import libraries.")
+    endif()
     add_custom_command(
       OUTPUT "${lib_file}"
-      COMMAND lib /nologo /def:"${def_file}" /out:"${lib_file}"
-              /machine:${MSVC_CXX_ARCHITECTURE_ID}
+      COMMAND "${LIB_TOOL}" /nologo /def:"${def_file}" /out:"${lib_file}"
+              /machine:${_lib_machine}
       DEPENDS "${def_file}"
       COMMENT "Generating import library ${target}.lib")
   elseif(MINGW)
@@ -41,6 +54,8 @@ function(add_import_library target def_file dll_name)
       COMMAND dlltool -d "${def_file}" -l "${lib_file}"
       DEPENDS "${def_file}"
       COMMENT "Generating import library ${target}.lib")
+  else()
+    message(FATAL_ERROR "Unknown platform for generating import library")
   endif()
   add_custom_target(${target}_gen DEPENDS "${lib_file}")
   add_library(${target} SHARED IMPORTED GLOBAL)
@@ -48,7 +63,6 @@ function(add_import_library target def_file dll_name)
                                              IMPORTED_LOCATION "${dll_name}")
   add_dependencies(${target} ${target}_gen)
 endfunction()
-
 set(CPM_DOWNLOAD_VERSION 0.42.0)
 if(CPM_SOURCE_CACHE)
   set(CPM_DOWNLOAD_LOCATION

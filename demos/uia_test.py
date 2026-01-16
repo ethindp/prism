@@ -1,12 +1,12 @@
-from win32more.Microsoft.UI.Xaml import Window, RoutedEventArgs
 import ctypes
-from win32more import Guid
-from win32more.Windows.Win32.Foundation import HWND
-from win32more.Microsoft.UI.Xaml.Controls import TextBox, Button, StackPanel
-from win32more.winui3 import XamlApplication
+
 import prism
+from win32more import Guid
+from win32more.Microsoft.UI.Xaml import RoutedEventArgs, Window
+from win32more.Microsoft.UI.Xaml.Controls import Button, StackPanel, TextBox
+from win32more.Windows.Win32.Foundation import HRESULT, HWND
 from win32more.Windows.Win32.System.Com import IUnknown
-from win32more.Windows.Win32.Foundation import HRESULT
+from win32more.winui3 import XamlApplication
 
 
 class IWindowNative(IUnknown):
@@ -15,10 +15,13 @@ class IWindowNative(IUnknown):
 
 def get_hwnd_from_native(native_obj):
     GetWindowHandleType = ctypes.WINFUNCTYPE(
-        HRESULT, ctypes.c_void_p, ctypes.POINTER(HWND)
+        HRESULT,
+        ctypes.c_void_p,
+        ctypes.POINTER(HWND),
     )
     lpVtbl = ctypes.cast(
-        native_obj.value, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))
+        native_obj.value,
+        ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)),
     )
     func_addr = lpVtbl.contents[3]
     get_window_handle = GetWindowHandleType(func_addr)

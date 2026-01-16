@@ -416,10 +416,10 @@ namespace belt::com
 			}
 
 			// Conversion operations
-			template<class Interface>
+			template<class TargetInterface>
 			auto as() const noexcept
 			{
-				return com_ptr<Interface>{*this};
+				return com_ptr<TargetInterface>{*this};
 			}
 
 			template<class T>
@@ -629,10 +629,10 @@ namespace belt::com
 			}
 
 			// Conversion operations
-			template<class Interface>
+			template<class TargetInterface>
 			auto as() const noexcept
 			{
-				return com_ptr<Interface>{ p };
+				return com_ptr<TargetInterface>{ p };
 			}
 		};
 

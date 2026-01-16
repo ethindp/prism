@@ -1,7 +1,7 @@
-from .lib import ffi, lib
-from enum import IntEnum
 import sys
-from typing import Union
+from enum import IntEnum
+
+from .lib import ffi, lib
 
 if sys.platform == "win32":
     try:
@@ -30,80 +30,80 @@ class BackendId(IntEnum):
     ZOOM_TEXT = 0xAE439D62DC7B1479
 
 
-class PrismException(Exception):
+class PrismError(Exception):
     """Base class for all Prism-related errors."""
 
-    def __init__(self, code, message=None):
+    def __init__(self, code: lib.PrismError, message: str | None = None) -> None:
         self.code = code
         self.message = message
         super().__init__(message or f"Prism Error Code: {code}")
 
 
-class PrismNotInitializedError(PrismException, RuntimeError):
+class PrismNotInitializedError(PrismError, RuntimeError):
     """PRISM_ERROR_NOT_INITIALIZED"""
 
 
-class PrismAlreadyInitializedError(PrismException, RuntimeError):
+class PrismAlreadyInitializedError(PrismError, RuntimeError):
     """PRISM_ERROR_ALREADY_INITIALIZED"""
 
 
-class PrismInvalidOperationError(PrismException, RuntimeError):
+class PrismInvalidOperationError(PrismError, RuntimeError):
     """PRISM_ERROR_INVALID_OPERATION"""
 
 
-class PrismInternalError(PrismException, RuntimeError):
+class PrismInternalError(PrismError, RuntimeError):
     """PRISM_ERROR_INTERNAL"""
 
 
-class PrismBackendNotAvailableError(PrismException, RuntimeError):
+class PrismBackendNotAvailableError(PrismError, RuntimeError):
     """PRISM_ERROR_BACKEND_NOT_AVAILABLE"""
 
 
-class PrismNotImplementedError(PrismException, NotImplementedError):
+class PrismNotImplementedError(PrismError, NotImplementedError):
     """PRISM_ERROR_NOT_IMPLEMENTED"""
 
 
-class PrismInvalidParamError(PrismException, ValueError):
+class PrismInvalidParamError(PrismError, ValueError):
     """PRISM_ERROR_INVALID_PARAM"""
 
 
-class PrismRangeError(PrismException, IndexError):
+class PrismRangeError(PrismError, IndexError):
     """PRISM_ERROR_RANGE_OUT_OF_BOUNDS"""
 
 
-class PrismInvalidUtf8Error(PrismException, UnicodeError):
+class PrismInvalidUtf8Error(PrismError, UnicodeError):
     """PRISM_ERROR_INVALID_UTF8"""
 
 
-class PrismNotSpeakingError(PrismException):
+class PrismNotSpeakingError(PrismError):
     """PRISM_ERROR_NOT_SPEAKING"""
 
 
-class PrismNotPausedError(PrismException):
+class PrismNotPausedError(PrismError):
     """PRISM_ERROR_NOT_PAUSED"""
 
 
-class PrismAlreadyPausedError(PrismException):
+class PrismAlreadyPausedError(PrismError):
     """PRISM_ERROR_ALREADY_PAUSED"""
 
 
-class PrismSpeakError(PrismException, IOError):
+class PrismSpeakError(PrismError, IOError):
     """PRISM_ERROR_SPEAK_FAILURE"""
 
 
-class PrismNoVoicesError(PrismException):
+class PrismNoVoicesError(PrismError):
     """PRISM_ERROR_NO_VOICES"""
 
 
-class PrismVoiceNotFoundError(PrismException, LookupError):
+class PrismVoiceNotFoundError(PrismError, LookupError):
     """PRISM_ERROR_VOICE_NOT_FOUND"""
 
 
-class PrismMemoryError(PrismException, MemoryError):
+class PrismMemoryError(PrismError, MemoryError):
     """PRISM_ERROR_MEMORY_FAILURE"""
 
 
-class PrismUnknownError(PrismException):
+class PrismUnknownError(PrismError):
     """PRISM_ERROR_UNKNOWN"""
 
 
@@ -128,10 +128,10 @@ _ERROR_MAP = {
 }
 
 
-def _check_error(error_code: int):
+def _check_error(error_code: int) -> None:
     """
     Checks the error code. If it is OK, returns None.
-    Otherwise, raises the appropriate PrismException.
+    Otherwise, raises the appropriate PrismError.
     """
     if error_code == 0:
         return
@@ -144,24 +144,23 @@ def _check_error(error_code: int):
 class Backend:
     _raw = None
 
-    def __init__(self, raw_ptr) -> None:
+    def __init__(self, raw_ptr: lib.PrismBackend) -> None:
         if raw_ptr == ffi.NULL:
             raise RuntimeError("Backend raw pointer MUST NOT be NULL!")
         self._raw = raw_ptr
         res = lib.prism_backend_initialize(self._raw)
-        if res != lib.PRISM_OK and res != lib.PRISM_ERROR_ALREADY_INITIALIZED:
-            return _check_error(res)
+        if res not in {lib.PRISM_OK, lib.PRISM_ERROR_ALREADY_INITIALIZED}:
+            _check_error(res)
 
-    def __del__(self):
+    def __del__(self) -> None:
         lib.prism_backend_free(self._raw)
         self._raw = None
-        return None
 
     @property
     def name(self) -> str:
         return ffi.string(lib.prism_backend_name(self._raw)).decode("utf-8")
 
-    def speak(self, text: str, interrupt: bool = False):
+    def speak(self, text: str, interrupt: bool = False) -> None:
         if len(text) == 0:
             raise PrismInvalidParamError(
                 lib.PRISM_ERROR_INVALID_PARAM,
@@ -171,7 +170,7 @@ class Backend:
             lib.prism_backend_speak(self._raw, text.encode("utf-8"), interrupt),
         )
 
-    def speak_to_memory(self, text: str, on_audio_data):
+    def speak_to_memory(self, text: str, on_audio_data) -> None:
         if len(text) == 0:
             raise PrismInvalidParamError(
                 lib.PRISM_ERROR_INVALID_PARAM,
@@ -179,12 +178,14 @@ class Backend:
             )
 
         @ffi.callback("void(void *, const float *, size_t, size_t, size_t)")
-        def audio_callback_shim(_userdata, samples_ptr, count, channels, rate):
+        def audio_callback_shim(
+            _userdata, samples_ptr: int, count, channels, rate
+        ) -> None:
             pcm_data = ffi.unpack(samples_ptr, count * channels)
             on_audio_data(pcm_data, channels, rate)
 
         self._active_callback = audio_callback_shim
-        return self._check_error(
+        return _check_error(
             lib.prism_backend_speak_to_memory(
                 self._raw,
                 text.encode("utf-8"),
@@ -193,7 +194,7 @@ class Backend:
             ),
         )
 
-    def braille(self, text: str):
+    def braille(self, text: str) -> None:
         if len(text) == 0:
             raise PrismInvalidParamError(
                 lib.PRISM_ERROR_INVALID_PARAM,
@@ -201,7 +202,7 @@ class Backend:
             )
         return _check_error(lib.prism_backend_braille(self._raw, text.encode("utf-8")))
 
-    def output(self, text: str, interrupt: bool = False):
+    def output(self, text: str, interrupt: bool = False) -> None:
         if len(text) == 0:
             raise PrismInvalidParamError(
                 lib.PRISM_ERROR_INVALID_PARAM,
@@ -211,13 +212,13 @@ class Backend:
             lib.prism_backend_output(self._raw, text.encode("utf-8"), interrupt),
         )
 
-    def stop(self):
+    def stop(self) -> None:
         return _check_error(lib.prism_backend_stop(self._raw))
 
-    def pause(self):
+    def pause(self) -> None:
         return _check_error(lib.prism_backend_pause(self._raw))
 
-    def resume(self):
+    def resume(self) -> None:
         return _check_error(lib.prism_backend_resume(self._raw))
 
     @property
@@ -233,7 +234,7 @@ class Backend:
         return p_volume[0]
 
     @volume.setter
-    def volume(self, volume: float):
+    def volume(self, volume: float) -> None:
         return _check_error(lib.prism_backend_set_volume(self._raw, volume))
 
     @property
@@ -243,7 +244,7 @@ class Backend:
         return p_rate[0]
 
     @rate.setter
-    def rate(self, rate: float):
+    def rate(self, rate: float) -> None:
         return _check_error(lib.prism_backend_set_rate(self._raw, rate))
 
     @property
@@ -253,10 +254,10 @@ class Backend:
         return p_pitch[0]
 
     @pitch.setter
-    def pitch(self, pitch: float):
+    def pitch(self, pitch: float) -> None:
         return _check_error(lib.prism_backend_set_pitch(self._raw, pitch))
 
-    def refresh_voices(self):
+    def refresh_voices(self) -> None:
         return _check_error(lib.prism_backend_refresh_voices(self._raw))
 
     @property
@@ -282,32 +283,32 @@ class Backend:
         return out_voice_id[0]
 
     @voice.setter
-    def voice(self, idx: int):
+    def voice(self, idx: int) -> None:
         return _check_error(lib.prism_backend_set_voice(self._raw, idx))
 
     @property
-    def channels(self):
+    def channels(self) -> int:
         out_channels = ffi.new("size_t*")
         _check_error(lib.prism_backend_get_channels(self._raw, out_channels))
         return out_channels[0]
 
     @property
-    def sample_rate(self):
+    def sample_rate(self) -> int:
         out_sample_rate = ffi.new("size_t*")
         _check_error(lib.prism_backend_get_sample_rate(self._raw, out_sample_rate))
         return out_sample_rate[0]
 
     @property
-    def bit_depth(self):
+    def bit_depth(self) -> int:
         out_bit_depth = ffi.new("size_t*")
         _check_error(lib.prism_backend_get_bit_depth(self._raw, out_bit_depth))
         return out_bit_depth[0]
 
 
 class Context:
-    _ctx = None
+    _ctx: lib.PrismContext = None
 
-    def __init__(self, hwnd: Union[HWND, int, None] = None):
+    def __init__(self, hwnd: HWND | int | None = None) -> None:
         config = lib.prism_config_init()
         if hwnd is not None:
             config.platform_data = ffi.cast("void*", int(hwnd))
@@ -324,7 +325,7 @@ class Context:
     def backends_count(self) -> int:
         return lib.prism_registry_count(self._ctx)
 
-    def id_of(self, index_or_name: Union[int, str]) -> BackendId:
+    def id_of(self, index_or_name: int | str) -> BackendId:
         if isinstance(index_or_name, int):
             res = lib.prism_registry_id_at(self._ctx, index_or_name)
         elif isinstance(index_or_name, str):

@@ -151,7 +151,7 @@ namespace belt::com
 
 	namespace literals
 	{
-		constexpr GUID operator "" _guid(const char *str, size_t N)
+		constexpr GUID operator ""_guid(const char *str, size_t N)
 		{
 			using namespace details;
 			using namespace std::string_literals;

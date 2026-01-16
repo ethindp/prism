@@ -1,12 +1,13 @@
-from cffi import FFI
-import os
-from pathlib import Path
-import sys
-import importlib
 import contextlib
+import importlib
+import os
+import sys
+from pathlib import Path
+
+from cffi import FFI
 
 
-def _find_native_dir():
+def _find_native_dir() -> str:
     local_path = Path(__file__).parent / "_native"
     if local_path.exists() and any(local_path.iterdir()):
         return local_path
@@ -26,7 +27,7 @@ with contextlib.suppress(AttributeError):
     os.add_dll_directory(str(dll_home))
 
 
-def is_android():
+def _is_android() -> bool:
     with contextlib.suppress(ImportError):
         if importlib.util.find_spec("", "android") is not None:
             return True
@@ -37,7 +38,7 @@ def is_android():
 
 
 ffi = FFI()
-if sys.platform == "win32" or is_android():
+if sys.platform == "win32" or _is_android():
     ffi.cdef(r"""// SPDX-License-Identifier: MPL-2.0
 
 typedef struct PrismContext PrismContext;

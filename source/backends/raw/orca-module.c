@@ -5,7 +5,8 @@
  * it was derived from. Note that it links to GLib, so must comply with the
  * LGPL linking clauses.
  */
-
+ 
+#ifndef NO_ORCA
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
 #endif
@@ -3372,3 +3373,4 @@ orca_module_object_manager_client_new_for_bus_sync (
 }
 
 
+#endif

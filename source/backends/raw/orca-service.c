@@ -6,6 +6,7 @@
  * LGPL linking clauses.
  */
 
+#ifndef NO_ORCA
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
 #endif
@@ -2709,3 +2710,4 @@ orca_service_object_manager_client_new_for_bus_sync (
 }
 
 
+#endif

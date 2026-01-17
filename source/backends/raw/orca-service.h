@@ -8,6 +8,7 @@
 
 #pragma once
 
+#ifndef NO_ORCA
 #include <gio/gio.h>
 
 G_BEGIN_DECLS
@@ -477,3 +478,4 @@ GDBusObjectManager *orca_service_object_manager_client_new_for_bus_sync (
 
 
 G_END_DECLS
+#endif

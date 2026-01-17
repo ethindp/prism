@@ -196,6 +196,7 @@ if(UNIX
   if(GIO_FOUND)
     target_include_directories(
       ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+    target_link_directories(${PROJECT_NAME} PRIVATE ${GIO_LIBRARY_DIRS})
     target_link_libraries(${PROJECT_NAME} PRIVATE ${GIO_LIBRARIES})
   else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE NO_ORCA)

@@ -23,7 +23,7 @@ jobs:
         run: |
           version=$(sed -n 's/^[[:space:]]*VERSION[[:space:]]\+\([0-9.]\+\).*/\1/p' CMakeLists.txt | head -1)
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v${version}-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
   docs:
     runs-on: ubuntu-latest
     steps:

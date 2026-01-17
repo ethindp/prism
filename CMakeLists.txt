@@ -28,11 +28,24 @@ endif()
 
 function(add_import_library target def_file dll_name)
   set(lib_file "${CMAKE_CURRENT_BINARY_DIR}/${target}.lib")
-  if(MSVC)
+  if(DEFINED MSVC_CXX_ARCHITECTURE_ID)
+    set(_lib_machine "${MSVC_CXX_ARCHITECTURE_ID}")
+  elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(_lib_machine "X64")
+  else()
+    set(_lib_machine "X86")
+  endif()
+  if(MSVC OR (WIN32 AND NOT MINGW))
+    find_program(LIB_TOOL NAMES lib llvm-lib)
+    if(NOT LIB_TOOL)
+      message(
+        FATAL_ERROR
+          "Could not find 'lib' or 'llvm-lib' to generate import libraries.")
+    endif()
     add_custom_command(
       OUTPUT "${lib_file}"
-      COMMAND lib /nologo /def:"${def_file}" /out:"${lib_file}"
-              /machine:${MSVC_CXX_ARCHITECTURE_ID}
+      COMMAND "${LIB_TOOL}" /nologo /def:"${def_file}" /out:"${lib_file}"
+              /machine:${_lib_machine}
       DEPENDS "${def_file}"
       COMMENT "Generating import library ${target}.lib")
   elseif(MINGW)
@@ -41,6 +54,8 @@ function(add_import_library target def_file dll_name)
       COMMAND dlltool -d "${def_file}" -l "${lib_file}"
       DEPENDS "${def_file}"
       COMMENT "Generating import library ${target}.lib")
+  else()
+    message(FATAL_ERROR "Unknown platform for generating import library")
   endif()
   add_custom_target(${target}_gen DEPENDS "${lib_file}")
   add_library(${target} SHARED IMPORTED GLOBAL)
@@ -48,7 +63,6 @@ function(add_import_library target def_file dll_name)
                                              IMPORTED_LOCATION "${dll_name}")
   add_dependencies(${target} ${target}_gen)
 endfunction()
-
 set(CPM_DOWNLOAD_VERSION 0.42.0)
 if(CPM_SOURCE_CACHE)
   set(CPM_DOWNLOAD_LOCATION
@@ -100,8 +114,7 @@ if(NOT WIN32)
     sources
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.c")
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c")
   list(REMOVE_ITEM headers
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.h")
 endif()
@@ -136,8 +149,9 @@ else()
 endif()
 string(TOLOWER "${_comp_arch_id}" _comp_arch_id_lc)
 set_property(TARGET ${PROJECT_NAME} PROPERTY OUTPUT_NAME ${PROJECT_NAME})
-target_include_directories(${PROJECT_NAME}
-                           PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(
+  ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                         $<INSTALL_INTERFACE:include>)
 if(ANDROID)
   target_include_directories(${PROJECT_NAME}
                              PRIVATE "${PROJECT_SOURCE_DIR}/source/backends")
@@ -223,6 +237,8 @@ if(MSVC)
   if(MSVC_HAS_BIGOBJ)
     target_compile_options(${PROJECT_NAME} PUBLIC /bigobj)
   endif()
+else()
+  target_compile_options(${PROJECT_NAME} PUBLIC -Wall -Wextra)
 endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE
@@ -240,16 +256,29 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
   if(CLANG_TIDY_EXE)
     set(CLANG_TIDY_COMMAND
         "${CLANG_TIDY_EXE}"
-        "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*")
-    set(SKIP_LINT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp
-                        ${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h)
+        "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*,-modernize-use-trailing-return-type"
+    )
+    set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
+                                                     "${CLANG_TIDY_COMMAND}")
+    set(SKIP_LINT_FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")
     if(ANDROID)
       list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
-      set(LINTED_SOURCES ${sources})
-      list(REMOVE_ITEM LINTED_SOURCES ${SKIP_LINT_FILES})
-      set_source_files_properties(
-        ${LINTED_SOURCES} PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
     endif()
+    set_source_files_properties(${SKIP_LINT_FILES} PROPERTIES SKIP_LINTING ON)
   endif()
 endif()
 if(NOT ANDROID)
@@ -312,6 +341,7 @@ if(DEFINED SKBUILD)
 else()
   install(
     TARGETS ${PROJECT_NAME}
+    EXPORT prismTargets
     RUNTIME DESTINATION "bin"
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib")
@@ -326,4 +356,16 @@ else()
         OPTIONAL)
     endif()
   endif()
+  install(
+    EXPORT prismTargets
+    FILE prism-config.cmake
+    NAMESPACE prism::
+    DESTINATION share/prism)
+  include(CMakePackageConfigHelpers)
+  write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
+          DESTINATION share/prism)
 endif()

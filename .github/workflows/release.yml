@@ -49,13 +49,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
       - name: Set up Python
         run: uv python install
-      - name: Fetch ZDSR
-        shell: pwsh
-        run: |
-          choco install innoextract -y
-          curl -L -o zdsr.exe "https://www.zd.hk/download-down-type-zdsr.htm"
-          innoextract -e --codepage 65001 -d zdsr-extract zdsr.exe
-          Get-ChildItem -Recurse -Filter "ZDSRAPI_x64.dll" | Select-Object -First 1 | Copy-Item -Destination .
       - name: Build Release
         run: |
           cmake -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
@@ -75,13 +68,11 @@ jobs:
           cp build-release/prism.dll dist/release/bin/
           cp build-release/prism.lib dist/release/lib/
           cp build-release/nvdaControllerClient.dll dist/release/bin/
-          cp ZDSRAPI_x64.dll dist/release/bin/
           cp include/prism.h dist/include/
           cp build-debug/prism.dll dist/debug/bin/
           cp build-debug/prism.lib dist/debug/lib/
           cp build-debug/prism.pdb dist/debug/bin/
           cp build-debug/nvdaControllerClient.dll dist/debug/bin/
-          cp ZDSRAPI_x64.dll dist/debug/bin/
           Compress-Archive -Path dist/* -DestinationPath prism-windows-x64.zip
       - uses: actions/upload-artifact@v4
         with:

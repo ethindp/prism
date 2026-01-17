@@ -97,10 +97,16 @@ namespace belt::mpl
 	template<class T>
 	struct back;
 
-	template<class... First, class Last>
-	struct back<vector<First..., Last>>
+	template<class T>
+	struct back<vector<T>>
 	{
-		typedef Last type;
+		typedef T type;
+	};
+
+	template<class Head, class... Tail>
+	struct back<vector<Head, Tail...>>
+	{
+		typedef typename back<vector<Tail...>>::type type;
 	};
 
 	template<class T>
@@ -119,14 +125,19 @@ namespace belt::mpl
 	template<class T>
 	using remove_front_t = typename remove_front<T>::type;
 
-	// remove_back
 	template<class T>
 	struct remove_back;
 
-	template<class... First, class Last>
-	struct remove_back<vector<First..., Last>>
+	template<class T>
+	struct remove_back<vector<T>>
 	{
-		typedef vector<First...> type;
+		typedef vector<> type;
+	};
+
+	template<class Head, class... Tail>
+	struct remove_back<vector<Head, Tail...>>
+	{
+		typedef typename push_front<typename remove_back<vector<Tail...>>::type, Head>::type type;
 	};
 
 	template<class T>

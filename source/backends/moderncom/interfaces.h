@@ -725,7 +725,7 @@ namespace belt::com
 
 			auto to_ptr() && noexcept
 			{
-				return std::move(*this).to_ptr<typename T::DefaultInterface>();
+				return std::move(*this).template to_ptr<typename T::DefaultInterface>();
 			}
 
 			T *obj() const noexcept

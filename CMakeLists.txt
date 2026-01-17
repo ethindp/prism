@@ -17,11 +17,13 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.3.0
+  VERSION 0.3.1
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" ON)
 option(PRISM_ENABLE_DEMOS "Enable demo applications" OFF)
+option(PRISM_ENABLE_CLANG_TIDY
+       "Enable execution of clang-tidy for debug builds" OFF)
 if(APPLE)
   enable_language(Swift)
 endif()
@@ -237,8 +239,14 @@ if(MSVC)
   if(MSVC_HAS_BIGOBJ)
     target_compile_options(${PROJECT_NAME} PUBLIC /bigobj)
   endif()
-else()
-  target_compile_options(${PROJECT_NAME} PUBLIC -Wall -Wextra)
+endif()
+if(NOT MSVC)
+  check_cxx_compiler_flag(-Wall COMP_HAS_WALL_OPTION)
+  check_cxx_compiler_flag(-Wextra COMP_HAS_WEXTRA_OPTION)
+  if(COMP_HAS_WALL_OPTION AND COMP_HAS_WEXTRA_OPTION)
+    target_compile_options(${PROJECT_NAME}
+                           PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
+  endif()
 endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE
@@ -250,35 +258,37 @@ endif()
 if(ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
-                                               MATCHES "MSVC")
-  find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
-  if(CLANG_TIDY_EXE)
-    set(CLANG_TIDY_COMMAND
-        "${CLANG_TIDY_EXE}"
-        "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*,-modernize-use-trailing-return-type"
-    )
-    set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
-                                                     "${CLANG_TIDY_COMMAND}")
-    set(SKIP_LINT_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")
-    if(ANDROID)
-      list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
+if(PRISM_ENABLE_CLANG_TIDY)
+  if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
+                                                 MATCHES "MSVC")
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+    if(CLANG_TIDY_EXE)
+      set(CLANG_TIDY_COMMAND
+          "${CLANG_TIDY_EXE}"
+          "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*,-modernize-use-trailing-return-type"
+      )
+      set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
+                                                       "${CLANG_TIDY_COMMAND}")
+      set(SKIP_LINT_FILES
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")
+      if(ANDROID)
+        list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
+      endif()
+      set_source_files_properties(${SKIP_LINT_FILES} PROPERTIES SKIP_LINTING ON)
     endif()
-    set_source_files_properties(${SKIP_LINT_FILES} PROPERTIES SKIP_LINTING ON)
   endif()
 endif()
 if(NOT ANDROID)

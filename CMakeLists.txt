@@ -17,7 +17,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.3.1
+  VERSION 0.3.2
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" ON)
@@ -378,4 +378,5 @@ else()
     COMPATIBILITY SameMajorVersion)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
           DESTINATION share/prism)
+  install(DIRECTORY include/ DESTINATION include)
 endif()

@@ -206,6 +206,7 @@ if(UNIX
     target_include_directories(
       ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
                               ${CMAKE_CURRENT_BINARY_DIR})
+    target_link_directories(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARY_DIRS})
     target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARIES})
   else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)

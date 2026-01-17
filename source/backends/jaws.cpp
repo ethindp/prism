@@ -17,9 +17,9 @@ private:
   belt::com::com_ptr<IJawsApi> controller;
 
 public:
-  ~JawsBackend() override {}
+  ~JawsBackend() override = default;
 
-  std::string_view get_name() const override { return "JAWS"; }
+  [[nodiscard]] std::string_view get_name() const override { return "JAWS"; }
 
   BackendResult<> initialize() override {
     if (controller)

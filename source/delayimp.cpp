@@ -6,15 +6,17 @@
 #include <delayimp.h>
 #include <filesystem>
 #include <nvdaController.h>
-#include <string.h>
+#include <cstring>
 #include <tchar.h>
+#include <array>
+#include <utility>
 
 extern "C" {
-typedef struct {
+using StubEntry = struct {
   const char *dll;
   const char *func;
   FARPROC stub;
-} StubEntry;
+};
 
 static error_status_t __stdcall stub_nvdaController_setOnSsmlMarkReachedCallback(
     onSsmlMarkReachedFuncType callback) {
@@ -61,9 +63,9 @@ static BOOL __stdcall stub_SA_SayW(const wchar_t *text) { return FALSE; }
 
 static BOOL __stdcall stub_SA_BrlShowTextW(const wchar_t *msg) { return FALSE; }
 
-static BOOL __stdcall stub_SA_StopAudio(void) { return FALSE; }
+static BOOL __stdcall stub_SA_StopAudio() { return FALSE; }
 
-static BOOL __stdcall stub_SA_IsRunning(void) { return FALSE; }
+static BOOL __stdcall stub_SA_IsRunning() { return FALSE; }
 
 static int WINAPI stub_zdsr_InitTTS(int type, const WCHAR *channelName,
                                     BOOL bKeyDownInterrupt) {
@@ -78,7 +80,7 @@ static int WINAPI stub_zdsr_GetSpeakState() { return 2; }
 
 static void WINAPI stub_zdsr_StopSpeak() { return; }
 
-static const StubEntry stubs[] = {
+static const auto stubs = std::to_array<StubEntry>({
     {"nvdaControllerClient.dll", "nvdaController_setOnSsmlMarkReachedCallback",
      (FARPROC)stub_nvdaController_setOnSsmlMarkReachedCallback},
     {"nvdaControllerClient.dll", "nvdaController_testIfRunning",
@@ -102,8 +104,7 @@ static const StubEntry stubs[] = {
     {"ZDSRAPI_x64.dll", "InitTTS", (FARPROC)stub_zdsr_InitTTS},
     {"ZDSRAPI_x64.dll", "Speak", (FARPROC)stub_zdsr_Speak},
     {"ZDSRAPI_x64.dll", "GetSpeakState", (FARPROC)stub_zdsr_GetSpeakState},
-    {"ZDSRAPI_x64.dll", "StopSpeak", (FARPROC)stub_zdsr_StopSpeak},
-    {NULL, NULL, NULL}};
+    {"ZDSRAPI_x64.dll", "StopSpeak", (FARPROC)stub_zdsr_StopSpeak}});
 
 static int dummy_count = 0;
 
@@ -125,7 +126,7 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
         path_buffer.resize(len);
         const auto dll_path =
             fs::path(path_buffer).replace_filename(pdli->szDll);
-        if (const auto h = LoadLibrary(dll_path.c_str()); h != NULL) {
+        if (const auto h = LoadLibrary(dll_path.c_str()); h != nullptr) {
           return reinterpret_cast<FARPROC>(h);
         }
       }
@@ -140,7 +141,7 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
         path.resize(MAX_PATH);
         DWORD size = MAX_PATH * sizeof(wchar_t);
         if (const auto res2 =
-                RegQueryValueEx(zdsr_key, _T("path"), 0, nullptr,
+                RegQueryValueEx(zdsr_key, _T("path"), nullptr, nullptr,
                                 reinterpret_cast<LPBYTE>(path.data()), &size);
             res2 == ERROR_SUCCESS) {
           path.resize(std::wcslen(path.c_str()));
@@ -150,7 +151,7 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
           path += _T("ZDSRAPI_x64.dll");
           const auto h = LoadLibrary(path.c_str());
           RegCloseKey(zdsr_key);
-          if (h != NULL) {
+          if (h != nullptr) {
             return reinterpret_cast<FARPROC>(h);
           }
         } else {
@@ -159,23 +160,24 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
       }
     }
     if (dummy_count < 512) {
-      HMODULE dummy = (HMODULE)(intptr_t)(0xDEAD0000 + dummy_count);
+      auto dummy = (HMODULE)(intptr_t)(0xDEAD0000 + dummy_count);
       dummy_count++;
       return reinterpret_cast<FARPROC>(dummy);
     }
     return reinterpret_cast<FARPROC>(reinterpret_cast<HMODULE>(1));
   } break;
   case dliFailGetProc: {
-    for (const StubEntry *e = stubs; e->dll; e++) {
-      if (_stricmp(pdli->szDll, e->dll) == 0 &&
-          strcmp(pdli->dlp.szProcName, e->func) == 0) {
-        return e->stub;
+    for (const auto& e: stubs) {
+      if (_stricmp(pdli->szDll, e.dll) == 0 &&
+          strcmp(pdli->dlp.szProcName, e.func) == 0) {
+        return e.stub;
       }
     }
-    return NULL;
+    return nullptr;
   } break;
+  default: break;
   }
-  return NULL;
+  return nullptr;
 }
 
 const PfnDliHook __pfnDliFailureHook2 = DelayLoadFailureHook;

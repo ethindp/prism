@@ -344,6 +344,7 @@ public:
         drwav_uninit(&wav);
       }
     } catch (...) {
+    return;
     }
   }
 };

@@ -10,9 +10,9 @@
 
 class ZdsrBackend final : public TextToSpeechBackend {
 public:
-  ~ZdsrBackend() {}
+  ~ZdsrBackend() override = default;
 
-  std::string_view get_name() const override { return "Zhengdu"; }
+  [[nodiscard]] std::string_view get_name() const override { return "Zhengdu"; }
 
   BackendResult<> initialize() override {
     if (const auto res = InitTTS(0, nullptr, true); res > 0)
@@ -54,8 +54,6 @@ public:
       return std::unexpected(BackendError::BackendNotAvailable);
     case 3:
       return true;
-    case 4:
-      return false;
     default:
       return false;
     }

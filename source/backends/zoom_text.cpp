@@ -18,9 +18,9 @@ private:
   belt::com::com_ptr<ISpeech2> speech;
 
 public:
-  ~ZoomTextBackend() override {}
+  ~ZoomTextBackend() override = default;
 
-  std::string_view get_name() const override { return "ZoomText"; }
+  [[nodiscard]] std::string_view get_name() const override { return "ZoomText"; }
 
   BackendResult<> initialize() override {
     if (controller || speech)

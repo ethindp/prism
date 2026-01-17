@@ -237,6 +237,8 @@ if(MSVC)
   if(MSVC_HAS_BIGOBJ)
     target_compile_options(${PROJECT_NAME} PUBLIC /bigobj)
   endif()
+else()
+  target_compile_options(${PROJECT_NAME} PUBLIC -Wall -Wextra)
 endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE
@@ -254,16 +256,29 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
   if(CLANG_TIDY_EXE)
     set(CLANG_TIDY_COMMAND
         "${CLANG_TIDY_EXE}"
-        "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*")
-    set(SKIP_LINT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp
-                        ${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h)
+        "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*,-modernize-use-trailing-return-type"
+    )
+    set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
+                                                     "${CLANG_TIDY_COMMAND}")
+    set(SKIP_LINT_FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")
     if(ANDROID)
       list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
-      set(LINTED_SOURCES ${sources})
-      list(REMOVE_ITEM LINTED_SOURCES ${SKIP_LINT_FILES})
-      set_source_files_properties(
-        ${LINTED_SOURCES} PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
     endif()
+    set_source_files_properties(${SKIP_LINT_FILES} PROPERTIES SKIP_LINTING ON)
   endif()
 endif()
 if(NOT ANDROID)

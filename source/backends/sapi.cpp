@@ -84,14 +84,14 @@ public:
     std::size_t sample_count = size / (bit_depth / 8);
     std::vector<float> samples(sample_count);
     if (bit_depth == 16) {
-      const int16_t *src = static_cast<const int16_t *>(buffer);
+      const auto *src = static_cast<const int16_t *>(buffer);
       for (std::size_t i = 0; i < sample_count; ++i) {
-        samples[i] = src[i] / 32768.0f;
+        samples[i] = static_cast<float>(src[i]) / 32768.0f;
       }
     } else if (bit_depth == 8) {
-      const uint8_t *src = static_cast<const uint8_t *>(buffer);
+      const auto *src = static_cast<const uint8_t *>(buffer);
       for (std::size_t i = 0; i < sample_count; ++i) {
-        samples[i] = (src[i] - 128) / 128.0f;
+        samples[i] = static_cast<float>(src[i] - 128) / 128.0f;
       }
     } else {
     std::free(buffer);
@@ -232,8 +232,8 @@ public:
         !ret)
       return std::unexpected(BackendError::VoiceNotFound);
     else {
-      const auto str = std::string(ret);
-      return ret;
+      auto str = std::string(ret);
+      return str;
     }
     return "";
   }
@@ -247,8 +247,8 @@ public:
         !ret)
       return std::unexpected(BackendError::VoiceNotFound);
     else {
-      const auto str = std::string(ret);
-      return ret;
+      auto str = std::string(ret);
+      return str;
     }
     return "";
   }

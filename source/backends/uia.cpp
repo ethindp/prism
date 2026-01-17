@@ -122,6 +122,7 @@ public:
       pRetVal->vt = VT_I4;
       pRetVal->lVal = static_cast<LONG>(reinterpret_cast<INT_PTR>(h));
       break;
+      default: break;
     }
     return S_OK;
   }
@@ -170,7 +171,7 @@ private:
 
   static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam,
                                      LPARAM lParam) {
-    UiaBackend *self =
+    auto *self =
         reinterpret_cast<UiaBackend *>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
     auto *prov =
         self ? self->provider.load(std::memory_order_acquire) : nullptr;
@@ -203,12 +204,13 @@ private:
       return 0;
     case WM_DESTROY:
       return 0;
+      default: return DefWindowProc(hwnd, msg, wParam, lParam);
     }
     return DefWindowProc(hwnd, msg, wParam, lParam);
   }
 
-  void thread_proc(std::stop_token st) {
-    handle_guard stop_event{{CreateEvent(nullptr, TRUE, FALSE, nullptr)}};
+  void thread_proc(const std::stop_token& st) {
+    handle_guard stop_event(CreateEvent(nullptr, TRUE, FALSE, nullptr));
     if (!stop_event.h) {
       {
         std::lock_guard g(ready_mtx);
@@ -332,7 +334,7 @@ public:
     if (pid != GetCurrentProcessId())
       return std::unexpected(BackendError::InvalidParam);
     thread =
-        std::jthread([this](std::stop_token st) { this->thread_proc(st); });
+        std::jthread([this](const std::stop_token& st) { this->thread_proc(st); });
     bool success = ready_cv.wait_for(lock, std::chrono::seconds(5),
                                      [this] { return ready.has_value(); });
     const HWND w = hwnd.load(std::memory_order_acquire);
@@ -360,7 +362,7 @@ public:
             reinterpret_cast<char16_t *>(wstr.data())) == 0)
       return std::unexpected(BackendError::InvalidUtf8);
     SpeakCommand command{.text = std::move(wstr), .interrupt = interrupt};
-    uia_command_queue.enqueue(std::move(command));
+    uia_command_queue.enqueue(command);
     if (!PostMessage(w, WM_UIA_EXECUTE_COMMAND, 0, 0)) {
       const DWORD err = GetLastError();
       if (err == ERROR_INVALID_WINDOW_HANDLE)
@@ -381,7 +383,7 @@ public:
     if (!w)
       return std::unexpected(BackendError::NotInitialized);
     StopCommand cmd{};
-    uia_command_queue.enqueue(std::move(cmd));
+    uia_command_queue.enqueue(cmd);
     if (!PostMessage(w, WM_UIA_EXECUTE_COMMAND, 0, 0)) {
       const DWORD err = GetLastError();
       if (err == ERROR_INVALID_WINDOW_HANDLE)

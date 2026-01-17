@@ -8,9 +8,9 @@
 
 class NvdaBackend final : public TextToSpeechBackend {
 public:
-  ~NvdaBackend() {}
+  ~NvdaBackend() override = default;
 
-  std::string_view get_name() const override { return "NVDA"; }
+  [[nodiscard]] std::string_view get_name() const override { return "NVDA"; }
 
   BackendResult<> initialize() override {
     if (nvdaController_testIfRunning() != ERROR_SUCCESS)

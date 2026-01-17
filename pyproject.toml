@@ -1,6 +1,6 @@
 [project]
 name = "prism"
-version = "0.3.3"
+version = "0.3.4"
 description = "The Platform-Agnostic Reader Interface for Speech and Messages"
 readme = "README.md"
 authors = [

@@ -309,12 +309,6 @@ jobs:
             runs-on: ubuntu-latest
             platform: android
             archs: arm64_v8a
-          - os: ios
-            runs-on: macos-latest
-            platform: ios
-          - os: pyodide
-            runs-on: ubuntu-latest
-            platform: pyodide
     steps:
       - uses: actions/checkout@v5
       - name: Build wheels
@@ -322,13 +316,14 @@ jobs:
         env:
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
           CIBW_ARCHS: ${{ matrix.archs || 'auto' }}
+          ANDROID_API_LEVEL: 30
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
   release:
-    needs: [version, docs, windows-x64, windows-arm64, macos, ios, linux-x64, linux-arm64, android, emscripten]
+    needs: [version, docs, windows-x64, windows-arm64, macos, ios, linux-x64, linux-arm64, android, emscripten, build_wheels]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -370,12 +365,11 @@ jobs:
             artifacts/wasm/prism-wasm.zip
 
   upload_pypi:
-    needs: [build_wheels]
+    needs: [release]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
       id-token: write
-    if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - uses: actions/download-artifact@v5
         with:
@@ -383,5 +377,3 @@ jobs:
           path: dist
           merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/

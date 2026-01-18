@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<node>
+  <interface name="org.gnome.Orca.Module">
+    <method name="ExecuteCommand">
+      <arg name="command_name" type="s" direction="in"/>
+      <arg name="notify_user" type="b" direction="in"/>
+      <arg name="result" type="b" direction="out"/>
+    </method>
+    <method name="ExecuteParameterizedCommand">
+      <arg name="command_name" type="s" direction="in"/>
+      <arg name="parameters" type="a{sv}" direction="in"/>
+      <arg name="notify_user" type="b" direction="in"/>
+      <arg name="result" type="v" direction="out"/>
+    </method>
+    <method name="ExecuteRuntimeGetter">
+      <arg name="getter_name" type="s" direction="in"/>
+      <arg name="result" type="v" direction="out"/>
+    </method>
+    <method name="ExecuteRuntimeSetter">
+      <arg name="setter_name" type="s" direction="in"/>
+      <arg name="value" type="v" direction="in"/>
+      <arg name="result" type="b" direction="out"/>
+    </method>
+    <method name="ListCommands">
+      <arg name="result" type="a(ss)" direction="out"/>
+    </method>
+    <method name="ListParameterizedCommands">
+      <arg name="result" type="a(ssa(ss))" direction="out"/>
+    </method>
+    <method name="ListRuntimeGetters">
+      <arg name="result" type="a(ss)" direction="out"/>
+    </method>
+    <method name="ListRuntimeSetters">
+      <arg name="result" type="a(ss)" direction="out"/>
+    </method>
+  </interface>
+</node>

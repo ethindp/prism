@@ -120,18 +120,6 @@ if(NOT WIN32)
   list(REMOVE_ITEM headers
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.h")
 endif()
-if(ANDROID
-   OR APPLE
-   OR WIN32
-   OR WINDOWS_STORE
-   OR EMSCRIPTEN)
-  list(REMOVE_ITEM sources
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c")
-  list(REMOVE_ITEM headers
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h")
-endif()
 if(NOT ANDROID)
   list(REMOVE_ITEM sources ${android_sources})
   list(REMOVE_ITEM headers ${android_headers})
@@ -192,8 +180,40 @@ if(UNIX
    AND NOT ANDROID
    AND NOT EMSCRIPTEN)
   find_package(PkgConfig REQUIRED)
-  pkg_check_modules(GIO gio-2.0)
+  pkg_check_modules(GIO gio-unix-2.0)
   if(GIO_FOUND)
+    find_program(GDBUS_CODEGEN_EXE gdbus-codegen REQUIRED)
+    set(XML_SERVICE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-service.xml")
+    set(XML_MODULE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-module.xml")
+    set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    file(MAKE_DIRECTORY ${GEN_DIR})
+    add_custom_command(
+      OUTPUT "${GEN_DIR}/orca-service.h" "${GEN_DIR}/orca-service.c"
+      COMMAND
+        ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
+        --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+        --header --output "${GEN_DIR}/orca-service.h" "${XML_SERVICE}"
+      COMMAND
+        ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
+        --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+        --body --output "${GEN_DIR}/orca-service.c" "${XML_SERVICE}"
+      DEPENDS "${XML_SERVICE}"
+      COMMENT "Generating Orca Service DBus Code")
+    add_custom_command(
+      OUTPUT "${GEN_DIR}/orca-module.h" "${GEN_DIR}/orca-module.c"
+      COMMAND
+        ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
+        --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+        --header --output "${GEN_DIR}/orca-module.h" "${XML_MODULE}"
+      COMMAND
+        ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
+        --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+        --body --output "${GEN_DIR}/orca-module.c" "${XML_MODULE}"
+      DEPENDS "${XML_MODULE}"
+      COMMENT "Generating Orca Module DBus Code")
+    target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/orca-service.c"
+                                           "${GEN_DIR}/orca-module.c")
+    target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
     target_include_directories(
       ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
     target_link_directories(${PROJECT_NAME} PRIVATE ${GIO_LIBRARY_DIRS})

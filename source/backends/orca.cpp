@@ -6,8 +6,8 @@
 #include "utils.h"
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(__ANDROID__)
 #ifndef NO_ORCA
-#include "raw/orca-module.h"
-#include "raw/orca-service.h"
+#include "orca-module.h"
+#include "orca-service.h"
 #include <gio/gio.h>
 
 class OrcaBackend final : public TextToSpeechBackend {

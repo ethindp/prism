@@ -6,9 +6,9 @@ readme = "README.md"
 authors = [
     { name = "Ethin Probst", email = "ethindp@pm.me" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 dependencies = [
-    "cffi>=2.0.0",
+    "cffi>=1.0.0",
     "win32more>=0.8.0 ; sys_platform == 'win32'",
 ]
 
@@ -58,3 +58,49 @@ sdist.exclude = [
   "__pycache__",
   "*.egg-info",
 ]
+
+[tool.cibuildwheel]
+build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
+build-verbosity = 1
+container-engine = "podman"
+manylinux-x86_64-image = "manylinux_2_34"
+manylinux-i686-image = "manylinux_2_34"
+manylinux-pypy_x86_64-image = "manylinux_2_34"
+manylinux-aarch64-image = "manylinux_2_34"
+manylinux-ppc64le-image = "manylinux_2_34"
+manylinux-s390x-image = "manylinux_2_34"
+manylinux-riscv64-image = "manylinux_2_39"
+manylinux-pypy_aarch64-image = "manylinux_2_34"
+manylinux-pypy_i686-image = "manylinux_2_34"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "i686", "aarch64", "riscv64", "ppc64le", "s390x"]
+before-all = [
+    "dnf install -y --setopt=fastestmirror=1 speech-dispatcher-devel glib2-devel",
+]
+environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
+
+[tool.cibuildwheel.macos]
+archs = ["arm64", "x86_64"]
+environment = { MACOSX_DEPLOYMENT_TARGET = "12.0", CMAKE_OSX_DEPLOYMENT_TARGET = "12.0", CMAKE_BUILD_PARALLEL_LEVEL = "4"}
+before-build = ["xcode-select --print-path || xcode-select --install"]
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64", "ARM64"]
+environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
+
+[[tool.cibuildwheel.overrides]]
+select = "*-macosx_arm64"
+environment = { MACOSX_DEPLOYMENT_TARGET = "12.0", CMAKE_OSX_ARCHITECTURES = "arm64", CMAKE_Swift_COMPILER_TARGET = "arm64-apple-macosx12.0"}
+
+[[tool.cibuildwheel.overrides]]
+select = "*-macosx_x86_64"
+environment = {MACOSX_DEPLOYMENT_TARGET = "12.0", CMAKE_OSX_ARCHITECTURES = "x86_64", CMAKE_Swift_COMPILER_TARGET = "x86_64-apple-macosx12.0"}
+
+[[tool.cibuildwheel.overrides]]
+select = "*-win_arm64"
+environment = { CMAKE_SYSTEM_PROCESSOR = "ARM64", CMAKE_BUILD_PARALLEL_LEVEL = "4"}
+
+[[tool.cibuildwheel.overrides]]
+select = "*-manylinux_aarch64"
+environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }

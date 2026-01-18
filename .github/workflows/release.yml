@@ -47,8 +47,6 @@ jobs:
           arch: amd64
       - name: Install uv
         uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
       - name: Build Release
         run: |
           cmake -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
@@ -57,7 +55,7 @@ jobs:
         run: |
           cmake -B build-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF
           cmake --build build-debug
-      - name: Package
+      - name: Package built binaries
         shell: pwsh
         run: |
           mkdir -p dist/release/lib
@@ -78,14 +76,7 @@ jobs:
         with:
           name: windows-x64
           path: prism-windows-x64.zip
-      - name: Build Python wheel
-        shell: pwsh
-        run: |
-          uv build --wheel
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-wheel-x64
-          path: dist/*.whl
+
   windows-arm64:
     needs: version
     runs-on: windows-latest
@@ -127,24 +118,12 @@ jobs:
         with:
           name: windows-arm64
           path: prism-windows-arm64.zip
-      - name: Build Python wheel
-        shell: pwsh
-        run: |
-          uv build --wheel
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-wheel-arm64
-          path: dist/prism-*.whl
 
   macos:
     needs: version
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
       - name: Build Release
         run: |
           cmake -B build-arm64-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DPRISM_ENABLE_TESTS=OFF -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
@@ -169,36 +148,7 @@ jobs:
         with:
           name: macos-universal
           path: prism-macos-universal.zip
-      - name: Build Python wheel
-        run: |
-          uv tool install delocate
-          uv tool install wheel
-          export MACOSX_DEPLOYMENT_TARGET=12.0
-          export PRISM_VERSION="${{ needs.version.outputs.version }}"
-          build_one () {
-            local arch="$1"
-            local plat_tag="$2"
-            local swift_target="$3"
-            rm -rf build dist
-            export ARCHFLAGS="-arch ${arch}"
-            export _PYTHON_HOST_PLATFORM="macosx-12.0-${arch}"
-            export CMAKE_ARGS="-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 -DCMAKE_OSX_ARCHITECTURES=${arch} -DCMAKE_Swift_COMPILER_TARGET=${swift_target}"
-            uv build --wheel
-            pushd dist
-            whl="$(ls *.whl | head -1)"
-            uv tool run wheel tags --remove --platform-tag "${plat_tag}" "${whl}"
-            popd
-            mkdir -p "repaired_${arch}"
-            uv tool run --from delocate delocate-wheel -w "repaired_${arch}" -v --ignore-missing-dependencies dist/*.whl
-          }
-          build_one arm64  macosx_12_0_arm64  arm64-apple-macosx12.0
-          build_one x86_64 macosx_12_0_x86_64 x86_64-apple-macosx12.0
-          mkdir -p wheelhouse
-          uv tool run --from delocate delocate-merge repaired_arm64/*.whl repaired_x86_64/*.whl -w wheelhouse -v
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-wheel-universal
-          path: wheelhouse/*.whl
+
   ios:
     needs: version
     runs-on: macos-15
@@ -234,10 +184,6 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y libspeechd-dev libglib2.0-dev
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
       - name: Build Release
         run: |
           cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
@@ -257,15 +203,7 @@ jobs:
         with:
           name: linux-x64
           path: prism-linux-x64.zip
-      - name: Build Python wheel
-        run: |
-          uv build --wheel
-          uv tool install auditwheel
-          uv tool run auditwheel repair dist/*.whl -w wheelhouse
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-wheel-x64
-          path: wheelhouse/*.whl
+
   linux-arm64:
     needs: version
     runs-on: ubuntu-24.04-arm
@@ -273,10 +211,6 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y libspeechd-dev libglib2.0-dev
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
       - name: Build Release
         run: |
           cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
@@ -296,15 +230,7 @@ jobs:
         with:
           name: linux-arm64
           path: prism-linux-arm64.zip
-      - name: Build Python wheel
-        run: |
-          uv build --wheel
-          uv tool install auditwheel
-          uv tool run auditwheel repair dist/*.whl -w wheelhouse
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-wheel-arm64
-          path: wheelhouse/*.whl
+
   android:
     needs: version
     runs-on: ubuntu-latest
@@ -328,6 +254,7 @@ jobs:
         with:
           name: android
           path: prism-android.zip
+
   emscripten:
       needs: version
       runs-on: ubuntu-latest
@@ -355,12 +282,57 @@ jobs:
           with:
             name: wasm
             path: prism-wasm.zip
+
+  build_wheels:
+    name: Build wheels for ${{ matrix.os }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      matrix:
+        include:
+          - os: linux-intel
+            runs-on: ubuntu-latest
+          - os: linux-arm
+            runs-on: ubuntu-24.04-arm
+            archs: aarch64 riscv64
+          - os: windows-intel
+            runs-on: windows-latest
+          - os: windows-arm
+            runs-on: windows-11-arm
+          - os: macos-intel
+            runs-on: macos-15-intel
+          - os: macos-arm
+            runs-on: macos-latest
+          - os: android-intel
+            runs-on: ubuntu-latest
+            platform: android
+          - os: android-arm
+            runs-on: ubuntu-latest
+            platform: android
+            archs: arm64_v8a
+          - os: ios
+            runs-on: macos-latest
+            platform: ios
+          - os: pyodide
+            runs-on: ubuntu-latest
+            platform: pyodide
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.3.1
+        env:
+          CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
+          CIBW_ARCHS: ${{ matrix.archs || 'auto' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          path: ./wheelhouse/*.whl
+
   release:
     needs: [version, docs, windows-x64, windows-arm64, macos, ios, linux-x64, linux-arm64, android, emscripten]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: artifacts
       - name: Assemble SDK
@@ -389,15 +361,27 @@ jobs:
           files: |
             prism-sdk-${{ needs.version.outputs.tag }}.zip
             artifacts/windows-x64/prism-windows-x64.zip
-            artifacts/windows-wheel-x64/*.whl
             artifacts/windows-arm64/prism-windows-arm64.zip
-            artifacts/windows-wheel-arm64/*.whl
             artifacts/macos-universal/prism-macos-universal.zip
-            artifacts/macos-wheel-universal/*.whl
             artifacts/ios-arm64/prism-ios-arm64.zip
             artifacts/linux-x64/prism-linux-x64.zip
-            artifacts/linux-wheel-x64/*.whl
             artifacts/linux-arm64/prism-linux-arm64.zip
-            artifacts/linux-wheel-arm64/*.whl
             artifacts/android/prism-android.zip
             artifacts/wasm/prism-wasm.zip
+
+  upload_pypi:
+    needs: [build_wheels]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: cibw-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

@@ -1,6 +1,6 @@
 [project]
 name = "prismatoid"
-version = "0.3.5"
+version = "0.4.0"
 description = "The Platform-Agnostic Reader Interface for Speech and Messages"
 readme = "README.md"
 authors = [
@@ -76,7 +76,8 @@ manylinux-pypy_i686-image = "manylinux_2_34"
 [tool.cibuildwheel.linux]
 archs = ["x86_64", "i686", "aarch64", "riscv64", "ppc64le", "s390x"]
 before-all = [
-    "dnf install -y --setopt=fastestmirror=1 speech-dispatcher-devel glib2-devel",
+    "dnf install -y --setopt=fastestmirror=1 speech-dispatcher-devel glib2-devel || true",
+    "apt install -y libspeechd-dev libglib-dev || true",
 ]
 environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
 

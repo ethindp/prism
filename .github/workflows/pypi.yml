@@ -1,7 +1,8 @@
 name: Publish to PyPI
 on:
+  workflow_dispatch:
   release:
-    types: [created]
+    types: [published]
 concurrency:
   group: pypi-${{ github.event.release.tag_name }}
   cancel-in-progress: true

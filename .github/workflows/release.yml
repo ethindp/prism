@@ -283,62 +283,8 @@ jobs:
             name: wasm
             path: prism-wasm.zip
 
-  build_wheels:
-    name: Build wheels for ${{ matrix.os }}
-    runs-on: ${{ matrix.runs-on }}
-    strategy:
-      matrix:
-        include:
-          - os: linux-intel
-            runs-on: ubuntu-latest
-          - os: linux-arm
-            runs-on: ubuntu-24.04-arm
-          - os: windows-intel
-            runs-on: windows-latest
-          - os: windows-arm
-            runs-on: windows-11-arm
-          - os: macos-intel
-            runs-on: macos-15-intel
-          - os: macos-arm
-            runs-on: macos-latest
-          - os: android-intel
-            runs-on: ubuntu-latest
-            platform: android
-          - os: android-arm
-            runs-on: ubuntu-latest
-            platform: android
-            archs: arm64_v8a
-    steps:
-      - uses: actions/checkout@v5
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v3.3.1
-        env:
-          CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
-          CIBW_ARCHS: ${{ matrix.archs || 'auto' }}
-          ANDROID_API_LEVEL: 30
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
-          path: ./wheelhouse/*.whl
-
-  upload_pypi:
-    needs: [build_wheels]
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-      actions: read
-      contents: read
-    steps:
-      - uses: actions/download-artifact@v5
-        with:
-          pattern: cibw-*
-          path: dist
-          merge-multiple: true
-      - uses: pypa/gh-action-pypi-publish@release/v1
-
   release:
-    needs: [version, docs, windows-x64, windows-arm64, macos, ios, linux-x64, linux-arm64, android, emscripten, upload_pypi]
+    needs: [version, docs, windows-x64, windows-arm64, macos, ios, linux-x64, linux-arm64, android, emscripten]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -362,8 +308,14 @@ jobs:
           unzip -q artifacts/wasm/prism-wasm.zip -d "${sdk}/wasm/"
           find "${sdk}" -depth -type d -name include -not -path "${sdk}/include" -exec rm -rf {} +
           zip -r "${sdk}.zip" "${sdk}"
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - uses: softprops/action-gh-release@v2
         with:
+          token: ${{ steps.app-token.outputs.token }}
           tag_name: ${{ needs.version.outputs.tag }}
           name: PRISM ${{ needs.version.outputs.tag }}
           prerelease: ${{ inputs.prerelease }}

@@ -42,12 +42,12 @@ private:
   std::shared_ptr<prism::java::AbstractTextToSpeechBackend> backend{nullptr};
 
 public:
-  ~AndroidScreenReaderBackend() override {}
+  ~AndroidScreenReaderBackend() override = default;
 
   std::string_view get_name() const override { return "Android screen reader"; }
 
   BackendResult<> initialize() override {
-    if (!java_vm)
+    if (java_vm == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
     JNIEnv *jni_env = nullptr;
     constexpr jint test_versions[] = {
@@ -84,23 +84,26 @@ public:
         return std::unexpected(BackendError::BackendNotAvailable);
       }
     }
-    if (!jni_env)
+    if (jni_env == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
     auto java_class = jni_env->FindClass(
         "com/github/ethindp/prism/AndroidScreenReaderBackend");
-    if (!java_class) {
-      jni_env->ExceptionClear();
+    if (java_class == nullptr) {
+      if (jni_env->ExceptionCheck())
+        jni_env->ExceptionClear();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     jmethodID constructor = jni_env->GetMethodID(java_class, "<init>", "()V");
     if (!constructor) {
-      jni_env->ExceptionClear();
+      if (jni_env->ExceptionCheck())
+        jni_env->ExceptionClear();
       jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     auto instance = jni_env->NewObject(java_class, constructor);
     if (!instance) {
-      jni_env->ExceptionClear();
+      if (jni_env->ExceptionCheck())
+        jni_env->ExceptionClear();
       jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
@@ -108,7 +111,8 @@ public:
     jni_env->DeleteLocalRef(java_class);
     jni_env->DeleteLocalRef(instance);
     if (!backend) {
-      jni_env->ExceptionClear();
+      if (jni_env->ExceptionCheck())
+        jni_env->ExceptionClear();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (const auto res = backend->initialize(); !res)
@@ -117,7 +121,7 @@ public:
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     djinni::DataView view(reinterpret_cast<const uint8_t *>(text.data()),
                           text.size());
@@ -128,7 +132,7 @@ public:
 
   BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
                                   void *userdata) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     djinni::DataView view(reinterpret_cast<const uint8_t *>(text.data()),
                           text.size());
@@ -142,7 +146,7 @@ public:
   }
 
   BackendResult<> braille(std::string_view text) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     djinni::DataView view(reinterpret_cast<const uint8_t *>(text.data()),
                           text.size());
@@ -152,7 +156,7 @@ public:
   }
 
   BackendResult<> output(std::string_view text, bool interrupt) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     djinni::DataView view(reinterpret_cast<const uint8_t *>(text.data()),
                           text.size());
@@ -162,7 +166,7 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->is_speaking(); res)
       return *res;
@@ -171,7 +175,7 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->stop(); res)
       return {};
@@ -180,7 +184,7 @@ public:
   }
 
   BackendResult<> pause() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->pause(); res)
       return {};
@@ -189,7 +193,7 @@ public:
   }
 
   BackendResult<> resume() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->resume(); res)
       return {};
@@ -198,7 +202,7 @@ public:
   }
 
   BackendResult<> set_volume(float volume) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->set_volume(volume); res)
       return {};
@@ -207,7 +211,7 @@ public:
   }
 
   BackendResult<float> get_volume() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->get_volume(); res)
       return *res;
@@ -216,7 +220,7 @@ public:
   }
 
   BackendResult<> set_rate(float rate) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->set_rate(rate); res)
       return {};
@@ -225,7 +229,7 @@ public:
   }
 
   BackendResult<float> get_rate() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->get_rate(); res)
       return *res;
@@ -234,7 +238,7 @@ public:
   }
 
   BackendResult<> set_pitch(float pitch) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->set_pitch(pitch); res)
       return {};
@@ -243,7 +247,7 @@ public:
   }
 
   BackendResult<float> get_pitch() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->get_pitch(); res)
       return *res;
@@ -252,7 +256,7 @@ public:
   }
 
   BackendResult<> refresh_voices() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->refresh_voices(); res)
       return {};
@@ -261,19 +265,20 @@ public:
   }
 
   BackendResult<std::size_t> count_voices() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->count_voices(); res) {
       const auto val = *res;
       if (val < 0)
         return std::unexpected(BackendError::InternalBackendError);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 
   BackendResult<std::string> get_voice_name(std::size_t id) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::int64_t>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -285,7 +290,7 @@ public:
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::int64_t>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -298,7 +303,7 @@ public:
   }
 
   BackendResult<> set_voice(std::size_t id) override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::int64_t>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -309,51 +314,55 @@ public:
   }
 
   BackendResult<std::size_t> get_voice() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->get_voice(); res) {
       const auto val = *res;
       if (val < 0)
         return std::unexpected(BackendError::RangeOutOfBounds);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 
   BackendResult<std::size_t> get_channels() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->get_channels(); res) {
       const auto val = *res;
       if (val < 0)
         return std::unexpected(BackendError::RangeOutOfBounds);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 
   BackendResult<std::size_t> get_sample_rate() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->get_sample_rate(); res) {
       const auto val = *res;
       if (val < 0)
         return std::unexpected(BackendError::RangeOutOfBounds);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 
   BackendResult<std::size_t> get_bit_depth() override {
-    if (!backend)
+    if (backend == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = backend->get_bit_depth(); res) {
       const auto val = *res;
       if (val < 0)
         return std::unexpected(BackendError::RangeOutOfBounds);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 };
 

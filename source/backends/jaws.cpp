@@ -4,13 +4,13 @@
 #include "backend.h"
 #include "backend_registry.h"
 #ifdef _WIN32
-#include <windows.h>
 #include "moderncom/com_ptr.h"
 #include "moderncom/interfaces.h"
 #include "raw/fsapi.h"
 #include <algorithm>
 #include <ranges>
 #include <tchar.h>
+#include <windows.h>
 
 class JawsBackend final : public TextToSpeechBackend {
 private:
@@ -44,8 +44,8 @@ public:
     if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
-    auto bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
-    if (!bstr)
+    auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
+    if (bstr != nullptr)
       return std::unexpected(BackendError::MemoryFailure);
     if (const auto res = simdutf::convert_utf8_to_utf16le(
             text.data(), text.size(), reinterpret_cast<char16_t *>(bstr));
@@ -73,8 +73,8 @@ public:
     const auto text_len =
         simdutf::utf16_length_from_utf8(text.data(), text.size());
     const auto total_len = prefix.size() + text_len + suffix.size();
-    auto bstr = SysAllocStringLen(nullptr, static_cast<UINT>(total_len));
-    if (!bstr)
+    auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(total_len));
+    if (bstr != nullptr)
       return std::unexpected(BackendError::MemoryFailure);
     wchar_t *ptr = bstr;
     std::ranges::copy(prefix, ptr);

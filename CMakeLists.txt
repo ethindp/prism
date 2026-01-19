@@ -129,6 +129,8 @@ if(NOT EMSCRIPTEN)
 else()
   add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
 endif()
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp
+                            PROPERTIES COMPILE_OPTIONS "-w")
 set(_comp_arch_id "")
 if(DEFINED MSVC_CXX_ARCHITECTURE_ID)
   set(_comp_arch_id "${MSVC_CXX_ARCHITECTURE_ID}")
@@ -285,10 +287,7 @@ if(PRISM_ENABLE_CLANG_TIDY)
                                                  MATCHES "MSVC")
     find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
     if(CLANG_TIDY_EXE)
-      set(CLANG_TIDY_COMMAND
-          "${CLANG_TIDY_EXE}"
-          "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*,-modernize-use-trailing-return-type"
-      )
+      set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}")
       set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
                                                        "${CLANG_TIDY_COMMAND}")
       set(SKIP_LINT_FILES

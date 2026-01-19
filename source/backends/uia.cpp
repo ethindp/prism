@@ -34,7 +34,7 @@ template <class... Ts> struct overloaded : Ts... {
 struct handle_guard {
   HANDLE h{};
   ~handle_guard() {
-    if (h)
+    if (h != INVALID_HANDLE_VALUE)
       CloseHandle(h);
   }
   handle_guard(HANDLE h) : h(h) {}
@@ -54,23 +54,23 @@ using Command = std::variant<SpeakCommand, StopCommand>;
 class UiaNotificationProvider
     : public object<UiaNotificationProvider, IRawElementProviderSimple> {
 private:
-  std::atomic<HWND> hwnd{};
+  std::atomic<HWND> hwnd;
 
 public:
   explicit UiaNotificationProvider(HWND hwnd) noexcept : hwnd{hwnd} {}
 
   HRESULT STDMETHODCALLTYPE
   get_ProviderOptions(ProviderOptions *pRetVal) noexcept override {
-    if (!pRetVal)
+    if (pRetVal == nullptr)
       return E_POINTER;
-    *pRetVal = static_cast<ProviderOptions>(ProviderOptions_ServerSideProvider |
-                                            ProviderOptions_UseComThreading);
+    *pRetVal =
+        (ProviderOptions_ServerSideProvider | ProviderOptions_UseComThreading);
     return S_OK;
   }
 
-  HRESULT STDMETHODCALLTYPE
-  GetPatternProvider(PATTERNID, IUnknown **pRetVal) noexcept override {
-    if (!pRetVal)
+  HRESULT STDMETHODCALLTYPE GetPatternProvider(
+      [[maybe_unused]] PATTERNID pid, IUnknown **pRetVal) noexcept override {
+    if (pRetVal == nullptr)
       return E_POINTER;
     *pRetVal = nullptr;
     return S_OK;
@@ -78,10 +78,10 @@ public:
 
   HRESULT STDMETHODCALLTYPE
   GetPropertyValue(PROPERTYID propertyId, VARIANT *pRetVal) noexcept override {
-    if (!pRetVal)
+    if (pRetVal == nullptr)
       return E_POINTER;
     VariantInit(pRetVal);
-    const auto h = hwnd.load(std::memory_order_relaxed);
+    auto *const h = hwnd.load(std::memory_order_relaxed);
     switch (propertyId) {
     case UIA_ControlTypePropertyId:
       pRetVal->vt = VT_I4;
@@ -95,7 +95,7 @@ public:
     case UIA_NamePropertyId:
       pRetVal->vt = VT_BSTR;
       pRetVal->bstrVal = SysAllocString(_T("Prism Speech"));
-      if (!pRetVal->bstrVal)
+      if (pRetVal->bstrVal == nullptr)
         return E_OUTOFMEMORY;
       break;
     case UIA_LiveSettingPropertyId:
@@ -109,27 +109,28 @@ public:
     case UIA_AutomationIdPropertyId:
       pRetVal->vt = VT_BSTR;
       pRetVal->bstrVal = SysAllocString(_T("PrismNotification"));
-      if (!pRetVal->bstrVal)
+      if (pRetVal->bstrVal == nullptr)
         return E_OUTOFMEMORY;
       break;
     case UIA_ClassNamePropertyId:
       pRetVal->vt = VT_BSTR;
       pRetVal->bstrVal = SysAllocString(_T("PrismUIAProvider"));
-      if (!pRetVal->bstrVal)
+      if (pRetVal->bstrVal == nullptr)
         return E_OUTOFMEMORY;
       break;
     case UIA_NativeWindowHandlePropertyId:
       pRetVal->vt = VT_I4;
       pRetVal->lVal = static_cast<LONG>(reinterpret_cast<INT_PTR>(h));
       break;
-      default: break;
+    default:
+      break;
     }
     return S_OK;
   }
 
   HRESULT STDMETHODCALLTYPE get_HostRawElementProvider(
       IRawElementProviderSimple **pRetVal) noexcept override {
-    if (!pRetVal)
+    if (pRetVal == nullptr)
       return E_POINTER;
     const HWND h = hwnd.load(std::memory_order_relaxed);
     return UiaHostProviderFromHwnd(h, pRetVal);
@@ -138,10 +139,10 @@ public:
   HRESULT RaiseNotification(const std::wstring &text, bool interrupt) noexcept {
     BSTR bstr_text = SysAllocString(text.c_str());
     BSTR bstr_activity = SysAllocString(_T("Prism"));
-    if (!bstr_text || !bstr_activity) {
-      if (bstr_text)
+    if (bstr_text == nullptr || bstr_activity == nullptr) {
+      if (bstr_text != nullptr)
         SysFreeString(bstr_text);
-      if (bstr_activity)
+      if (bstr_activity != nullptr)
         SysFreeString(bstr_activity);
       return E_OUTOFMEMORY;
     }
@@ -159,9 +160,9 @@ public:
 class UiaBackend final : public TextToSpeechBackend {
 private:
   std::jthread thread;
-  std::atomic<HWND> hwnd{};
-  std::atomic<HWND> host{};
-  std::atomic_flag initialized{};
+  std::atomic<HWND> hwnd;
+  std::atomic<HWND> host;
+  std::atomic_flag initialized;
   std::atomic<UiaNotificationProvider *> provider{nullptr};
   std::wstring window_class_name;
   std::optional<bool> ready{std::nullopt};
@@ -171,20 +172,23 @@ private:
 
   static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam,
                                      LPARAM lParam) {
-    auto *self =
-        reinterpret_cast<UiaBackend *>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
-    auto *prov =
-        self ? self->provider.load(std::memory_order_acquire) : nullptr;
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
+    auto *self = reinterpret_cast<UiaBackend *>(GetWindowLongPtr(
+        hwnd, GWLP_USERDATA)); // NOLINT(performance-no-int-to-ptr)
+    auto *prov = self != nullptr
+                     ? self->provider.load(std::memory_order_acquire)
+                     : nullptr;
     switch (msg) {
     case WM_GETOBJECT:
-      if (static_cast<long>(lParam) == UiaRootObjectId && self && prov) {
+      if (static_cast<long>(lParam) == UiaRootObjectId && self != nullptr &&
+          prov != nullptr) {
         return UiaReturnRawElementProvider(
             hwnd, wParam, lParam,
             static_cast<IRawElementProviderSimple *>(prov));
       }
       break;
     case WM_UIA_EXECUTE_COMMAND: {
-      if (self && prov) {
+      if (self != nullptr && prov != nullptr) {
         Command command;
         while (self->uia_command_queue.try_dequeue(command)) {
           std::visit(overloaded{[prov](const SpeakCommand &cmd) {
@@ -204,14 +208,15 @@ private:
       return 0;
     case WM_DESTROY:
       return 0;
-      default: return DefWindowProc(hwnd, msg, wParam, lParam);
+    default:
+      return DefWindowProc(hwnd, msg, wParam, lParam);
     }
     return DefWindowProc(hwnd, msg, wParam, lParam);
   }
 
-  void thread_proc(const std::stop_token& st) {
+  void thread_proc(const std::stop_token &st) {
     handle_guard stop_event(CreateEvent(nullptr, TRUE, FALSE, nullptr));
-    if (!stop_event.h) {
+    if (stop_event.h == nullptr) {
       {
         std::lock_guard g(ready_mtx);
         ready = false;
@@ -256,7 +261,7 @@ private:
                                     _T("Prism UIA Notification"), WS_POPUP, 0,
                                     0, 0, 0, parent, nullptr, hinst, nullptr);
       hwnd.store(w, std::memory_order_relaxed);
-      if (!w) {
+      if (w == nullptr) {
         UnregisterClass(window_class_name.c_str(), hinst);
         if (should_uninit)
           CoUninitialize();
@@ -301,7 +306,7 @@ private:
         }
       }
       auto *prov = provider.exchange(nullptr, std::memory_order_acq_rel);
-      if (prov) {
+      if (prov != nullptr) {
         UiaDisconnectProvider(prov);
       }
       if (HWND h = hwnd.exchange(nullptr, std::memory_order_acq_rel)) {
@@ -323,23 +328,23 @@ public:
     if (initialized.test())
       return std::unexpected(BackendError::AlreadyInitialized);
     ready = std::nullopt;
-    if (!IsWindow(hwnd_in))
+    if (IsWindow(hwnd_in) == 0)
       return std::unexpected(BackendError::InvalidParam);
-    auto h = GetAncestor(hwnd_in, GA_ROOTOWNER);
-    if (!h)
+    auto *h = GetAncestor(hwnd_in, GA_ROOTOWNER);
+    if (h == nullptr)
       h = hwnd_in;
     host.store(h, std::memory_order_relaxed);
     DWORD pid = 0;
     GetWindowThreadProcessId(h, &pid);
     if (pid != GetCurrentProcessId())
       return std::unexpected(BackendError::InvalidParam);
-    thread =
-        std::jthread([this](const std::stop_token& st) { this->thread_proc(st); });
+    thread = std::jthread(
+        [this](const std::stop_token &st) { this->thread_proc(st); });
     bool success = ready_cv.wait_for(lock, std::chrono::seconds(5),
                                      [this] { return ready.has_value(); });
     const HWND w = hwnd.load(std::memory_order_acquire);
     const auto *p = provider.load(std::memory_order_acquire);
-    if (!success || !*ready || !w || !p)
+    if (!success || !*ready || w == nullptr || p == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
     initialized.test_and_set();
     return {};
@@ -350,7 +355,7 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     const HWND w = hwnd.load(std::memory_order_acquire);
     const auto *p = provider.load(std::memory_order_acquire);
-    if (!w || !p)
+    if (w == nullptr || p == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (!simdutf::validate_utf8(text.data(), text.size()))
       return std::unexpected(BackendError::InvalidUtf8);
@@ -380,7 +385,7 @@ public:
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     const HWND w = hwnd.load(std::memory_order_acquire);
-    if (!w)
+    if (w == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     StopCommand cmd{};
     uia_command_queue.enqueue(cmd);

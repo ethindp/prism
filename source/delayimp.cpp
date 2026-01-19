@@ -2,14 +2,19 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <array>
+#include <cstring>
 #include <cwchar>
 #include <delayimp.h>
 #include <filesystem>
 #include <nvdaController.h>
-#include <cstring>
 #include <tchar.h>
-#include <array>
 #include <utility>
+
+template <typename T> static constexpr FARPROC stub_cast(T func) {
+  // NOLINTNEXTLINE(bugprone-casting-through-void)
+  return reinterpret_cast<FARPROC>(reinterpret_cast<void *>(func));
+}
 
 extern "C" {
 using StubEntry = struct {
@@ -19,7 +24,7 @@ using StubEntry = struct {
 };
 
 static error_status_t __stdcall stub_nvdaController_setOnSsmlMarkReachedCallback(
-    onSsmlMarkReachedFuncType callback) {
+    [[maybe_unused]] onSsmlMarkReachedFuncType callback) {
   return E_NOTIMPL;
 }
 
@@ -28,7 +33,7 @@ static error_status_t __stdcall stub_nvdaController_testIfRunning() {
 }
 
 static error_status_t __stdcall stub_nvdaController_speakText(
-    const wchar_t *text) {
+    [[maybe_unused]] const wchar_t *text) {
   return E_NOTIMPL;
 }
 
@@ -37,74 +42,105 @@ static error_status_t __stdcall stub_nvdaController_cancelSpeech() {
 }
 
 static error_status_t __stdcall stub_nvdaController_brailleMessage(
-    const wchar_t *message) {
+    [[maybe_unused]] const wchar_t *message) {
   return E_NOTIMPL;
 }
 
 static error_status_t __stdcall stub_nvdaController_getProcessId(
     unsigned long *pid) {
-  if (pid)
+  if (pid != nullptr)
     *pid = 0;
   return E_NOTIMPL;
 }
 
 static error_status_t __stdcall stub_nvdaController_speakSsml(
-    const wchar_t *ssml, const SYMBOL_LEVEL symbolLevel,
-    const SPEECH_PRIORITY priority, const boolean asynchronous) {
+    [[maybe_unused]] const wchar_t *ssml,
+    [[maybe_unused]] const SYMBOL_LEVEL symbolLevel,
+    [[maybe_unused]] const SPEECH_PRIORITY priority,
+    [[maybe_unused]] const boolean asynchronous) {
   return E_NOTIMPL;
 }
 
 static error_status_t __stdcall stub_nvdaController_onSsmlMarkReached(
-    const wchar_t *mark) {
+    [[maybe_unused]] const wchar_t *mark) {
   return E_NOTIMPL;
 }
 
-static BOOL __stdcall stub_SA_SayW(const wchar_t *text) { return FALSE; }
+static BOOL __stdcall stub_SA_SayW([[maybe_unused]] const wchar_t *text) {
+  return FALSE;
+}
 
-static BOOL __stdcall stub_SA_BrlShowTextW(const wchar_t *msg) { return FALSE; }
+static BOOL __stdcall stub_SA_BrlShowTextW(
+    [[maybe_unused]] const wchar_t *msg) {
+  return FALSE;
+}
 
 static BOOL __stdcall stub_SA_StopAudio() { return FALSE; }
 
 static BOOL __stdcall stub_SA_IsRunning() { return FALSE; }
 
-static int WINAPI stub_zdsr_InitTTS(int type, const WCHAR *channelName,
-                                    BOOL bKeyDownInterrupt) {
+static int WINAPI stub_zdsr_InitTTS([[maybe_unused]] int type,
+                                    [[maybe_unused]] const WCHAR *channelName,
+                                    [[maybe_unused]] BOOL bKeyDownInterrupt) {
   return 2;
 }
 
-static int WINAPI stub_zdsr_Speak(const WCHAR *text, BOOL bInterrupt) {
+static int WINAPI stub_zdsr_Speak([[maybe_unused]] const WCHAR *text,
+                                  [[maybe_unused]] BOOL bInterrupt) {
   return 2;
 }
 
 static int WINAPI stub_zdsr_GetSpeakState() { return 2; }
 
-static void WINAPI stub_zdsr_StopSpeak() { return; }
+static void WINAPI stub_zdsr_StopSpeak() {}
 
-static const auto stubs = std::to_array<StubEntry>({
-    {"nvdaControllerClient.dll", "nvdaController_setOnSsmlMarkReachedCallback",
-     (FARPROC)stub_nvdaController_setOnSsmlMarkReachedCallback},
-    {"nvdaControllerClient.dll", "nvdaController_testIfRunning",
-     (FARPROC)stub_nvdaController_testIfRunning},
-    {"nvdaControllerClient.dll", "nvdaController_speakText",
-     (FARPROC)stub_nvdaController_speakText},
-    {"nvdaControllerClient.dll", "nvdaController_cancelSpeech",
-     (FARPROC)stub_nvdaController_cancelSpeech},
-    {"nvdaControllerClient.dll", "nvdaController_brailleMessage",
-     (FARPROC)stub_nvdaController_brailleMessage},
-    {"nvdaControllerClient.dll", "nvdaController_getProcessId",
-     (FARPROC)stub_nvdaController_getProcessId},
-    {"nvdaControllerClient.dll", "nvdaController_speakSsml",
-     (FARPROC)stub_nvdaController_speakSsml},
-    {"nvdaControllerClient.dll", "nvdaController_onSsmlMarkReached",
-     (FARPROC)stub_nvdaController_onSsmlMarkReached},
-    {"SAAPI64.dll", "SA_SayW", (FARPROC)stub_SA_SayW},
-    {"SAAPI64.dll", "SA_BrlShowTextW", (FARPROC)stub_SA_BrlShowTextW},
-    {"SAAPI64.dll", "SA_StopAudio", (FARPROC)stub_SA_StopAudio},
-    {"SAAPI64.dll", "SA_IsRunning", (FARPROC)stub_SA_IsRunning},
-    {"ZDSRAPI_x64.dll", "InitTTS", (FARPROC)stub_zdsr_InitTTS},
-    {"ZDSRAPI_x64.dll", "Speak", (FARPROC)stub_zdsr_Speak},
-    {"ZDSRAPI_x64.dll", "GetSpeakState", (FARPROC)stub_zdsr_GetSpeakState},
-    {"ZDSRAPI_x64.dll", "StopSpeak", (FARPROC)stub_zdsr_StopSpeak}});
+static const auto stubs = std::to_array<StubEntry>(
+    {{.dll = "nvdaControllerClient.dll",
+      .func = "nvdaController_setOnSsmlMarkReachedCallback",
+      .stub = stub_cast(stub_nvdaController_setOnSsmlMarkReachedCallback)},
+     {.dll = "nvdaControllerClient.dll",
+      .func = "nvdaController_testIfRunning",
+      .stub = stub_cast(stub_nvdaController_testIfRunning)},
+     {.dll = "nvdaControllerClient.dll",
+      .func = "nvdaController_speakText",
+      .stub = stub_cast(stub_nvdaController_speakText)},
+     {.dll = "nvdaControllerClient.dll",
+      .func = "nvdaController_cancelSpeech",
+      .stub = stub_cast(stub_nvdaController_cancelSpeech)},
+     {.dll = "nvdaControllerClient.dll",
+      .func = "nvdaController_brailleMessage",
+      .stub = stub_cast(stub_nvdaController_brailleMessage)},
+     {.dll = "nvdaControllerClient.dll",
+      .func = "nvdaController_getProcessId",
+      .stub = stub_cast(stub_nvdaController_getProcessId)},
+     {.dll = "nvdaControllerClient.dll",
+      .func = "nvdaController_speakSsml",
+      .stub = stub_cast(stub_nvdaController_speakSsml)},
+     {.dll = "nvdaControllerClient.dll",
+      .func = "nvdaController_onSsmlMarkReached",
+      .stub = stub_cast(stub_nvdaController_onSsmlMarkReached)},
+     {.dll = "SAAPI64.dll", .func = "SA_SayW", .stub = stub_cast(stub_SA_SayW)},
+     {.dll = "SAAPI64.dll",
+      .func = "SA_BrlShowTextW",
+      .stub = stub_cast(stub_SA_BrlShowTextW)},
+     {.dll = "SAAPI64.dll",
+      .func = "SA_StopAudio",
+      .stub = stub_cast(stub_SA_StopAudio)},
+     {.dll = "SAAPI64.dll",
+      .func = "SA_IsRunning",
+      .stub = stub_cast(stub_SA_IsRunning)},
+     {.dll = "ZDSRAPI_x64.dll",
+      .func = "InitTTS",
+      .stub = stub_cast(stub_zdsr_InitTTS)},
+     {.dll = "ZDSRAPI_x64.dll",
+      .func = "Speak",
+      .stub = stub_cast(stub_zdsr_Speak)},
+     {.dll = "ZDSRAPI_x64.dll",
+      .func = "GetSpeakState",
+      .stub = stub_cast(stub_zdsr_GetSpeakState)},
+     {.dll = "ZDSRAPI_x64.dll",
+      .func = "StopSpeak",
+      .stub = stub_cast(stub_zdsr_StopSpeak)}});
 
 static int dummy_count = 0;
 
@@ -126,7 +162,7 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
         path_buffer.resize(len);
         const auto dll_path =
             fs::path(path_buffer).replace_filename(pdli->szDll);
-        if (const auto h = LoadLibrary(dll_path.c_str()); h != nullptr) {
+        if (auto *const h = LoadLibrary(dll_path.c_str()); h != nullptr) {
           return reinterpret_cast<FARPROC>(h);
         }
       }
@@ -149,7 +185,7 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
             path += _T('\\');
           }
           path += _T("ZDSRAPI_x64.dll");
-          const auto h = LoadLibrary(path.c_str());
+          auto *const h = LoadLibrary(path.c_str());
           RegCloseKey(zdsr_key);
           if (h != nullptr) {
             return reinterpret_cast<FARPROC>(h);
@@ -160,14 +196,16 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
       }
     }
     if (dummy_count < 512) {
-      auto dummy = (HMODULE)(intptr_t)(0xDEAD0000 + dummy_count);
+      // NOLINTNEXTLINE(performance-no-int-to-ptr)
+      auto *dummy = reinterpret_cast<HMODULE>(
+          static_cast<uintptr_t>(0xDEAD0000 + dummy_count));
       dummy_count++;
       return reinterpret_cast<FARPROC>(dummy);
     }
     return reinterpret_cast<FARPROC>(reinterpret_cast<HMODULE>(1));
   } break;
   case dliFailGetProc: {
-    for (const auto& e: stubs) {
+    for (const auto &e : stubs) {
       if (_stricmp(pdli->szDll, e.dll) == 0 &&
           strcmp(pdli->dlp.szProcName, e.func) == 0) {
         return e.stub;
@@ -175,7 +213,8 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
     }
     return nullptr;
   } break;
-  default: break;
+  default:
+    break;
   }
   return nullptr;
 }

@@ -20,13 +20,13 @@
 
 double range_convert(double old_value, double old_min, double old_max,
                      double new_min, double new_max) {
-  return ((old_value - old_min) / (old_max - old_min)) * (new_max - new_min) +
+  return (((old_value - old_min) / (old_max - old_min)) * (new_max - new_min)) +
          new_min;
 }
 
 float range_convert(float old_value, float old_min, float old_max,
                     float new_min, float new_max) {
-  return ((old_value - old_min) / (old_max - old_min)) * (new_max - new_min) +
+  return (((old_value - old_min) / (old_max - old_min)) * (new_max - new_min)) +
          new_min;
 }
 

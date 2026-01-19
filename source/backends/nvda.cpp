@@ -22,7 +22,7 @@ public:
     if (nvdaController_testIfRunning() != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (interrupt) {
-      if (nvdaController_cancelSpeech())
+      if (nvdaController_cancelSpeech() != ERROR_SUCCESS)
         return std::unexpected(BackendError::InternalBackendError);
     }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
@@ -33,7 +33,7 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (nvdaController_speakText(wstr.c_str()))
+    if (nvdaController_speakText(wstr.c_str()) != ERROR_SUCCESS)
       return std::unexpected(BackendError::InternalBackendError);
     return {};
   }
@@ -49,7 +49,7 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (nvdaController_brailleMessage(wstr.c_str()))
+    if (nvdaController_brailleMessage(wstr.c_str()) != ERROR_SUCCESS)
       return std::unexpected(BackendError::InternalBackendError);
     return {};
   }
@@ -65,7 +65,7 @@ public:
   BackendResult<> stop() override {
     if (nvdaController_testIfRunning() != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
-    if (nvdaController_cancelSpeech())
+    if (nvdaController_cancelSpeech() != ERROR_SUCCESS)
       return std::unexpected(BackendError::InternalBackendError);
     return {};
   }

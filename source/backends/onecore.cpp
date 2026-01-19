@@ -110,7 +110,7 @@ public:
       Buffer buffer(size);
       stream.ReadAsync(buffer, size, InputStreamOptions::None).get();
       drwav wav;
-      if (!drwav_init_memory(&wav, buffer.data(), size, nullptr))
+      if (drwav_init_memory(&wav, buffer.data(), size, nullptr) == 0)
         return std::unexpected(BackendError::InternalBackendError);
       auto frame_count = wav.totalPCMFrameCount;
       std::vector<float> samples(frame_count * wav.channels);
@@ -191,7 +191,7 @@ public:
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     try {
-      if (volume < 0.0f || volume > 1.0f)
+      if (volume < 0.0F || volume > 1.0F)
         return std::unexpected(BackendError::RangeOutOfBounds);
       synth.Options().AudioVolume(volume);
       return {};
@@ -250,7 +250,7 @@ public:
   BackendResult<std::size_t> count_voices() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    return synth.AllVoices().Size();
+    return SpeechSynthesizer::AllVoices().Size();
   }
 
   BackendResult<std::string> get_voice_name(std::size_t id) override {
@@ -258,7 +258,7 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto voices = synth.AllVoices();
+    const auto voices = SpeechSynthesizer::AllVoices();
     if (id >= voices.Size())
       return std::unexpected(BackendError::RangeOutOfBounds);
     return to_string(
@@ -270,7 +270,7 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto voices = synth.AllVoices();
+    const auto voices = SpeechSynthesizer::AllVoices();
     if (id >= voices.Size())
       return std::unexpected(BackendError::RangeOutOfBounds);
     return to_string(voices.GetAt(static_cast<std::uint32_t>(id)).Language());
@@ -281,7 +281,7 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto voices = synth.AllVoices();
+    const auto voices = SpeechSynthesizer::AllVoices();
     if (id >= voices.Size())
       return std::unexpected(BackendError::RangeOutOfBounds);
     synth.Voice(voices.GetAt(static_cast<std::uint32_t>(id)));
@@ -293,7 +293,7 @@ public:
   BackendResult<std::size_t> get_voice() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    const auto voices = synth.AllVoices();
+    const auto voices = SpeechSynthesizer::AllVoices();
     for (std::uint32_t i = 0; i < voices.Size(); ++i) {
       if (synth.Voice().Id() == voices.GetAt(i).Id())
         return i;
@@ -336,7 +336,7 @@ public:
       Buffer buffer(size);
       stream.ReadAsync(buffer, size, InputStreamOptions::None).get();
       drwav wav;
-      if (drwav_init_memory(&wav, buffer.data(), size, nullptr)) {
+      if (drwav_init_memory(&wav, buffer.data(), size, nullptr) == 0) {
         cached_channels = wav.channels;
         cached_sample_rate = wav.sampleRate;
         cached_bit_depth = wav.bitsPerSample;
@@ -344,7 +344,7 @@ public:
         drwav_uninit(&wav);
       }
     } catch (...) {
-    return;
+      return;
     }
   }
 };

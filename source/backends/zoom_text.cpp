@@ -4,13 +4,13 @@
 #include "backend.h"
 #include "backend_registry.h"
 #ifdef _WIN32
-#include <windows.h>
 #include "moderncom/com_ptr.h"
 #include "moderncom/interfaces.h"
 #include "raw/zt.h"
 #include <algorithm>
 #include <ranges>
 #include <tchar.h>
+#include <windows.h>
 
 class ZoomTextBackend final : public TextToSpeechBackend {
 private:
@@ -20,12 +20,15 @@ private:
 public:
   ~ZoomTextBackend() override = default;
 
-  [[nodiscard]] std::string_view get_name() const override { return "ZoomText"; }
+  [[nodiscard]] std::string_view get_name() const override {
+    return "ZoomText";
+  }
 
   BackendResult<> initialize() override {
-    if (controller || speech)
+    if (controller != nullptr || speech != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
-    if (!FindWindow(_T("ZXSPEECHWNDCLASS"), _T("ZoomText Speech Processor"))) {
+    if (FindWindow(_T("ZXSPEECHWNDCLASS"), _T("ZoomText Speech Processor")) ==
+        nullptr) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     switch (controller.CoCreateInstance(CLSID_ZoomText)) {
@@ -44,7 +47,7 @@ public:
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (!controller || !speech)
+    if (controller == nullptr || speech == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     belt::com::com_ptr<IVoice> voice;
     if (FAILED(speech->get_CurrentVoice(voice.put())))
@@ -56,8 +59,8 @@ public:
       }
     }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
-    auto bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
-    if (!bstr)
+    auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
+    if (bstr == nullptr)
       return std::unexpected(BackendError::MemoryFailure);
     if (const auto res = simdutf::convert_utf8_to_utf16le(
             text.data(), text.size(), reinterpret_cast<char16_t *>(bstr));
@@ -83,7 +86,7 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    if (!controller || !speech)
+    if (controller == nullptr || speech == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     belt::com::com_ptr<IVoice> voice;
     if (FAILED(speech->get_CurrentVoice(voice.put())))
@@ -96,7 +99,7 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (!controller || !speech)
+    if (controller == nullptr || speech == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     belt::com::com_ptr<IVoice> voice;
     if (FAILED(speech->get_CurrentVoice(voice.put())))

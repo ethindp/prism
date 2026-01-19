@@ -293,7 +293,6 @@ jobs:
             runs-on: ubuntu-latest
           - os: linux-arm
             runs-on: ubuntu-24.04-arm
-            archs: aarch64 riscv64
           - os: windows-intel
             runs-on: windows-latest
           - os: windows-arm
@@ -322,8 +321,24 @@ jobs:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
+  upload_pypi:
+    needs: [build_wheels]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: cibw-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
   release:
-    needs: [version, docs, windows-x64, windows-arm64, macos, ios, linux-x64, linux-arm64, android, emscripten, build_wheels]
+    needs: [version, docs, windows-x64, windows-arm64, macos, ios, linux-x64, linux-arm64, android, emscripten, upload_pypi]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -363,17 +378,3 @@ jobs:
             artifacts/linux-arm64/prism-linux-arm64.zip
             artifacts/android/prism-android.zip
             artifacts/wasm/prism-wasm.zip
-
-  upload_pypi:
-    needs: [release]
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v5
-        with:
-          pattern: cibw-*
-          path: dist
-          merge-multiple: true
-      - uses: pypa/gh-action-pypi-publish@release/v1

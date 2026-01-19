@@ -330,8 +330,3 @@ jobs:
             artifacts/linux-arm64/prism-linux-arm64.zip
             artifacts/android/prism-android.zip
             artifacts/wasm/prism-wasm.zip
-      - name: Trigger PyPI workflow
-        if: ${{ !inputs.prerelease }}
-        run: gh workflow run pypi.yml --ref "${{ needs.version.outputs.tag }}"
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}

@@ -82,7 +82,7 @@ environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
 
 [tool.cibuildwheel.macos]
 archs = ["arm64", "x86_64"]
-environment = { MACOSX_DEPLOYMENT_TARGET = "12.0", CMAKE_OSX_DEPLOYMENT_TARGET = "12.0", CMAKE_BUILD_PARALLEL_LEVEL = "4"}
+environment = { MACOSX_DEPLOYMENT_TARGET = "15.0", CMAKE_OSX_DEPLOYMENT_TARGET = "15.0", CMAKE_BUILD_PARALLEL_LEVEL = "4"}
 before-build = ["xcode-select --print-path || xcode-select --install"]
 
 [tool.cibuildwheel.windows]
@@ -91,11 +91,11 @@ environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
 
 [[tool.cibuildwheel.overrides]]
 select = "*-macosx_arm64"
-environment = { MACOSX_DEPLOYMENT_TARGET = "12.0", CMAKE_OSX_ARCHITECTURES = "arm64", CMAKE_Swift_COMPILER_TARGET = "arm64-apple-macosx12.0"}
+environment = { MACOSX_DEPLOYMENT_TARGET = "15.0", CMAKE_OSX_ARCHITECTURES = "arm64", CMAKE_Swift_COMPILER_TARGET = "arm64-apple-macosx15.0"}
 
 [[tool.cibuildwheel.overrides]]
 select = "*-macosx_x86_64"
-environment = {MACOSX_DEPLOYMENT_TARGET = "12.0", CMAKE_OSX_ARCHITECTURES = "x86_64", CMAKE_Swift_COMPILER_TARGET = "x86_64-apple-macosx12.0"}
+environment = {MACOSX_DEPLOYMENT_TARGET = "15.0", CMAKE_OSX_ARCHITECTURES = "x86_64", CMAKE_Swift_COMPILER_TARGET = "x86_64-apple-macosx15.0"}
 
 [[tool.cibuildwheel.overrides]]
 select = "*-win_arm64"

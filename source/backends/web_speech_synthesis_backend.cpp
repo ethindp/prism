@@ -85,6 +85,7 @@ public:
                   create_callback(&WebSpeechSynthesisBackend::handleResume));
     current_utterance = utterance;
     synth.call<void>("speak", utterance);
+    speaking.test_and_set();
     return {};
   }
 
@@ -95,8 +96,7 @@ public:
   BackendResult<bool> is_speaking() override {
     if (synth.isNull())
       return std::unexpected(BackendError::NotInitialized);
-    return speaking.test() || !paused.test() || synth["speaking"].as<bool>() ||
-           synth["pending"].as<bool>();
+    return synth["speaking"].as<bool>() || synth["pending"].as<bool>();
   }
 
   BackendResult<> stop() override {

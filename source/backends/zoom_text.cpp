@@ -14,8 +14,8 @@
 
 class ZoomTextBackend final : public TextToSpeechBackend {
 private:
-  belt::com::com_ptr<IZoomText2> controller;
-  belt::com::com_ptr<ISpeech2> speech;
+  belt::com::com_ptr<IZoomText2> controller{nullptr};
+  belt::com::com_ptr<ISpeech2> speech{nullptr};
 
 public:
   ~ZoomTextBackend() override = default;
@@ -32,18 +32,18 @@ public:
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     switch (controller.CoCreateInstance(CLSID_ZoomText)) {
-    case S_OK:
+    case S_OK: {
+      if (FAILED(controller->get_Speech(speech.put()))) {
+        return std::unexpected(BackendError::BackendNotAvailable);
+      }
       return {};
+    }
     case REGDB_E_CLASSNOTREG:
     case E_NOINTERFACE:
       return std::unexpected(BackendError::BackendNotAvailable);
     default:
       return std::unexpected(BackendError::Unknown);
     }
-    if (FAILED(controller->get_Speech(speech.put()))) {
-      return std::unexpected(BackendError::BackendNotAvailable);
-    }
-    return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
@@ -60,16 +60,32 @@ public:
     }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
-    if (bstr == nullptr)
+    if (bstr == nullptr) {
+      if (interrupt) {
+        if (FAILED(voice->put_AllowInterrupt(VARIANT_FALSE))) {
+          return std::unexpected(BackendError::InternalBackendError);
+        }
+      }
       return std::unexpected(BackendError::MemoryFailure);
+    }
     if (const auto res = simdutf::convert_utf8_to_utf16le(
             text.data(), text.size(), reinterpret_cast<char16_t *>(bstr));
         res == 0) {
       SysFreeString(bstr);
+      if (interrupt) {
+        if (FAILED(voice->put_AllowInterrupt(VARIANT_FALSE))) {
+          return std::unexpected(BackendError::InternalBackendError);
+        }
+      }
       return std::unexpected(BackendError::InvalidUtf8);
     }
     if (FAILED(voice->Speak(bstr))) {
       SysFreeString(bstr);
+      if (interrupt) {
+        if (FAILED(voice->put_AllowInterrupt(VARIANT_FALSE))) {
+          return std::unexpected(BackendError::InternalBackendError);
+        }
+      }
       return std::unexpected(BackendError::SpeakFailure);
     }
     SysFreeString(bstr);

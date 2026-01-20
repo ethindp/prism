@@ -34,7 +34,7 @@ template <class... Ts> struct overloaded : Ts... {
 struct handle_guard {
   HANDLE h{};
   ~handle_guard() {
-    if (h != INVALID_HANDLE_VALUE)
+    if (h != nullptr && h != INVALID_HANDLE_VALUE)
       CloseHandle(h);
   }
   handle_guard(HANDLE h) : h(h) {}

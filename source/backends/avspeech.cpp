@@ -10,7 +10,7 @@
 
 class AVSpeechBackend final : public TextToSpeechBackend {
 private:
-  AVSpeechContext *ctx;
+  AVSpeechContext *ctx{nullptr};
 
 public:
   ~AVSpeechBackend() {
@@ -30,7 +30,7 @@ public:
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (ctx != nullptr)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (interrupt) {
       if (const auto res = stop(); !res)
@@ -50,7 +50,7 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    if (ctx != nullptr)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     return avspeech_is_speaking(ctx);
   }

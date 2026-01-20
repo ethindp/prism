@@ -22,7 +22,7 @@ public:
   [[nodiscard]] std::string_view get_name() const override { return "JAWS"; }
 
   BackendResult<> initialize() override {
-    if (controller)
+    if (controller != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
     if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -39,13 +39,13 @@ public:
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (!controller)
+    if (controller == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
-    if (bstr != nullptr)
+    if (bstr == nullptr)
       return std::unexpected(BackendError::MemoryFailure);
     if (const auto res = simdutf::convert_utf8_to_utf16le(
             text.data(), text.size(), reinterpret_cast<char16_t *>(bstr));
@@ -64,7 +64,7 @@ public:
   }
 
   BackendResult<> braille(std::string_view text) override {
-    if (!controller)
+    if (controller == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -74,7 +74,7 @@ public:
         simdutf::utf16_length_from_utf8(text.data(), text.size());
     const auto total_len = prefix.size() + text_len + suffix.size();
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(total_len));
-    if (bstr != nullptr)
+    if (bstr == nullptr)
       return std::unexpected(BackendError::MemoryFailure);
     wchar_t *ptr = bstr;
     std::ranges::copy(prefix, ptr);
@@ -108,7 +108,7 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (!controller)
+    if (controller == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);

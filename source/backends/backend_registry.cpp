@@ -159,6 +159,8 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire(BackendId id) {
       if (auto existing = e.cached; !existing.expired())
         return existing.lock();
       auto backend = e.factory();
+      if (backend == nullptr)
+        return nullptr;
 #ifdef __ANDROID__
       backend->set_java_vm(java_vm);
 #endif
@@ -180,6 +182,8 @@ BackendRegistry::acquire(std::string_view name) {
       if (auto existing = e.cached; !existing.expired())
         return existing.lock();
       auto backend = e.factory();
+      if (backend == nullptr)
+        return nullptr;
 #ifdef __ANDROID__
       backend->set_java_vm(java_vm);
 #endif

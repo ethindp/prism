@@ -14,18 +14,24 @@
 
 class OrcaBackend final : public TextToSpeechBackend {
 private:
-  GDBusConnection *conn;
-  OrcaServiceOrgGnomeOrcaService *service_proxy;
-  OrcaModuleOrgGnomeOrcaModule *module_proxy;
+  GDBusConnection *conn{nullptr};
+  OrcaServiceOrgGnomeOrcaService *service_proxy{nullptr};
+  OrcaModuleOrgGnomeOrcaModule *module_proxy{nullptr};
 
 public:
   ~OrcaBackend() override {
-    if (module_proxy)
+    if (module_proxy) {
       g_object_unref(module_proxy);
-    if (service_proxy)
+      module_proxy = nullptr;
+    }
+    if (service_proxy) {
       g_object_unref(service_proxy);
-    if (conn)
+      service_proxy = nullptr;
+    }
+    if (conn) {
       g_object_unref(conn);
+      conn = nullptr;
+    }
   }
 
   std::string_view get_name() const override { return "Orca"; }

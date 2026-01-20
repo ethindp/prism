@@ -13,7 +13,7 @@
 
 class SpeechDispatcherBackend final : public TextToSpeechBackend {
 private:
-  SPDConnection *conn;
+  SPDConnection *conn{nullptr};
 
 public:
   ~SpeechDispatcherBackend() override {

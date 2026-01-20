@@ -33,9 +33,9 @@ private:
   MediaPlayer player{nullptr};
   std::atomic<MediaPlaybackState> current_state{MediaPlaybackState::None};
   winrt::event_token state_changed_token{};
-  std::size_t cached_channels;
-  std::size_t cached_sample_rate;
-  std::size_t cached_bit_depth;
+  std::size_t cached_channels = 0;
+  std::size_t cached_sample_rate = 0;
+  std::size_t cached_bit_depth = 0;
   bool format_cached = false;
 
 public:
@@ -55,6 +55,8 @@ public:
         !ApiInformation::IsTypePresent(
             _T("Windows.Media.Playback.MediaPlayer")))
       return std::unexpected(BackendError::BackendNotAvailable);
+    if (synth || player)
+      return std::unexpected(BackendError::AlreadyInitialized);
     try {
       synth = SpeechSynthesizer();
       synth.Options().AppendedSilence(SpeechAppendedSilence::Min);
@@ -79,8 +81,7 @@ public:
     }
     try {
       if (interrupt)
-        if (const auto res = stop();
-            !res && res.error() != BackendError::NotSpeaking)
+        if (const auto res = stop(); !res)
           return res;
       const auto wtext = to_hstring(text);
       const auto stream = synth.SynthesizeTextToStreamAsync(wtext).get();
@@ -336,7 +337,7 @@ public:
       Buffer buffer(size);
       stream.ReadAsync(buffer, size, InputStreamOptions::None).get();
       drwav wav;
-      if (drwav_init_memory(&wav, buffer.data(), size, nullptr) == 0) {
+      if (drwav_init_memory(&wav, buffer.data(), size, nullptr) != 0) {
         cached_channels = wav.channels;
         cached_sample_rate = wav.sampleRate;
         cached_bit_depth = wav.bitsPerSample;

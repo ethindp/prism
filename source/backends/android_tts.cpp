@@ -91,18 +91,21 @@ public:
     auto java_class = jni_env->FindClass(
         "com/github/ethindp/prism/AndroidTextToSpeechBackend");
     if (!java_class) {
-      jni_env->ExceptionClear();
+      if (jni_env->ExceptionCheck())
+        jni_env->ExceptionClear();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     jmethodID constructor = jni_env->GetMethodID(java_class, "<init>", "()V");
     if (!constructor) {
-      jni_env->ExceptionClear();
+      if (jni_env->ExceptionCheck())
+        jni_env->ExceptionClear();
       jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     auto instance = jni_env->NewObject(java_class, constructor);
     if (!instance) {
-      jni_env->ExceptionClear();
+      if (jni_env->ExceptionCheck())
+        jni_env->ExceptionClear();
       jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
@@ -110,7 +113,8 @@ public:
     jni_env->DeleteLocalRef(java_class);
     jni_env->DeleteLocalRef(instance);
     if (!backend) {
-      jni_env->ExceptionClear();
+      if (jni_env->ExceptionCheck())
+        jni_env->ExceptionClear();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (const auto res = backend->initialize(); !res)

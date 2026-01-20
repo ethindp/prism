@@ -32,19 +32,19 @@ public:
 
   BackendResult<> initialize() override {
     if (sapi != nullptr) {
-      sb_sapi_cleanup(sapi);
-      delete sapi;
-      sapi = nullptr;
+      return std::unexpected(BackendError::AlreadyInitialized);
     }
     sapi = new sb_sapi{};
-    if (sb_sapi_initialise(sapi) == 0)
+    if (sb_sapi_initialise(sapi) == 0) {
+      delete sapi;
       return std::unexpected(BackendError::InternalBackendError);
+    }
     initialized.test_and_set();
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (!simdutf::validate_utf8(text.data(), text.size())) {
       return std::unexpected(BackendError::InvalidUtf8);
@@ -66,7 +66,7 @@ public:
 
   BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
                                   void *userdata) override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (!simdutf::validate_utf8(text.data(), text.size())) {
       return std::unexpected(BackendError::InvalidUtf8);
@@ -107,22 +107,22 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     return sb_sapi_is_speaking(sapi);
   }
 
   BackendResult<> stop() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (sb_sapi_stop(sapi) == 0) {
+    if (sb_sapi_stop(sapi) != 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     return {};
   }
 
   BackendResult<> pause() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (paused.test())
       return std::unexpected(BackendError::AlreadyPaused);
@@ -133,7 +133,7 @@ public:
   }
 
   BackendResult<> resume() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (!paused.test())
       return std::unexpected(BackendError::NotPaused);
@@ -144,7 +144,7 @@ public:
   }
 
   BackendResult<> set_volume(float volume) override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (volume < 0.0F || volume > 1.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -158,20 +158,20 @@ public:
   }
 
   BackendResult<float> get_volume() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     const auto val = sb_sapi_get_volume(sapi);
-    return std::round(range_convert_midpoint(static_cast<float>(val), -10, 0,
-                                             10, 0.0, 0.5, 1.0));
+    return range_convert_midpoint(static_cast<float>(val), -10, 0, 10, 0.0, 0.5,
+                                  1.0);
   }
 
   BackendResult<> set_rate(float rate) override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (rate < 0.0F || rate > 1.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto val = std::round(
-        range_convert_midpoint(rate, 0.0, 0.5, 1.0, -10.0, 0.0, 10.0));
+    const auto val =
+        range_convert_midpoint(rate, 0.0, 0.5, 1.0, -10.0, 0.0, 10.0);
     if (val < -10.0F || val > 10.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
     if (sb_sapi_set_rate(sapi, static_cast<int>(val)) == 0)
@@ -180,20 +180,20 @@ public:
   }
 
   BackendResult<float> get_rate() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     const auto val = sb_sapi_get_rate(sapi);
-    return std::round(range_convert_midpoint(static_cast<float>(val), -10, 0,
-                                             10, 0.0, 0.5, 1.0));
+    return range_convert_midpoint(static_cast<float>(val), -10, 0, 10, 0.0, 0.5,
+                                  1.0);
   }
 
   BackendResult<> set_pitch(float pitch) override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (pitch < 0.0F || pitch > 1.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto val = std::round(
-        range_convert_midpoint(pitch, 0.0, 0.5, 1.0, -10.0, 0.0, 10.0));
+    const auto val =
+        range_convert_midpoint(pitch, 0.0, 0.5, 1.0, -10.0, 0.0, 10.0);
     if (val < -10.0F || val > 10.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
     if (sb_sapi_set_pitch(sapi, static_cast<int>(val)) == 0)
@@ -202,15 +202,15 @@ public:
   }
 
   BackendResult<float> get_pitch() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     const auto val = sb_sapi_get_pitch(sapi);
-    return std::round(range_convert_midpoint(static_cast<float>(val), -10, 0,
-                                             10, 0.0, 0.5, 1.0));
+    return range_convert_midpoint(static_cast<float>(val), -10, 0, 10, 0.0, 0.5,
+                                  1.0);
   }
 
   BackendResult<> refresh_voices() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (sb_sapi_refresh_voices(sapi) == 0)
       return std::unexpected(BackendError::InternalBackendError);
@@ -218,13 +218,13 @@ public:
   }
 
   BackendResult<std::size_t> count_voices() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     return sb_sapi_count_voices(sapi);
   }
 
   BackendResult<std::string> get_voice_name(std::size_t id) override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -239,7 +239,7 @@ public:
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -255,7 +255,7 @@ public:
   }
 
   BackendResult<> set_voice(std::size_t id) override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -265,7 +265,7 @@ public:
   }
 
   BackendResult<std::size_t> get_voice() override {
-    if (sapi != nullptr || !initialized.test())
+    if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     return sb_sapi_get_voice(sapi);
   }

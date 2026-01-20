@@ -104,6 +104,7 @@ PRISM_API PrismContext *PRISM_CALL prism_init(PrismConfig *cfg) {
 #endif
 #ifdef _WIN32
     ctx->registry.set_hwnd(cfg->hwnd);
+    ctx->com_initialized = owns_com;
 #endif
     return ctx;
   }

@@ -11,7 +11,6 @@ Checks: '-*,
          -readability-identifier-length,
          - readability-braces-around-statements,
          -readability-magic-numbers,
-         -readability-else-after-return,
          -clang-analyzer-optin.core.EnumCastOutOfRange,
          -bugprone-easily-swappable-parameters,
          -readability-function-cognitive-complexity'

@@ -65,12 +65,10 @@ jobs:
           mkdir -p dist/include
           cp build-release/prism.dll dist/release/bin/
           cp build-release/prism.lib dist/release/lib/
-          cp build-release/nvdaControllerClient.dll dist/release/bin/
           cp include/prism.h dist/include/
           cp build-debug/prism.dll dist/debug/bin/
           cp build-debug/prism.lib dist/debug/lib/
           cp build-debug/prism.pdb dist/debug/bin/
-          cp build-debug/nvdaControllerClient.dll dist/debug/bin/
           Compress-Archive -Path dist/* -DestinationPath prism-windows-x64.zip
       - uses: actions/upload-artifact@v4
         with:
@@ -107,12 +105,10 @@ jobs:
           mkdir -p dist/include
           cp build-release/prism.dll dist/release/bin/
           cp build-release/prism.lib dist/release/lib/
-          cp build-release/nvdaControllerClient.dll dist/release/bin/
           cp include/prism.h dist/include/
           cp build-debug/prism.dll dist/debug/bin/
           cp build-debug/prism.lib dist/debug/lib/
           cp build-debug/prism.pdb dist/debug/bin/
-          cp build-debug/nvdaControllerClient.dll dist/debug/bin/
           Compress-Archive -Path dist/* -DestinationPath prism-windows-arm64.zip
       - uses: actions/upload-artifact@v4
         with:

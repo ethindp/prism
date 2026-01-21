@@ -13,7 +13,7 @@ http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 */
 
 [
-	implicit_handle(handle_t nvdaControllerBindingHandle)
+	explicit_handle
 ]
 interface NvdaController {
 	[fault_status,comm_status] testIfRunning();
@@ -23,7 +23,7 @@ interface NvdaController {
 }
 
 [
-	implicit_handle(handle_t nvdaController2BindingHandle)
+	explicit_handle
 ]
 interface NvdaController2 {
 	[fault_status,comm_status] getProcessId();

@@ -291,7 +291,7 @@ jobs:
         run: |
           tag="${{ needs.version.outputs.tag }}"
           sdk="prism-sdk-${tag}"
-          mkdir -p "${sdk}"/{windows/x64,windows/arm64,macos/universal,ios/arm64,linux/x64,linux/arm64,android,wasm,include,doc}
+          mkdir -p "${sdk}"/{windows/x64,windows/arm64,macos/universal,ios/arm64,linux/x64,linux/arm64,android,wasm,include,doc,LICENSES}
           cp include/prism.h "${sdk}/include/"
           cp -r artifacts/docs/* "${sdk}/doc/"
           unzip -q artifacts/windows-x64/prism-windows-x64.zip -d "${sdk}/windows/x64/"
@@ -303,6 +303,7 @@ jobs:
           unzip -q artifacts/android/prism-android.zip -d "${sdk}/android/"
           unzip -q artifacts/wasm/prism-wasm.zip -d "${sdk}/wasm/"
           find "${sdk}" -depth -type d -name include -not -path "${sdk}/include" -exec rm -rf {} +
+          cp -r LICENSES "${sdk}"
           zip -r "${sdk}.zip" "${sdk}"
       - uses: actions/create-github-app-token@v1
         id: app-token

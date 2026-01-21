@@ -13,9 +13,9 @@
 extern "C" {
 static thread_local onSsmlMarkReachedFuncType ssml_mark_reached_callback =
     nullptr;
-void *midl_user_allocate(size_t size) { return malloc(size); }
+void *__RPC_USER midl_user_allocate(size_t size) { return malloc(size); }
 
-void midl_user_free(void *p) {
+void __RPC_USER midl_user_free(void *p) {
   if (p != nullptr)
     std::free(p);
 }

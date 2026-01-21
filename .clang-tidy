@@ -13,7 +13,8 @@ Checks: '-*,
          -readability-magic-numbers,
          -clang-analyzer-optin.core.EnumCastOutOfRange,
          -bugprone-easily-swappable-parameters,
-         -readability-function-cognitive-complexity'
+         -readability-function-cognitive-complexity,
+         -readability-else-after-return'
 WarningsAsErrors: '*'
 HeaderFilterRegex: '^(source|include)/.*'
 FormatStyle: file

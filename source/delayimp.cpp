@@ -7,7 +7,6 @@
 #include <cwchar>
 #include <delayimp.h>
 #include <filesystem>
-#include <nvdaController.h>
 #include <tchar.h>
 #include <utility>
 
@@ -22,49 +21,6 @@ using StubEntry = struct {
   const char *func;
   FARPROC stub;
 };
-
-static error_status_t __stdcall stub_nvdaController_setOnSsmlMarkReachedCallback(
-    [[maybe_unused]] onSsmlMarkReachedFuncType callback) {
-  return E_NOTIMPL;
-}
-
-static error_status_t __stdcall stub_nvdaController_testIfRunning() {
-  return E_NOTIMPL;
-}
-
-static error_status_t __stdcall stub_nvdaController_speakText(
-    [[maybe_unused]] const wchar_t *text) {
-  return E_NOTIMPL;
-}
-
-static error_status_t __stdcall stub_nvdaController_cancelSpeech() {
-  return E_NOTIMPL;
-}
-
-static error_status_t __stdcall stub_nvdaController_brailleMessage(
-    [[maybe_unused]] const wchar_t *message) {
-  return E_NOTIMPL;
-}
-
-static error_status_t __stdcall stub_nvdaController_getProcessId(
-    unsigned long *pid) {
-  if (pid != nullptr)
-    *pid = 0;
-  return E_NOTIMPL;
-}
-
-static error_status_t __stdcall stub_nvdaController_speakSsml(
-    [[maybe_unused]] const wchar_t *ssml,
-    [[maybe_unused]] const SYMBOL_LEVEL symbolLevel,
-    [[maybe_unused]] const SPEECH_PRIORITY priority,
-    [[maybe_unused]] const boolean asynchronous) {
-  return E_NOTIMPL;
-}
-
-static error_status_t __stdcall stub_nvdaController_onSsmlMarkReached(
-    [[maybe_unused]] const wchar_t *mark) {
-  return E_NOTIMPL;
-}
 
 static BOOL __stdcall stub_SA_SayW([[maybe_unused]] const wchar_t *text) {
   return FALSE;
@@ -95,31 +51,7 @@ static int WINAPI stub_zdsr_GetSpeakState() { return 2; }
 static void WINAPI stub_zdsr_StopSpeak() {}
 
 static const auto stubs = std::to_array<StubEntry>(
-    {{.dll = "nvdaControllerClient.dll",
-      .func = "nvdaController_setOnSsmlMarkReachedCallback",
-      .stub = stub_cast(stub_nvdaController_setOnSsmlMarkReachedCallback)},
-     {.dll = "nvdaControllerClient.dll",
-      .func = "nvdaController_testIfRunning",
-      .stub = stub_cast(stub_nvdaController_testIfRunning)},
-     {.dll = "nvdaControllerClient.dll",
-      .func = "nvdaController_speakText",
-      .stub = stub_cast(stub_nvdaController_speakText)},
-     {.dll = "nvdaControllerClient.dll",
-      .func = "nvdaController_cancelSpeech",
-      .stub = stub_cast(stub_nvdaController_cancelSpeech)},
-     {.dll = "nvdaControllerClient.dll",
-      .func = "nvdaController_brailleMessage",
-      .stub = stub_cast(stub_nvdaController_brailleMessage)},
-     {.dll = "nvdaControllerClient.dll",
-      .func = "nvdaController_getProcessId",
-      .stub = stub_cast(stub_nvdaController_getProcessId)},
-     {.dll = "nvdaControllerClient.dll",
-      .func = "nvdaController_speakSsml",
-      .stub = stub_cast(stub_nvdaController_speakSsml)},
-     {.dll = "nvdaControllerClient.dll",
-      .func = "nvdaController_onSsmlMarkReached",
-      .stub = stub_cast(stub_nvdaController_onSsmlMarkReached)},
-     {.dll = "SAAPI64.dll", .func = "SA_SayW", .stub = stub_cast(stub_SA_SayW)},
+    {{.dll = "SAAPI64.dll", .func = "SA_SayW", .stub = stub_cast(stub_SA_SayW)},
      {.dll = "SAAPI64.dll",
       .func = "SA_BrlShowTextW",
       .stub = stub_cast(stub_SA_BrlShowTextW)},

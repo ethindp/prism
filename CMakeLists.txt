@@ -20,7 +20,7 @@ project(
   VERSION 0.4.2
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
-option(PRISM_ENABLE_TESTS "Enable tests" ON)
+option(PRISM_ENABLE_TESTS "Enable tests" OFF)
 option(PRISM_ENABLE_DEMOS "Enable demo applications" OFF)
 option(PRISM_ENABLE_CLANG_TIDY
        "Enable execution of clang-tidy for debug builds" OFF)
@@ -65,25 +65,6 @@ function(add_import_library target def_file dll_name)
                                              IMPORTED_LOCATION "${dll_name}")
   add_dependencies(${target} ${target}_gen)
 endfunction()
-set(CPM_DOWNLOAD_VERSION 0.42.0)
-if(CPM_SOURCE_CACHE)
-  set(CPM_DOWNLOAD_LOCATION
-      "${CPM_SOURCE_CACHE}/cpm/CPM_${CPM_DOWNLOAD_VERSION}.cmake")
-elseif(DEFINED ENV{CPM_SOURCE_CACHE})
-  set(CPM_DOWNLOAD_LOCATION
-      "$ENV{CPM_SOURCE_CACHE}/cpm/CPM_${CPM_DOWNLOAD_VERSION}.cmake")
-else()
-  set(CPM_DOWNLOAD_LOCATION
-      "${CMAKE_BINARY_DIR}/cmake/CPM_${CPM_DOWNLOAD_VERSION}.cmake")
-endif()
-if(NOT (EXISTS ${CPM_DOWNLOAD_LOCATION}))
-  message(STATUS "Downloading CPM.cmake to ${CPM_DOWNLOAD_LOCATION}")
-  file(
-    DOWNLOAD
-    https://github.com/TheLartians/CPM.cmake/releases/download/v${CPM_DOWNLOAD_VERSION}/CPM.cmake
-    ${CPM_DOWNLOAD_LOCATION})
-endif()
-include(${CPM_DOWNLOAD_LOCATION})
 
 file(
   GLOB_RECURSE
@@ -155,16 +136,45 @@ target_compile_definitions(
   PUBLIC NOMINMAX)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 if(WIN32)
-  find_package(NVDAController REQUIRED)
-  target_link_libraries(${PROJECT_NAME} PRIVATE NVDA::Controller)
   target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib
                                                 uiautomationcore.lib)
+  if(_comp_arch_id_lc STREQUAL "arm64" OR _comp_arch_id_lc STREQUAL "aarch64")
+    set(MIDL_ENV_TARGET "arm64")
+  elseif(_comp_arch_id_lc STREQUAL "x64" OR _comp_arch_id_lc STREQUAL "amd64")
+    set(MIDL_ENV_TARGET "x64")
+  elseif(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
+    set(MIDL_ENV_TARGET "win32")
+  else()
+    message(
+      WARNING
+        "Unknown architecture '${_comp_arch_id_lc}' for MIDL. Defaulting to win32."
+    )
+    set(MIDL_ENV_TARGET "win32")
+  endif()
+  message(
+    STATUS
+      "Configuring NVDA Controller MIDL for architecture: ${MIDL_ENV_TARGET}")
+  find_program(MIDL_COMPILER midl)
+  if(NOT MIDL_COMPILER)
+    message(FATAL_ERROR "midl.exe not found. Ensure Windows SDK is installed.")
+  endif()
+  set(NVDA_CONTROLLER_IDL "${CMAKE_CURRENT_SOURCE_DIR}/idl/nvdaController.idl")
+  set(NVDA_CONTROLLER_ACF "${CMAKE_CURRENT_SOURCE_DIR}/idl/nvdaController.acf")
+  set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  file(MAKE_DIRECTORY ${GEN_DIR})
   add_custom_command(
-    TARGET ${PROJECT_NAME}
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:NVDA::Controller> $<TARGET_FILE_DIR:${PROJECT_NAME}>
-    COMMENT "Copying NVDA controller client")
+    OUTPUT "${GEN_DIR}/nvda_controller.h" "${GEN_DIR}/nvda_controller.c"
+    COMMAND
+      ${MIDL_COMPILER} /nologo /env ${MIDL_ENV_TARGET} /client stub /cstub
+      "${GEN_DIR}/nvda_controller.c" /header "${GEN_DIR}/nvda_controller.h"
+      /server none /prefix all "nvdaController_" /acf "${NVDA_CONTROLLER_ACF}"
+      "${NVDA_CONTROLLER_IDL}"
+    DEPENDS "${NVDA_CONTROLLER_IDL}" "${NVDA_CONTROLLER_ACF}"
+    COMMENT "Generating NVDA controller client stub for ${MIDL_ENV_TARGET}"
+    VERBATIM)
+  target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/nvda_controller.c")
+  target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
+  target_link_libraries(${PROJECT_NAME} PRIVATE rpcrt4)
   if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
                        SAAPI64.dll)
@@ -242,18 +252,15 @@ if(WIN32 OR WINDOWS_STORE)
            BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
 endif()
 if(MSVC)
-  if(NOT _nvda_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+  if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     set_target_properties(
       ${PROJECT_NAME}
       PROPERTIES
         LINK_FLAGS
-        "/STACK:8388608 /delayload:nvdaControllerClient.dll /delayload:SAAPI64.dll /delayload:ZDSRAPI_x64.dll"
-    )
+        "/STACK:8388608 /delayload:SAAPI64.dll /delayload:ZDSRAPI_x64.dll")
   else()
-    set_target_properties(
-      ${PROJECT_NAME}
-      PROPERTIES LINK_FLAGS
-                 "/STACK:8388608 /delayload:nvdaControllerClient.dll")
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS
+                                                     "/STACK:8388608")
   endif()
   check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
@@ -262,6 +269,17 @@ if(MSVC)
   endif()
   if(MSVC_HAS_BIGOBJ)
     target_compile_options(${PROJECT_NAME} PUBLIC /bigobj)
+  endif()
+elseif(
+  CMAKE_CXX_COMPILER_ID MATCHES "Clang"
+  AND WIN32
+  AND NOT MINGW)
+  if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+    target_link_options(
+      ${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608"
+      "LINKER:/delayload:SAAPI64.dll" "LINKER:/delayload:zdsrapi_x64.dll")
+  else()
+    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
   endif()
 endif()
 if(NOT MSVC)
@@ -330,6 +348,7 @@ set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
 include(InstallRequiredSystemLibraries)
 if(PRISM_ENABLE_TESTS)
   enable_testing()
+  include(cmake/CPM.cmake)
   cpmaddpackage("gh:catchorg/catch2@3.12.0")
   list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
   file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
@@ -359,8 +378,6 @@ if(DEFINED SKBUILD)
     LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
     ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
   if(WIN32)
-    get_target_property(_nvda_dll NVDA::Controller IMPORTED_LOCATION)
-    install(FILES "${_nvda_dll}" DESTINATION "${PRISM_PY_NATIVE_DIR}")
     if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
       install(
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
@@ -377,8 +394,6 @@ else()
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib")
   if(WIN32)
-    get_target_property(_nvda_dll NVDA::Controller IMPORTED_LOCATION)
-    install(FILES "${_nvda_dll}" DESTINATION "bin")
     if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
       install(
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"

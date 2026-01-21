@@ -50,6 +50,8 @@ public:
         "/org/gnome/Orca/Service", nullptr, &error);
     if (error) {
       g_error_free(error);
+      g_object_unref(conn);
+      conn = nullptr;
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     module_proxy = orca_module_org_gnome_orca_module_proxy_new_sync(
@@ -57,6 +59,10 @@ public:
         "/org/gnome/Orca/Service/SpeechAndVerbosityManager", nullptr, &error);
     if (error) {
       g_error_free(error);
+      g_object_unref(service_proxy);
+      service_proxy = nullptr;
+      g_object_unref(conn);
+      conn = nullptr;
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     return {};

@@ -116,6 +116,7 @@ public:
     if (paused.test())
       return std::unexpected(BackendError::AlreadyPaused);
     synth.call<void>("pause");
+    paused.test_and_set();
     return {};
   }
 

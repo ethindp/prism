@@ -37,6 +37,7 @@ public:
     sapi = new sb_sapi{};
     if (sb_sapi_initialise(sapi) == 0) {
       delete sapi;
+      sapi = nullptr;
       return std::unexpected(BackendError::InternalBackendError);
     }
     initialized.test_and_set();
@@ -51,10 +52,11 @@ public:
     }
     if (text.size() >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
+    paused.clear();
     auto str = std::string(text);
     if (interrupt) {
       if (sb_sapi_is_speaking(sapi) != 0) {
-        if (sb_sapi_stop(sapi) != 0) {
+        if (sb_sapi_stop(sapi) == 0) {
           return std::unexpected(BackendError::InternalBackendError);
         }
       }
@@ -73,6 +75,7 @@ public:
     }
     if (text.size() >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
+    paused.clear();
     auto str = std::string(text);
     void *buffer = nullptr;
     int size = 0;
@@ -115,7 +118,7 @@ public:
   BackendResult<> stop() override {
     if (sapi == nullptr || !initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (sb_sapi_stop(sapi) != 0) {
+    if (sb_sapi_stop(sapi) == 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     return {};

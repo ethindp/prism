@@ -107,11 +107,26 @@ public:
       const auto stream = synth.SynthesizeTextToStreamAsync(wtext).get();
       if (stream.ContentType() != L"audio/wav")
         return std::unexpected(BackendError::NotImplemented);
-      const auto size = static_cast<uint32_t>(stream.Size());
-      Buffer buffer(size);
-      stream.ReadAsync(buffer, size, InputStreamOptions::None).get();
-      drwav wav;
-      if (drwav_init_memory(&wav, buffer.data(), size, nullptr) == 0)
+      const auto size64 = stream.Size();
+      if (size64 > std::numeric_limits<uint32_t>::max())
+        return std::unexpected(BackendError::RangeOutOfBounds);
+      const auto cap = static_cast<uint32_t>(size64);
+      Buffer buffer(cap);
+      stream.Seek(0);
+      std::uint32_t total = 0;
+      while (total < cap) {
+        Buffer chunk(cap - total);
+        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+        const uint32_t got = chunk.Length();
+        if (got == 0)
+          break;
+        std::memcpy(buffer.data() + total, chunk.data(), got);
+        total += got;
+      }
+      if (total == 0)
+        return std::unexpected(BackendError::InternalBackendError);
+      drwav wav{};
+      if (drwav_init_memory(&wav, buffer.data(), total, nullptr) == 0)
         return std::unexpected(BackendError::InternalBackendError);
       auto frame_count = wav.totalPCMFrameCount;
       std::vector<float> samples(frame_count * wav.channels);
@@ -333,11 +348,26 @@ public:
       const auto stream = synth.SynthesizeTextToStreamAsync(L" ").get();
       if (stream.ContentType() != L"audio/wav")
         return;
-      const auto size = static_cast<uint32_t>(stream.Size());
-      Buffer buffer(size);
-      stream.ReadAsync(buffer, size, InputStreamOptions::None).get();
-      drwav wav;
-      if (drwav_init_memory(&wav, buffer.data(), size, nullptr) != 0) {
+      const auto size64 = stream.Size();
+      if (size64 > std::numeric_limits<uint32_t>::max())
+        return;
+      const auto cap = static_cast<uint32_t>(size64);
+      Buffer buffer(cap);
+      stream.Seek(0);
+      std::uint32_t total = 0;
+      while (total < cap) {
+        Buffer chunk(cap - total);
+        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+        const uint32_t got = chunk.Length();
+        if (got == 0)
+          break;
+        std::memcpy(buffer.data() + total, chunk.data(), got);
+        total += got;
+      }
+      if (total == 0)
+        return;
+      drwav wav{};
+      if (drwav_init_memory(&wav, buffer.data(), total, nullptr) != 0) {
         cached_channels = wav.channels;
         cached_sample_rate = wav.sampleRate;
         cached_bit_depth = wav.bitsPerSample;

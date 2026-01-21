@@ -17,13 +17,17 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.4.5
+  VERSION 0.4.6
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" OFF)
 option(PRISM_ENABLE_DEMOS "Enable demo applications" OFF)
 option(PRISM_ENABLE_CLANG_TIDY
        "Enable execution of clang-tidy for debug builds" OFF)
+option(
+  PRISM_REQUIRE_SPEECH_DISPATCHER
+  "Require speech-dispatcher when building (primarily used for vcpkg builds)"
+  OFF)
 if(APPLE)
   enable_language(Swift)
 endif()
@@ -233,15 +237,25 @@ if(UNIX
   else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE NO_ORCA)
   endif()
-  pkg_check_modules(LIBSPEECHD speech-dispatcher)
-  if(LIBSPEECHD_FOUND)
+  if(NOT PRISM_REQUIRE_SPEECH_DISPATCHER)
+    pkg_check_modules(LIBSPEECHD speech-dispatcher)
+    if(LIBSPEECHD_FOUND)
+      target_include_directories(
+        ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
+                                ${CMAKE_CURRENT_BINARY_DIR})
+      target_link_directories(${PROJECT_NAME} PRIVATE
+                              ${LIBSPEECHD_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARIES})
+    else()
+      target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)
+    endif()
+  else()
+    pkg_check_modules(LIBSPEECHD speech-dispatcher REQUIRED)
     target_include_directories(
       ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
                               ${CMAKE_CURRENT_BINARY_DIR})
     target_link_directories(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARY_DIRS})
     target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARIES})
-  else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)
   endif()
 endif()
 if(WIN32 OR WINDOWS_STORE)

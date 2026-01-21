@@ -36,6 +36,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.release.tag_name }}
+      - name: Activate MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
         env:

@@ -1,0 +1,4 @@
+<Solution>
+    <Project Path="Prism.Net/Prism.Net.csproj" />
+    <Project Path="Prism.Demo/Prism.Demo.csproj" />
+</Solution>

@@ -48,6 +48,10 @@ build.ninja
 Makefile
 *.o
 *.obj
+
+# .NET Staging
+bindings/dotnet/Prism.Net/staging/
+
 *.lo
 *.la
 *.a

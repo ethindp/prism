@@ -1,4 +1,4 @@
-namespace Prism.NativeInterop
+namespace Prism.Net.NativeInterop
 {
     public partial struct PrismBackend
     {

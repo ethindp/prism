@@ -12,27 +12,26 @@ BackendRegistry &BackendRegistry::instance() {
 void BackendRegistry::register_backend(BackendId id, std::string_view name,
                                        int priority, Factory factory) {
   std::unique_lock lock(mutex);
-  Entry entry{.id = id, .name = name, .priority = priority, .factory = std::move(factory), .cached = {}};
-  auto pos = std::ranges::lower_bound(entries, priority, std::ranges::greater{}, &Entry::priority);
+  Entry entry{.id = id,
+              .name = name,
+              .priority = priority,
+              .factory = std::move(factory),
+              .cached = {}};
+  auto pos = std::ranges::lower_bound(entries, priority, std::ranges::greater{},
+                                      &Entry::priority);
   entries.insert(pos, std::move(entry));
 }
 
 bool BackendRegistry::has(BackendId id) const {
   std::shared_lock lock(mutex);
-  for (const auto &e : entries) {
-    if (e.id == id)
-      return true;
-  }
-  return false;
+  return std::ranges::any_of(entries,
+                             [id](const auto &e) { return e.id == id; });
 }
 
 bool BackendRegistry::has(std::string_view name) const {
   std::shared_lock lock(mutex);
-  for (const auto &e : entries) {
-    if (e.name == name)
-      return true;
-  }
-  return false;
+  return std::ranges::any_of(entries,
+                             [name](const auto &e) { return e.name == name; });
 }
 
 std::string_view BackendRegistry::name(BackendId id) const {
@@ -160,6 +159,8 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire(BackendId id) {
       if (auto existing = e.cached; !existing.expired())
         return existing.lock();
       auto backend = e.factory();
+      if (backend == nullptr)
+        return nullptr;
 #ifdef __ANDROID__
       backend->set_java_vm(java_vm);
 #endif
@@ -181,6 +182,8 @@ BackendRegistry::acquire(std::string_view name) {
       if (auto existing = e.cached; !existing.expired())
         return existing.lock();
       auto backend = e.factory();
+      if (backend == nullptr)
+        return nullptr;
 #ifdef __ANDROID__
       backend->set_java_vm(java_vm);
 #endif

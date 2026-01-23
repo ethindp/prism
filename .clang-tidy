@@ -1,0 +1,20 @@
+---
+Checks: '-*,
+         bugprone-*,
+         clang-analyzer-*,
+         concurrency-*,
+         modernize-*,
+         performance-*,
+         readability-*,
+         -modernize-use-trailing-return-type,
+         -clang-analyzer-core.CallAndMessage,
+         -readability-identifier-length,
+         - readability-braces-around-statements,
+         -readability-magic-numbers,
+         -clang-analyzer-optin.core.EnumCastOutOfRange,
+         -bugprone-easily-swappable-parameters,
+         -readability-function-cognitive-complexity,
+         -readability-else-after-return'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '^(source|include)/.*'
+FormatStyle: file

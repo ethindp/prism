@@ -131,7 +131,7 @@ namespace belt::com
 		inline void *query(T *pobj, const GUID &iid, mpl::vector<Interfaces...>) noexcept
 		{
 			void *result{ nullptr };
-			(... || (nullptr != (result = query_single<Interfaces>(pobj, iid))));
+			(void)(... || (nullptr != (result = query_single<Interfaces>(pobj, iid))));
 			return result;
 		}
 

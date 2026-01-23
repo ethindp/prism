@@ -39,7 +39,7 @@ static PrismBackend *wrap_backend(std::shared_ptr<TextToSpeechBackend> impl) {
   if (!impl)
     return nullptr;
   auto *b = new (std::nothrow) PrismBackend;
-  if (!b)
+  if (b == nullptr)
     return nullptr;
   b->impl = std::move(impl);
   return b;
@@ -61,35 +61,37 @@ PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void) {
 
 PRISM_API PrismContext *PRISM_CALL prism_init(PrismConfig *cfg) {
 #ifdef _WIN32
-bool owns_com = false;
+  bool owns_com = false;
   switch (CoInitializeEx(nullptr,
                          COINIT_APARTMENTTHREADED | COINIT_SPEED_OVER_MEMORY)) {
   case E_INVALIDARG:
   case E_OUTOFMEMORY:
   case E_UNEXPECTED:
     return nullptr;
-  case RPC_E_CHANGED_MODE: 
+  case RPC_E_CHANGED_MODE:
     owns_com = false;
-  break;
+    break;
   default:
     owns_com = true;
     break;
   }
 #endif
-  if (cfg) {
+  if (cfg != nullptr) {
     if (cfg->version != PRISM_CONFIG_VERSION) {
-    #ifdef _WIN32
-    if (owns_com) CoUninitialize();
-    #endif
+#ifdef _WIN32
+      if (owns_com)
+        CoUninitialize();
+#endif
       return nullptr;
-      }
+    }
     auto *ctx = new (std::nothrow) PrismContext(BackendRegistry::instance());
-    if (!ctx) {
-    #ifdef _WIN32
-    if (owns_com) CoUninitialize();
-    #endif
+    if (ctx == nullptr) {
+#ifdef _WIN32
+      if (owns_com)
+        CoUninitialize();
+#endif
       return nullptr;
-      }
+    }
 #ifdef __ANDROID__
     if (cfg->jni_env) {
       JavaVM *vm = nullptr;
@@ -102,27 +104,30 @@ bool owns_com = false;
 #endif
 #ifdef _WIN32
     ctx->registry.set_hwnd(cfg->hwnd);
+    ctx->com_initialized = owns_com;
 #endif
     return ctx;
   }
-  auto* ctx = new (std::nothrow) PrismContext(BackendRegistry::instance());
-  if (!ctx) {
-    #ifdef _WIN32
-    if (owns_com) CoUninitialize();
-    #endif
+  auto *ctx = new (std::nothrow) PrismContext(BackendRegistry::instance());
+  if (ctx == nullptr) {
+#ifdef _WIN32
+    if (owns_com)
+      CoUninitialize();
+#endif
     return nullptr;
-    }
-    #ifdef _WIN32
+  }
+#ifdef _WIN32
   ctx->com_initialized = owns_com;
-  #endif
+#endif
   return ctx;
 }
 
 PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) {
-  if (!ctx)
+  if (ctx == nullptr)
     return;
 #ifdef _WIN32
-  if (ctx->com_initialized) CoUninitialize();
+  if (ctx->com_initialized)
+    CoUninitialize();
 #endif
   delete ctx;
 }
@@ -186,7 +191,7 @@ prism_registry_acquire_best(PrismContext *ctx) {
 }
 
 PRISM_API void PRISM_CALL prism_backend_free(PrismBackend *backend) {
-  if (!backend)
+  if (backend == nullptr)
     return;
   delete backend;
 }

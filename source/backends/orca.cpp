@@ -4,26 +4,34 @@
 #include "backend.h"
 #include "backend_registry.h"
 #include "utils.h"
-#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(__ANDROID__)
+#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
+     defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
+    !defined(__ANDROID__)
 #ifndef NO_ORCA
-#include "raw/orca-module.h"
-#include "raw/orca-service.h"
+#include "orca-module.h"
+#include "orca-service.h"
 #include <gio/gio.h>
 
 class OrcaBackend final : public TextToSpeechBackend {
 private:
-  GDBusConnection *conn;
-  OrcaServiceOrgGnomeOrcaService *service_proxy;
-  OrcaModuleOrgGnomeOrcaModule *module_proxy;
+  GDBusConnection *conn{nullptr};
+  OrcaServiceOrgGnomeOrcaService *service_proxy{nullptr};
+  OrcaModuleOrgGnomeOrcaModule *module_proxy{nullptr};
 
 public:
   ~OrcaBackend() override {
-    if (module_proxy)
+    if (module_proxy) {
       g_object_unref(module_proxy);
-    if (service_proxy)
+      module_proxy = nullptr;
+    }
+    if (service_proxy) {
       g_object_unref(service_proxy);
-    if (conn)
+      service_proxy = nullptr;
+    }
+    if (conn) {
       g_object_unref(conn);
+      conn = nullptr;
+    }
   }
 
   std::string_view get_name() const override { return "Orca"; }
@@ -42,6 +50,8 @@ public:
         "/org/gnome/Orca/Service", nullptr, &error);
     if (error) {
       g_error_free(error);
+      g_object_unref(conn);
+      conn = nullptr;
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     module_proxy = orca_module_org_gnome_orca_module_proxy_new_sync(
@@ -49,6 +59,10 @@ public:
         "/org/gnome/Orca/Service/SpeechAndVerbosityManager", nullptr, &error);
     if (error) {
       g_error_free(error);
+      g_object_unref(service_proxy);
+      service_proxy = nullptr;
+      g_object_unref(conn);
+      conn = nullptr;
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     return {};

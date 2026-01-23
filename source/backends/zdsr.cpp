@@ -15,7 +15,7 @@ public:
   [[nodiscard]] std::string_view get_name() const override { return "Zhengdu"; }
 
   BackendResult<> initialize() override {
-    if (const auto res = InitTTS(0, nullptr, true); res > 0)
+    if (const auto res = InitTTS(0, nullptr, TRUE); res > 0)
       return std::unexpected(BackendError::BackendNotAvailable);
     return {};
   }
@@ -31,7 +31,8 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (const auto res = Speak(wstr.c_str(), interrupt); res > 0)
+    if (const auto res = Speak(wstr.c_str(), static_cast<BOOL>(interrupt));
+        res > 0)
       return std::unexpected(BackendError::InternalBackendError);
     return {};
   }

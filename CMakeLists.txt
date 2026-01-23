@@ -17,11 +17,25 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.3.0
+  VERSION 0.4.7
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
-option(PRISM_ENABLE_TESTS "Enable tests" ON)
+option(PRISM_ENABLE_TESTS "Enable tests" OFF)
 option(PRISM_ENABLE_DEMOS "Enable demo applications" OFF)
+option(PRISM_ENABLE_CLANG_TIDY
+       "Enable execution of clang-tidy for debug builds" OFF)
+option(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS
+       "Enable vcpkg-specific build options (DO NOT USE NORMALLY)" OFF)
+if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
+  option(
+    PRISM_VCPKG_WANTS_SPEECH_DISPATCHER_BACKEND
+    "Indicates that the Prism vcpkg port is being built with the speech-dispatcher feature enabled"
+    OFF)
+  option(
+    PRISM_VCPKG_WANTS_ORCA_BACKEND
+    "Indicates that the Prism vcpkg port is being built with the orca feature enabled"
+    OFF)
+endif()
 if(APPLE)
   enable_language(Swift)
 endif()
@@ -63,25 +77,6 @@ function(add_import_library target def_file dll_name)
                                              IMPORTED_LOCATION "${dll_name}")
   add_dependencies(${target} ${target}_gen)
 endfunction()
-set(CPM_DOWNLOAD_VERSION 0.42.0)
-if(CPM_SOURCE_CACHE)
-  set(CPM_DOWNLOAD_LOCATION
-      "${CPM_SOURCE_CACHE}/cpm/CPM_${CPM_DOWNLOAD_VERSION}.cmake")
-elseif(DEFINED ENV{CPM_SOURCE_CACHE})
-  set(CPM_DOWNLOAD_LOCATION
-      "$ENV{CPM_SOURCE_CACHE}/cpm/CPM_${CPM_DOWNLOAD_VERSION}.cmake")
-else()
-  set(CPM_DOWNLOAD_LOCATION
-      "${CMAKE_BINARY_DIR}/cmake/CPM_${CPM_DOWNLOAD_VERSION}.cmake")
-endif()
-if(NOT (EXISTS ${CPM_DOWNLOAD_LOCATION}))
-  message(STATUS "Downloading CPM.cmake to ${CPM_DOWNLOAD_LOCATION}")
-  file(
-    DOWNLOAD
-    https://github.com/TheLartians/CPM.cmake/releases/download/v${CPM_DOWNLOAD_VERSION}/CPM.cmake
-    ${CPM_DOWNLOAD_LOCATION})
-endif()
-include(${CPM_DOWNLOAD_LOCATION})
 
 file(
   GLOB_RECURSE
@@ -118,18 +113,6 @@ if(NOT WIN32)
   list(REMOVE_ITEM headers
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.h")
 endif()
-if(ANDROID
-   OR APPLE
-   OR WIN32
-   OR WINDOWS_STORE
-   OR EMSCRIPTEN)
-  list(REMOVE_ITEM sources
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c")
-  list(REMOVE_ITEM headers
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h")
-endif()
 if(NOT ANDROID)
   list(REMOVE_ITEM sources ${android_sources})
   list(REMOVE_ITEM headers ${android_headers})
@@ -139,6 +122,8 @@ if(NOT EMSCRIPTEN)
 else()
   add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
 endif()
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp
+                            PROPERTIES COMPILE_OPTIONS "-w")
 set(_comp_arch_id "")
 if(DEFINED MSVC_CXX_ARCHITECTURE_ID)
   set(_comp_arch_id "${MSVC_CXX_ARCHITECTURE_ID}")
@@ -163,16 +148,45 @@ target_compile_definitions(
   PUBLIC NOMINMAX)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 if(WIN32)
-  find_package(NVDAController REQUIRED)
-  target_link_libraries(${PROJECT_NAME} PRIVATE NVDA::Controller)
   target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib
                                                 uiautomationcore.lib)
+  if(_comp_arch_id_lc STREQUAL "arm64" OR _comp_arch_id_lc STREQUAL "aarch64")
+    set(MIDL_ENV_TARGET "arm64")
+  elseif(_comp_arch_id_lc STREQUAL "x64" OR _comp_arch_id_lc STREQUAL "amd64")
+    set(MIDL_ENV_TARGET "x64")
+  elseif(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
+    set(MIDL_ENV_TARGET "win32")
+  else()
+    message(
+      WARNING
+        "Unknown architecture '${_comp_arch_id_lc}' for MIDL. Defaulting to win32."
+    )
+    set(MIDL_ENV_TARGET "win32")
+  endif()
+  message(
+    STATUS
+      "Configuring NVDA Controller MIDL for architecture: ${MIDL_ENV_TARGET}")
+  find_program(MIDL_COMPILER midl)
+  if(NOT MIDL_COMPILER)
+    message(FATAL_ERROR "midl.exe not found. Ensure Windows SDK is installed.")
+  endif()
+  set(NVDA_CONTROLLER_IDL "${CMAKE_CURRENT_SOURCE_DIR}/idl/nvdaController.idl")
+  set(NVDA_CONTROLLER_ACF "${CMAKE_CURRENT_SOURCE_DIR}/idl/nvdaController.acf")
+  set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  file(MAKE_DIRECTORY ${GEN_DIR})
   add_custom_command(
-    TARGET ${PROJECT_NAME}
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:NVDA::Controller> $<TARGET_FILE_DIR:${PROJECT_NAME}>
-    COMMENT "Copying NVDA controller client")
+    OUTPUT "${GEN_DIR}/nvda_controller.h" "${GEN_DIR}/nvda_controller.c"
+    COMMAND
+      ${MIDL_COMPILER} /nologo /env ${MIDL_ENV_TARGET} /client stub /cstub
+      "${GEN_DIR}/nvda_controller.c" /header "${GEN_DIR}/nvda_controller.h"
+      /server none /prefix all "nvdaController_" /acf "${NVDA_CONTROLLER_ACF}"
+      "${NVDA_CONTROLLER_IDL}"
+    DEPENDS "${NVDA_CONTROLLER_IDL}" "${NVDA_CONTROLLER_ACF}"
+    COMMENT "Generating NVDA controller client stub for ${MIDL_ENV_TARGET}"
+    VERBATIM)
+  target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/nvda_controller.c")
+  target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
+  target_link_libraries(${PROJECT_NAME} PRIVATE rpcrt4)
   if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
                        SAAPI64.dll)
@@ -189,23 +203,114 @@ if(UNIX
    AND NOT APPLE
    AND NOT ANDROID
    AND NOT EMSCRIPTEN)
-  find_package(PkgConfig REQUIRED)
-  pkg_check_modules(GIO gio-2.0)
-  if(GIO_FOUND)
-    target_include_directories(
-      ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${GIO_LIBRARIES})
+  if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
+    find_package(PkgConfig REQUIRED)
+    if(PRISM_VCPKG_WANTS_ORCA_BACKEND)
+      pkg_check_modules(GIO gio-unix-2.0 REQUIRED)
+      find_program(GDBUS_CODEGEN_EXE gdbus-codegen REQUIRED)
+      set(XML_SERVICE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-service.xml")
+      set(XML_MODULE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-module.xml")
+      set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+      file(MAKE_DIRECTORY ${GEN_DIR})
+      add_custom_command(
+        OUTPUT "${GEN_DIR}/orca-service.h" "${GEN_DIR}/orca-service.c"
+        COMMAND
+          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
+          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+          --header --output "${GEN_DIR}/orca-service.h" "${XML_SERVICE}"
+        COMMAND
+          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
+          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+          --body --output "${GEN_DIR}/orca-service.c" "${XML_SERVICE}"
+        DEPENDS "${XML_SERVICE}"
+        COMMENT "Generating Orca Service DBus Code")
+      add_custom_command(
+        OUTPUT "${GEN_DIR}/orca-module.h" "${GEN_DIR}/orca-module.c"
+        COMMAND
+          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
+          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+          --header --output "${GEN_DIR}/orca-module.h" "${XML_MODULE}"
+        COMMAND
+          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
+          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+          --body --output "${GEN_DIR}/orca-module.c" "${XML_MODULE}"
+        DEPENDS "${XML_MODULE}"
+        COMMENT "Generating Orca Module DBus Code")
+      target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/orca-service.c"
+                                             "${GEN_DIR}/orca-module.c")
+      target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
+      target_include_directories(
+        ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${GIO_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${GIO_LIBRARIES})
+    else()
+      target_compile_definitions(${PROJECT_NAME} PRIVATE NO_ORCA)
+    endif()
+    if(PRISM_VCPKG_WANTS_SPEECH_DISPATCHER_BACKEND)
+      pkg_check_modules(LIBSPEECHD speech-dispatcher REQUIRED)
+      target_include_directories(
+        ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
+                                ${CMAKE_CURRENT_BINARY_DIR})
+      target_link_directories(${PROJECT_NAME} PRIVATE
+                              ${LIBSPEECHD_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARIES})
+    else()
+      target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)
+    endif()
   else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE NO_ORCA)
-  endif()
-  pkg_check_modules(LIBSPEECHD speech-dispatcher)
-  if(LIBSPEECHD_FOUND)
-    target_include_directories(
-      ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
-                              ${CMAKE_CURRENT_BINARY_DIR})
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARIES})
-  else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GIO gio-unix-2.0)
+    if(GIO_FOUND)
+      find_program(GDBUS_CODEGEN_EXE gdbus-codegen REQUIRED)
+      set(XML_SERVICE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-service.xml")
+      set(XML_MODULE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-module.xml")
+      set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+      file(MAKE_DIRECTORY ${GEN_DIR})
+      add_custom_command(
+        OUTPUT "${GEN_DIR}/orca-service.h" "${GEN_DIR}/orca-service.c"
+        COMMAND
+          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
+          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+          --header --output "${GEN_DIR}/orca-service.h" "${XML_SERVICE}"
+        COMMAND
+          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
+          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+          --body --output "${GEN_DIR}/orca-service.c" "${XML_SERVICE}"
+        DEPENDS "${XML_SERVICE}"
+        COMMENT "Generating Orca Service DBus Code")
+      add_custom_command(
+        OUTPUT "${GEN_DIR}/orca-module.h" "${GEN_DIR}/orca-module.c"
+        COMMAND
+          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
+          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+          --header --output "${GEN_DIR}/orca-module.h" "${XML_MODULE}"
+        COMMAND
+          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
+          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
+          --body --output "${GEN_DIR}/orca-module.c" "${XML_MODULE}"
+        DEPENDS "${XML_MODULE}"
+        COMMENT "Generating Orca Module DBus Code")
+      target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/orca-service.c"
+                                             "${GEN_DIR}/orca-module.c")
+      target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
+      target_include_directories(
+        ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${GIO_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${GIO_LIBRARIES})
+    else()
+      target_compile_definitions(${PROJECT_NAME} PRIVATE NO_ORCA)
+    endif()
+    pkg_check_modules(LIBSPEECHD speech-dispatcher)
+    if(LIBSPEECHD_FOUND)
+      target_include_directories(
+        ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
+                                ${CMAKE_CURRENT_BINARY_DIR})
+      target_link_directories(${PROJECT_NAME} PRIVATE
+                              ${LIBSPEECHD_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARIES})
+    else()
+      target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)
+    endif()
   endif()
 endif()
 if(WIN32 OR WINDOWS_STORE)
@@ -216,18 +321,15 @@ if(WIN32 OR WINDOWS_STORE)
            BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
 endif()
 if(MSVC)
-  if(NOT _nvda_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+  if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     set_target_properties(
       ${PROJECT_NAME}
       PROPERTIES
         LINK_FLAGS
-        "/STACK:8388608 /delayload:nvdaControllerClient.dll /delayload:SAAPI64.dll /delayload:ZDSRAPI_x64.dll"
-    )
+        "/STACK:8388608 /delayload:SAAPI64.dll /delayload:ZDSRAPI_x64.dll")
   else()
-    set_target_properties(
-      ${PROJECT_NAME}
-      PROPERTIES LINK_FLAGS
-                 "/STACK:8388608 /delayload:nvdaControllerClient.dll")
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS
+                                                     "/STACK:8388608")
   endif()
   check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
@@ -237,8 +339,25 @@ if(MSVC)
   if(MSVC_HAS_BIGOBJ)
     target_compile_options(${PROJECT_NAME} PUBLIC /bigobj)
   endif()
-else()
-  target_compile_options(${PROJECT_NAME} PUBLIC -Wall -Wextra)
+elseif(
+  CMAKE_CXX_COMPILER_ID MATCHES "Clang"
+  AND WIN32
+  AND NOT MINGW)
+  if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+    target_link_options(
+      ${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608"
+      "LINKER:/delayload:SAAPI64.dll" "LINKER:/delayload:zdsrapi_x64.dll")
+  else()
+    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
+  endif()
+endif()
+if(NOT MSVC)
+  check_cxx_compiler_flag(-Wall COMP_HAS_WALL_OPTION)
+  check_cxx_compiler_flag(-Wextra COMP_HAS_WEXTRA_OPTION)
+  if(COMP_HAS_WALL_OPTION AND COMP_HAS_WEXTRA_OPTION)
+    target_compile_options(${PROJECT_NAME}
+                           PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
+  endif()
 endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE
@@ -250,33 +369,33 @@ endif()
 if(ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
-                                               MATCHES "MSVC")
-  find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
-  if(CLANG_TIDY_EXE)
-    set(CLANG_TIDY_COMMAND
-        "${CLANG_TIDY_EXE}"
-        "-checks=-*,bugprone-*,clang-*,concurrency-*,modernize-*,performance-*,-modernize-use-trailing-return-type"
-    )
-    set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
-                                                     "${CLANG_TIDY_COMMAND}")
-    set(SKIP_LINT_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")
-    if(ANDROID)
-      list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
+if(PRISM_ENABLE_CLANG_TIDY)
+  if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
+                                                 MATCHES "MSVC")
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+    if(CLANG_TIDY_EXE)
+      set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}")
+      set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
+                                                       "${CLANG_TIDY_COMMAND}")
+      set(SKIP_LINT_FILES
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
+          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")
+      if(ANDROID)
+        list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
+      endif()
+      set_source_files_properties(${SKIP_LINT_FILES} PROPERTIES SKIP_LINTING ON)
     endif()
     set_source_files_properties(${SKIP_LINT_FILES} PROPERTIES SKIP_LINTING ON)
   endif()
@@ -299,6 +418,7 @@ set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
 include(InstallRequiredSystemLibraries)
 if(PRISM_ENABLE_TESTS)
   enable_testing()
+  include(cmake/CPM.cmake)
   cpmaddpackage("gh:catchorg/catch2@3.12.0")
   list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
   file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
@@ -328,8 +448,6 @@ if(DEFINED SKBUILD)
     LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
     ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
   if(WIN32)
-    get_target_property(_nvda_dll NVDA::Controller IMPORTED_LOCATION)
-    install(FILES "${_nvda_dll}" DESTINATION "${PRISM_PY_NATIVE_DIR}")
     if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
       install(
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
@@ -346,8 +464,6 @@ else()
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib")
   if(WIN32)
-    get_target_property(_nvda_dll NVDA::Controller IMPORTED_LOCATION)
-    install(FILES "${_nvda_dll}" DESTINATION "bin")
     if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
       install(
         FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
@@ -368,4 +484,5 @@ else()
     COMPATIBILITY SameMajorVersion)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
           DESTINATION share/prism)
+  install(DIRECTORY include/ DESTINATION include)
 endif()

@@ -4,14 +4,16 @@
 #include "backend.h"
 #include "backend_registry.h"
 #include "utils.h"
-#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(__ANDROID__)
+#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
+     defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
+    !defined(__ANDROID__)
 #ifndef NO_LIBSPEECHD
 #include <cstdlib>
 #include <libspeechd.h>
 
 class SpeechDispatcherBackend final : public TextToSpeechBackend {
 private:
-  SPDConnection *conn;
+  SPDConnection *conn{nullptr};
 
 public:
   ~SpeechDispatcherBackend() override {

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<node>
+  <interface name="org.gnome.Orca.Service">
+    <method name="GetVersion">
+      <arg name="result" type="s" direction="out"/>
+    </method>
+    <method name="ListCommands">
+      <arg name="result" type="a(ss)" direction="out"/>
+    </method>
+    <method name="ListModules">
+      <arg name="result" type="as" direction="out"/>
+    </method>
+    <method name="PresentMessage">
+      <arg name="message" type="s" direction="in"/>
+      <arg name="result" type="b" direction="out"/>
+    </method>
+    <method name="Quit">
+      <arg name="result" type="b" direction="out"/>
+    </method>
+    <method name="ShowPreferences">
+      <arg name="result" type="b" direction="out"/>
+    </method>
+  </interface>
+</node>

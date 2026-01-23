@@ -33,9 +33,9 @@ private:
   MediaPlayer player{nullptr};
   std::atomic<MediaPlaybackState> current_state{MediaPlaybackState::None};
   winrt::event_token state_changed_token{};
-  std::size_t cached_channels;
-  std::size_t cached_sample_rate;
-  std::size_t cached_bit_depth;
+  std::size_t cached_channels = 0;
+  std::size_t cached_sample_rate = 0;
+  std::size_t cached_bit_depth = 0;
   bool format_cached = false;
 
 public:
@@ -55,6 +55,8 @@ public:
         !ApiInformation::IsTypePresent(
             _T("Windows.Media.Playback.MediaPlayer")))
       return std::unexpected(BackendError::BackendNotAvailable);
+    if (synth || player)
+      return std::unexpected(BackendError::AlreadyInitialized);
     try {
       synth = SpeechSynthesizer();
       synth.Options().AppendedSilence(SpeechAppendedSilence::Min);
@@ -79,8 +81,7 @@ public:
     }
     try {
       if (interrupt)
-        if (const auto res = stop();
-            !res && res.error() != BackendError::NotSpeaking)
+        if (const auto res = stop(); !res)
           return res;
       const auto wtext = to_hstring(text);
       const auto stream = synth.SynthesizeTextToStreamAsync(wtext).get();
@@ -106,11 +107,26 @@ public:
       const auto stream = synth.SynthesizeTextToStreamAsync(wtext).get();
       if (stream.ContentType() != L"audio/wav")
         return std::unexpected(BackendError::NotImplemented);
-      const auto size = static_cast<uint32_t>(stream.Size());
-      Buffer buffer(size);
-      stream.ReadAsync(buffer, size, InputStreamOptions::None).get();
-      drwav wav;
-      if (!drwav_init_memory(&wav, buffer.data(), size, nullptr))
+      const auto size64 = stream.Size();
+      if (size64 > std::numeric_limits<uint32_t>::max())
+        return std::unexpected(BackendError::RangeOutOfBounds);
+      const auto cap = static_cast<uint32_t>(size64);
+      Buffer buffer(cap);
+      stream.Seek(0);
+      std::uint32_t total = 0;
+      while (total < cap) {
+        Buffer chunk(cap - total);
+        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+        const uint32_t got = chunk.Length();
+        if (got == 0)
+          break;
+        std::memcpy(buffer.data() + total, chunk.data(), got);
+        total += got;
+      }
+      if (total == 0)
+        return std::unexpected(BackendError::InternalBackendError);
+      drwav wav{};
+      if (drwav_init_memory(&wav, buffer.data(), total, nullptr) == 0)
         return std::unexpected(BackendError::InternalBackendError);
       auto frame_count = wav.totalPCMFrameCount;
       std::vector<float> samples(frame_count * wav.channels);
@@ -191,7 +207,7 @@ public:
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     try {
-      if (volume < 0.0f || volume > 1.0f)
+      if (volume < 0.0F || volume > 1.0F)
         return std::unexpected(BackendError::RangeOutOfBounds);
       synth.Options().AudioVolume(volume);
       return {};
@@ -250,7 +266,7 @@ public:
   BackendResult<std::size_t> count_voices() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    return synth.AllVoices().Size();
+    return SpeechSynthesizer::AllVoices().Size();
   }
 
   BackendResult<std::string> get_voice_name(std::size_t id) override {
@@ -258,7 +274,7 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto voices = synth.AllVoices();
+    const auto voices = SpeechSynthesizer::AllVoices();
     if (id >= voices.Size())
       return std::unexpected(BackendError::RangeOutOfBounds);
     return to_string(
@@ -270,7 +286,7 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto voices = synth.AllVoices();
+    const auto voices = SpeechSynthesizer::AllVoices();
     if (id >= voices.Size())
       return std::unexpected(BackendError::RangeOutOfBounds);
     return to_string(voices.GetAt(static_cast<std::uint32_t>(id)).Language());
@@ -281,7 +297,7 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto voices = synth.AllVoices();
+    const auto voices = SpeechSynthesizer::AllVoices();
     if (id >= voices.Size())
       return std::unexpected(BackendError::RangeOutOfBounds);
     synth.Voice(voices.GetAt(static_cast<std::uint32_t>(id)));
@@ -293,7 +309,7 @@ public:
   BackendResult<std::size_t> get_voice() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    const auto voices = synth.AllVoices();
+    const auto voices = SpeechSynthesizer::AllVoices();
     for (std::uint32_t i = 0; i < voices.Size(); ++i) {
       if (synth.Voice().Id() == voices.GetAt(i).Id())
         return i;
@@ -332,11 +348,26 @@ public:
       const auto stream = synth.SynthesizeTextToStreamAsync(L" ").get();
       if (stream.ContentType() != L"audio/wav")
         return;
-      const auto size = static_cast<uint32_t>(stream.Size());
-      Buffer buffer(size);
-      stream.ReadAsync(buffer, size, InputStreamOptions::None).get();
-      drwav wav;
-      if (drwav_init_memory(&wav, buffer.data(), size, nullptr)) {
+      const auto size64 = stream.Size();
+      if (size64 > std::numeric_limits<uint32_t>::max())
+        return;
+      const auto cap = static_cast<uint32_t>(size64);
+      Buffer buffer(cap);
+      stream.Seek(0);
+      std::uint32_t total = 0;
+      while (total < cap) {
+        Buffer chunk(cap - total);
+        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+        const uint32_t got = chunk.Length();
+        if (got == 0)
+          break;
+        std::memcpy(buffer.data() + total, chunk.data(), got);
+        total += got;
+      }
+      if (total == 0)
+        return;
+      drwav wav{};
+      if (drwav_init_memory(&wav, buffer.data(), total, nullptr) != 0) {
         cached_channels = wav.channels;
         cached_sample_rate = wav.sampleRate;
         cached_bit_depth = wav.bitsPerSample;
@@ -344,7 +375,7 @@ public:
         drwav_uninit(&wav);
       }
     } catch (...) {
-    return;
+      return;
     }
   }
 };

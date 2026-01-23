@@ -51,22 +51,25 @@ public:
   using AudioCallback = std::function<void(void *, const float *, std::size_t,
                                            std::size_t, std::size_t)>;
   virtual ~TextToSpeechBackend() = default;
-  virtual std::string_view get_name() const = 0;
+  [[nodiscard]] virtual std::string_view get_name() const = 0;
   virtual BackendResult<> initialize() {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<> speak(std::string_view text, bool interrupt) {
+  virtual BackendResult<> speak([[maybe_unused]] std::string_view text,
+                                [[maybe_unused]] bool interrupt) {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<> speak_to_memory(std::string_view text,
-                                          AudioCallback callback,
-                                          void *userdata) {
+  virtual BackendResult<>
+  speak_to_memory([[maybe_unused]] std::string_view text,
+                  [[maybe_unused]] AudioCallback callback,
+                  [[maybe_unused]] void *userdata) {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<> braille(std::string_view text) {
+  virtual BackendResult<> braille([[maybe_unused]] std::string_view text) {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<> output(std::string_view text, bool interrupt) {
+  virtual BackendResult<> output([[maybe_unused]] std::string_view text,
+                                 [[maybe_unused]] bool interrupt) {
     return std::unexpected(BackendError::NotImplemented);
   }
   virtual BackendResult<bool> is_speaking() {
@@ -81,19 +84,19 @@ public:
   virtual BackendResult<> resume() {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<> set_volume(float volume) {
+  virtual BackendResult<> set_volume([[maybe_unused]] float volume) {
     return std::unexpected(BackendError::NotImplemented);
   }
   virtual BackendResult<float> get_volume() {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<> set_rate(float rate) {
+  virtual BackendResult<> set_rate([[maybe_unused]] float rate) {
     return std::unexpected(BackendError::NotImplemented);
   }
   virtual BackendResult<float> get_rate() {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<> set_pitch(float pitch) {
+  virtual BackendResult<> set_pitch([[maybe_unused]] float pitch) {
     return std::unexpected(BackendError::NotImplemented);
   }
   virtual BackendResult<float> get_pitch() {
@@ -105,13 +108,15 @@ public:
   virtual BackendResult<std::size_t> count_voices() {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<std::string> get_voice_name(std::size_t id) {
+  virtual BackendResult<std::string>
+  get_voice_name([[maybe_unused]] std::size_t id) {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<std::string> get_voice_language(std::size_t id) {
+  virtual BackendResult<std::string>
+  get_voice_language([[maybe_unused]] std::size_t id) {
     return std::unexpected(BackendError::NotImplemented);
   }
-  virtual BackendResult<> set_voice(std::size_t id) {
+  virtual BackendResult<> set_voice([[maybe_unused]] std::size_t id) {
     return std::unexpected(BackendError::NotImplemented);
   }
   virtual BackendResult<std::size_t> get_voice() {

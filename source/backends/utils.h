@@ -17,7 +17,31 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <limits>
+#include <numbers>
+#include <span>
+#include <utility>
+#include <vector>
+
+struct TrimParams {
+  float frame_ms = 20.0F;
+  float hop_ms = 10.0F;
+  float head_ms = 300.0F;
+  float tail_ms = 300.0F;
+  float open_db = 12.0F;
+  float close_db = 8.0F;
+  float min_floor_db = -75.0F;
+  float max_floor_db = -35.0F;
+  int min_speech_frames = 3;
+  int min_silence_frames = 6;
+  float preroll_ms = 25.0F;
+  float postroll_ms = 40.0F;
+  float fade_ms = 5.0F;
+  float boundary_search_ms = 2.0F;
+};
 
 // These functions are taken from NVGT, and therefore these files are
 // Zlib-licensed.
@@ -28,3 +52,9 @@ float range_convert(float old_value, float old_min, float old_max,
 float range_convert_midpoint(float old_value, float old_min, float old_midpoint,
                              float old_max, float new_min, float new_midpoint,
                              float new_max);
+// End NVGT code
+
+std::vector<float>
+trim_silence_rms_gate(std::span<const float> samples_interleaved,
+                      std::size_t channels, std::size_t sample_rate,
+                      const TrimParams &P = {});

@@ -23,7 +23,7 @@ jobs:
         run: |
           version=$(sed -n 's/^[[:space:]]*VERSION[[:space:]]\+\([0-9.]\+\).*/\1/p' CMakeLists.txt | head -1)
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v${version}-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
   docs:
     runs-on: ubuntu-latest
     steps:
@@ -47,8 +47,6 @@ jobs:
           arch: amd64
       - name: Install uv
         uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
       - name: Build Release
         run: |
           cmake -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
@@ -67,25 +65,18 @@ jobs:
           mkdir -p dist/include
           cp build-release/prism.dll dist/release/bin/
           cp build-release/prism.lib dist/release/lib/
-          cp build-release/nvdaControllerClient.dll dist/release/bin/
           cp include/prism.h dist/include/
           cp build-debug/prism.dll dist/debug/bin/
           cp build-debug/prism.lib dist/debug/lib/
           cp build-debug/prism.pdb dist/debug/bin/
-          cp build-debug/nvdaControllerClient.dll dist/debug/bin/
+          cp -r LICENSES "dist"
+          cp NOTICE "dist"
           Compress-Archive -Path dist/* -DestinationPath prism-windows-x64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x64
           path: prism-windows-x64.zip
-      - name: Build Python wheel
-        shell: pwsh
-        run: |
-          uv build --wheel
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-wheel-x64
-          path: dist/*.whl
+
   windows-arm64:
     needs: version
     runs-on: windows-latest
@@ -116,46 +107,34 @@ jobs:
           mkdir -p dist/include
           cp build-release/prism.dll dist/release/bin/
           cp build-release/prism.lib dist/release/lib/
-          cp build-release/nvdaControllerClient.dll dist/release/bin/
           cp include/prism.h dist/include/
           cp build-debug/prism.dll dist/debug/bin/
           cp build-debug/prism.lib dist/debug/lib/
           cp build-debug/prism.pdb dist/debug/bin/
-          cp build-debug/nvdaControllerClient.dll dist/debug/bin/
+          cp -r LICENSES "dist"
+          cp NOTICE "dist"
           Compress-Archive -Path dist/* -DestinationPath prism-windows-arm64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: windows-arm64
           path: prism-windows-arm64.zip
-      - name: Build Python wheel
-        shell: pwsh
-        run: |
-          uv build --wheel
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-wheel-arm64
-          path: dist/prism-*.whl
 
   macos:
     needs: version
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
       - name: Build Release
         run: |
-          cmake -B build-arm64-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DPRISM_ENABLE_TESTS=OFF -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+          cmake -B build-arm64-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DPRISM_ENABLE_TESTS=OFF -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
           cmake --build build-arm64-release
-          cmake -S . -B build-x64-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx12.0
+          cmake -S . -B build-x64-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0
           cmake --build build-x64-release
       - name: Build Debug
         run: |
-          cmake -B build-arm64-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+          cmake -B build-arm64-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
           cmake --build build-arm64-debug
-          cmake -S . -B build-x64-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx12.0
+          cmake -S . -B build-x64-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0
           cmake --build build-x64-debug
       - name: Package
         run: |
@@ -164,41 +143,14 @@ jobs:
           lipo -create build-arm64-debug/libprism.dylib build-x64-debug/libprism.dylib -output dist/debug/lib/libprism.dylib
           cp -r build-arm64-debug/libprism.dylib.dSYM dist/debug/lib/ 2>/dev/null || true
           cp include/prism.h dist/include/
+          cp -r LICENSES "dist"
+          cp NOTICE "dist"
           cd dist && zip -r ../prism-macos-universal.zip .
       - uses: actions/upload-artifact@v4
         with:
           name: macos-universal
           path: prism-macos-universal.zip
-      - name: Build Python wheel
-        run: |
-          uv tool install delocate
-          uv tool install wheel
-          export MACOSX_DEPLOYMENT_TARGET=12.0
-          export PRISM_VERSION="${{ needs.version.outputs.version }}"
-          build_one () {
-            local arch="$1"
-            local plat_tag="$2"
-            local swift_target="$3"
-            rm -rf build dist
-            export ARCHFLAGS="-arch ${arch}"
-            export _PYTHON_HOST_PLATFORM="macosx-12.0-${arch}"
-            export CMAKE_ARGS="-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 -DCMAKE_OSX_ARCHITECTURES=${arch} -DCMAKE_Swift_COMPILER_TARGET=${swift_target}"
-            uv build --wheel
-            pushd dist
-            whl="$(ls *.whl | head -1)"
-            uv tool run wheel tags --remove --platform-tag "${plat_tag}" "${whl}"
-            popd
-            mkdir -p "repaired_${arch}"
-            uv tool run --from delocate delocate-wheel -w "repaired_${arch}" -v --ignore-missing-dependencies dist/*.whl
-          }
-          build_one arm64  macosx_12_0_arm64  arm64-apple-macosx12.0
-          build_one x86_64 macosx_12_0_x86_64 x86_64-apple-macosx12.0
-          mkdir -p wheelhouse
-          uv tool run --from delocate delocate-merge repaired_arm64/*.whl repaired_x86_64/*.whl -w wheelhouse -v
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-wheel-universal
-          path: wheelhouse/*.whl
+
   ios:
     needs: version
     runs-on: macos-15
@@ -221,6 +173,8 @@ jobs:
           cp build-debug/libprism.a dist/debug/lib/ 2>/dev/null || cp build-debug/libprism.dylib dist/debug/lib/
           cp -r build-debug/*.dSYM dist/debug/lib/ 2>/dev/null || true
           cp include/prism.h dist/include/
+          cp -r LICENSES "dist"
+          cp NOTICE "dist"
           cd dist && zip -r ../prism-ios-arm64.zip .
       - uses: actions/upload-artifact@v4
         with:
@@ -234,10 +188,6 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y libspeechd-dev libglib2.0-dev
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
       - name: Build Release
         run: |
           cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
@@ -252,20 +202,14 @@ jobs:
           cp build-release/libprism.so dist/release/lib/
           cp build-debug/libprism.so dist/debug/lib/
           cp include/prism.h dist/include/
+          cp -r LICENSES "dist"
+          cp NOTICE "dist"
           cd dist && zip -r ../prism-linux-x64.zip .
       - uses: actions/upload-artifact@v4
         with:
           name: linux-x64
           path: prism-linux-x64.zip
-      - name: Build Python wheel
-        run: |
-          uv build --wheel
-          uv tool install auditwheel
-          uv tool run auditwheel repair dist/*.whl -w wheelhouse
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-wheel-x64
-          path: wheelhouse/*.whl
+
   linux-arm64:
     needs: version
     runs-on: ubuntu-24.04-arm
@@ -273,10 +217,6 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y libspeechd-dev libglib2.0-dev
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
       - name: Build Release
         run: |
           cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
@@ -291,20 +231,14 @@ jobs:
           cp build-release/libprism.so dist/release/lib/
           cp build-debug/libprism.so dist/debug/lib/
           cp include/prism.h dist/include/
+          cp -r LICENSES "dist"
+          cp NOTICE "dist"
           cd dist && zip -r ../prism-linux-arm64.zip .
       - uses: actions/upload-artifact@v4
         with:
           name: linux-arm64
           path: prism-linux-arm64.zip
-      - name: Build Python wheel
-        run: |
-          uv build --wheel
-          uv tool install auditwheel
-          uv tool run auditwheel repair dist/*.whl -w wheelhouse
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-wheel-arm64
-          path: wheelhouse/*.whl
+
   android:
     needs: version
     runs-on: ubuntu-latest
@@ -323,11 +257,14 @@ jobs:
           cp build/android/gradle/outputs/aar/*-release.aar dist/release/
           cp build/android/gradle/outputs/aar/*-debug.aar dist/debug/
           cp include/prism.h dist/include/
+          cp -r LICENSES "dist"
+          cp NOTICE "dist"
           cd dist && zip -r ../prism-android.zip .
       - uses: actions/upload-artifact@v4
         with:
           name: android
           path: prism-android.zip
+
   emscripten:
       needs: version
       runs-on: ubuntu-latest
@@ -350,24 +287,27 @@ jobs:
             cp build-release/libprism.a dist/release/
             cp build-debug/libprism.a dist/debug/
             cp include/prism.h dist/include/
+            cp -r LICENSES "dist"
+            cp NOTICE "dist"
             cd dist && zip -r ../prism-wasm.zip .
         - uses: actions/upload-artifact@v4
           with:
             name: wasm
             path: prism-wasm.zip
+
   release:
     needs: [version, docs, windows-x64, windows-arm64, macos, ios, linux-x64, linux-arm64, android, emscripten]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: artifacts
       - name: Assemble SDK
         run: |
           tag="${{ needs.version.outputs.tag }}"
           sdk="prism-sdk-${tag}"
-          mkdir -p "${sdk}"/{windows/x64,windows/arm64,macos/universal,ios/arm64,linux/x64,linux/arm64,android,wasm,include,doc}
+          mkdir -p "${sdk}"/{windows/x64,windows/arm64,macos/universal,ios/arm64,linux/x64,linux/arm64,android,wasm,include,doc,LICENSES}
           cp include/prism.h "${sdk}/include/"
           cp -r artifacts/docs/* "${sdk}/doc/"
           unzip -q artifacts/windows-x64/prism-windows-x64.zip -d "${sdk}/windows/x64/"
@@ -379,9 +319,19 @@ jobs:
           unzip -q artifacts/android/prism-android.zip -d "${sdk}/android/"
           unzip -q artifacts/wasm/prism-wasm.zip -d "${sdk}/wasm/"
           find "${sdk}" -depth -type d -name include -not -path "${sdk}/include" -exec rm -rf {} +
+          find "${sdk}" -depth -type d -name LICENSES -not -path "${sdk}/LICENSES" -exec rm -rf {} +
+          find "${sdk}" -name "NOTICE" -type f -delete
+          cp -r LICENSES "${sdk}"
+          cp NOTICE "${sdk}"
           zip -r "${sdk}.zip" "${sdk}"
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - uses: softprops/action-gh-release@v2
         with:
+          token: ${{ steps.app-token.outputs.token }}
           tag_name: ${{ needs.version.outputs.tag }}
           name: PRISM ${{ needs.version.outputs.tag }}
           prerelease: ${{ inputs.prerelease }}
@@ -389,15 +339,10 @@ jobs:
           files: |
             prism-sdk-${{ needs.version.outputs.tag }}.zip
             artifacts/windows-x64/prism-windows-x64.zip
-            artifacts/windows-wheel-x64/*.whl
             artifacts/windows-arm64/prism-windows-arm64.zip
-            artifacts/windows-wheel-arm64/*.whl
             artifacts/macos-universal/prism-macos-universal.zip
-            artifacts/macos-wheel-universal/*.whl
             artifacts/ios-arm64/prism-ios-arm64.zip
             artifacts/linux-x64/prism-linux-x64.zip
-            artifacts/linux-wheel-x64/*.whl
             artifacts/linux-arm64/prism-linux-arm64.zip
-            artifacts/linux-wheel-arm64/*.whl
             artifacts/android/prism-android.zip
             artifacts/wasm/prism-wasm.zip

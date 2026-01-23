@@ -10,18 +10,18 @@
 
 class AVSpeechBackend final : public TextToSpeechBackend {
 private:
-  AVSpeechContext *ctx;
+  AVSpeechContext *ctx{nullptr};
 
 public:
   ~AVSpeechBackend() {
-    if (ctx)
+    if (ctx != nullptr)
       avspeech_cleanup(ctx);
   }
 
   std::string_view get_name() const override { return "AVSpeech"; }
 
   BackendResult<> initialize() override {
-    if (ctx)
+    if (ctx != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
     if (const auto res = avspeech_initialize(&ctx); res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
@@ -30,7 +30,7 @@ public:
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (interrupt) {
       if (const auto res = stop(); !res)
@@ -50,13 +50,13 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     return avspeech_is_speaking(ctx);
   }
 
   BackendResult<> stop() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = avspeech_stop(ctx); res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
@@ -65,7 +65,7 @@ public:
   }
 
   BackendResult<> pause() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = avspeech_pause(ctx); res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
@@ -74,7 +74,7 @@ public:
   }
 
   BackendResult<> resume() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = avspeech_resume(ctx); res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
@@ -83,9 +83,9 @@ public:
   }
 
   BackendResult<> set_volume(float volume) override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    if (volume < 0.0 || volume > 1.0) {
+    if (volume < 0.0F || volume > 1.0F) {
       return std::unexpected(BackendError::RangeOutOfBounds);
     }
     if (const auto res = avspeech_set_volume(ctx, volume); res != AVSPEECH_OK) {
@@ -95,9 +95,9 @@ public:
   }
 
   BackendResult<float> get_volume() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    float volume = 0.0;
+    float volume = 0.0F;
     if (const auto res = avspeech_get_volume(ctx, &volume);
         res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
@@ -106,9 +106,9 @@ public:
   }
 
   BackendResult<> set_rate(float rate) override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    if (rate < 0.0 || rate > 1.0) {
+    if (rate < 0.0F || rate > 1.0F) {
       return std::unexpected(BackendError::RangeOutOfBounds);
     }
     const auto val = range_convert_midpoint(
@@ -121,9 +121,9 @@ public:
   }
 
   BackendResult<float> get_rate() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    float rate = 0.0;
+    float rate = 0.0F;
     if (const auto res = avspeech_get_rate(ctx, &rate); res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
     }
@@ -133,9 +133,9 @@ public:
   }
 
   BackendResult<> set_pitch(float pitch) override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    if (pitch < 0.0 || pitch > 1.0) {
+    if (pitch < 0.0F || pitch > 1.0F) {
       return std::unexpected(BackendError::RangeOutOfBounds);
     }
     if (const auto res = avspeech_set_pitch(ctx, pitch); res != AVSPEECH_OK) {
@@ -145,9 +145,9 @@ public:
   }
 
   BackendResult<float> get_pitch() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    float pitch = 0.0;
+    float pitch = 0.0F;
     if (const auto res = avspeech_get_pitch(ctx, &pitch); res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
     }
@@ -155,7 +155,7 @@ public:
   }
 
   BackendResult<> refresh_voices() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (const auto res = avspeech_refresh_voices(ctx); res != AVSPEECH_OK) {
       return std::unexpected(static_cast<BackendError>(res));
@@ -164,7 +164,7 @@ public:
   }
 
   BackendResult<std::size_t> count_voices() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     int count;
     if (const auto res = avspeech_count_voices(ctx, &count);
@@ -175,7 +175,7 @@ public:
   }
 
   BackendResult<std::string> get_voice_name(std::size_t id) override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -189,7 +189,7 @@ public:
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -203,7 +203,7 @@ public:
   }
 
   BackendResult<> set_voice(std::size_t id) override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -215,7 +215,7 @@ public:
   }
 
   BackendResult<std::size_t> get_voice() override {
-    if (!ctx)
+    if (ctx == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     int id;
     if (const auto res = avspeech_get_voice(ctx, &id); res != AVSPEECH_OK) {

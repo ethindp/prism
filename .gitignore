@@ -100,3 +100,4 @@ wheelhouse/
 .cache/
 !bindings
 **/target/
+bindings/dotnet/Prism.Net/staging/version.txt

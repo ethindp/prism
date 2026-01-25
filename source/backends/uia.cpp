@@ -169,6 +169,7 @@ private:
   std::mutex ready_mtx;
   std::condition_variable ready_cv;
   moodycamel::ConcurrentQueue<Command> uia_command_queue;
+  std::atomic<HDESK> target_desktop{nullptr};
 
   static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam,
                                      LPARAM lParam) {
@@ -215,6 +216,21 @@ private:
   }
 
   void thread_proc(const std::stop_token &st) {
+    HDESK desktop = target_desktop.load(std::memory_order_acquire);
+    if (desktop != nullptr) {
+      if (!SetThreadDesktop(target_desktop)) {
+        CloseDesktop(target_desktop);
+        target_desktop.store(nullptr, std::memory_order_release);
+        {
+          std::lock_guard g(ready_mtx);
+          ready = false;
+        }
+        ready_cv.notify_all();
+        return;
+      }
+      CloseDesktop(target_desktop);
+      target_desktop.store(nullptr, std::memory_order_release);
+    }
     handle_guard stop_event(CreateEvent(nullptr, TRUE, FALSE, nullptr));
     if (stop_event.h == nullptr) {
       {
@@ -338,6 +354,15 @@ public:
     GetWindowThreadProcessId(h, &pid);
     if (pid != GetCurrentProcessId())
       return std::unexpected(BackendError::InvalidParam);
+    HDESK current = GetThreadDesktop(GetCurrentThreadId());
+    if (current != nullptr) {
+      HDESK dup = nullptr;
+      if (DuplicateHandle(GetCurrentProcess(), current, GetCurrentProcess(),
+                          reinterpret_cast<LPHANDLE>(&dup), 0, FALSE,
+                          DUPLICATE_SAME_ACCESS)) {
+        target_desktop.store(dup, std::memory_order_release);
+      }
+    }
     thread = std::jthread(
         [this](const std::stop_token &st) { this->thread_proc(st); });
     bool success = ready_cv.wait_for(lock, std::chrono::seconds(5),

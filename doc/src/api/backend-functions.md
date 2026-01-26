@@ -35,6 +35,69 @@ This function does not explicitly stop any speech that may be in progress. Wheth
 
 After calling `prism_backend_free`, the `backend` pointer MUST NOT be used for any purpose. Passing a freed pointer to any Prism function results in undefined behavior.
 
+### prism_backend_get_features
+
+Returns a bitmask of all features supported by this backend, as well as other information.
+
+#### Syntax
+
+```c
+uint64_t prism_backend_get_features(PrismBackend *backend);
+```
+
+#### Parameters
+
+`backend`
+
+The backend to query. This parameter MUST NOT be NULL.
+
+#### Returns
+
+A bitmask of feature information.
+
+#### Remarks
+
+This function MAY be called regardless of backend initialization state.
+
+The returned bitmask indicates which functions are implemented by the backend and whether the underlying engine is currently available. If a bit is set, the corresponding function is implemented. If clear, calls to that function return `PRISM_ERROR_NOT_IMPLEMENTED`.
+
+To determine runtime availability, this function MAY perform lightweight probes such as COM class factory lookups, RPC endpoint queries, D-Bus name ownership checks, or process enumeration. These operations are minimized but are not cost-free. Callers SHOULD cache the result and re-query only when the `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` bit is relevant.
+
+Bit 1 is reserved.
+
+The following bits are defined:
+
+| Bit | Description |
+| --- | --- |
+| `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` | The underlying engine or service is available. This determination is advisory; `prism_backend_initialize` MAY still fail. |
+| `PRISM_BACKEND_SUPPORTS_SPEAK` | `prism_backend_speak` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY` | `prism_backend_speak_to_memory` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_BRAILLE` | `prism_backend_braille` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_OUTPUT` | `prism_backend_output` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_IS_SPEAKING` | `prism_backend_is_speaking` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_STOP` | `prism_backend_stop` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_PAUSE` | `prism_backend_pause` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_RESUME` | `prism_backend_resume` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_SET_VOLUME` | `prism_backend_set_volume` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_GET_VOLUME` | `prism_backend_get_volume` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_SET_RATE` | `prism_backend_set_rate` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_GET_RATE` | `prism_backend_get_rate` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_SET_PITCH` | `prism_backend_set_pitch` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_GET_PITCH` | `prism_backend_get_pitch` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_REFRESH_VOICES` | `prism_backend_refresh_voices` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_COUNT_VOICES` | `prism_backend_count_voices` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_GET_VOICE_NAME` | `prism_backend_get_voice_name` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_GET_VOICE_LANGUAGE` | `prism_backend_get_voice_language` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_GET_VOICE` | `prism_backend_get_voice` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_SET_VOICE` | `prism_backend_set_voice` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_GET_CHANNELS` | `prism_backend_get_channels` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_GET_SAMPLE_RATE` | `prism_backend_get_sample_rate` is implemented. |
+| `PRISM_BACKEND_SUPPORTS_GET_BIT_DEPTH` | `prism_backend_get_bit_depth` is implemented. |
+| `PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK` | Reserved. |
+| `PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY` | Reserved. |
+| `PRISM_BACKEND_SUPPORTS_SPEAK_SSML` | Reserved. |
+| `PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML` | Reserved. |
+
 ### prism_backend_name
 
 Returns the human-readable name of a backend.
@@ -57,7 +120,7 @@ Returns a pointer to a null-terminated string containing the backend name on suc
 
 #### Remarks
 
-This function may be called on a backend that has not been initialized. It is one of only two functions (along with `prism_backend_free`) that may be called before `prism_backend_initialize`.
+This function may be called on a backend that has not been initialized.
 
 The returned string is owned by the backend and remains valid for the lifetime of the backend instance. Applications MUST NOT modify or free the returned string.
 
@@ -101,7 +164,7 @@ The backend instance. This parameter MUST NOT be `NULL`.
 
 #### Remarks
 
-This function prepares a backend instance for use. It MUST be called after creating a backend with `prism_registry_create` and before calling any function that performs speech synthesis or queries backend state (except `prism_backend_name` and `prism_backend_free`).
+This function prepares a backend instance for use. It MUST be called after creating a backend with `prism_registry_create` and before calling any function that performs speech synthesis or queries backend state (except `prism_backend_name`, `prism_backend_free`, and `prism_backend_get_features`).
 
 For backends obtained via `prism_registry_create_best` or `prism_registry_acquire_best`, the backend is already initialized when returned. Calling `prism_backend_initialize` on such a backend returns `PRISM_ERROR_ALREADY_INITIALIZED`. Applications MAY treat this error as non-fatal.
 

@@ -218,7 +218,7 @@ private:
   void thread_proc(const std::stop_token &st) {
     HDESK desktop = target_desktop.load(std::memory_order_acquire);
     if (desktop != nullptr) {
-      if (!SetThreadDesktop(target_desktop)) {
+      if (SetThreadDesktop(target_desktop) == 0) {
         CloseDesktop(target_desktop);
         target_desktop.store(nullptr, std::memory_order_release);
         {
@@ -339,6 +339,21 @@ public:
 
   std::string_view get_name() const override { return "UIA"; }
 
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    IUIAutomation *uia = nullptr;
+    HRESULT hr =
+        CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER,
+                         IID_IUIAutomation, reinterpret_cast<void **>(&uia));
+    if (SUCCEEDED(hr) && uia != nullptr) {
+      uia->Release();
+      features |= IS_SUPPORTED_AT_RUNTIME;
+    }
+    features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    return features;
+  }
+
   BackendResult<> initialize() override {
     std::unique_lock lock(ready_mtx);
     if (initialized.test())
@@ -359,7 +374,7 @@ public:
       HDESK dup = nullptr;
       if (DuplicateHandle(GetCurrentProcess(), current, GetCurrentProcess(),
                           reinterpret_cast<LPHANDLE>(&dup), 0, FALSE,
-                          DUPLICATE_SAME_ACCESS)) {
+                          DUPLICATE_SAME_ACCESS) != 0) {
         target_desktop.store(dup, std::memory_order_release);
       }
     }

@@ -21,6 +21,22 @@ public:
 
   [[nodiscard]] std::string_view get_name() const override { return "JAWS"; }
 
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    IClassFactory *factory = nullptr;
+    HRESULT hr = CoGetClassObject(
+        CLSID_JawsApi, CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER, nullptr,
+        IID_IClassFactory, reinterpret_cast<void **>(&factory));
+    if (SUCCEEDED(hr) && factory != nullptr) {
+      factory->Release();
+      features |= IS_SUPPORTED_AT_RUNTIME;
+    }
+    features |=
+        SUPPORTS_SPEAK | SUPPORTS_BRAILLE | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    return features;
+  }
+
   BackendResult<> initialize() override {
     if (controller != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);

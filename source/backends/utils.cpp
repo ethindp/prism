@@ -112,7 +112,7 @@ static inline void apply_fade_in(std::span<float> interleaved,
     if (fade_frames > 1) {
       const auto t =
           static_cast<float>(i) / static_cast<float>(fade_frames - 1);
-      g = 0.5F - 0.5F * std::cos(std::numbers::pi_v<float> * t);
+      g = 0.5F - (0.5F * std::cos(std::numbers::pi_v<float> * t));
     }
     const auto base = i * channels;
     for (std::size_t ch = 0; ch < channels; ++ch)
@@ -135,7 +135,7 @@ static inline void apply_fade_out(std::span<float> interleaved,
     if (fade_frames > 1) {
       const float t =
           static_cast<float>(i) / static_cast<float>(fade_frames - 1);
-      g = 0.5F + 0.5F * std::cos(std::numbers::pi_v<float> * t);
+      g = 0.5F + (0.5F * std::cos(std::numbers::pi_v<float> * t));
     } else {
       g = 0.0F;
     }

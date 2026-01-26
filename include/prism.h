@@ -126,6 +126,37 @@ typedef void(PRISM_CALL *PrismAudioCallback)(
 #define PRISM_BACKEND_ZOOM_TEXT UINT64_C(0xAE439D62DC7B1479)
 #define PRISM_CONFIG_VERSION 1
 
+typedef enum PrismBackendFeature : uint64_t {
+    PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME                   = (1ULL << 0),
+    PRISM_BACKEND_SUPPORTS_SPEAK                            = (1ULL << 2),
+    PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY                  = (1ULL << 3),
+    PRISM_BACKEND_SUPPORTS_BRAILLE                          = (1ULL << 4),
+    PRISM_BACKEND_SUPPORTS_OUTPUT                           = (1ULL << 5),
+    PRISM_BACKEND_SUPPORTS_IS_SPEAKING                      = (1ULL << 6),
+    PRISM_BACKEND_SUPPORTS_STOP                             = (1ULL << 7),
+    PRISM_BACKEND_SUPPORTS_PAUSE                            = (1ULL << 8),
+    PRISM_BACKEND_SUPPORTS_RESUME                           = (1ULL << 9),
+    PRISM_BACKEND_SUPPORTS_SET_VOLUME                       = (1ULL << 10),
+    PRISM_BACKEND_SUPPORTS_GET_VOLUME                       = (1ULL << 11),
+    PRISM_BACKEND_SUPPORTS_SET_RATE                         = (1ULL << 12),
+    PRISM_BACKEND_SUPPORTS_GET_RATE                         = (1ULL << 13),
+    PRISM_BACKEND_SUPPORTS_SET_PITCH                        = (1ULL << 14),
+    PRISM_BACKEND_SUPPORTS_GET_PITCH                        = (1ULL << 15),
+    PRISM_BACKEND_SUPPORTS_REFRESH_VOICES                   = (1ULL << 16),
+    PRISM_BACKEND_SUPPORTS_COUNT_VOICES                     = (1ULL << 17),
+    PRISM_BACKEND_SUPPORTS_GET_VOICE_NAME                   = (1ULL << 18),
+    PRISM_BACKEND_SUPPORTS_GET_VOICE_LANGUAGE               = (1ULL << 19),
+    PRISM_BACKEND_SUPPORTS_GET_VOICE                        = (1ULL << 20),
+    PRISM_BACKEND_SUPPORTS_SET_VOICE                        = (1ULL << 21),
+    PRISM_BACKEND_SUPPORTS_GET_CHANNELS                     = (1ULL << 22),
+    PRISM_BACKEND_SUPPORTS_GET_SAMPLE_RATE                  = (1ULL << 23),
+    PRISM_BACKEND_SUPPORTS_GET_BIT_DEPTH                    = (1ULL << 24),
+    PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK        = (1ULL << 25),
+    PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY = (1ULL << 26),
+    PRISM_BACKEND_SUPPORTS_SPEAK_SSML                       = (1ULL << 27),
+    PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML             = (1ULL << 28)
+} PrismBackendFeature;
+
 PRISM_STATIC_ASSERT(sizeof(PrismBackendId) == 8,
                     "PrismBackendId must be 64 bits");
 PRISM_STATIC_ASSERT(alignof(PrismBackendId) >= 4, "PrismBackendId alignment");
@@ -178,6 +209,9 @@ void PRISM_CALL prism_backend_free(PrismBackend *backend);
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) const char *PRISM_CALL
     prism_backend_name(PrismBackend *backend);
+
+PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) uint64_t PRISM_CALL
+    prism_backend_get_features(PrismBackend *backend);
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
     prism_backend_initialize(PrismBackend *backend);

@@ -3,9 +3,14 @@
 #include "backend.h"
 #include "backend_registry.h"
 #include <atomic>
-#if defined(__APPLE__)
+#ifdef __APPLE__
 #include "raw/voiceover.h"
 #include <TargetConditionals.h>
+#include <objc/message.h>
+#include <objc/runtime.h>
+#if TARGET_OS_OSX
+#include <ApplicationServices/ApplicationServices.h>
+#endif
 
 class VoiceOverBackend final : public TextToSpeechBackend {
   std::atomic_flag inited;
@@ -33,6 +38,27 @@ public:
 #else
     return "VoiceOver (iOS)";
 #endif
+  }
+
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+#if TARGET_OS_OSX
+    if (AXIsVoiceOverRunning()) {
+      features |= IS_SUPPORTED_AT_RUNTIME;
+    }
+#else
+    Class cls = objc_getClass("UIAccessibility");
+    if (cls) {
+      SEL sel = sel_registerName("isVoiceOverRunning");
+      if (reinterpret_cast<BOOL (*)(Class, SEL)>(objc_msgSend)(cls, sel)) {
+        features |= IS_SUPPORTED_AT_RUNTIME;
+      }
+    }
+#endif
+    features |=
+        SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING | SUPPORTS_STOP;
+    return features;
   }
 
   BackendResult<> initialize() override {

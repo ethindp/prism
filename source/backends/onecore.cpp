@@ -49,6 +49,27 @@ public:
 
   std::string_view get_name() const override { return "OneCore"; }
 
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    if (ApiInformation::IsTypePresent(
+            _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) &&
+        ApiInformation::IsTypePresent(
+            _T("Windows.Media.Playback.MediaPlayer"))) {
+      features |= IS_SUPPORTED_AT_RUNTIME;
+    }
+    features |= SUPPORTS_SPEAK | SUPPORTS_SPEAK_TO_MEMORY | SUPPORTS_OUTPUT |
+                SUPPORTS_IS_SPEAKING | SUPPORTS_STOP | SUPPORTS_PAUSE |
+                SUPPORTS_RESUME | SUPPORTS_SET_VOLUME | SUPPORTS_GET_VOLUME |
+                SUPPORTS_SET_RATE | SUPPORTS_GET_RATE | SUPPORTS_SET_PITCH |
+                SUPPORTS_GET_PITCH | SUPPORTS_REFRESH_VOICES |
+                SUPPORTS_COUNT_VOICES | SUPPORTS_GET_VOICE_NAME |
+                SUPPORTS_GET_VOICE_LANGUAGE | SUPPORTS_GET_VOICE |
+                SUPPORTS_SET_VOICE | SUPPORTS_GET_CHANNELS |
+                SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH;
+    return features;
+  }
+
   BackendResult<> initialize() override {
     if (!ApiInformation::IsTypePresent(
             _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||

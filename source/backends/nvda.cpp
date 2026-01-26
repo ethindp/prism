@@ -53,6 +53,82 @@ public:
 
   [[nodiscard]] std::string_view get_name() const override { return "NVDA"; }
 
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    static const UUID NVDA_CONTROLLER_UUID = {
+        0xDFF50B99,
+        0xF7FD,
+        0x4ca7,
+        {0xA8, 0x2C, 0xDA, 0xEB, 0x3E, 0x02, 0x52, 0x95}};
+    RPC_EP_INQ_HANDLE inq_context = nullptr;
+    RPC_IF_ID if_id = {};
+    if_id.Uuid = NVDA_CONTROLLER_UUID;
+    if_id.VersMajor = 1;
+    if_id.VersMinor = 0;
+    RPC_STATUS status =
+        RpcMgmtEpEltInqBegin(nullptr, RPC_C_EP_MATCH_BY_IF, &if_id,
+                             RPC_C_VERS_COMPATIBLE, nullptr, &inq_context);
+    if (status == RPC_S_OK) {
+      RPC_IF_ID result_if_id;
+      RPC_BINDING_HANDLE binding = nullptr;
+      UUID object_uuid;
+      RPC_WSTR annotation = nullptr;
+      status = RpcMgmtEpEltInqNext(inq_context, &result_if_id, &binding,
+                                   &object_uuid, &annotation);
+      if (status == RPC_S_OK) {
+        features |= IS_SUPPORTED_AT_RUNTIME;
+      }
+      if (annotation != nullptr)
+        RpcStringFree(&annotation);
+      if (binding != nullptr)
+        RpcBindingFree(&binding);
+      RpcMgmtEpEltInqDone(&inq_context);
+    }
+    if (!features.test(0)) {
+      DWORD sid = 0;
+      if (const auto res = ProcessIdToSessionId(GetCurrentProcessId(), &sid);
+          res != 0) {
+        if (const HANDLE desktop_handle =
+                GetThreadDesktop(GetCurrentThreadId());
+            desktop_handle != nullptr) {
+          std::wstring desktop_name;
+          desktop_name.resize(32);
+          if (const auto res = GetUserObjectInformation(
+                  desktop_handle, UOI_NAME, desktop_name.data(),
+                  static_cast<DWORD>(desktop_name.size()) * sizeof(wchar_t),
+                  nullptr);
+              res != 0) {
+            const std::wstring desktop_ns =
+                std::format(_T("{}.{}"), sid, desktop_name);
+            RPC_STATUS status;
+            const auto endpoint = std::format(_T("NvdaCtlr.{}"), desktop_ns);
+            RPC_WSTR string_binding = nullptr;
+            status = RpcStringBindingCompose(
+                nullptr, RPC_WSTR(_T("ncalrpc")), nullptr,
+                RPC_WSTR(endpoint.c_str()), nullptr, &string_binding);
+            if (status == RPC_S_OK) {
+              handle_t test_handle = nullptr;
+              status =
+                  RpcBindingFromStringBinding(string_binding, &test_handle);
+              if (status == RPC_S_OK) {
+                status = RpcMgmtIsServerListening(test_handle);
+                if (status == RPC_S_OK) {
+                  features |= IS_SUPPORTED_AT_RUNTIME;
+                }
+                RpcBindingFree(&test_handle);
+              }
+              RpcStringFree(&string_binding);
+            }
+          }
+        }
+      }
+    }
+    features |=
+        SUPPORTS_SPEAK | SUPPORTS_BRAILLE | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    return features;
+  }
+
   BackendResult<> initialize() override {
     if (controller_handle != nullptr || controller2_handle != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);

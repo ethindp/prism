@@ -200,6 +200,10 @@ PRISM_API const char *PRISM_CALL prism_backend_name(PrismBackend *backend) {
   return backend->impl->get_name().data();
 }
 
+PRISM_API std::uint64_t PRISM_CALL prism_backend_get_features(PrismBackend *backend) {
+  return backend->impl->get_features().to_ullong();
+}
+
 PRISM_API PrismError PRISM_CALL
 prism_backend_initialize(PrismBackend *backend) {
   const auto r = backend->impl->initialize();

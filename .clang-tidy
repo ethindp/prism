@@ -14,7 +14,8 @@ Checks: '-*,
          -clang-analyzer-optin.core.EnumCastOutOfRange,
          -bugprone-easily-swappable-parameters,
          -readability-function-cognitive-complexity,
-         -readability-else-after-return'
+         -readability-else-after-return,
+         -bugprone-suspicious-stringview-data-usage'
 WarningsAsErrors: '*'
 HeaderFilterRegex: '^(source|include)/.*'
 FormatStyle: file

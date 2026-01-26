@@ -24,6 +24,22 @@ public:
     return "ZoomText";
   }
 
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    IClassFactory *factory = nullptr;
+    HRESULT hr = CoGetClassObject(
+        CLSID_ZoomText, CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER, nullptr,
+        IID_IClassFactory, reinterpret_cast<void **>(&factory));
+    if (SUCCEEDED(hr) && factory != nullptr) {
+      factory->Release();
+      features |= IS_SUPPORTED_AT_RUNTIME;
+    }
+    features |=
+        SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING | SUPPORTS_STOP;
+    return features;
+  }
+
   BackendResult<> initialize() override {
     if (controller != nullptr || speech != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);

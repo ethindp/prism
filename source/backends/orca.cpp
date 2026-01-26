@@ -20,35 +20,63 @@ private:
 
 public:
   ~OrcaBackend() override {
-    if (module_proxy) {
+    if (module_proxy != nullptr) {
       g_object_unref(module_proxy);
       module_proxy = nullptr;
     }
-    if (service_proxy) {
+    if (service_proxy != nullptr) {
       g_object_unref(service_proxy);
       service_proxy = nullptr;
     }
-    if (conn) {
+    if (conn != nullptr) {
       g_object_unref(conn);
       conn = nullptr;
     }
   }
 
-  std::string_view get_name() const override { return "Orca"; }
+  [[nodiscard]] std::string_view get_name() const override { return "Orca"; }
+
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    GDBusConnection *temp_conn =
+        g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, nullptr);
+    if (temp_conn != nullptr) {
+      GError *error = nullptr;
+      GVariant *result = g_dbus_connection_call_sync(
+          temp_conn, "org.freedesktop.DBus", "/org/freedesktop/DBus",
+          "org.freedesktop.DBus", "NameHasOwner",
+          g_variant_new("(s)", "org.gnome.Orca.Service"), G_VARIANT_TYPE("(b)"),
+          G_DBUS_CALL_FLAGS_NONE, 100, nullptr, &error);
+      bool exists = false;
+      if (result != nullptr) {
+        g_variant_get(result, "(b)", &exists);
+        g_variant_unref(result);
+        if (exists) {
+          features |= IS_SUPPORTED_AT_RUNTIME;
+        }
+      }
+      if (error != nullptr)
+        g_error_free(error);
+      g_object_unref(temp_conn);
+    }
+    features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    return features;
+  }
 
   BackendResult<> initialize() override {
-    if (conn && service_proxy && module_proxy)
+    if (conn != nullptr && service_proxy != nullptr && module_proxy != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
     GError *error = nullptr;
     conn = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
-    if (error) {
+    if (error != nullptr) {
       g_error_free(error);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     service_proxy = orca_service_org_gnome_orca_service_proxy_new_sync(
         conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service",
         "/org/gnome/Orca/Service", nullptr, &error);
-    if (error) {
+    if (error != nullptr) {
       g_error_free(error);
       g_object_unref(conn);
       conn = nullptr;
@@ -57,7 +85,7 @@ public:
     module_proxy = orca_module_org_gnome_orca_module_proxy_new_sync(
         conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service",
         "/org/gnome/Orca/Service/SpeechAndVerbosityManager", nullptr, &error);
-    if (error) {
+    if (error != nullptr) {
       g_error_free(error);
       g_object_unref(service_proxy);
       service_proxy = nullptr;
@@ -69,7 +97,7 @@ public:
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (!conn || !service_proxy || !module_proxy)
+    if (conn == nullptr || service_proxy == nullptr || module_proxy == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     if (!simdutf::validate_utf8(text.data(), text.size())) {
       return std::unexpected(BackendError::InvalidUtf8);
@@ -82,8 +110,8 @@ public:
     const auto ok =
         orca_service_org_gnome_orca_service_call_present_message_sync(
             service_proxy, text.data(), &success, nullptr, &error);
-    if (!ok || !success || error) {
-      if (error)
+    if (ok == 0 || success == 0 || error != nullptr) {
+      if (error != nullptr)
         g_error_free(error);
       return std::unexpected(BackendError::SpeakFailure);
     }
@@ -95,14 +123,14 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (!conn || !service_proxy || !module_proxy)
+    if (conn == nullptr || service_proxy == nullptr || module_proxy == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     GError *error = nullptr;
     gboolean success;
     const auto ok = orca_module_org_gnome_orca_module_call_execute_command_sync(
-        module_proxy, "InterruptSpeech", false, &success, nullptr, &error);
-    if (!ok || !success || error) {
-      if (error)
+        module_proxy, "InterruptSpeech", 0, &success, nullptr, &error);
+    if (ok == 0 || success == 0 || error != nullptr) {
+      if (error != nullptr)
         g_error_free(error);
       return std::unexpected(BackendError::SpeakFailure);
     }

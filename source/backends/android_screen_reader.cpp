@@ -3,6 +3,7 @@
 #include "backend.h"
 #include "backend_registry.h"
 #include <atomic>
+#include <bitset>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -10,6 +11,7 @@
 #include "java/AudioCallback.hpp"
 #include "java/Unit.hpp"
 #include "java/jni/AbstractTextToSpeechBackend.hpp"
+#include "java/support/jni/djinni_support.hpp"
 #include <jni.h>
 
 class AndroidScreenReaderAudioCallbackAdapter
@@ -46,44 +48,26 @@ public:
 
   std::string_view get_name() const override { return "Android screen reader"; }
 
-  BackendResult<> initialize() override {
-    if (java_vm == nullptr)
-      return std::unexpected(BackendError::BackendNotAvailable);
-    JNIEnv *jni_env = nullptr;
-    constexpr jint test_versions[] = {
-#ifdef JNI_VERSION_24
-        JNI_VERSION_24,
-#endif
-#ifdef JNI_VERSION_21
-        JNI_VERSION_21,
-#endif
-#ifdef JNI_VERSION_20
-        JNI_VERSION_20,
-#endif
-#ifdef JNI_VERSION_19
-        JNI_VERSION_19,
-#endif
-#ifdef JNI_VERSION_10
-        JNI_VERSION_10,
-#endif
-#ifdef JNI_VERSION_9
-        JNI_VERSION_9,
-#endif
-#ifdef JNI_VERSION_1_8
-        JNI_VERSION_1_8,
-#endif
-        JNI_VERSION_1_6,
-    };
-    for (const auto version : test_versions) {
-      auto res = java_vm->GetEnv(reinterpret_cast<void **>(&jni_env), version);
-      if (res == JNI_OK)
-        break;
-      if (res == JNI_EDETACHED) {
-        if (java_vm->AttachCurrentThread(&jni_env, nullptr) == JNI_OK)
-          break;
-        return std::unexpected(BackendError::BackendNotAvailable);
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    auto *env = djinni::jniGetThreadEnv();
+    if (env != nullptr) {
+      auto java_class =
+          env->FindClass("com/github/ethindp/prism/AndroidScreenReaderBackend");
+      if (java_class != nullptr) {
+        features |= IS_SUPPORTED_AT_RUNTIME;
+      } else {
+        if (env->ExceptionCheck())
+          env->ExceptionClear();
       }
     }
+    features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    return features;
+  }
+
+  BackendResult<> initialize() override {
+    auto *jni_env = djinni::jniGetThreadEnv();
     if (jni_env == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
     auto java_class = jni_env->FindClass(

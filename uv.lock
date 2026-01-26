@@ -85,8 +85,8 @@ wheels = [
 ]
 
 [[package]]
-name = "prism"
-version = "0.3.4"
+name = "prismatoid"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "cffi" },

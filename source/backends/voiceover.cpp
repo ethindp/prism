@@ -43,21 +43,41 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-#if TARGET_OS_OSX
-    if (AXIsVoiceOverRunning()) {
-      features |= IS_SUPPORTED_AT_RUNTIME;
+    features |=
+        SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING | SUPPORTS_STOP;
+    bool is_runtime_active = false;
+#if defined(TARGET_OS_OSX) && TARGET_OS_OSX
+    const Class ns_workspace_class = objc_getClass("NSWorkspace");
+    if (ns_workspace_class) {
+      const SEL shared_workspace_sel = sel_registerName("sharedWorkspace");
+      using SharedWorkspaceFn = id (*)(Class, SEL);
+      const auto get_shared_workspace =
+          reinterpret_cast<SharedWorkspaceFn>(objc_msgSend);
+      if (id workspace =
+              get_shared_workspace(ns_workspace_class, shared_workspace_sel)) {
+        const SEL is_enabled_sel = sel_registerName("isVoiceOverEnabled");
+        using IsEnabledFn = BOOL (*)(id, SEL);
+        const auto is_enabled_call =
+            reinterpret_cast<IsEnabledFn>(objc_msgSend);
+        if (is_enabled_call(workspace, is_enabled_sel)) {
+          is_runtime_active = true;
+        }
+      }
     }
 #else
-    Class cls = objc_getClass("UIAccessibility");
-    if (cls) {
-      SEL sel = sel_registerName("isVoiceOverRunning");
-      if (reinterpret_cast<BOOL (*)(Class, SEL)>(objc_msgSend)(cls, sel)) {
-        features |= IS_SUPPORTED_AT_RUNTIME;
+    auto const ui_accessibility_class = objc_getClass("UIAccessibility");
+    if (ui_accessibility_class) {
+      auto const is_running_sel = sel_registerName("isVoiceOverRunning");
+      using IsRunningFn = BOOL (*)(Class, SEL);
+      auto const is_running_call = reinterpret_cast<IsRunningFn>(objc_msgSend);
+      if (is_running_call(ui_accessibility_class, is_running_sel)) {
+        is_runtime_active = true;
       }
     }
 #endif
-    features |=
-        SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING | SUPPORTS_STOP;
+    if (is_runtime_active) {
+      features |= IS_SUPPORTED_AT_RUNTIME;
+    }
     return features;
   }
 

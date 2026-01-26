@@ -1,4 +1,5 @@
 import sys
+from dataclasses import dataclass, field, fields
 from enum import IntEnum
 
 from .lib import ffi, lib
@@ -141,6 +142,48 @@ def _check_error(error_code: int) -> None:
     raise exc_class(error_code, msg)
 
 
+def _bit(position: int) -> field:
+    return field(default=False, metadata={"bit": position})
+
+
+@dataclass(frozen=True, slots=True)
+class BackendFeatures:
+    is_supported_at_runtime: bool = _bit(0)
+    supports_speak: bool = _bit(2)
+    supports_speak_to_memory: bool = _bit(3)
+    supports_braille: bool = _bit(4)
+    supports_output: bool = _bit(5)
+    supports_is_speaking: bool = _bit(6)
+    supports_stop: bool = _bit(7)
+    supports_pause: bool = _bit(8)
+    supports_resume: bool = _bit(9)
+    supports_set_volume: bool = _bit(10)
+    supports_get_volume: bool = _bit(11)
+    supports_set_rate: bool = _bit(12)
+    supports_get_rate: bool = _bit(13)
+    supports_set_pitch: bool = _bit(14)
+    supports_get_pitch: bool = _bit(15)
+    supports_refresh_voices: bool = _bit(16)
+    supports_count_voices: bool = _bit(17)
+    supports_get_voice_name: bool = _bit(18)
+    supports_get_voice_language: bool = _bit(19)
+    supports_get_voice: bool = _bit(20)
+    supports_set_voice: bool = _bit(21)
+    supports_get_channels: bool = _bit(22)
+    supports_get_sample_rate: bool = _bit(23)
+    supports_get_bit_depth: bool = _bit(24)
+    performs_silence_trimming_on_speak: bool = _bit(25)
+    performs_silence_trimming_on_speak_to_memory: bool = _bit(26)
+    supports_speak_ssml: bool = _bit(27)
+    supports_speak_to_memory_ssml: bool = _bit(28)
+
+    @classmethod
+    def from_bits(cls, bits: int) -> "BackendFeatures":
+        return cls(
+            **{f.name: bool(bits & (1 << f.metadata["bit"])) for f in fields(cls)},
+        )
+
+
 class Backend:
     _raw = None
 
@@ -179,7 +222,7 @@ class Backend:
 
         @ffi.callback("void(void *, const float *, size_t, size_t, size_t)")
         def audio_callback_shim(
-            _userdata, samples_ptr: int, count, channels, rate
+            _userdata, samples_ptr: int, count, channels, rate,
         ) -> None:
             pcm_data = ffi.unpack(samples_ptr, count * channels)
             on_audio_data(pcm_data, channels, rate)
@@ -303,6 +346,10 @@ class Backend:
         out_bit_depth = ffi.new("size_t*")
         _check_error(lib.prism_backend_get_bit_depth(self._raw, out_bit_depth))
         return out_bit_depth[0]
+
+    @property
+    def features(self) -> BackendFeatures:
+        return BackendFeatures.from_bits(lib.prism_backend_get_features(self._raw))
 
 
 class Context:

@@ -132,6 +132,6 @@ public:
 };
 
 REGISTER_BACKEND_WITH_ID(SpeechDispatcherBackend, Backends::SpeechDispatcher,
-                         "Speech Dispatcher", 98);
+                         "Speech Dispatcher", 97);
 #endif
 #endif

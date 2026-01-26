@@ -33,7 +33,9 @@ public:
         IID_IClassFactory, reinterpret_cast<void **>(&factory));
     if (SUCCEEDED(hr) && factory != nullptr) {
       factory->Release();
-      features |= IS_SUPPORTED_AT_RUNTIME;
+      if (FindWindow(_T("ZXSPEECHWNDCLASS"), _T("ZoomText Speech Processor")) !=
+          nullptr)
+        features |= IS_SUPPORTED_AT_RUNTIME;
     }
     features |=
         SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING | SUPPORTS_STOP;
@@ -143,5 +145,5 @@ public:
   }
 };
 
-REGISTER_BACKEND_WITH_ID(ZoomTextBackend, Backends::ZoomText, "ZoomText", 101);
+REGISTER_BACKEND_WITH_ID(ZoomTextBackend, Backends::ZoomText, "ZoomText", 100);
 #endif

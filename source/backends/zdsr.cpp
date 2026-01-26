@@ -94,6 +94,6 @@ public:
   }
 };
 
-REGISTER_BACKEND_WITH_ID(ZdsrBackend, Backends::ZDSR, "Zhengdu", 102);
+REGISTER_BACKEND_WITH_ID(ZdsrBackend, Backends::ZDSR, "Zhengdu", 101);
 #endif
 #endif

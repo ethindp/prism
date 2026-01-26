@@ -17,7 +17,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.4.7
+  VERSION 0.5.0
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" OFF)
@@ -104,14 +104,9 @@ else()
 endif()
 # Remove platform-specific files
 if(NOT WIN32)
-  list(
-    REMOVE_ITEM
-    sources
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c")
-  list(REMOVE_ITEM headers
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sapibridge.h")
+  list(REMOVE_ITEM sources
+       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
+       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c")
 endif()
 if(NOT ANDROID)
   list(REMOVE_ITEM sources ${android_sources})
@@ -152,7 +147,10 @@ if(WIN32)
                                                 uiautomationcore.lib)
   if(_comp_arch_id_lc STREQUAL "arm64" OR _comp_arch_id_lc STREQUAL "aarch64")
     set(MIDL_ENV_TARGET "arm64")
-  elseif(_comp_arch_id_lc STREQUAL "x64" OR _comp_arch_id_lc STREQUAL "amd64")
+  elseif(
+    _comp_arch_id_lc STREQUAL "x64"
+    OR _comp_arch_id_lc STREQUAL "amd64"
+    OR _comp_arch_id_lc STREQUAL "arm64ec")
     set(MIDL_ENV_TARGET "x64")
   elseif(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
     set(MIDL_ENV_TARGET "win32")
@@ -426,8 +424,8 @@ if(PRISM_ENABLE_TESTS)
     get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
     add_executable(${TEST_NAME} ${TEST_SOURCE})
     target_link_libraries(${TEST_NAME} PRIVATE Catch2::Catch2WithMain prism)
-    if (WIN32)
-    target_link_libraries(${TEST_NAME} PRIVATE Rpcrt4.lib)
+    if(WIN32)
+      target_link_libraries(${TEST_NAME} PRIVATE Rpcrt4.lib)
     endif()
     target_include_directories(${TEST_NAME}
                                PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

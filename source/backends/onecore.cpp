@@ -401,5 +401,5 @@ public:
   }
 };
 
-REGISTER_BACKEND_WITH_ID(OneCoreBackend, Backends::OneCore, "OneCore", 99);
+REGISTER_BACKEND_WITH_ID(OneCoreBackend, Backends::OneCore, "OneCore", 98);
 #endif

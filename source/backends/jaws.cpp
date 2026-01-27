@@ -4,17 +4,18 @@
 #include "backend.h"
 #include "backend_registry.h"
 #ifdef _WIN32
-#include "moderncom/com_ptr.h"
-#include "moderncom/interfaces.h"
 #include "raw/fsapi.h"
 #include <algorithm>
+#include <atlbase.h>
+#include <atomic>
 #include <ranges>
 #include <tchar.h>
 #include <windows.h>
 
 class JawsBackend final : public TextToSpeechBackend {
 private:
-  belt::com::com_ptr<IJawsApi> controller;
+  CComPtr<IJawsApi> controller;
+  std::atomic_flag initialized;
 
 public:
   ~JawsBackend() override = default;
@@ -39,13 +40,15 @@ public:
   }
 
   BackendResult<> initialize() override {
-    if (controller != nullptr)
+    if (initialized.test())
       return std::unexpected(BackendError::AlreadyInitialized);
     if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
     switch (controller.CoCreateInstance(CLSID_JawsApi)) {
-    case S_OK:
+    case S_OK: {
+      initialized.test_and_set();
       return {};
+    }
     case REGDB_E_CLASSNOTREG:
     case E_NOINTERFACE:
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -56,7 +59,7 @@ public:
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (controller == nullptr)
+    if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -81,7 +84,7 @@ public:
   }
 
   BackendResult<> braille(std::string_view text) override {
-    if (controller == nullptr)
+    if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -125,7 +128,7 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (controller == nullptr)
+    if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     if (!FindWindow(_T("JFWUI2"), nullptr))
       return std::unexpected(BackendError::BackendNotAvailable);

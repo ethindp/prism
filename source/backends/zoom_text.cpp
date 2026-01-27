@@ -4,18 +4,19 @@
 #include "backend.h"
 #include "backend_registry.h"
 #ifdef _WIN32
-#include "moderncom/com_ptr.h"
-#include "moderncom/interfaces.h"
 #include "raw/zt.h"
 #include <algorithm>
+#include <atlbase.h>
+#include <atomic>
 #include <ranges>
 #include <tchar.h>
 #include <windows.h>
 
 class ZoomTextBackend final : public TextToSpeechBackend {
 private:
-  belt::com::com_ptr<IZoomText2> controller{nullptr};
-  belt::com::com_ptr<ISpeech2> speech{nullptr};
+  CComPtr<IZoomText2> controller{nullptr};
+  CComPtr<ISpeech2> speech{nullptr};
+  std::atomic_flag initialized;
 
 public:
   ~ZoomTextBackend() override = default;
@@ -43,7 +44,7 @@ public:
   }
 
   BackendResult<> initialize() override {
-    if (controller != nullptr || speech != nullptr)
+    if (initialized.test())
       return std::unexpected(BackendError::AlreadyInitialized);
     if (FindWindow(_T("ZXSPEECHWNDCLASS"), _T("ZoomText Speech Processor")) ==
         nullptr) {
@@ -51,9 +52,10 @@ public:
     }
     switch (controller.CoCreateInstance(CLSID_ZoomText)) {
     case S_OK: {
-      if (FAILED(controller->get_Speech(speech.put()))) {
+      if (FAILED(controller->get_Speech(&speech))) {
         return std::unexpected(BackendError::BackendNotAvailable);
       }
+      initialized.test_and_set();
       return {};
     }
     case REGDB_E_CLASSNOTREG:
@@ -65,10 +67,10 @@ public:
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (controller == nullptr || speech == nullptr)
+    if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    belt::com::com_ptr<IVoice> voice;
-    if (FAILED(speech->get_CurrentVoice(voice.put())))
+    CComPtr<IVoice> voice;
+    if (FAILED(speech->get_CurrentVoice(&voice)))
       return std::unexpected(BackendError::InternalBackendError);
     // Don't ask me why we have to do this, but apparently we do?
     if (interrupt) {
@@ -120,10 +122,10 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    if (controller == nullptr || speech == nullptr)
+    if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    belt::com::com_ptr<IVoice> voice;
-    if (FAILED(speech->get_CurrentVoice(voice.put())))
+    CComPtr<IVoice> voice;
+    if (FAILED(speech->get_CurrentVoice(&voice)))
       return std::unexpected(BackendError::InternalBackendError);
     VARIANT_BOOL result = VARIANT_FALSE;
     if (FAILED(voice->get_Speaking(&result))) {
@@ -133,10 +135,10 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (controller == nullptr || speech == nullptr)
+    if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    belt::com::com_ptr<IVoice> voice;
-    if (FAILED(speech->get_CurrentVoice(voice.put())))
+    CComPtr<IVoice> voice;
+    if (FAILED(speech->get_CurrentVoice(&voice)))
       return std::unexpected(BackendError::InternalBackendError);
     if (FAILED(voice->Stop())) {
       return std::unexpected(BackendError::InternalBackendError);

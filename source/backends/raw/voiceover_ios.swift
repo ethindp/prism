@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
-#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+
+#if canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS) || os(watchOS))
   import UIKit
+  import Foundation
 
   private enum VOError: UInt8 {
     case ok = 0
@@ -23,114 +25,126 @@
     case unknown = 17
   }
 
-  private struct VOState: Sendable {
-    var queue: [String] = []
-    var speaking: Bool = false
-    var initialized: Bool = false
-  }
-
-  private let stateQueue = DispatchQueue(label: "voiceover.ios", qos: .userInteractive)
-  private nonisolated(unsafe) var state = VOState()
-  private nonisolated(unsafe) var observer: (any NSObjectProtocol)? = nil
-
-  private func processQueue() {
-    var textToSpeak: String? = nil
-    stateQueue.sync {
-      guard state.initialized, !state.speaking, !state.queue.isEmpty else { return }
-      textToSpeak = state.queue.removeFirst()
-      state.speaking = true
-    }
-    guard let text = textToSpeak else { return }
-
-    let post = { UIAccessibility.post(notification: .announcement, argument: text) }
-    if Thread.isMainThread { post() } else { DispatchQueue.main.async(execute: post) }
-  }
-
-  @_cdecl("voiceover_ios_initialize")
-  public func voiceover_ios_initialize() -> UInt8 {
-    stateQueue.sync {
-      if state.initialized { return VOError.alreadyInitialized.rawValue }
-
-      var voRunning = false
-      if Thread.isMainThread {
-        voRunning = UIAccessibility.isVoiceOverRunning
-      } else {
-        DispatchQueue.main.sync { voRunning = UIAccessibility.isVoiceOverRunning }
+  @inline(__always)
+  private func onMainActorSync<T>(_ body: @MainActor () -> T) -> T {
+    if Thread.isMainThread {
+      return MainActor.assumeIsolated { body() }
+    } else {
+      return DispatchQueue.main.sync {
+        MainActor.assumeIsolated { body() }
       }
-      guard voRunning else { return VOError.backendNotAvailable.rawValue }
+    }
+  }
 
+  @MainActor
+  private final class VoiceOverIOSController {
+    private var initialized: Bool = false
+    private var speaking: Bool = false
+    private var queue: [String] = []
+    private var observer: NSObjectProtocol? = nil
+
+    func initialize() -> VOError {
+      if initialized { return .alreadyInitialized }
+      guard UIAccessibility.isVoiceOverRunning else { return .backendNotAvailable }
       observer = NotificationCenter.default.addObserver(
         forName: UIAccessibility.announcementDidFinishNotification,
         object: nil,
-        queue: nil
-      ) { _ in
-        stateQueue.async {
-          state.speaking = false
-          processQueue()
+        queue: .main
+      ) { [weak self] _ in
+        guard let self else { return }
+        MainActor.assumeIsolated {
+          self.handleAnnouncementFinished()
         }
       }
-
-      state.initialized = true
-
+      initialized = true
+      speaking = false
+      queue.removeAll(keepingCapacity: false)
       DispatchQueue.main.async {
         UIAccessibility.post(notification: .screenChanged, argument: nil)
       }
-      return VOError.ok.rawValue
+      return .ok
     }
-  }
 
-  @_cdecl("voiceover_ios_speak")
-  public func voiceover_ios_speak(_ text: UnsafePointer<CChar>, _ interrupt: Bool) -> UInt8 {
-    let result: UInt8 = stateQueue.sync {
-      guard state.initialized else { return VOError.notInitialized.rawValue }
-      var voRunning = false
-      if Thread.isMainThread {
-        voRunning = UIAccessibility.isVoiceOverRunning
-      } else {
-        DispatchQueue.main.sync { voRunning = UIAccessibility.isVoiceOverRunning }
-      }
-      guard voRunning else { return VOError.backendNotAvailable.rawValue }
-      if interrupt {
-        state.queue.removeAll()
-        state.speaking = false
-      }
-      state.queue.append(String(cString: text))
-      return VOError.ok.rawValue
-    }
-    if result != VOError.ok.rawValue { return result }
-    processQueue()
-    return VOError.ok.rawValue
-  }
-
-  @_cdecl("voiceover_ios_stop")
-  public func voiceover_ios_stop() -> UInt8 {
-    stateQueue.sync {
-      guard state.initialized else { return VOError.notInitialized.rawValue }
-      state.queue.removeAll()
-      state.speaking = false
-      return VOError.ok.rawValue
-    }
-  }
-
-  @_cdecl("voiceover_ios_is_speaking")
-  public func voiceover_ios_is_speaking(_ out: UnsafeMutablePointer<Bool>) -> UInt8 {
-    stateQueue.sync {
-      guard state.initialized else { return VOError.notInitialized.rawValue }
-      out.pointee = state.speaking || !state.queue.isEmpty
-      return VOError.ok.rawValue
-    }
-  }
-
-  @_cdecl("voiceover_ios_shutdown")
-  public func voiceover_ios_shutdown() {
-    stateQueue.sync {
+    func shutdown() {
       if let obs = observer {
         NotificationCenter.default.removeObserver(obs)
         observer = nil
       }
-      state.queue.removeAll()
-      state.speaking = false
-      state.initialized = false
+      queue.removeAll(keepingCapacity: false)
+      speaking = false
+      initialized = false
     }
+
+    func speak(cString: UnsafePointer<CChar>?, interrupt: Bool) -> VOError {
+      guard initialized else { return .notInitialized }
+      guard UIAccessibility.isVoiceOverRunning else { return .backendNotAvailable }
+      guard let cString else { return .invalidParam }
+      guard let text = String(validatingCString: cString) else { return .invalidUtf8 }
+      if interrupt {
+        queue.removeAll(keepingCapacity: true)
+        speaking = false
+      }
+      queue.append(text)
+      pumpIfNeeded()
+      return .ok
+    }
+
+    func stop() -> VOError {
+      guard initialized else { return .notInitialized }
+      queue.removeAll(keepingCapacity: true)
+      speaking = false
+      return .ok
+    }
+
+    func isSpeaking(out: UnsafeMutablePointer<Bool>?) -> VOError {
+      guard initialized else { return .notInitialized }
+      guard let out else { return .invalidParam }
+      out.pointee = speaking || !queue.isEmpty
+      return .ok
+    }
+
+    private func pumpIfNeeded() {
+      guard initialized else { return }
+      guard !speaking else { return }
+      guard !queue.isEmpty else { return }
+      let next = queue.removeFirst()
+      speaking = true
+      DispatchQueue.main.async {
+        UIAccessibility.post(notification: .announcement, argument: next)
+      }
+    }
+
+    private func handleAnnouncementFinished() {
+      guard initialized else { return }
+      speaking = false
+      pumpIfNeeded()
+    }
+  }
+
+  private let _voiceOverIOS = VoiceOverIOSController()
+
+  @_cdecl("voiceover_ios_initialize")
+  public func voiceover_ios_initialize() -> UInt8 {
+    onMainActorSync { _voiceOverIOS.initialize().rawValue }
+  }
+
+  @_cdecl("voiceover_ios_speak")
+  public func voiceover_ios_speak(_ text: UnsafePointer<CChar>?, _ interrupt: Bool) -> UInt8 {
+    onMainActorSync { _voiceOverIOS.speak(cString: text, interrupt: interrupt).rawValue }
+  }
+
+  @_cdecl("voiceover_ios_stop")
+  public func voiceover_ios_stop() -> UInt8 {
+    onMainActorSync { _voiceOverIOS.stop().rawValue }
+  }
+
+  @_cdecl("voiceover_ios_is_speaking")
+  public func voiceover_ios_is_speaking(_ out: UnsafeMutablePointer<Bool>?) -> UInt8 {
+    onMainActorSync { _voiceOverIOS.isSpeaking(out: out).rawValue }
+  }
+
+  @_cdecl("voiceover_ios_shutdown")
+  public func voiceover_ios_shutdown() {
+    onMainActorSync { _voiceOverIOS.shutdown() }
   }
 #endif

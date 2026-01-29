@@ -108,6 +108,10 @@ class PrismUnknownError(PrismError):
     """PRISM_ERROR_UNKNOWN"""
 
 
+class PrismInvalidAudioFormatError(PrismError):
+    """PRISM_ERROR_INVALID_AUDIO_FORMAT"""
+
+
 _ERROR_MAP = {
     lib.PRISM_ERROR_NOT_INITIALIZED: PrismNotInitializedError,
     lib.PRISM_ERROR_INVALID_PARAM: PrismInvalidParamError,
@@ -126,6 +130,7 @@ _ERROR_MAP = {
     lib.PRISM_ERROR_ALREADY_INITIALIZED: PrismAlreadyInitializedError,
     lib.PRISM_ERROR_BACKEND_NOT_AVAILABLE: PrismBackendNotAvailableError,
     lib.PRISM_ERROR_UNKNOWN: PrismUnknownError,
+    lib.PRISM_ERROR_INVALID_AUDIO_FORMAT: PrismInvalidAudioFormatError,
 }
 
 
@@ -222,7 +227,11 @@ class Backend:
 
         @ffi.callback("void(void *, const float *, size_t, size_t, size_t)")
         def audio_callback_shim(
-            _userdata, samples_ptr: int, count, channels, rate,
+            _userdata,
+            samples_ptr: int,
+            count,
+            channels,
+            rate,
         ) -> None:
             pcm_data = ffi.unpack(samples_ptr, count * channels)
             on_audio_data(pcm_data, channels, rate)

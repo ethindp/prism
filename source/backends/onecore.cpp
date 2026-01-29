@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cmath>
 #include <limits>
+#include <span>
 #ifdef _WIN32
 #include <tchar.h>
 #include <windows.h>
@@ -66,7 +67,8 @@ public:
                 SUPPORTS_COUNT_VOICES | SUPPORTS_GET_VOICE_NAME |
                 SUPPORTS_GET_VOICE_LANGUAGE | SUPPORTS_GET_VOICE |
                 SUPPORTS_SET_VOICE | SUPPORTS_GET_CHANNELS |
-                SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH;
+                SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH |
+                PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY;
     return features;
   }
 
@@ -148,12 +150,14 @@ public:
         return std::unexpected(BackendError::InternalBackendError);
       drwav wav{};
       if (drwav_init_memory(&wav, buffer.data(), total, nullptr) == 0)
-        return std::unexpected(BackendError::InternalBackendError);
+        return std::unexpected(BackendError::InvalidAudioFormat);
       auto frame_count = wav.totalPCMFrameCount;
       std::vector<float> samples(frame_count * wav.channels);
       drwav_read_pcm_frames_f32(&wav, frame_count, samples.data());
-      callback(userdata, samples.data(), samples.size(), wav.channels,
-               wav.sampleRate);
+      auto const trimmed_samples =
+          trim_silence_rms_gate(samples, wav.channels, wav.sampleRate);
+      callback(userdata, trimmed_samples.data(), trimmed_samples.size(),
+               wav.channels, wav.sampleRate);
       drwav_uninit(&wav);
       return {};
     } catch (...) {

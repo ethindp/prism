@@ -3,11 +3,13 @@
 #include "../simdutf.h"
 #include "backend.h"
 #include "backend_registry.h"
+#include "dr_wav.h"
 #include "utils.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <bitset>
+#include <cassert>
 #include <cctype>
 #include <charconv>
 #include <chrono>
@@ -15,19 +17,23 @@
 #include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <format>
 #include <limits>
 #include <mutex>
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
+#include <span>
 #include <stop_token>
 #include <thread>
 #include <vector>
 #ifdef _WIN32
 #include <atlbase.h>
+#include <mmreg.h>
 #include <sapi.h>
 #include <tchar.h>
+#include <windows.h>
 
 struct VoiceInfo {
   CComPtr<ISpObjectToken> token;
@@ -94,6 +100,18 @@ struct InitHandshake {
     ready = true;
     cv.notify_all();
   }
+};
+
+struct GlobalLockGuard {
+  HGLOBAL hg{};
+  void *p{};
+  explicit GlobalLockGuard(HGLOBAL h) : hg(h), p(GlobalLock(h)) {}
+  ~GlobalLockGuard() noexcept {
+    if (p != nullptr)
+      GlobalUnlock(hg);
+  }
+  GlobalLockGuard(const GlobalLockGuard &) = delete;
+  GlobalLockGuard &operator=(const GlobalLockGuard &) = delete;
 };
 
 class SapiBackend final : public TextToSpeechBackend {
@@ -205,6 +223,18 @@ private:
         CoTaskMemFree(wfx);
       return std::unexpected(BackendError::InternalBackendError);
     }
+    assert(wfx->wFormatTag == WAVE_FORMAT_PCM ||
+           wfx->wFormatTag == WAVE_FORMAT_IEEE_FLOAT ||
+           wfx->wFormatTag == WAVE_FORMAT_ALAW ||
+           wfx->wFormatTag == WAVE_FORMAT_MULAW);
+    if (wfx->wFormatTag != WAVE_FORMAT_PCM &&
+        wfx->wFormatTag != WAVE_FORMAT_IEEE_FLOAT &&
+        wfx->wFormatTag != WAVE_FORMAT_ALAW &&
+        wfx->wFormatTag != WAVE_FORMAT_MULAW) {
+      if (wfx != nullptr)
+        CoTaskMemFree(wfx);
+      return std::unexpected(BackendError::InvalidAudioFormat);
+    }
     audio_channels.store(wfx->nChannels, std::memory_order_release);
     audio_sample_rate.store(wfx->nSamplesPerSec, std::memory_order_release);
     audio_bit_depth.store(wfx->wBitsPerSample, std::memory_order_release);
@@ -236,7 +266,8 @@ public:
                 SUPPORTS_COUNT_VOICES | SUPPORTS_GET_VOICE_NAME |
                 SUPPORTS_GET_VOICE_LANGUAGE | SUPPORTS_GET_VOICE |
                 SUPPORTS_SET_VOICE | SUPPORTS_GET_CHANNELS |
-                SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH;
+                SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH |
+                PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY;
     return features;
   }
 
@@ -327,9 +358,11 @@ public:
     hr = stream.CoCreateInstance(CLSID_SpStream);
     if (FAILED(hr))
       return std::unexpected(BackendError::InternalBackendError);
+    WORD format = WAVE_FORMAT_UNKNOWN;
     std::size_t channels = 0;
     std::size_t sample_rate = 0;
     std::size_t bit_depth = 0;
+    std::size_t block_align = 0;
     {
       std::unique_lock vl(voice_lock);
       if (auto r = require_ready_locked(); !r)
@@ -346,9 +379,23 @@ public:
           CoTaskMemFree(wfx);
         return std::unexpected(BackendError::InternalBackendError);
       }
+      assert(wfx->wFormatTag == WAVE_FORMAT_PCM ||
+             wfx->wFormatTag == WAVE_FORMAT_IEEE_FLOAT ||
+             wfx->wFormatTag == WAVE_FORMAT_ALAW ||
+             wfx->wFormatTag == WAVE_FORMAT_MULAW);
+      if (wfx->wFormatTag != WAVE_FORMAT_PCM &&
+          wfx->wFormatTag != WAVE_FORMAT_IEEE_FLOAT &&
+          wfx->wFormatTag != WAVE_FORMAT_ALAW &&
+          wfx->wFormatTag != WAVE_FORMAT_MULAW) {
+        if (wfx != nullptr)
+          CoTaskMemFree(wfx);
+        return std::unexpected(BackendError::InvalidAudioFormat);
+      }
+      format = wfx->wFormatTag;
       channels = wfx->nChannels;
       sample_rate = wfx->nSamplesPerSec;
       bit_depth = wfx->wBitsPerSample;
+      block_align = wfx->nBlockAlign;
       hr = stream->SetBaseStream(base_stream, format_id, wfx);
       CoTaskMemFree(wfx);
       if (FAILED(hr))
@@ -361,35 +408,86 @@ public:
       if (FAILED(voice->Speak(wtext.c_str(), flags, nullptr)))
         return std::unexpected(BackendError::SpeakFailure);
     }
+    if (bit_depth == 0 || bit_depth % 8 != 0)
+      return std::unexpected(BackendError::InternalBackendError);
+    if (block_align == 0 || channels == 0)
+      return std::unexpected(BackendError::InternalBackendError);
+    if (bit_depth == 0 || (bit_depth % 8) != 0)
+      return std::unexpected(BackendError::InternalBackendError);
+    if (block_align == 0 || channels == 0)
+      return std::unexpected(BackendError::InternalBackendError);
     LARGE_INTEGER zero{};
-    ULARGE_INTEGER size{};
-    stream->Seek(zero, STREAM_SEEK_END, &size);
-    stream->Seek(zero, STREAM_SEEK_SET, nullptr);
-    if (size.QuadPart == 0)
+    ULARGE_INTEGER uend{};
+    hr = base_stream->Seek(zero, STREAM_SEEK_END, &uend);
+    if (FAILED(hr))
       return std::unexpected(BackendError::InternalBackendError);
-    std::vector<std::uint8_t> buffer(static_cast<std::size_t>(size.QuadPart));
-    ULONG bytes_read = 0;
-    hr = stream->Read(buffer.data(), static_cast<ULONG>(buffer.size()),
-                      &bytes_read);
-    if (FAILED(hr) || bytes_read != buffer.size())
+    if (uend.QuadPart == 0)
       return std::unexpected(BackendError::InternalBackendError);
-    if (bit_depth == 0 || (bit_depth != 8 && bit_depth != 16))
+    const auto bytes = static_cast<std::size_t>(uend.QuadPart);
+    hr = base_stream->Seek(zero, STREAM_SEEK_SET, nullptr);
+    if (FAILED(hr))
       return std::unexpected(BackendError::InternalBackendError);
-    std::size_t sample_count =
-        static_cast<std::size_t>(size.QuadPart) / (bit_depth / 8);
-    std::vector<float> samples(sample_count);
-    if (bit_depth == 16) {
-      const auto *src = reinterpret_cast<const int16_t *>(buffer.data());
-      for (std::size_t i = 0; i < sample_count; ++i)
-        samples[i] = static_cast<float>(src[i]) / 32768.0F;
-    } else if (bit_depth == 8) {
-      const auto *src = reinterpret_cast<const uint8_t *>(buffer.data());
-      for (std::size_t i = 0; i < sample_count; ++i)
-        samples[i] = static_cast<float>(src[i] - 128) / 128.0F;
-    } else {
+    if ((bytes % block_align) != 0)
       return std::unexpected(BackendError::InternalBackendError);
+    HGLOBAL hg = nullptr;
+    hr = GetHGlobalFromStream(base_stream, &hg);
+    if (FAILED(hr) || hg == nullptr)
+      return std::unexpected(BackendError::InternalBackendError);
+    GlobalLockGuard lock(hg);
+    if (lock.p == nullptr)
+      return std::unexpected(BackendError::InternalBackendError);
+    auto const *data = static_cast<const std::uint8_t *>(lock.p);
+    const std::size_t frames = bytes / block_align;
+    const std::size_t total_samples = frames * channels;
+    std::vector<float> samples(total_samples);
+    switch (format) {
+    case WAVE_FORMAT_PCM: {
+      switch (bit_depth) {
+      case 8:
+        drwav_u8_to_f32(samples.data(), data, total_samples);
+        break;
+      case 16:
+        drwav_s16_to_f32(samples.data(),
+                         reinterpret_cast<const drwav_int16 *>(data),
+                         total_samples);
+        break;
+      case 24:
+        drwav_s24_to_f32(samples.data(), data, total_samples);
+        break;
+      case 32:
+        drwav_s32_to_f32(samples.data(),
+                         reinterpret_cast<const drwav_int32 *>(data),
+                         total_samples);
+        break;
+      default:
+        return std::unexpected(BackendError::InvalidAudioFormat);
+      }
+    } break;
+    case WAVE_FORMAT_IEEE_FLOAT: {
+      switch (bit_depth) {
+      case 32:
+        std::memcpy(samples.data(), data, total_samples * sizeof(float));
+        break;
+      case 64:
+        drwav_f64_to_f32(samples.data(), reinterpret_cast<const double *>(data),
+                         total_samples);
+        break;
+      default:
+        return std::unexpected(BackendError::InvalidAudioFormat);
+      }
+    } break;
+    case WAVE_FORMAT_ALAW:
+      drwav_alaw_to_f32(samples.data(), data, total_samples);
+      break;
+    case WAVE_FORMAT_MULAW:
+      drwav_mulaw_to_f32(samples.data(), data, total_samples);
+      break;
+    default:
+      return std::unexpected(BackendError::InvalidAudioFormat);
     }
-    callback(userdata, samples.data(), sample_count, channels, sample_rate);
+    auto const tv = trim_silence_rms_gate_inplace(std::span<float>(samples),
+                                                  channels, sample_rate);
+    callback(userdata, tv.view.data(), tv.view.size(), channels, sample_rate);
     return {};
   }
 

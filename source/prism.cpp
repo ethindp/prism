@@ -200,7 +200,8 @@ PRISM_API const char *PRISM_CALL prism_backend_name(PrismBackend *backend) {
   return backend->impl->get_name().data();
 }
 
-PRISM_API std::uint64_t PRISM_CALL prism_backend_get_features(PrismBackend *backend) {
+PRISM_API std::uint64_t PRISM_CALL
+prism_backend_get_features(PrismBackend *backend) {
   return backend->impl->get_features().to_ullong();
 }
 
@@ -407,7 +408,8 @@ PRISM_API const char *PRISM_CALL prism_error_string(PrismError error) {
                                         "Invalid operation",
                                         "Already initialized",
                                         "Backend not available",
-                                        "Unknown error"};
+                                        "Unknown error",
+                                        "Invalid audio format"};
   static_assert(std::size(strings) == PRISM_ERROR_COUNT,
                 "Error string table size mismatches error count");
   if (error >= PRISM_ERROR_COUNT)

@@ -16,6 +16,11 @@
  */
 
 #include "utils.h"
+#include <algorithm>
+#include <cmath>
+#include <execution>
+#include <iterator>
+#include <numeric>
 #include <utility>
 
 // Begin NVGT code
@@ -52,67 +57,145 @@ struct TrimBounds {
   float close_thr_db = -160.0F;
 };
 
+struct counting_it {
+  using value_type = std::size_t;
+  using difference_type = std::ptrdiff_t;
+  using iterator_category = std::random_access_iterator_tag;
+  std::size_t v{};
+  value_type operator*() const noexcept { return v; }
+  counting_it &operator++() noexcept {
+    ++v;
+    return *this;
+  }
+  counting_it operator++(int) noexcept {
+    auto t = *this;
+    ++*this;
+    return t;
+  }
+  counting_it &operator--() noexcept {
+    --v;
+    return *this;
+  }
+  counting_it &operator+=(difference_type n) noexcept {
+    v += static_cast<std::size_t>(n);
+    return *this;
+  }
+  counting_it &operator-=(difference_type n) noexcept {
+    v -= static_cast<std::size_t>(n);
+    return *this;
+  }
+  friend counting_it operator+(counting_it it, difference_type n) noexcept {
+    it += n;
+    return it;
+  }
+  friend counting_it operator-(counting_it it, difference_type n) noexcept {
+    it -= n;
+    return it;
+  }
+  friend difference_type operator-(counting_it a, counting_it b) noexcept {
+    return static_cast<difference_type>(a.v - b.v);
+  }
+  friend bool operator==(counting_it a, counting_it b) noexcept {
+    return a.v == b.v;
+  }
+  friend bool operator<(counting_it a, counting_it b) noexcept {
+    return a.v < b.v;
+  }
+};
+
+struct TrimWorkspace {
+  std::vector<float> db;
+  std::vector<float> scratch;
+};
+
 static inline std::size_t ms_to_frames(float ms, std::size_t sample_rate) {
   const auto f =
       (static_cast<double>(ms) * static_cast<double>(sample_rate)) / 1000.0;
   return static_cast<std::size_t>(std::max(0.0, std::floor(f + 0.5)));
 }
 
-static inline float rms_to_db(double rms) {
-  constexpr double eps = 1e-8;
-  return static_cast<float>(20.0 * std::log10(rms + eps));
+static inline float mean_square_to_db(double mean_square) {
+  constexpr double eps = 1e-16;
+  return static_cast<float>(10.0 * std::log10(mean_square + eps));
 }
 
-static inline double frame_rms(std::span<const float> interleaved,
-                               std::size_t start_frame, std::size_t frame_len,
-                               std::size_t total_frames, std::size_t channels) {
+static inline float frame_db(std::span<const float> interleaved,
+                             std::size_t start_frame, std::size_t frame_len,
+                             std::size_t total_frames, std::size_t channels) {
   const auto end_frame = std::min(start_frame + frame_len, total_frames);
   if (end_frame <= start_frame)
-    return 0.0;
-  auto sumsq = 0.0;
-  auto count = 0;
-  for (std::size_t f = start_frame; f < end_frame; ++f) {
-    const auto base = f * channels;
-    for (std::size_t ch = 0; ch < channels; ++ch) {
-      const double v = interleaved[base + ch];
-      sumsq += v * v;
-    }
-    ++count;
+    return -160.0F;
+  const std::size_t nframes = end_frame - start_frame;
+  const std::size_t nsamples = nframes * channels;
+  const float *p = interleaved.data() + (start_frame * channels);
+  const float *e = p + nsamples;
+  double sumsq = 0.0;
+  for (; p != e; ++p) {
+    const auto v = static_cast<double>(*p);
+    sumsq += v * v;
   }
-  const auto denom = static_cast<double>(count) * static_cast<double>(channels);
-  return std::sqrt(sumsq / denom);
+  return mean_square_to_db(sumsq / static_cast<double>(nsamples));
 }
 
-static inline float percentile(std::span<const float> x, float p) {
+static inline float percentile(std::span<const float> x, float p,
+                               std::vector<float> &scratch) {
   if (x.empty())
     return -160.0F;
   p = std::clamp(p, 0.0F, 1.0F);
-  std::vector<float> tmp(x.begin(), x.end());
-  const std::size_t n = tmp.size();
+  scratch.assign(x.begin(), x.end()); // reuses capacity
+  const std::size_t n = scratch.size();
   if (n == 1)
-    return tmp[0];
-  const float pos = p * static_cast<float>(n - 1);
-  const auto k = static_cast<std::size_t>(std::floor(pos));
-  std::nth_element(tmp.begin(), tmp.begin() + static_cast<std::ptrdiff_t>(k),
-                   tmp.end());
-  return tmp[k];
+    return scratch[0];
+  const auto k = static_cast<std::size_t>(
+      std::floor(static_cast<double>(p) * static_cast<double>(n - 1)));
+  std::nth_element(scratch.begin(),
+                   scratch.begin() + static_cast<std::ptrdiff_t>(k),
+                   scratch.end());
+  return scratch[k];
 }
 
 static inline void apply_fade_in(std::span<float> interleaved,
                                  std::size_t channels,
                                  std::size_t fade_frames) {
-  if (fade_frames == 0)
+  if (fade_frames == 0 || channels == 0)
     return;
   const auto total_frames = interleaved.size() / channels;
   fade_frames = std::min(fade_frames, total_frames);
   if (fade_frames == 0)
     return;
+  const float pi = std::numbers::pi_v<float>;
+  if (channels == 1) {
+    for (std::size_t i = 0; i < fade_frames; ++i) {
+      float g = 1.0F;
+      if (fade_frames > 1) {
+        const float t =
+            static_cast<float>(i) / static_cast<float>(fade_frames - 1);
+        g = 0.5F - (0.5F * std::cos(pi * t));
+      }
+      interleaved[i] *= g;
+    }
+    return;
+  }
+  if (channels == 2) {
+    for (std::size_t i = 0; i < fade_frames; ++i) {
+      float g = 1.0F;
+      if (fade_frames > 1) {
+        const float t =
+            static_cast<float>(i) / static_cast<float>(fade_frames - 1);
+        g = 0.5F - (0.5F * std::cos(pi * t));
+      }
+      const auto base = i * 2;
+      interleaved[base + 0] *= g;
+      interleaved[base + 1] *= g;
+    }
+    return;
+  }
   for (std::size_t i = 0; i < fade_frames; ++i) {
     float g = 1.0F;
     if (fade_frames > 1) {
-      const auto t =
+      const float t =
           static_cast<float>(i) / static_cast<float>(fade_frames - 1);
-      g = 0.5F - (0.5F * std::cos(std::numbers::pi_v<float> * t));
+      g = 0.5F - (0.5F * std::cos(pi * t));
     }
     const auto base = i * channels;
     for (std::size_t ch = 0; ch < channels; ++ch)
@@ -123,19 +206,46 @@ static inline void apply_fade_in(std::span<float> interleaved,
 static inline void apply_fade_out(std::span<float> interleaved,
                                   std::size_t channels,
                                   std::size_t fade_frames) {
-  if (fade_frames == 0)
+  if (fade_frames == 0 || channels == 0)
     return;
   const auto total_frames = interleaved.size() / channels;
   fade_frames = std::min(fade_frames, total_frames);
   if (fade_frames == 0)
     return;
   const auto start = total_frames - fade_frames;
+  const float pi = std::numbers::pi_v<float>;
+  if (channels == 1) {
+    for (std::size_t i = 0; i < fade_frames; ++i) {
+      float g =
+          (fade_frames > 1)
+              ? (0.5F +
+                 (0.5F * std::cos(pi * (static_cast<float>(i) /
+                                        static_cast<float>(fade_frames - 1)))))
+              : 0.0F;
+      interleaved[start + i] *= g;
+    }
+    return;
+  }
+  if (channels == 2) {
+    for (std::size_t i = 0; i < fade_frames; ++i) {
+      float g =
+          (fade_frames > 1)
+              ? (0.5F +
+                 (0.5F * std::cos(pi * (static_cast<float>(i) /
+                                        static_cast<float>(fade_frames - 1)))))
+              : 0.0F;
+      const auto base = (start + i) * 2;
+      interleaved[base + 0] *= g;
+      interleaved[base + 1] *= g;
+    }
+    return;
+  }
   for (std::size_t i = 0; i < fade_frames; ++i) {
     float g = 1.0F;
     if (fade_frames > 1) {
       const float t =
           static_cast<float>(i) / static_cast<float>(fade_frames - 1);
-      g = 0.5F + (0.5F * std::cos(std::numbers::pi_v<float> * t));
+      g = 0.5F + (0.5F * std::cos(pi * t));
     } else {
       g = 0.0F;
     }
@@ -219,12 +329,21 @@ compute_trim_bounds_rms_gate(std::span<const float> samples_interleaved,
   const auto n = (total_frames <= frame_len)
                      ? std::size_t{1}
                      : (std::size_t{1} + ((total_frames - frame_len) / hop));
-  std::vector<float> db(n);
-  for (std::size_t i = 0; i < n; ++i) {
+  static thread_local TrimWorkspace W;
+  W.db.resize(n);
+  auto &db = W.db;
+  auto fill_one = [&](std::size_t i) {
     const auto start_frame = i * hop;
-    const auto rms = frame_rms(samples_interleaved, start_frame, frame_len,
-                               total_frames, channels);
-    db[i] = rms_to_db(rms);
+    db[i] = frame_db(samples_interleaved, start_frame, frame_len, total_frames,
+                     channels);
+  };
+  // todo: instrument this to get actual statistics.
+  // For now, we guess
+  if (n >= 512) {
+    std::for_each(std::execution::par_unseq, counting_it{0}, counting_it{n},
+                  fill_one);
+  } else {
+    std::for_each(counting_it{0}, counting_it{n}, fill_one);
   }
   const auto head_frames = std::min<std::size_t>(
       n, std::max<std::size_t>(std::size_t{1},
@@ -234,7 +353,9 @@ compute_trim_bounds_rms_gate(std::span<const float> samples_interleaved,
                                ms_to_frames(P.tail_ms, sample_rate) / hop));
   const std::span<const float> head(db.data(), head_frames);
   const std::span<const float> tail(db.data() + (n - tail_frames), tail_frames);
-  float floor_db = std::min(percentile(head, 0.20F), percentile(tail, 0.20F));
+  W.scratch.reserve(std::max(head_frames, tail_frames));
+  float floor_db = std::min(percentile(head, 0.20F, W.scratch),
+                            percentile(tail, 0.20F, W.scratch));
   floor_db = std::clamp(floor_db, P.min_floor_db, P.max_floor_db);
   const float open_thr = floor_db + P.open_db;
   const float close_thr = floor_db + P.close_db;
@@ -250,7 +371,7 @@ compute_trim_bounds_rms_gate(std::span<const float> samples_interleaved,
   std::size_t end_excl_idx = n;
   bool have_start = false;
   for (std::size_t i = 0; i < n; ++i) {
-    const auto v = db[i];
+    const float v = db[i];
     if (!in_speech) {
       if (v >= open_thr) {
         if (++on_run >= min_on) {
@@ -311,20 +432,19 @@ compute_trim_bounds_rms_gate(std::span<const float> samples_interleaved,
   R.end_frame = end_frame_excl;
   return R;
 }
-
 std::vector<float>
 trim_silence_rms_gate(std::span<const float> samples_interleaved,
                       std::size_t channels, std::size_t sample_rate,
                       const TrimParams &P) {
   if (channels == 0 || sample_rate == 0)
     return {samples_interleaved.begin(), samples_interleaved.end()};
-  if (samples_interleaved.empty() || samples_interleaved.size() % channels != 0)
+  if (samples_interleaved.empty() ||
+      (samples_interleaved.size() % channels) != 0)
     return {samples_interleaved.begin(), samples_interleaved.end()};
   const auto bounds = compute_trim_bounds_rms_gate(samples_interleaved,
                                                    channels, sample_rate, P);
-  if (!bounds.speech_detected) {
+  if (!bounds.speech_detected)
     return {samples_interleaved.begin(), samples_interleaved.end()};
-  }
   const auto start = bounds.start_frame;
   const auto end = bounds.end_frame;
   std::vector<float> out;
@@ -339,4 +459,30 @@ trim_silence_rms_gate(std::span<const float> samples_interleaved,
   apply_fade_in(out_span, channels, fade_frames);
   apply_fade_out(out_span, channels, fade_frames);
   return out;
+}
+
+TrimView trim_silence_rms_gate_inplace(std::span<float> interleaved,
+                                       std::size_t channels,
+                                       std::size_t sample_rate,
+                                       const TrimParams &P) {
+  TrimView r{.view = interleaved, .speech_detected = false};
+  if (channels == 0 || sample_rate == 0)
+    return r;
+  if (interleaved.empty() || (interleaved.size() % channels) != 0)
+    return r;
+  const auto bounds = compute_trim_bounds_rms_gate(
+      std::span<const float>(interleaved.data(), interleaved.size()), channels,
+      sample_rate, P);
+  if (!bounds.speech_detected)
+    return r;
+  const std::size_t start = bounds.start_frame * channels;
+  const std::size_t end = bounds.end_frame * channels;
+  if (end <= start || end > interleaved.size())
+    return r;
+  r.speech_detected = true;
+  r.view = interleaved.subspan(start, end - start);
+  const auto fade_frames = ms_to_frames(P.fade_ms, sample_rate);
+  apply_fade_in(r.view, channels, fade_frames);
+  apply_fade_out(r.view, channels, fade_frames);
+  return r;
 }

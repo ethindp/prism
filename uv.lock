@@ -95,7 +95,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cffi", specifier = ">=1.0.0" },
+    { name = "cffi", specifier = ">=2.0.0" },
     { name = "win32more", marker = "sys_platform == 'win32'", specifier = ">=0.8.0" },
 ]
 

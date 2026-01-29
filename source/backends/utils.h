@@ -54,7 +54,17 @@ float range_convert_midpoint(float old_value, float old_min, float old_midpoint,
                              float new_max);
 // End NVGT code
 
+struct TrimView {
+  std::span<float> view; // points into caller memory
+  bool speech_detected = false;
+};
+
 std::vector<float>
 trim_silence_rms_gate(std::span<const float> samples_interleaved,
                       std::size_t channels, std::size_t sample_rate,
                       const TrimParams &P = {});
+
+TrimView trim_silence_rms_gate_inplace(std::span<float> interleaved,
+                                       std::size_t channels,
+                                       std::size_t sample_rate,
+                                       const TrimParams &P = {});

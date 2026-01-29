@@ -22,5 +22,6 @@ When a function returns a `PrismError`, the `prism_error_string` function can be
 | `PRISM_ERROR_ALREADY_INITIALIZED` | 15 | Attempted to initialize an already-initialized backend |
 | `PRISM_ERROR_BACKEND_NOT_AVAILABLE` | 16 | The backend is not available on this system |
 | `PRISM_ERROR_UNKNOWN` | 17 | An unspecified error occurred |
+| `PRISM_ERROR_INVALID_AUDIO_FORMAT` | 18 | Either the backend speech engine or backend voice have an audio format that Prism does not know how to handle, or the parameters that the underlying speech engine provided to Prism were nonsensical. |
 
 The constant `PRISM_ERROR_COUNT` equals the total number of error codes and MAY be used for bounds checking or table sizing. This constant may increase in future versions as new error codes are added.

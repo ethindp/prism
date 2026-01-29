@@ -33,7 +33,8 @@ enum class BackendError : std::uint8_t {
   InvalidOperation,
   AlreadyInitialized,
   BackendNotAvailable,
-  Unknown
+  Unknown,
+  InvalidAudioFormat
 };
 
 template <typename T = void>

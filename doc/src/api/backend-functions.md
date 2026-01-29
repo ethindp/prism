@@ -94,7 +94,7 @@ The following bits are defined:
 | `PRISM_BACKEND_SUPPORTS_GET_SAMPLE_RATE` | `prism_backend_get_sample_rate` is implemented. |
 | `PRISM_BACKEND_SUPPORTS_GET_BIT_DEPTH` | `prism_backend_get_bit_depth` is implemented. |
 | `PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK` | Reserved. |
-| `PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY` | Reserved. |
+| `PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY` | The backend trims leading and trailing silence from the audio stream before delivering it to the audio callback. |
 | `PRISM_BACKEND_SUPPORTS_SPEAK_SSML` | Reserved. |
 | `PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML` | Reserved. |
 
@@ -282,6 +282,7 @@ An arbitrary pointer passed to the callback. This parameter MAY be `NULL`.
 | `PRISM_ERROR_INVALID_UTF8` | `text` contains invalid UTF-8 sequences. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support memory synthesis. |
 | `PRISM_ERROR_INTERNAL` | An internal error occurred during synthesis. |
+| `PRISM_ERROR_INVALID_AUDIO_FORMAT` | The audio format which the underlying engine returned to Prism cannot be understood by Prism, or it's parameters are nonsensical. |
 
 #### Remarks
 

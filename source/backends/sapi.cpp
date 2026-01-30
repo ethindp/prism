@@ -332,7 +332,7 @@ public:
     const auto &wtext = args->text;
     DWORD flags = args->flags;
     std::unique_lock vl(voice_lock);
-    if (auto r = require_ready_locked(); !r)
+    if (auto const r = require_ready_locked(); !r)
       return r;
     paused = false;
     if (interrupt)
@@ -365,7 +365,7 @@ public:
     std::size_t block_align = 0;
     {
       std::unique_lock vl(voice_lock);
-      if (auto r = require_ready_locked(); !r)
+      if (auto const r = require_ready_locked(); !r)
         return r;
       CComPtr<ISpStreamFormat> output_format;
       hr = voice->GetOutputStream(&output_format);
@@ -409,10 +409,6 @@ public:
         return std::unexpected(BackendError::SpeakFailure);
     }
     if (bit_depth == 0 || bit_depth % 8 != 0)
-      return std::unexpected(BackendError::InternalBackendError);
-    if (block_align == 0 || channels == 0)
-      return std::unexpected(BackendError::InternalBackendError);
-    if (bit_depth == 0 || (bit_depth % 8) != 0)
       return std::unexpected(BackendError::InternalBackendError);
     if (block_align == 0 || channels == 0)
       return std::unexpected(BackendError::InternalBackendError);
@@ -497,8 +493,8 @@ public:
 
   BackendResult<bool> is_speaking() override {
     std::unique_lock vl(voice_lock);
-    if (!initialized.test())
-      return std::unexpected(BackendError::NotInitialized);
+    if (auto const r = require_ready_locked(); !r)
+      return std::unexpected(r.error());
     SPVOICESTATUS status;
     if (FAILED(voice->GetStatus(&status, nullptr)))
       return std::unexpected(BackendError::InternalBackendError);
@@ -507,7 +503,7 @@ public:
 
   BackendResult<> stop() override {
     std::unique_lock vl(voice_lock);
-    if (auto r = require_ready_locked(); !r)
+    if (auto const r = require_ready_locked(); !r)
       return r;
     if (FAILED(voice->Speak(nullptr, SPF_PURGEBEFORESPEAK, nullptr)))
       return std::unexpected(BackendError::SpeakFailure);
@@ -516,7 +512,7 @@ public:
 
   BackendResult<> pause() override {
     std::unique_lock vl(voice_lock);
-    if (auto r = require_ready_locked(); !r)
+    if (auto const r = require_ready_locked(); !r)
       return r;
     if (paused)
       return std::unexpected(BackendError::AlreadyPaused);
@@ -528,7 +524,7 @@ public:
 
   BackendResult<> resume() override {
     std::unique_lock vl(voice_lock);
-    if (auto r = require_ready_locked(); !r)
+    if (auto const r = require_ready_locked(); !r)
       return r;
     if (!paused)
       return std::unexpected(BackendError::NotPaused);
@@ -540,8 +536,8 @@ public:
 
   BackendResult<> set_volume(float volume) override {
     std::unique_lock vl(voice_lock);
-    if (!initialized.test())
-      return std::unexpected(BackendError::NotInitialized);
+    if (auto const r = require_ready_locked(); !r)
+      return r;
     if (volume < 0.0F || volume > 1.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
     const auto val = std::round(
@@ -555,8 +551,8 @@ public:
 
   BackendResult<float> get_volume() override {
     std::unique_lock vl(voice_lock);
-    if (!initialized.test())
-      return std::unexpected(BackendError::NotInitialized);
+    if (auto const r = require_ready_locked(); !r)
+      return std::unexpected(r.error());
     USHORT val;
     if (FAILED(voice->GetVolume(&val)))
       return std::unexpected(BackendError::InternalBackendError);
@@ -566,8 +562,8 @@ public:
 
   BackendResult<> set_rate(float rate) override {
     std::unique_lock vl(voice_lock);
-    if (!initialized.test())
-      return std::unexpected(BackendError::NotInitialized);
+    if (auto const r = require_ready_locked(); !r)
+      return r;
     if (rate < 0.0F || rate > 1.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
     const auto val =
@@ -581,8 +577,8 @@ public:
 
   BackendResult<float> get_rate() override {
     std::unique_lock vl(voice_lock);
-    if (!initialized.test())
-      return std::unexpected(BackendError::NotInitialized);
+    if (auto const r = require_ready_locked(); !r)
+      return std::unexpected(r.error());
     LONG val;
     if (FAILED(voice->GetRate(&val)))
       return std::unexpected(BackendError::InternalBackendError);
@@ -730,7 +726,7 @@ public:
     new_token = voices[id].token;
     if (new_token == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
-    if (auto r = require_ready_locked(); !r)
+    if (auto const r = require_ready_locked(); !r)
       return r;
     CComPtr<ISpObjectToken> old_token;
     HRESULT hr = voice->GetVoice(&old_token);

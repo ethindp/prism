@@ -108,7 +108,7 @@ class PrismUnknownError(PrismError):
     """PRISM_ERROR_UNKNOWN"""
 
 
-class PrismInvalidAudioFormatError(PrismError):
+class PrismInvalidAudioFormatError(PrismError, RuntimeError):
     """PRISM_ERROR_INVALID_AUDIO_FORMAT"""
 
 

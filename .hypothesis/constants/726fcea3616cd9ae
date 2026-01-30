@@ -1,0 +1,4 @@
+# file: C:\Users\Ethin Probst\source\prism\bindings\py\prism\prism\lib.py
+# hypothesis_version: 6.151.4
+
+['/system/build.prop', '_native', 'android', 'darwin', 'libprism.dylib', 'libprism.so', 'linux', 'prism', 'prism.dll', 'win32']

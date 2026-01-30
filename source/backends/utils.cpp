@@ -18,7 +18,6 @@
 #include "utils.h"
 #include <algorithm>
 #include <cmath>
-#include <execution>
 #include <iterator>
 #include <numeric>
 #include <utility>
@@ -339,12 +338,7 @@ compute_trim_bounds_rms_gate(std::span<const float> samples_interleaved,
   };
   // todo: instrument this to get actual statistics.
   // For now, we guess
-  if (n >= 512) {
-    std::for_each(std::execution::par_unseq, counting_it{0}, counting_it{n},
-                  fill_one);
-  } else {
-    std::for_each(counting_it{0}, counting_it{n}, fill_one);
-  }
+  std::for_each(counting_it{0}, counting_it{n}, fill_one);
   const auto head_frames = std::min<std::size_t>(
       n, std::max<std::size_t>(std::size_t{1},
                                ms_to_frames(P.head_ms, sample_rate) / hop));

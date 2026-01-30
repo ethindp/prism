@@ -121,30 +121,39 @@
     }
   }
 
-  private let _voiceOverIOS = VoiceOverIOSController()
+  @MainActor
+  private var _voiceOverIOS: VoiceOverIOSController? = nil
+
+  @MainActor
+  private func vo() -> VoiceOverIOSController {
+    if let existing = _voiceOverIOS { return existing }
+    let created = VoiceOverIOSController()
+    _voiceOverIOS = created
+    return created
+  }
 
   @_cdecl("voiceover_ios_initialize")
   public func voiceover_ios_initialize() -> UInt8 {
-    onMainActorSync { _voiceOverIOS.initialize().rawValue }
+    onMainActorSync { vo().initialize().rawValue }
   }
 
   @_cdecl("voiceover_ios_speak")
   public func voiceover_ios_speak(_ text: UnsafePointer<CChar>?, _ interrupt: Bool) -> UInt8 {
-    onMainActorSync { _voiceOverIOS.speak(cString: text, interrupt: interrupt).rawValue }
+    onMainActorSync { vo().speak(cString: text, interrupt: interrupt).rawValue }
   }
 
   @_cdecl("voiceover_ios_stop")
   public func voiceover_ios_stop() -> UInt8 {
-    onMainActorSync { _voiceOverIOS.stop().rawValue }
+    onMainActorSync { vo().stop().rawValue }
   }
 
   @_cdecl("voiceover_ios_is_speaking")
   public func voiceover_ios_is_speaking(_ out: UnsafeMutablePointer<Bool>?) -> UInt8 {
-    onMainActorSync { _voiceOverIOS.isSpeaking(out: out).rawValue }
+    onMainActorSync { vo().isSpeaking(out: out).rawValue }
   }
 
   @_cdecl("voiceover_ios_shutdown")
   public func voiceover_ios_shutdown() {
-    onMainActorSync { _voiceOverIOS.shutdown() }
+    onMainActorSync { vo().shutdown() }
   }
 #endif

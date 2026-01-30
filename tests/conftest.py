@@ -1,8 +1,9 @@
-from prism import Context, BackendId
-import os
 import gc
+import os
 import random
+
 import pytest
+from prism import BackendId, Context
 
 _SEED = os.environ.get("PRISM_TEST_SEED")
 _rng = random.Random(int(_SEED) if _SEED is not None else None)

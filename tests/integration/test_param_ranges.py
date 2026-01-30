@@ -1,7 +1,8 @@
 import pytest
 from hypothesis import given, settings
-from tests.strategies import invalid_unit
 from prism import PrismRangeError
+
+from tests.strategies import invalid_unit
 
 
 @pytest.mark.integration

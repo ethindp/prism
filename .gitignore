@@ -101,3 +101,4 @@ wheelhouse/
 !bindings
 **/target/
 bindings/dotnet/Prism.Net/staging/version.txt
+.hypothesis

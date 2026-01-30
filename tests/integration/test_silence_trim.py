@@ -1,8 +1,9 @@
-import pytest
+import logging
+
 import numpy as np
+import pytest
 import torch
 import torchaudio
-import logging
 
 logging.getLogger("torch.hub").setLevel(logging.WARNING)
 model, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", trust_repo=True)
@@ -40,7 +41,7 @@ def _mean_square_to_db(msq: float) -> float:
 
 
 def _frame_db(
-    interleaved: np.ndarray, start_frame: int, frame_len: int, channels: int
+    interleaved: np.ndarray, start_frame: int, frame_len: int, channels: int,
 ) -> float:
     total_frames = interleaved.size // channels
     end_frame = min(start_frame + frame_len, total_frames)

@@ -1,6 +1,6 @@
 [project]
 name = "prismatoid"
-version = "0.6.0"
+version = "0.6.1"
 description = "The Platform-Agnostic Reader Interface for Speech and Messages"
 readme = "README.md"
 authors = [
@@ -68,6 +68,7 @@ sdist.include = [
   "idl",
   "demos",
   "dbus",
+  "pytest.ini",
 ]
 sdist.exclude = [
   ".venv",

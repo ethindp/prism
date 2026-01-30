@@ -1,8 +1,9 @@
-import prism
+import sys
+
 import numpy as np
+import prism
 import torch
 import torchaudio
-import sys
 
 model, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", trust_repo=True)
 (get_speech_timestamps, _, _, _, _) = utils
@@ -39,7 +40,7 @@ def mean_square_to_db(msq: float) -> float:
 
 
 def frame_db(
-    interleaved: np.ndarray, start_frame: int, frame_len: int, channels: int
+    interleaved: np.ndarray, start_frame: int, frame_len: int, channels: int,
 ) -> float:
     total_frames = interleaved.size // channels
     end_frame = min(start_frame + frame_len, total_frames)

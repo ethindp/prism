@@ -34,7 +34,7 @@ class BackendId(IntEnum):
 class PrismError(Exception):
     """Base class for all Prism-related errors."""
 
-    def __init__(self, code: lib.PrismError, message: str | None = None) -> None:
+    def __init__(self, code: int, message: str | None = None) -> None:
         self.code = code
         self.message = message
         super().__init__(message or f"Prism Error Code: {code}")
@@ -190,9 +190,9 @@ class BackendFeatures:
 
 
 class Backend:
-    _raw = None
+    _raw: ffi.CData = None
 
-    def __init__(self, raw_ptr: lib.PrismBackend) -> None:
+    def __init__(self, raw_ptr: ffi.CData) -> None:
         if raw_ptr == ffi.NULL:
             raise RuntimeError("Backend raw pointer MUST NOT be NULL!")
         self._raw = raw_ptr
@@ -362,7 +362,7 @@ class Backend:
 
 
 class Context:
-    _ctx: lib.PrismContext = None
+    _ctx: ffi.CData = None
 
     def __init__(self, hwnd: HWND | int | None = None) -> None:
         config = lib.prism_config_init()

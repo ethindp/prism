@@ -1,7 +1,8 @@
 import sys
-import pytest
 from dataclasses import fields
-from prism import BackendId, PrismNotImplementedError, Backend
+
+import pytest
+from prism import Backend, BackendId, PrismNotImplementedError
 
 
 def _skip_uia_in_matrix(backend_id: BackendId):
@@ -67,13 +68,13 @@ def _call_for_support_flag(backend: Backend, flag_name: str):
     if flag_name == "supports_speak_ssml":
         if not hasattr(backend, "speak_ssml"):
             pytest.xfail(
-                "BackendFeatures advertises supports_speak_ssml but wrapper has no speak_ssml() yet"
+                "BackendFeatures advertises supports_speak_ssml but wrapper has no speak_ssml() yet",
             )
         return lambda: backend.speak_ssml("<speak>Hello</speak>", interrupt=True)
     if flag_name == "supports_speak_to_memory_ssml":
         if not hasattr(backend, "speak_to_memory_ssml"):
             pytest.xfail(
-                "BackendFeatures advertises supports_speak_to_memory_ssml but wrapper has no speak_to_memory_ssml() yet"
+                "BackendFeatures advertises supports_speak_to_memory_ssml but wrapper has no speak_to_memory_ssml() yet",
             )
 
         def run():
@@ -109,7 +110,7 @@ def test_every_supports_bit_is_enforced(ctx, backend_id):
         backend = ctx.create(backend_id)
     except Exception as e:
         pytest.skip(
-            f"Backend {backend_id} could not be created/initialized here: {type(e).__name__}: {e}"
+            f"Backend {backend_id} could not be created/initialized here: {type(e).__name__}: {e}",
         )
     feats = backend.features
     for f in fields(type(feats)):

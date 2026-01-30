@@ -1,3 +1,3 @@
-from .core import Backend, BackendId, Context, PrismError, BackendFeatures
+from .core import Backend, BackendFeatures, BackendId, Context, PrismError
 
-__all__ = ["Backend", "BackendId", "Context", "PrismError", "BackendFeatures"]
+__all__ = ["Backend", "BackendFeatures", "BackendId", "Context", "PrismError"]

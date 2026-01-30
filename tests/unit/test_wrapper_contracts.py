@@ -1,5 +1,5 @@
 import pytest
-from prism import PrismError, Backend
+from prism import Backend, PrismError
 
 
 def test_empty_text_rejected_by_wrapper(any_backend: Backend):

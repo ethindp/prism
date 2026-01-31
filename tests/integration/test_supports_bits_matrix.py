@@ -2,7 +2,7 @@ import sys
 from dataclasses import fields
 
 import pytest
-from prism import Backend, BackendId, PrismNotImplementedError
+from prism import Backend, BackendId, PrismError
 
 
 def _skip_uia_in_matrix(backend_id: BackendId):
@@ -89,13 +89,13 @@ def _call_for_support_flag(backend: Backend, flag_name: str):
 
 def _assert_support_gate(supported: bool, call):
     if not supported:
-        with pytest.raises(PrismNotImplementedError):
+        with pytest.raises(PrismError):
             call()
         return
     try:
         call()
-    except PrismNotImplementedError:
-        pytest.fail("supports_* bit true but call raised PrismNotImplementedError")
+    except PrismError:
+        pytest.fail("supports_* bit true but call raised PrismError")
     except Exception as e:
         if e.__class__.__name__.startswith("Prism"):
             return

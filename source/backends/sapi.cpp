@@ -243,7 +243,16 @@ private:
   }
 
 public:
-  ~SapiBackend() override = default;
+  ~SapiBackend() override {
+    {
+      std::unique_lock vl(voice_lock);
+      voice.Release();
+    }
+    {
+      std::unique_lock ul(voices_lock);
+      voices.clear();
+    }
+  }
 
   [[nodiscard]] std::string_view get_name() const override { return "SAPI"; }
 
@@ -689,6 +698,18 @@ public:
     {
       std::unique_lock ul(voices_lock);
       std::swap(voices, new_voices);
+    }
+    CComPtr<ISpObjectToken> current_token;
+    hr = voice->GetVoice(&current_token);
+    assert(SUCCEEDED(hr) && current_token != nullptr);
+    {
+      std::shared_lock sl(voices_lock);
+      for (std::size_t i = 0; i < voices.size(); ++i) {
+        if (voices[i].token.IsEqualObject(current_token)) {
+          voice_idx.store(i, std::memory_order_release);
+          break;
+        }
+      }
     }
     return {};
   }

@@ -4,11 +4,19 @@ import numpy as np
 import pytest
 import torch
 import torchaudio
+from hypothesis import strategies as st
+from hypothesis import given, settings
 
 logging.getLogger("torch.hub").setLevel(logging.WARNING)
 model, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", trust_repo=True)
 (get_speech_timestamps, _, _, _, _) = utils
 model.eval()
+
+safe_text = st.text(
+    min_size=1,
+    max_size=4096,
+    alphabet=st.characters(blacklist_categories=("Cs")),
+)
 
 
 def _has_any_speech(pcm, channels, sr, threshold=0.5):
@@ -41,7 +49,10 @@ def _mean_square_to_db(msq: float) -> float:
 
 
 def _frame_db(
-    interleaved: np.ndarray, start_frame: int, frame_len: int, channels: int,
+    interleaved: np.ndarray,
+    start_frame: int,
+    frame_len: int,
+    channels: int,
 ) -> float:
     total_frames = interleaved.size // channels
     end_frame = min(start_frame + frame_len, total_frames)
@@ -90,6 +101,8 @@ def _has_no_silence_at_edges(
 
 
 @pytest.mark.integration
+@settings(max_examples=1000, deadline=None)
+@given(safe_text)
 def test_silence_trimming_if_advertised(any_backend):
     b = any_backend
     f = b.features

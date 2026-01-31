@@ -201,6 +201,8 @@ class Backend:
             _check_error(res)
 
     def __del__(self) -> None:
+        if sys.is_finalizing():
+            return
         lib.prism_backend_free(self._raw)
         self._raw = None
 
@@ -373,6 +375,8 @@ class Context:
             raise RuntimeError("Prism could not be initialized")
 
     def __del__(self):
+        if sys.is_finalizing():
+            return
         if hasattr(self, "_ctx") and self._ctx:
             lib.prism_shutdown(self._ctx)
             self._ctx = None

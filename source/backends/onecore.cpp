@@ -43,6 +43,7 @@ public:
   ~OneCoreBackend() override {
     if (player && state_changed_token) {
       player.PlaybackSession().PlaybackStateChanged(state_changed_token);
+      state_changed_token = {};
     }
     synth = nullptr;
     player = nullptr;

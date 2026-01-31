@@ -335,7 +335,11 @@ private:
   }
 
 public:
-  ~UiaBackend() override = default;
+  ~UiaBackend() override {
+    if (HWND w = hwnd.load(std::memory_order_acquire)) {
+      PostMessage(w, WM_UIA_SHUTDOWN, 0, 0);
+    }
+  }
 
   std::string_view get_name() const override { return "UIA"; }
 

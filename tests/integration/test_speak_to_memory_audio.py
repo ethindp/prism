@@ -3,7 +3,11 @@ import threading
 import pytest
 from hypothesis import given, settings
 
-from tests.strategies import safe_text
+safe_text = st.text(
+    min_size=1,
+    max_size=2048,
+    alphabet=st.characters(blacklist_categories=("Cs")),
+)
 
 
 @pytest.mark.integration

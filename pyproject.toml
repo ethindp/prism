@@ -1,6 +1,6 @@
 [project]
 name = "prismatoid"
-version = "0.6.1"
+version = "0.6.2"
 description = "The Platform-Agnostic Reader Interface for Speech and Messages"
 readme = "README.md"
 authors = [

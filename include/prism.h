@@ -36,7 +36,6 @@ extern "C" {
 #define PRISM_NODISCARD __attribute__((warn_unused_result))
 #define PRISM_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
 #define PRISM_PRINTF(fmt, args) __attribute__((format(printf, fmt, args)))
-#define PRISM_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #define PRISM_MALLOC __attribute__((malloc))
 #if __has_attribute(null_terminated_string_arg)
 #define PRISM_NULL_TERMINATED_STRING_ARG(n)                                    \
@@ -48,14 +47,12 @@ extern "C" {
 #define PRISM_NODISCARD _Check_return_
 #define PRISM_NONNULL(...)
 #define PRISM_PRINTF(fmt, args)
-#define PRISM_DEPRECATED(msg) __declspec(deprecated(msg))
 #define PRISM_MALLOC __declspec(restrict)
 #define PRISM_NULL_TERMINATED_STRING_ARG(n)
 #else
 #define PRISM_NODISCARD
 #define PRISM_NONNULL(...)
 #define PRISM_PRINTF(fmt, args)
-#define PRISM_DEPRECATED(msg)
 #define PRISM_MALLOC
 #define PRISM_NULL_TERMINATED_STRING_ARG(n)
 #endif
@@ -69,6 +66,17 @@ extern "C" {
 #define PRISM_RESTRICT restrict
 #define PRISM_STATIC_ASSERT _Static_assert
 #endif
+#if defined(__cplusplus) && __cplusplus >= 201402L
+#define PRISM_DEPRECATED(msg) [[deprecated(msg)]]
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#define PRISM_DEPRECATED(msg) [[deprecated(msg)]]
+#elif defined(__GNUC__) || defined(__clang__)
+#define PRISM_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#elif defined(_MSC_VER)
+#define PRISM_DEPRECATED(msg) __declspec(deprecated(msg))
+#else
+#define PRISM_DEPRECATED(msg)
+#endif
 
 typedef struct PrismContext PrismContext;
 typedef struct PrismBackend PrismBackend;
@@ -76,9 +84,13 @@ typedef uint64_t PrismBackendId;
 typedef struct {
   uint8_t version;
 #ifdef __ANDROID__
+  PRISM_DEPRECATED(
+      "This field has no effect and will be removed in version 0.8.0")
   JNIEnv *jni_env;
 #endif
 #ifdef _WIN32
+  PRISM_DEPRECATED(
+      "This field has no effect and will be removed in version 0.8.0")
   HWND hwnd;
 #endif
 } PrismConfig;

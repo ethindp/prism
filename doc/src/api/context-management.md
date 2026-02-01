@@ -22,21 +22,17 @@ The version of this structure. This field MUST NOT be modified.
 
 `jni_env`
 
-An environment for the [Java Native Interface](https://docs.oracle.com/en/java/javase/25/docs/specs/jni/intro.html) (JNI). This field is only available on platforms where the JNI is used.
+This field is deprecated and has no effect. It will be removed in 0.8.0. Previously, it held an environment for the [Java Native Interface](https://docs.oracle.com/en/java/javase/25/docs/specs/jni/intro.html) (JNI). This field is only available on platforms where the JNI is used.
 
 `hwnd`
 
-A handle to the root window of an application. Required for the UIA backend to function. Only present on Windows. If the handle is an invalid handle or `INVALID_HANDLE_VALUE`, the UIA backend will NOT initialize.
+This field is deprecated and has no effect. It will be removed in 0.8.0. Previously, it was a handle to the root window of an application. This field is only available on Windows.
 
 #### Remarks
 
 This struct contains configuration information for Prism. The version field will be incremented by `1` whenever a new field is added or removed.
 
 Certain fields in this structure may only be available on certain platforms. Attempting to read or write to them on platforms where these fields are not useful is a compilation error.
-
-On Android, `jni_env` MUST be set by the caller for android back-ends to be available. Failure to set this field will cause these back-ends to not initialize.
-
-On Windows, the caller MUST set `hwnd` to the root window of their application. This MUST NOT be a child window or popup. If `hwnd` is `INVALID_HANDLE_VALUE`, or the UIA back-end determines that the handle is NOT the root window of the calling application, it will NOT initialize.
 
 ### prism_config_init
 

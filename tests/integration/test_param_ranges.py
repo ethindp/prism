@@ -1,7 +1,7 @@
 import pytest
 from hypothesis import given, settings
-from prism import PrismError
 from hypothesis import strategies as st
+from prism import PrismError
 
 invalid_unit = st.one_of(
     st.floats(max_value=-1e-9, allow_nan=False, allow_infinity=False),

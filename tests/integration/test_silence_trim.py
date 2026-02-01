@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 import torch
 import torchaudio
-from hypothesis import strategies as st
 from hypothesis import given, settings
+from hypothesis import strategies as st
 
 logging.getLogger("torch.hub").setLevel(logging.WARNING)
 model, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", trust_repo=True)

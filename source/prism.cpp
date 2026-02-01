@@ -50,12 +50,6 @@ extern "C" {
 PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void) {
   PrismConfig cfg;
   cfg.version = PRISM_CONFIG_VERSION;
-#ifdef __ANDROID__
-  cfg.jni_env = nullptr;
-#endif
-#ifdef _WIN32
-  cfg.hwnd = static_cast<HWND>(INVALID_HANDLE_VALUE);
-#endif
   return cfg;
 }
 
@@ -92,18 +86,7 @@ PRISM_API PrismContext *PRISM_CALL prism_init(PrismConfig *cfg) {
 #endif
       return nullptr;
     }
-#ifdef __ANDROID__
-    if (cfg->jni_env) {
-      JavaVM *vm = nullptr;
-      if (cfg->jni_env->GetJavaVM(&vm) != 0)
-        return nullptr;
-      if (!vm)
-        return nullptr;
-      ctx->registry.set_java_vm(vm);
-    }
-#endif
 #ifdef _WIN32
-    ctx->registry.set_hwnd(cfg->hwnd);
     ctx->com_initialized = owns_com;
 #endif
     return ctx;

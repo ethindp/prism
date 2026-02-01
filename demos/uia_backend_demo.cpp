@@ -396,9 +396,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE, LPTSTR, int nCmdShow) {
     g_hRichDll = nullptr;
     return 1;
   }
-  auto cfg = prism_config_init();
-  cfg.hwnd = hwnd;
-  PrismContext *ctx = prism_init(&cfg);
+  PrismContext *ctx = prism_init(nullptr);
   PrismBackend *backend = prism_registry_create(ctx, PRISM_BACKEND_UIA);
   if (!backend) {
     MessageBoxEx(hwnd, _T("Could not create UIA backend!"), _T("Prism error"),

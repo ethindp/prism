@@ -334,6 +334,28 @@ private:
     }
   }
 
+  static bool is_good_window(HWND hwnd) {
+    if (hwnd == nullptr || IsWindowVisible(hwnd) == FALSE ||
+        IsIconic(hwnd) == TRUE)
+      return false;
+    DWORD pid;
+    GetWindowThreadProcessId(hwnd, &pid);
+    if (pid != GetCurrentProcessId())
+      return false;
+    auto ex_style = GetWindowLong(hwnd, GWL_EXSTYLE);
+    if ((ex_style & (WS_EX_TOOLWINDOW | WS_EX_TOPMOST)) > 0)
+      return false;
+    if (hwnd == GetConsoleWindow())
+      return false;
+    std::array<wchar_t, 256> class_name{};
+    if (GetClassName(hwnd, class_name.data(), class_name.size()) == 0)
+      return false;
+    if (wcscmp(class_name.data(), _T("ConsoleWindowClass")) == 0 ||
+        wcscmp(class_name.data(), _T("CASCADIA_HOSTING_WINDOW_CLASS")) == 0)
+      return false;
+    return true;
+  }
+
 public:
   ~UiaBackend() override {
     if (HWND w = hwnd.load(std::memory_order_acquire)) {
@@ -363,6 +385,26 @@ public:
     if (initialized.test())
       return std::unexpected(BackendError::AlreadyInitialized);
     ready = std::nullopt;
+    auto *fg = GetForegroundWindow();
+    if (is_good_window(fg)) {
+      hwnd_in = fg;
+    } else {
+      auto *active = GetActiveWindow();
+      if (is_good_window(active)) {
+        hwnd_in = active;
+      } else {
+        EnumWindows(
+            [](HWND hwnd, LPARAM lparam) -> BOOL {
+              if (is_good_window(hwnd)) {
+                // NOLINTNEXTLINE(performance-no-int-to-ptr)
+                *reinterpret_cast<HWND *>(lparam) = hwnd;
+                return FALSE;
+              }
+              return TRUE;
+            },
+            reinterpret_cast<LPARAM>(&hwnd_in));
+      }
+    }
     if (IsWindow(hwnd_in) == 0)
       return std::unexpected(BackendError::InvalidParam);
     auto *h = GetAncestor(hwnd_in, GA_ROOTOWNER);

@@ -22,8 +22,10 @@ project(
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" OFF)
 option(PRISM_ENABLE_DEMOS "Enable demo applications" OFF)
-option(PRISM_ENABLE_CLANG_TIDY
-       "Enable execution of clang-tidy for debug builds" OFF)
+option(
+  PRISM_ENABLE_LINTING
+  "Enable execution of linting this build with whatever linting tools are available (implicitly enables warnings as errors)"
+  OFF)
 option(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS
        "Enable vcpkg-specific build options (DO NOT USE NORMALLY)" OFF)
 if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
@@ -367,34 +369,78 @@ endif()
 if(ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
-if(PRISM_ENABLE_CLANG_TIDY)
-  if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_CXX_COMPILER_ID
-                                                 MATCHES "MSVC")
+if(PRISM_ENABLE_LINTING)
+  set(SKIP_LINT_FILES
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")
+  if(ANDROID)
+    list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
+  endif()
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
     if(CLANG_TIDY_EXE)
       set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}")
       set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
                                                        "${CLANG_TIDY_COMMAND}")
-      set(SKIP_LINT_FILES
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.c"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-module.h"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.c"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/orca-service.h"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
-          "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")
-      if(ANDROID)
-        list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
-      endif()
       set_source_files_properties(${SKIP_LINT_FILES} PROPERTIES SKIP_LINTING ON)
     endif()
+  else()
+    if(NOT DEFINED ENV{VSINSTALLDIR})
+      message(
+        FATAL_ERROR
+          "VSINSTALLDIR environment variable is not set. Are you running in a Developer Command Prompt?"
+      )
+    endif()
+    set(_RULESET_DIR
+        "$ENV{VSINSTALLDIR}Team Tools\\Static Analysis Tools\\Rule Sets")
+    if(NOT EXISTS "${_RULESET_DIR}")
+      message(FATAL_ERROR "VS ruleset dir not found at: ${_RULESET_DIR}")
+    endif()
+    set(_RULESET_FILES
+        "NativeRecommendedRules.ruleset" "ConcurrencyCheckRules.ruleset"
+        "ConcurrencyRules.ruleset")
+    set(_MERGED_RULESET_PATH "${CMAKE_BINARY_DIR}/PrismCombinedRuleset.ruleset")
+    set(RULESET_IMPORTS "")
+    foreach(_RULESET ${_RULESET_FILES})
+      set(RULESET_IMPORTS
+          "${RULESET_IMPORTS}    <Include Path=\"${_RULESET_DIR}\\${_RULESET}\" Action=\"Default\" />\n"
+      )
+    endforeach()
+    configure_file(
+      "${CMAKE_CURRENT_SOURCE_DIR}/cmake/PrismRulesetTemplate.ruleset.in"
+      "${_MERGED_RULESET_PATH}" @ONLY)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nativecodeanalysis")
+    set_property(TARGET ${PROJECT_NAME} PROPERTY COMPILE_WARNING_AS_ERROR ON)
+    set_property(TARGET ${PROJECT_NAME} PROPERTY COMPILE_WARNING_LEVEL 4)
+    target_compile_options(
+      ${PROJECT_NAME}
+      PRIVATE /external:anglebrackets
+              /external:W0
+              "/external:I ${CMAKE_BINARY_DIR}/generated"
+              "/external:I ${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw"
+              /analyze
+              /analyze:external-
+              /analyze:log
+              "${CMAKE_BINARY_DIR}/nativecodeanalysis/"
+              /analyze:log:format:sarif
+              /analyze:ruleset
+              "${_MERGED_RULESET_PATH}")
+    foreach(src IN LISTS SKIP_LINT_FILES)
+      set_property(
+        SOURCE "${src}"
+        APPEND
+        PROPERTY COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:MSVC>:/analyze->"
+                 "$<$<CXX_COMPILER_ID:MSVC>:/WX->"
+                 "$<$<CXX_COMPILER_ID:MSVC>:/W0>")
+    endforeach()
   endif()
 endif()
 if(NOT ANDROID)

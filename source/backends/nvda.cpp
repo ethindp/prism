@@ -13,9 +13,12 @@
 extern "C" {
 static thread_local onSsmlMarkReachedFuncType ssml_mark_reached_callback =
     nullptr;
-void *__RPC_USER midl_user_allocate(size_t size) { return malloc(size); }
+_Must_inspect_result_ _Ret_maybenull_ _Post_writable_byte_size_(
+    size) void *__RPC_USER MIDL_user_allocate(_In_ size_t size) {
+  return malloc(size);
+}
 
-void __RPC_USER midl_user_free(void *p) {
+void __RPC_USER MIDL_user_free(_Pre_maybenull_ _Post_invalid_ void *p) {
   if (p != nullptr)
     std::free(p);
 }
@@ -53,38 +56,43 @@ public:
 
   [[nodiscard]] std::string_view get_name() const override { return "NVDA"; }
 
-[[nodiscard]] std::bitset<64> get_features() const override {
-  using namespace BackendFeature;
-  std::bitset<64> features;
-  features |= SUPPORTS_SPEAK | SUPPORTS_BRAILLE | SUPPORTS_OUTPUT | SUPPORTS_STOP;
-  DWORD session_id = 0;
-  if (ProcessIdToSessionId(GetCurrentProcessId(), &session_id) == 0)
-    return features;
-  const HANDLE desktop = GetThreadDesktop(GetCurrentThreadId());
-  if (desktop == nullptr)
-    return features;
-  std::wstring desktop_name(32, _T('\0'));
-  DWORD bytes_written = 0;
-  if (GetUserObjectInformation(desktop, UOI_NAME, desktop_name.data(), static_cast<DWORD>(desktop_name.size() * sizeof(wchar_t)), &bytes_written) == 0)
-    return features;
-  desktop_name.resize((bytes_written / sizeof(wchar_t)) - 1);
-  const auto endpoint = std::format(_T("NvdaCtlr.{}.{}"), session_id, desktop_name);
-  RPC_WSTR string_binding = nullptr;
-  if (RpcStringBindingCompose(nullptr, RPC_WSTR(_T("ncalrpc")), nullptr,
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    features |=
+        SUPPORTS_SPEAK | SUPPORTS_BRAILLE | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    DWORD session_id = 0;
+    if (ProcessIdToSessionId(GetCurrentProcessId(), &session_id) == 0)
+      return features;
+    const HANDLE desktop = GetThreadDesktop(GetCurrentThreadId());
+    if (desktop == nullptr)
+      return features;
+    std::wstring desktop_name(32, _T('\0'));
+    DWORD bytes_written = 0;
+    if (GetUserObjectInformation(
+            desktop, UOI_NAME, desktop_name.data(),
+            static_cast<DWORD>(desktop_name.size() * sizeof(wchar_t)),
+            &bytes_written) == 0)
+      return features;
+    desktop_name.resize((bytes_written / sizeof(wchar_t)) - 1);
+    const auto endpoint =
+        std::format(_T("NvdaCtlr.{}.{}"), session_id, desktop_name);
+    RPC_WSTR string_binding = nullptr;
+    if (RpcStringBindingCompose(nullptr, RPC_WSTR(_T("ncalrpc")), nullptr,
                                 RPC_WSTR(endpoint.c_str()), nullptr,
                                 &string_binding) != RPC_S_OK)
-    return features;
-  handle_t handle = nullptr;
-  if (RpcBindingFromStringBinding(string_binding, &handle) != RPC_S_OK) {
+      return features;
+    handle_t handle = nullptr;
+    if (RpcBindingFromStringBinding(string_binding, &handle) != RPC_S_OK) {
+      RpcStringFree(&string_binding);
+      return features;
+    }
     RpcStringFree(&string_binding);
+    if (nvdaController_testIfRunning(handle) == ERROR_SUCCESS)
+      features |= IS_SUPPORTED_AT_RUNTIME;
+    RpcBindingFree(&handle);
     return features;
   }
-  RpcStringFree(&string_binding);
-  if (nvdaController_testIfRunning(handle) == ERROR_SUCCESS)
-    features |= IS_SUPPORTED_AT_RUNTIME;
-  RpcBindingFree(&handle);
-  return features;
-}
 
   BackendResult<> initialize() override {
     if (controller_handle != nullptr || controller2_handle != nullptr)

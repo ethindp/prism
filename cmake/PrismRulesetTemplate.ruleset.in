@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RuleSet Name="Prism Combined Ruleset" Description="Combined ruleset for Prism project" ToolsVersion="16.0">
+@RULESET_IMPORTS@
+</RuleSet>

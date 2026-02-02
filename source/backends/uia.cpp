@@ -348,7 +348,8 @@ private:
     if (hwnd == GetConsoleWindow())
       return false;
     std::array<wchar_t, 256> class_name{};
-    if (GetClassName(hwnd, class_name.data(), class_name.size()) == 0)
+    if (GetClassName(hwnd, class_name.data(),
+                     static_cast<int>(class_name.size())) == 0)
       return false;
     if (wcscmp(class_name.data(), _T("ConsoleWindowClass")) == 0 ||
         wcscmp(class_name.data(), _T("CASCADIA_HOSTING_WINDOW_CLASS")) == 0)

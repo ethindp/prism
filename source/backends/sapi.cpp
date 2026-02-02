@@ -505,8 +505,10 @@ public:
     if (auto const r = require_ready_locked(); !r)
       return std::unexpected(r.error());
     SPVOICESTATUS status;
-    if (FAILED(voice->GetStatus(&status, nullptr)))
+    LPWSTR bookmark;
+    if (FAILED(voice->GetStatus(&status, &bookmark)))
       return std::unexpected(BackendError::InternalBackendError);
+    CoTaskMemFree(bookmark);
     return status.dwRunningState == SPRS_IS_SPEAKING;
   }
 

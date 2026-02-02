@@ -53,7 +53,8 @@ PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void) {
   return cfg;
 }
 
-PRISM_API PrismContext *PRISM_CALL prism_init(PrismConfig *cfg) {
+PRISM_API PRISM_NODISCARD PrismContext *PRISM_CALL
+prism_init(PrismConfig *cfg) {
 #ifdef _WIN32
   bool owns_com = false;
   switch (CoInitializeEx(nullptr,
@@ -115,60 +116,61 @@ PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) {
   delete ctx;
 }
 
-PRISM_API size_t PRISM_CALL prism_registry_count(PrismContext *ctx) {
+PRISM_API PRISM_NODISCARD size_t PRISM_CALL
+prism_registry_count(PrismContext *ctx) {
   return ctx->registry.list().size();
 }
 
-PRISM_API PrismBackendId PRISM_CALL prism_registry_id_at(PrismContext *ctx,
-                                                         size_t index) {
+PRISM_API PRISM_NODISCARD PrismBackendId PRISM_CALL
+prism_registry_id_at(PrismContext *ctx, size_t index) {
   const auto list = ctx->registry.list();
   if (index >= list.size())
     return std::numeric_limits<std::size_t>::max();
   return to_prism_id(list[index]);
 }
 
-PRISM_API PrismBackendId PRISM_CALL
+PRISM_API PRISM_NODISCARD PrismBackendId PRISM_CALL
 prism_registry_id(PrismContext *ctx, const char *PRISM_RESTRICT name) {
   return to_prism_id(ctx->registry.id(name));
 }
 
-PRISM_API const char *PRISM_CALL prism_registry_name(PrismContext *ctx,
-                                                     PrismBackendId id) {
+PRISM_API PRISM_NODISCARD const char *PRISM_CALL
+prism_registry_name(PrismContext *ctx, PrismBackendId id) {
   const auto sv = ctx->registry.name(to_backend_id(id));
   return sv.empty() ? nullptr : sv.data();
 }
 
-PRISM_API int PRISM_CALL prism_registry_priority(PrismContext *ctx,
-                                                 PrismBackendId id) {
+PRISM_API PRISM_NODISCARD int PRISM_CALL
+prism_registry_priority(PrismContext *ctx, PrismBackendId id) {
   return ctx->registry.priority(to_backend_id(id));
 }
 
-PRISM_API bool PRISM_CALL prism_registry_exists(PrismContext *ctx,
-                                                PrismBackendId id) {
+PRISM_API PRISM_NODISCARD bool PRISM_CALL
+prism_registry_exists(PrismContext *ctx, PrismBackendId id) {
   return ctx->registry.has(to_backend_id(id));
 }
 
-PRISM_API PrismBackend *PRISM_CALL prism_registry_get(PrismContext *ctx,
-                                                      PrismBackendId id) {
+PRISM_API PRISM_NODISCARD PrismBackend *PRISM_CALL
+prism_registry_get(PrismContext *ctx, PrismBackendId id) {
   return wrap_backend(ctx->registry.get(to_backend_id(id)));
 }
 
-PRISM_API PrismBackend *PRISM_CALL prism_registry_create(PrismContext *ctx,
-                                                         PrismBackendId id) {
+PRISM_API PRISM_NODISCARD PrismBackend *PRISM_CALL
+prism_registry_create(PrismContext *ctx, PrismBackendId id) {
   return wrap_backend(ctx->registry.create(to_backend_id(id)));
 }
 
-PRISM_API PrismBackend *PRISM_CALL
+PRISM_API PRISM_NODISCARD PrismBackend *PRISM_CALL
 prism_registry_create_best(PrismContext *ctx) {
   return wrap_backend(ctx->registry.create_best());
 }
 
-PRISM_API PrismBackend *PRISM_CALL prism_registry_acquire(PrismContext *ctx,
-                                                          PrismBackendId id) {
+PRISM_API PRISM_NODISCARD PrismBackend *PRISM_CALL
+prism_registry_acquire(PrismContext *ctx, PrismBackendId id) {
   return wrap_backend(ctx->registry.acquire(to_backend_id(id)));
 }
 
-PRISM_API PrismBackend *PRISM_CALL
+PRISM_API PRISM_NODISCARD PrismBackend *PRISM_CALL
 prism_registry_acquire_best(PrismContext *ctx) {
   return wrap_backend(ctx->registry.acquire_best());
 }
@@ -179,28 +181,29 @@ PRISM_API void PRISM_CALL prism_backend_free(PrismBackend *backend) {
   delete backend;
 }
 
-PRISM_API const char *PRISM_CALL prism_backend_name(PrismBackend *backend) {
+PRISM_API PRISM_NODISCARD const char *PRISM_CALL
+prism_backend_name(PrismBackend *backend) {
   return backend->impl->get_name().data();
 }
 
-PRISM_API std::uint64_t PRISM_CALL
+PRISM_API PRISM_NODISCARD std::uint64_t PRISM_CALL
 prism_backend_get_features(PrismBackend *backend) {
   return backend->impl->get_features().to_ullong();
 }
 
-PRISM_API PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_initialize(PrismBackend *backend) {
   const auto r = backend->impl->initialize();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_speak(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_speak(
     PrismBackend *backend, const char *PRISM_RESTRICT text, bool interrupt) {
   const auto r = backend->impl->speak(text, interrupt);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_speak_to_memory(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_speak_to_memory(
     PrismBackend *backend, const char *PRISM_RESTRICT text,
     PrismAudioCallback callback, void *userdata) {
   const auto r = backend->impl->speak_to_memory(
@@ -213,34 +216,37 @@ PRISM_API PrismError PRISM_CALL prism_backend_speak_to_memory(
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_braille(PrismBackend *backend, const char *PRISM_RESTRICT text) {
   const auto r = backend->impl->braille(text);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_output(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_output(
     PrismBackend *backend, const char *PRISM_RESTRICT text, bool interrupt) {
   const auto r = backend->impl->output(text, interrupt);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_stop(PrismBackend *backend) {
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
+prism_backend_stop(PrismBackend *backend) {
   const auto r = backend->impl->stop();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_pause(PrismBackend *backend) {
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
+prism_backend_pause(PrismBackend *backend) {
   const auto r = backend->impl->pause();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_resume(PrismBackend *backend) {
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
+prism_backend_resume(PrismBackend *backend) {
   const auto r = backend->impl->resume();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_is_speaking(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_is_speaking(
     PrismBackend *backend, bool *PRISM_RESTRICT out_speaking) {
   const auto r = backend->impl->is_speaking();
   if (!r)
@@ -249,25 +255,25 @@ PRISM_API PrismError PRISM_CALL prism_backend_is_speaking(
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_set_volume(PrismBackend *backend,
-                                                         float volume) {
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
+prism_backend_set_volume(PrismBackend *backend, float volume) {
   const auto r = backend->impl->set_volume(volume);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_set_rate(PrismBackend *backend,
-                                                       float rate) {
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
+prism_backend_set_rate(PrismBackend *backend, float rate) {
   const auto r = backend->impl->set_rate(rate);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_set_pitch(PrismBackend *backend,
-                                                        float pitch) {
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
+prism_backend_set_pitch(PrismBackend *backend, float pitch) {
   const auto r = backend->impl->set_pitch(pitch);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_get_volume(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_get_volume(
     PrismBackend *backend, float *PRISM_RESTRICT out_volume) {
   const auto r = backend->impl->get_volume();
   if (!r)
@@ -276,7 +282,7 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_volume(
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_get_rate(PrismBackend *backend, float *PRISM_RESTRICT out_rate) {
   const auto r = backend->impl->get_rate();
   if (!r)
@@ -285,7 +291,7 @@ prism_backend_get_rate(PrismBackend *backend, float *PRISM_RESTRICT out_rate) {
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_get_pitch(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_get_pitch(
     PrismBackend *backend, float *PRISM_RESTRICT out_pitch) {
   const auto r = backend->impl->get_pitch();
   if (!r)
@@ -294,13 +300,13 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_pitch(
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_refresh_voices(PrismBackend *backend) {
   const auto r = backend->impl->refresh_voices();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_count_voices(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_count_voices(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_count) {
   const auto r = backend->impl->count_voices();
   if (!r)
@@ -309,7 +315,7 @@ PRISM_API PrismError PRISM_CALL prism_backend_count_voices(
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_get_voice_name(PrismBackend *backend, size_t voice_id,
                              const char **PRISM_RESTRICT out_name) {
   auto r = backend->impl->get_voice_name(voice_id);
@@ -320,7 +326,7 @@ prism_backend_get_voice_name(PrismBackend *backend, size_t voice_id,
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_get_voice_language(PrismBackend *backend, size_t voice_id,
                                  const char **PRISM_RESTRICT out_language) {
   auto r = backend->impl->get_voice_language(voice_id);
@@ -331,13 +337,13 @@ prism_backend_get_voice_language(PrismBackend *backend, size_t voice_id,
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_set_voice(PrismBackend *backend,
-                                                        size_t voice_id) {
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
+prism_backend_set_voice(PrismBackend *backend, size_t voice_id) {
   const auto r = backend->impl->set_voice(voice_id);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_get_voice(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_get_voice(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_voice_id) {
   const auto r = backend->impl->get_voice();
   if (!r)
@@ -346,7 +352,7 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_voice(
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_get_channels(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_get_channels(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_channels) {
   const auto r = backend->impl->get_channels();
   if (!r)
@@ -355,7 +361,7 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_channels(
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_get_sample_rate(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_get_sample_rate(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_sample_rate) {
   const auto r = backend->impl->get_sample_rate();
   if (!r)
@@ -364,7 +370,7 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_sample_rate(
   return PRISM_OK;
 }
 
-PRISM_API PrismError PRISM_CALL prism_backend_get_bit_depth(
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_get_bit_depth(
     PrismBackend *backend, size_t *PRISM_RESTRICT out_bit_depth) {
   const auto r = backend->impl->get_bit_depth();
   if (!r)
@@ -373,7 +379,8 @@ PRISM_API PrismError PRISM_CALL prism_backend_get_bit_depth(
   return PRISM_OK;
 }
 
-PRISM_API const char *PRISM_CALL prism_error_string(PrismError error) {
+PRISM_API PRISM_NODISCARD const char *PRISM_CALL
+prism_error_string(PrismError error) {
   static const char *const strings[] = {"Success",
                                         "Not initialized",
                                         "Invalid parameter",

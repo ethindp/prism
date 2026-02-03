@@ -354,10 +354,21 @@ endif()
 if(NOT MSVC)
   check_cxx_compiler_flag(-Wall COMP_HAS_WALL_OPTION)
   check_cxx_compiler_flag(-Wextra COMP_HAS_WEXTRA_OPTION)
+  check_cxx_compiler_flag(-Wthread-safety COMP_HAS_WTHREAD_SAFETY_OPTION)
+  check_cxx_compiler_flag(-Wthread-safety-negative
+                          COMP_HAS_WTHREAD_SAFETY_NEGATIVE_OPTION)
   if(COMP_HAS_WALL_OPTION AND COMP_HAS_WEXTRA_OPTION)
     target_compile_options(${PROJECT_NAME}
                            PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
   endif()
+  if(COMP_HAS_WTHREAD_SAFETY_OPTION)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wthread-safety)
+  endif()
+  if(COMP_HAS_WTHREAD_SAFETY_NEGATIVE_OPTION)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wthread-safety-negative)
+  endif()
+  target_compile_options(${PROJECT_NAME} PRIVATE -Werror=thread-safety
+                                                 -Werror=thread-safety-negative)
 endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE

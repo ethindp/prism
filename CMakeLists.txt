@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.25)
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
@@ -17,7 +17,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.7.0
+  VERSION 0.7.1
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" OFF)
@@ -115,7 +115,10 @@ if(NOT ANDROID)
   list(REMOVE_ITEM headers ${android_headers})
 endif()
 if(NOT EMSCRIPTEN)
-  add_library(${PROJECT_NAME} SHARED ${headers} ${sources})
+  set(BUILD_SHARED_LIBS
+      ON
+      CACHE BOOL "Build shared libraries")
+  add_library(${PROJECT_NAME} ${headers} ${sources})
 else()
   add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
 endif()
@@ -187,7 +190,7 @@ if(WIN32)
   target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/nvda_controller.c")
   target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
   target_link_libraries(${PROJECT_NAME} PRIVATE rpcrt4)
-  if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+  if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec|x86|i386")
     add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
                        SAAPI64.dll)
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.20)
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
@@ -365,13 +365,16 @@ if(NOT MSVC)
                            PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
   endif()
   if(COMP_HAS_WTHREAD_SAFETY_OPTION)
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wthread-safety
-                                                   -Werror=thread-safety)
+    target_compile_options(
+      ${PROJECT_NAME}
+      PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety>
+              $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety>)
   endif()
   if(COMP_HAS_WTHREAD_SAFETY_NEGATIVE_OPTION)
     target_compile_options(
-      ${PROJECT_NAME} PRIVATE -Wthread-safety-negative
-                              -Werror=thread-safety-negative)
+      ${PROJECT_NAME}
+      PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety-negative>
+              $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety-negative>)
   endif()
 endif()
 if(APPLE)

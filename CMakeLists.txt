@@ -365,13 +365,14 @@ if(NOT MSVC)
                            PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
   endif()
   if(COMP_HAS_WTHREAD_SAFETY_OPTION)
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wthread-safety)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wthread-safety
+                                                   -Werror=thread-safety)
   endif()
   if(COMP_HAS_WTHREAD_SAFETY_NEGATIVE_OPTION)
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wthread-safety-negative)
+    target_compile_options(
+      ${PROJECT_NAME} PRIVATE -Wthread-safety-negative
+                              -Werror=thread-safety-negative)
   endif()
-  target_compile_options(${PROJECT_NAME} PRIVATE -Werror=thread-safety
-                                                 -Werror=thread-safety-negative)
 endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE

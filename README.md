@@ -6,7 +6,28 @@ Prism aims to unify the various screen reader abstraction libraries like SpeechC
 
 ## Building
 
-To build Prism, all you need do is create a build directory and run cmake as you ordinarily would. The only build option at this time is `PRISM_ENABLE_TESTS`, which will determine whether the test suite is built or not. In the 99 percent of cases, you should disable this option, since running the tests is only for validating that the library functions correctly. However, the tests have currently known problems and are still in a very early stage of development, so validation is platform-dependent and may fail in very strange ways on other platforms than Windows. (Specifically, failure is known to happen on at least MacOS, due to the header's various compiler attributes in use.)
+To build Prism, all you need do is create a build directory and run cmake as you ordinarily would. The following build options are available:
+
+| Option | Description |
+| --- | --- |
+| `PRISM_ENABLE_TESTS` | Build the test suite (currently reserved). |
+| `PRISM_ENABLE_DEMOS` | Enable building of demo apps to demonstrate Prism either generally or being used in a specific language. |
+| `PRISM_ENABLE_LINTING` | Enable linting of source code with clang-tidy and other static analysis tools. |
+| `PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS` | DO NOT USE. Enables options primarily used by the vcpkg package manager. |
+
+Prism is also in vcpkg. To install it:
+
+```
+vcpkg install ethindp-prism
+```
+
+The following features are available:
+
+| Feature | Description |
+| --- | --- |
+| `speech-dispatcher` | Enables linking to speech dispatcher and, by extension, enables the respective back-end module. If not defined, speech dispatcher will NOT be a supported backend. |
+| `orca` | Enables use of glib and gdbus to communicate directly with the Orca screen reader. If not defined, Orca will NOT be available as a supported backend. |
+
 
 ## Documentation
 

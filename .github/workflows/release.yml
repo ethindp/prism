@@ -47,28 +47,43 @@ jobs:
           arch: amd64
       - name: Install uv
         uses: astral-sh/setup-uv@v7
-      - name: Build Release
+      - name: Build Dynamic Release
         run: |
-          cmake -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
-          cmake --build build-release
-      - name: Build Debug
+          cmake -B build-dynamic-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=ON
+          cmake --build build-dynamic-release
+      - name: Build Dynamic Debug
         run: |
-          cmake -B build-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF
-          cmake --build build-debug
+          cmake -B build-dynamic-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=ON
+          cmake --build build-dynamic-debug
+      - name: Build Static Release
+        run: |
+          cmake -B build-static-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-static-release
+      - name: Build Static Debug
+        run: |
+          cmake -B build-static-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-static-debug
       - name: Package
         shell: pwsh
         run: |
-          mkdir -p dist/release/lib
-          mkdir -p dist/release/bin
-          mkdir -p dist/debug/lib
-          mkdir -p dist/debug/bin
+          foreach ($linkage in @("dynamic", "static")) {
+            foreach ($config in @("release", "debug")) {
+              $src = "build-${linkage}-${config}"
+              mkdir -p "dist/${linkage}/${config}/lib"
+              mkdir -p "dist/${linkage}/${config}/bin"
+              if ($linkage -eq "dynamic") {
+                cp "${src}/prism.dll" "dist/${linkage}/${config}/bin/"
+                cp "${src}/prism.lib" "dist/${linkage}/${config}/lib/"
+              } else {
+                cp "${src}/prism.lib" "dist/${linkage}/${config}/lib/"
+              }
+              if ($config -eq "debug") {
+                cp "${src}/prism.pdb" "dist/${linkage}/${config}/bin/" -ErrorAction SilentlyContinue
+              }
+            }
+          }
           mkdir -p dist/include
-          cp build-release/prism.dll dist/release/bin/
-          cp build-release/prism.lib dist/release/lib/
           cp include/prism.h dist/include/
-          cp build-debug/prism.dll dist/debug/bin/
-          cp build-debug/prism.lib dist/debug/lib/
-          cp build-debug/prism.pdb dist/debug/bin/
           cp -r LICENSES "dist"
           cp NOTICE "dist"
           Compress-Archive -Path dist/* -DestinationPath prism-windows-x64.zip
@@ -89,28 +104,43 @@ jobs:
         uses: astral-sh/setup-uv@v7
       - name: Set up Python
         run: uv python install
-      - name: Build Release
+      - name: Build Dynamic Release
         run: |
-          cmake -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DCMAKE_SYSTEM_PROCESSOR=ARM64
-          cmake --build build-release
-      - name: Build Debug
+          cmake -B build-dynamic-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=ON -DCMAKE_SYSTEM_PROCESSOR=ARM64
+          cmake --build build-dynamic-release
+      - name: Build Dynamic Debug
         run: |
-          cmake -B build-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_SYSTEM_PROCESSOR=ARM64
-          cmake --build build-debug
+          cmake -B build-dynamic-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=ON -DCMAKE_SYSTEM_PROCESSOR=ARM64
+          cmake --build build-dynamic-debug
+      - name: Build Static Release
+        run: |
+          cmake -B build-static-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_SYSTEM_PROCESSOR=ARM64
+          cmake --build build-static-release
+      - name: Build Static Debug
+        run: |
+          cmake -B build-static-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_SYSTEM_PROCESSOR=ARM64
+          cmake --build build-static-debug
       - name: Package
         shell: pwsh
         run: |
-          mkdir -p dist/release/lib
-          mkdir -p dist/release/bin
-          mkdir -p dist/debug/lib
-          mkdir -p dist/debug/bin
+          foreach ($linkage in @("dynamic", "static")) {
+            foreach ($config in @("release", "debug")) {
+              $src = "build-${linkage}-${config}"
+              mkdir -p "dist/${linkage}/${config}/lib"
+              mkdir -p "dist/${linkage}/${config}/bin"
+              if ($linkage -eq "dynamic") {
+                cp "${src}/prism.dll" "dist/${linkage}/${config}/bin/"
+                cp "${src}/prism.lib" "dist/${linkage}/${config}/lib/"
+              } else {
+                cp "${src}/prism.lib" "dist/${linkage}/${config}/lib/"
+              }
+              if ($config -eq "debug") {
+                cp "${src}/prism.pdb" "dist/${linkage}/${config}/bin/" -ErrorAction SilentlyContinue
+              }
+            }
+          }
           mkdir -p dist/include
-          cp build-release/prism.dll dist/release/bin/
-          cp build-release/prism.lib dist/release/lib/
           cp include/prism.h dist/include/
-          cp build-debug/prism.dll dist/debug/bin/
-          cp build-debug/prism.lib dist/debug/lib/
-          cp build-debug/prism.pdb dist/debug/bin/
           cp -r LICENSES "dist"
           cp NOTICE "dist"
           Compress-Archive -Path dist/* -DestinationPath prism-windows-arm64.zip
@@ -124,24 +154,46 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Build Release
+      - name: Build Dynamic Release
         run: |
-          cmake -B build-arm64-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DPRISM_ENABLE_TESTS=OFF -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
-          cmake --build build-arm64-release
-          cmake -S . -B build-x64-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0
-          cmake --build build-x64-release
-      - name: Build Debug
+          cmake -B build-arm64-dynamic-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DPRISM_ENABLE_TESTS=OFF -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DBUILD_SHARED_LIBS=ON
+          cmake --build build-arm64-dynamic-release
+          cmake -B build-x64-dynamic-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0 -DBUILD_SHARED_LIBS=ON
+          cmake --build build-x64-dynamic-release
+      - name: Build Dynamic Debug
         run: |
-          cmake -B build-arm64-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
-          cmake --build build-arm64-debug
-          cmake -S . -B build-x64-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0
-          cmake --build build-x64-debug
+          cmake -B build-arm64-dynamic-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DBUILD_SHARED_LIBS=ON
+          cmake --build build-arm64-dynamic-debug
+          cmake -B build-x64-dynamic-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0 -DBUILD_SHARED_LIBS=ON
+          cmake --build build-x64-dynamic-debug
+      - name: Build Static Release
+        run: |
+          cmake -B build-arm64-static-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DPRISM_ENABLE_TESTS=OFF -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-arm64-static-release
+          cmake -B build-x64-static-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0 -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-x64-static-release
+      - name: Build Static Debug
+        run: |
+          cmake -B build-arm64-static-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=arm64 -G Ninja -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-arm64-static-debug
+          cmake -B build-x64-static-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0 -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-x64-static-debug
       - name: Package
         run: |
-          mkdir -p dist/release/lib dist/debug/lib dist/include
-          lipo -create build-arm64-release/libprism.dylib build-x64-release/libprism.dylib -output dist/release/lib/libprism.dylib
-          lipo -create build-arm64-debug/libprism.dylib build-x64-debug/libprism.dylib -output dist/debug/lib/libprism.dylib
-          cp -r build-arm64-debug/libprism.dylib.dSYM dist/debug/lib/ 2>/dev/null || true
+          for linkage in dynamic static; do
+            for config in release debug; do
+              mkdir -p "dist/${linkage}/${config}/lib"
+              if [ "$linkage" = "dynamic" ]; then
+                lipo -create "build-arm64-${linkage}-${config}/libprism.dylib" "build-x64-${linkage}-${config}/libprism.dylib" -output "dist/${linkage}/${config}/lib/libprism.dylib"
+              else
+                lipo -create "build-arm64-${linkage}-${config}/libprism.a" "build-x64-${linkage}-${config}/libprism.a" -output "dist/${linkage}/${config}/lib/libprism.a"
+              fi
+              if [ "$config" = "debug" ]; then
+                cp -r "build-arm64-${linkage}-${config}/libprism.dylib.dSYM" "dist/${linkage}/${config}/lib/" 2>/dev/null || true
+              fi
+            done
+          done
+          mkdir -p dist/include
           cp include/prism.h dist/include/
           cp -r LICENSES "dist"
           cp NOTICE "dist"
@@ -156,22 +208,40 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v5
-      - name: Build Release
+      - name: Build Dynamic Release
         run: |
           curl -sSL https://raw.githubusercontent.com/leetal/ios-cmake/master/ios.toolchain.cmake -o ios.toolchain.cmake
-          cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=14.0 -DCMAKE_Swift_FLAGS="-target arm64-apple-ios14.0" -DPRISM_ENABLE_TESTS=OFF -G Ninja
-          cmake --build build-release
-      - name: Build Debug
+          cmake -B build-dynamic-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=14.0 -DCMAKE_Swift_FLAGS="-target arm64-apple-ios14.0" -DPRISM_ENABLE_TESTS=OFF -G Ninja -DBUILD_SHARED_LIBS=ON
+          cmake --build build-dynamic-release
+      - name: Build Dynamic Debug
         run: |
-          curl -sSL https://raw.githubusercontent.com/leetal/ios-cmake/master/ios.toolchain.cmake -o ios.toolchain.cmake
-          cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=14.0 -DCMAKE_Swift_FLAGS="-target arm64-apple-ios14.0" -DPRISM_ENABLE_TESTS=OFF -G Ninja
-          cmake --build build-debug
+          cmake -B build-dynamic-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=14.0 -DCMAKE_Swift_FLAGS="-target arm64-apple-ios14.0" -DPRISM_ENABLE_TESTS=OFF -G Ninja -DBUILD_SHARED_LIBS=ON
+          cmake --build build-dynamic-debug
+      - name: Build Static Release
+        run: |
+          cmake -B build-static-release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=14.0 -DCMAKE_Swift_FLAGS="-target arm64-apple-ios14.0" -DPRISM_ENABLE_TESTS=OFF -G Ninja -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-static-release
+      - name: Build Static Debug
+        run: |
+          cmake -B build-static-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=14.0 -DCMAKE_Swift_FLAGS="-target arm64-apple-ios14.0" -DPRISM_ENABLE_TESTS=OFF -G Ninja -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-static-debug
       - name: Package
         run: |
-          mkdir -p dist/release/lib dist/debug/lib dist/include
-          cp build-release/libprism.a dist/release/lib/ 2>/dev/null || cp build-release/libprism.dylib dist/release/lib/
-          cp build-debug/libprism.a dist/debug/lib/ 2>/dev/null || cp build-debug/libprism.dylib dist/debug/lib/
-          cp -r build-debug/*.dSYM dist/debug/lib/ 2>/dev/null || true
+          for linkage in dynamic static; do
+            for config in release debug; do
+              mkdir -p "dist/${linkage}/${config}/lib"
+              src="build-${linkage}-${config}"
+              if [ "$linkage" = "dynamic" ]; then
+                cp "${src}/libprism.dylib" "dist/${linkage}/${config}/lib/" 2>/dev/null || true
+              else
+                cp "${src}/libprism.a" "dist/${linkage}/${config}/lib/" 2>/dev/null || true
+              fi
+              if [ "$config" = "debug" ]; then
+                cp -r "${src}"/*.dSYM "dist/${linkage}/${config}/lib/" 2>/dev/null || true
+              fi
+            done
+          done
+          mkdir -p dist/include
           cp include/prism.h dist/include/
           cp -r LICENSES "dist"
           cp NOTICE "dist"
@@ -188,19 +258,36 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y libspeechd-dev libglib2.0-dev
-      - name: Build Release
+      - name: Build Dynamic Release
         run: |
-          cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
-          cmake --build build-release
-      - name: Build Debug
+          cmake -B build-dynamic-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=ON
+          cmake --build build-dynamic-release
+      - name: Build Dynamic Debug
         run: |
-          cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF
-          cmake --build build-debug
+          cmake -B build-dynamic-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=ON
+          cmake --build build-dynamic-debug
+      - name: Build Static Release
+        run: |
+          cmake -B build-static-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-static-release
+      - name: Build Static Debug
+        run: |
+          cmake -B build-static-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-static-debug
       - name: Package
         run: |
-          mkdir -p dist/release/lib dist/debug/lib dist/include
-          cp build-release/libprism.so dist/release/lib/
-          cp build-debug/libprism.so dist/debug/lib/
+          for linkage in dynamic static; do
+            for config in release debug; do
+              mkdir -p "dist/${linkage}/${config}/lib"
+              src="build-${linkage}-${config}"
+              if [ "$linkage" = "dynamic" ]; then
+                cp "${src}/libprism.so" "dist/${linkage}/${config}/lib/"
+              else
+                cp "${src}/libprism.a" "dist/${linkage}/${config}/lib/"
+              fi
+            done
+          done
+          mkdir -p dist/include
           cp include/prism.h dist/include/
           cp -r LICENSES "dist"
           cp NOTICE "dist"
@@ -217,19 +304,36 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y libspeechd-dev libglib2.0-dev
-      - name: Build Release
+      - name: Build Dynamic Release
         run: |
-          cmake -B build-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF
-          cmake --build build-release
-      - name: Build Debug
+          cmake -B build-dynamic-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=ON
+          cmake --build build-dynamic-release
+      - name: Build Dynamic Debug
         run: |
-          cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF
-          cmake --build build-debug
+          cmake -B build-dynamic-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=ON
+          cmake --build build-dynamic-debug
+      - name: Build Static Release
+        run: |
+          cmake -B build-static-release -DCMAKE_BUILD_TYPE=Release -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-static-release
+      - name: Build Static Debug
+        run: |
+          cmake -B build-static-debug -DCMAKE_BUILD_TYPE=Debug -DPRISM_ENABLE_TESTS=OFF -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-static-debug
       - name: Package
         run: |
-          mkdir -p dist/release/lib dist/debug/lib dist/include
-          cp build-release/libprism.so dist/release/lib/
-          cp build-debug/libprism.so dist/debug/lib/
+          for linkage in dynamic static; do
+            for config in release debug; do
+              mkdir -p "dist/${linkage}/${config}/lib"
+              src="build-${linkage}-${config}"
+              if [ "$linkage" = "dynamic" ]; then
+                cp "${src}/libprism.so" "dist/${linkage}/${config}/lib/"
+              else
+                cp "${src}/libprism.a" "dist/${linkage}/${config}/lib/"
+              fi
+            done
+          done
+          mkdir -p dist/include
           cp include/prism.h dist/include/
           cp -r LICENSES "dist"
           cp NOTICE "dist"
@@ -283,9 +387,9 @@ jobs:
             cmake --build build-debug
         - name: Package
           run: |
-            mkdir -p dist/release dist/debug dist/include
-            cp build-release/libprism.a dist/release/
-            cp build-debug/libprism.a dist/debug/
+            mkdir -p dist/static/release dist/static/debug dist/include
+            cp build-release/libprism.a dist/static/release/
+            cp build-debug/libprism.a dist/static/debug/
             cp include/prism.h dist/include/
             cp -r LICENSES "dist"
             cp NOTICE "dist"

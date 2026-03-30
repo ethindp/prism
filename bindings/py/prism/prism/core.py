@@ -365,14 +365,8 @@ class Backend:
 class Context:
     _ctx: ffi.CData = None
 
-    def __init__(self, hwnd: HWND | int | None = None) -> None:
+    def __init__(self) -> None:
         config = lib.prism_config_init()
-        if hwnd is not None:
-            warnings.warn(
-                "Do not assign to hwnd; this field is deprecated and has no effect. It will be removed in version 0.8.0",
-                stacklevel=2,
-            )
-            config.platform_data = ffi.cast("void*", int(hwnd))
         self._ctx = lib.prism_init(ffi.new("PrismConfig *", config))
         if self._ctx == ffi.NULL:
             raise RuntimeError("Prism could not be initialized")

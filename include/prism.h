@@ -83,16 +83,6 @@ typedef struct PrismBackend PrismBackend;
 typedef uint64_t PrismBackendId;
 typedef struct {
   uint8_t version;
-#ifdef __ANDROID__
-  PRISM_DEPRECATED(
-      "This field has no effect and will be removed in version 0.8.0")
-  JNIEnv *jni_env;
-#endif
-#ifdef _WIN32
-  PRISM_DEPRECATED(
-      "This field has no effect and will be removed in version 0.8.0")
-  HWND hwnd;
-#endif
 } PrismConfig;
 
 typedef enum PrismError {
@@ -115,6 +105,7 @@ typedef enum PrismError {
   PRISM_ERROR_BACKEND_NOT_AVAILABLE,
   PRISM_ERROR_UNKNOWN,
   PRISM_ERROR_INVALID_AUDIO_FORMAT,
+  PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED,
   PRISM_ERROR_COUNT
 } PrismError;
 
@@ -137,7 +128,8 @@ typedef void(PRISM_CALL *PrismAudioCallback)(
 #define PRISM_BACKEND_UIA UINT64_C(0x6238F019DB678F8E)
 #define PRISM_BACKEND_ZDSR UINT64_C(0x3D93C56C9E7F2A2E)
 #define PRISM_BACKEND_ZOOM_TEXT UINT64_C(0xAE439D62DC7B1479)
-#define PRISM_CONFIG_VERSION 1
+#define PRISM_BACKEND_BOY_PC_READER UINT64_C(0x285aba1c16f3300f)
+#define PRISM_CONFIG_VERSION 2
 
 typedef enum PrismBackendFeature : uint64_t {
   PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME = (1ULL << 0),

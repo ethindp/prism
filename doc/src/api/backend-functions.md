@@ -161,6 +161,7 @@ The backend instance. This parameter MUST NOT be `NULL`.
 | `PRISM_ERROR_INTERNAL` | An internal error occurred during initialization. |
 | `PRISM_ERROR_MEMORY_FAILURE` | Memory allocation failed during initialization. |
 | `PRISM_ERROR_UNKNOWN` | An unspecified error occurred. |
+| `PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED` | The backend possesses an internal hard ceiling as to how many instances may be instantiated at any given time, and this limit would be exceeded were another to be initialized. |
 
 #### Remarks
 

@@ -34,7 +34,8 @@ enum class BackendError : std::uint8_t {
   AlreadyInitialized,
   BackendNotAvailable,
   Unknown,
-  InvalidAudioFormat
+  InvalidAudioFormat,
+  InternalBackendLimitExceeded
 };
 
 template <typename T = void>
@@ -166,10 +167,4 @@ public:
   virtual BackendResult<std::size_t> get_bit_depth() {
     return std::unexpected(BackendError::NotImplemented);
   }
-#ifdef __ANDROID__
-  virtual void set_java_vm(JavaVM *vm) final { this->java_vm = vm; }
-#endif
-#ifdef _WIN32
-  virtual void set_hwnd(HWND hwnd) final { this->hwnd_in = hwnd; }
-#endif
 };

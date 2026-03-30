@@ -9,8 +9,6 @@ A struct containing configuration parameters for Prism or it's back-ends to use.
 ```c
 typedef struct {
   uint8_t version;
-  JNIEnv *jni_env;
-  HWND hwnd;
 } PrismConfig;
 ```
 
@@ -19,14 +17,6 @@ typedef struct {
 `version`
 
 The version of this structure. This field MUST NOT be modified.
-
-`jni_env`
-
-This field is deprecated and has no effect. It will be removed in 0.8.0. Previously, it held an environment for the [Java Native Interface](https://docs.oracle.com/en/java/javase/25/docs/specs/jni/intro.html) (JNI). This field is only available on platforms where the JNI is used.
-
-`hwnd`
-
-This field is deprecated and has no effect. It will be removed in 0.8.0. Previously, it was a handle to the root window of an application. This field is only available on Windows.
 
 #### Remarks
 

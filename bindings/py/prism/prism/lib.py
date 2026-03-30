@@ -46,7 +46,6 @@ typedef struct PrismBackend PrismBackend;
 typedef uint64_t PrismBackendId;
 typedef struct {
   uint8_t version;
-  void* platform_data;
 } PrismConfig;
 
 typedef enum PrismError {
@@ -69,6 +68,7 @@ typedef enum PrismError {
   PRISM_ERROR_BACKEND_NOT_AVAILABLE,
   PRISM_ERROR_UNKNOWN,
   PRISM_ERROR_INVALID_AUDIO_FORMAT,
+  PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED,
   PRISM_ERROR_COUNT
 } PrismError;
 
@@ -162,6 +162,7 @@ typedef enum PrismError {
   PRISM_ERROR_BACKEND_NOT_AVAILABLE,
   PRISM_ERROR_UNKNOWN,
   PRISM_ERROR_INVALID_AUDIO_FORMAT,
+  PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED,
   PRISM_ERROR_COUNT
 } PrismError;
 

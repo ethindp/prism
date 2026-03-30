@@ -8,6 +8,7 @@
 - [Conventions](./api/conventions.md)
 - [Thread Safety](./api/thread-safety.md)
 - [Error Codes](./api/error-codes.md)
+- [Backend limits](./api/backend-limits.md)
 - [Backend Identifiers](./api/backend-identifiers.md)
 - [Context Management](./api/context-management.md)
 - [Backend Registry Functions](./api/registry-functions.md)

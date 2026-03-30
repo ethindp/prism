@@ -5,14 +5,6 @@ from enum import IntEnum
 
 from .lib import ffi, lib
 
-if sys.platform == "win32":
-    try:
-        from win32more.Windows.Win32.Foundation import HWND
-    except ImportError:
-        HWND = int
-else:
-    HWND = int
-
 
 class BackendId(IntEnum):
     INVALID = 0
@@ -30,6 +22,7 @@ class BackendId(IntEnum):
     UIA = 0x6238F019DB678F8E
     ZDSR = 0x3D93C56C9E7F2A2E
     ZOOM_TEXT = 0xAE439D62DC7B1479
+    BOY_PC_READER = 0x285aba1c16f3300f
 
 
 class PrismError(Exception):
@@ -113,6 +106,10 @@ class PrismInvalidAudioFormatError(PrismError, RuntimeError):
     """PRISM_ERROR_INVALID_AUDIO_FORMAT"""
 
 
+class PrismInternalBackendLimitExceededError(PrismError, RuntimeError):
+    """PRISM_ERROR_INVALID_AUDIO_FORMAT"""
+
+
 _ERROR_MAP = {
     lib.PRISM_ERROR_NOT_INITIALIZED: PrismNotInitializedError,
     lib.PRISM_ERROR_INVALID_PARAM: PrismInvalidParamError,
@@ -132,6 +129,7 @@ _ERROR_MAP = {
     lib.PRISM_ERROR_BACKEND_NOT_AVAILABLE: PrismBackendNotAvailableError,
     lib.PRISM_ERROR_UNKNOWN: PrismUnknownError,
     lib.PRISM_ERROR_INVALID_AUDIO_FORMAT: PrismInvalidAudioFormatError,
+    lib.PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED: PrismInternalBackendLimitExceededError,
 }
 
 

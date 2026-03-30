@@ -17,7 +17,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.7.2
+  VERSION 0.8.0
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 option(PRISM_ENABLE_TESTS "Enable tests" OFF)
@@ -195,13 +195,18 @@ if(WIN32)
                        SAAPI32.dll)
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr32.def
                        ZDSRAPI.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR)
+    add_import_library(
+      BoyCtrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader32.def BoyCtrl.dll)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR BoyCtrl)
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
                        SAAPI64.dll)
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
                        ZDSRAPI_x64.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR)
+    add_import_library(
+      BoyCtrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader.def
+      BoyCtrl-x64.dll)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR BoyCtrl)
   endif()
 endif()
 if(APPLE)
@@ -333,14 +338,17 @@ if(MSVC)
   if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
     set_target_properties(
       ${PROJECT_NAME}
-      PROPERTIES LINK_FLAGS
-                 "/STACK:8388608 /delayload:SAAPI32.dll /delayload:ZDSRAPI.dll")
+      PROPERTIES
+        LINK_FLAGS
+        "/STACK:8388608 /delayload:SAAPI32.dll /delayload:ZDSRAPI.dll /delayload:BoyCtrl.dll"
+    )
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     set_target_properties(
       ${PROJECT_NAME}
       PROPERTIES
         LINK_FLAGS
-        "/STACK:8388608 /delayload:SAAPI64.dll /delayload:ZDSRAPI_x64.dll")
+        "/STACK:8388608 /delayload:SAAPI64.dll /delayload:ZDSRAPI_x64.dll /delayload:BoyCtrl-x64.dll"
+    )
   else()
     set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS
                                                      "/STACK:8388608")

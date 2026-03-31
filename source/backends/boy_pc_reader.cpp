@@ -155,6 +155,11 @@ public:
       BoyCtrlUninitialize();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
+    if (const auto res = BoyCtrlSetAnyKeyStopSpeaking(false);
+        res != e_bcerr_success) {
+      BoyCtrlUninitialize();
+      return std::unexpected(BackendError::BackendNotAvailable);
+    }
     initialized.test_and_set();
     return {};
   }

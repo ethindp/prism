@@ -156,7 +156,7 @@ public:
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (const auto res = BoyCtrlSetAnyKeyStopSpeaking(false);
-        res != e_bcerr_success) {
+        !res) {
       BoyCtrlUninitialize();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
@@ -167,6 +167,9 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
+    }
+    if (!BoyCtrlIsReaderRunning()) {
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
@@ -201,12 +204,18 @@ public:
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
     }
+    if (!BoyCtrlIsReaderRunning()) {
+      return std::unexpected(BackendError::BackendNotAvailable);
+    }
     return speaking.test();
   }
 
   BackendResult<> stop() override {
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
+    }
+    if (!BoyCtrlIsReaderRunning()) {
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (const auto res = BoyCtrlStopSpeaking(false); res != e_bcerr_success) {
       switch (res) {

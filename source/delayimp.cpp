@@ -34,6 +34,7 @@ static constexpr const char *SA_DLL = "SAAPI32.dll";
 static constexpr const char *ZDSR_DLL = "ZDSRAPI.dll";
 static constexpr const char *BOY_PC_READER_DLL = "BoyCtrl.dll";
 #endif
+static constexpr const char *PCTK_DLL = "PCTKUSR.dll";
 #endif
 
 namespace system_access {
@@ -201,6 +202,204 @@ static bool __stdcall stub_BoyCtrlActivateYTApp(
 }
 } // namespace boy_pc_reader
 
+namespace pctalker {
+static BOOL __stdcall stub_PCTKStatus() { return FALSE; }
+
+static DWORD __stdcall stub_PCTKGetVersion() { return 0; }
+
+static BOOL __stdcall stub_PCTKPRead([[maybe_unused]] const char *text,
+                                     [[maybe_unused]] int priority,
+                                     [[maybe_unused]] BOOL analyze) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKPReadEx([[maybe_unused]] const char *text,
+                                       [[maybe_unused]] int priority,
+                                       [[maybe_unused]] BOOL analyze,
+                                       [[maybe_unused]] int flags) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKPReadW([[maybe_unused]] const wchar_t *text,
+                                      [[maybe_unused]] int priority,
+                                      [[maybe_unused]] BOOL analyze) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKPReadExW([[maybe_unused]] const wchar_t *text,
+                                        [[maybe_unused]] int priority,
+                                        [[maybe_unused]] BOOL analyze,
+                                        [[maybe_unused]] int flags) {
+  return FALSE;
+}
+
+static void __stdcall stub_PCTKVReset() {}
+
+static BOOL __stdcall stub_PCTKGetVStatus() { return FALSE; }
+
+static void __stdcall stub_PCTKVoiceGuide([[maybe_unused]] const char *text) {}
+
+static void __stdcall stub_PCTKBeep([[maybe_unused]] int type,
+                                    [[maybe_unused]] int param) {}
+
+static BOOL __stdcall stub_PCTKCGuide([[maybe_unused]] const char *text,
+                                      [[maybe_unused]] DWORD mode) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKCGuideEx([[maybe_unused]] const char *text,
+                                        [[maybe_unused]] DWORD mode,
+                                        [[maybe_unused]] int flags) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKCGuideW([[maybe_unused]] const wchar_t *text,
+                                       [[maybe_unused]] DWORD mode) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKCGuideExW([[maybe_unused]] const wchar_t *text,
+                                         [[maybe_unused]] DWORD mode,
+                                         [[maybe_unused]] int flags) {
+  return FALSE;
+}
+
+static DWORD __stdcall stub_PCTKGetStatus([[maybe_unused]] UINT item,
+                                          [[maybe_unused]] LPVOID param1,
+                                          [[maybe_unused]] LPVOID param2) {
+  return 0;
+}
+
+static DWORD __stdcall stub_PCTKSetStatus([[maybe_unused]] UINT item,
+                                          [[maybe_unused]] LPVOID param1,
+                                          [[maybe_unused]] LPVOID param2) {
+  return 0;
+}
+
+static int __stdcall stub_PCTKCommand([[maybe_unused]] const char *cmdstr,
+                                      [[maybe_unused]] LPARAM param1,
+                                      [[maybe_unused]] LPARAM param2) {
+  return 0;
+}
+
+static BOOL __stdcall stub_PCTKLoadUserDict() { return FALSE; }
+
+static BOOL __stdcall stub_PCTKPinStatus() { return FALSE; }
+
+static BOOL __stdcall stub_PCTKPinFocus([[maybe_unused]] LONG_PTR context,
+                                        [[maybe_unused]] const char *text,
+                                        [[maybe_unused]] DWORD dispFlags,
+                                        [[maybe_unused]] const char *auxText,
+                                        [[maybe_unused]] LONG_PTR auxParam) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKPinFocusW(
+    [[maybe_unused]] LONG_PTR context, [[maybe_unused]] const wchar_t *text,
+    [[maybe_unused]] DWORD dispFlags, [[maybe_unused]] const wchar_t *auxText,
+    [[maybe_unused]] LONG_PTR auxParam) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKPinIsFocus([[maybe_unused]] LONG_PTR context) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKPinWrite([[maybe_unused]] const char *text,
+                                        [[maybe_unused]] int mode,
+                                        [[maybe_unused]] int flags) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKPinWriteW([[maybe_unused]] const wchar_t *text,
+                                         [[maybe_unused]] int mode,
+                                         [[maybe_unused]] int flags) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKPinEDWrite([[maybe_unused]] const char *text,
+                                          [[maybe_unused]] int editMode,
+                                          [[maybe_unused]] int cursorPos,
+                                          [[maybe_unused]] int selStart,
+                                          [[maybe_unused]] int selLen,
+                                          [[maybe_unused]] int lineOffset,
+                                          [[maybe_unused]] int charAttr) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_PCTKPinEDWriteW([[maybe_unused]] const wchar_t *text,
+                                           [[maybe_unused]] int editMode,
+                                           [[maybe_unused]] int cursorPos,
+                                           [[maybe_unused]] int selStart,
+                                           [[maybe_unused]] int selLen,
+                                           [[maybe_unused]] int lineOffset,
+                                           [[maybe_unused]] int charAttr) {
+  return FALSE;
+}
+
+static BOOL __stdcall
+stub_PCTKPinStatusCell([[maybe_unused]] const void *cellData,
+                       [[maybe_unused]] void *outBuf) {
+  return FALSE;
+}
+
+static BOOL __stdcall
+stub_PCTKPinStatusCellW([[maybe_unused]] const void *cellData,
+                        [[maybe_unused]] void *outBuf) {
+  return FALSE;
+}
+
+static void __stdcall stub_PCTKPinReset() {}
+
+static BOOL __stdcall stub_SoundMessage([[maybe_unused]] const char *text,
+                                        [[maybe_unused]] int flags) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_SoundStatus() { return FALSE; }
+
+static BOOL __stdcall stub_SoundModifyMode([[maybe_unused]] int on,
+                                           [[maybe_unused]] int off) {
+  return FALSE;
+}
+
+static BOOL __stdcall stub_SoundPause([[maybe_unused]] BOOL sw) {
+  return FALSE;
+}
+
+static int __stdcall stub_AGSEvent([[maybe_unused]] int eventType,
+                                   [[maybe_unused]] LPARAM param1,
+                                   [[maybe_unused]] LPARAM param2) {
+  return 0;
+}
+
+static LONGLONG __stdcall stub_GetUIActionMode() { return 0; }
+
+static BOOL __stdcall stub_IsImmInput([[maybe_unused]] HWND hwnd) {
+  return FALSE;
+}
+
+static int __stdcall stub_PCTKEventHook() { return 0; }
+
+static int __stdcall stub_PCTKGetVoiceLog() { return 0; }
+
+static int __stdcall stub_SetKeyBreak() { return 1; }
+
+static void __stdcall stub_EncodeFlags() {}
+
+static int __stdcall stub_dic_regist() { return 0; }
+
+static int __stdcall stub_dic_regist_detail() { return 0; }
+
+static int __stdcall stub_dic_reg_from_file() { return 0; }
+
+static int __stdcall stub_dic_text_out() { return 0; }
+
+static int __stdcall stub_dic_reg_detail_from_file() { return 0; }
+
+static int __stdcall stub_dic_detail_text_out() { return 0; }
+} // namespace pctalker
+
 static const
 #if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
@@ -293,6 +492,216 @@ static const
         {.dll = BOY_PC_READER_DLL,
          .func = "BoyCtrlActivateYTApp",
          .stub = stub_cast(boy_pc_reader::stub_BoyCtrlActivateYTApp)},
+        /* 1. Engine presence */
+        {.dll = PCTK_DLL,
+         .func = "PCTKStatus",
+         .stub = stub_cast(pctalker::stub_PCTKStatus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKGetVersion",
+         .stub = stub_cast(pctalker::stub_PCTKGetVersion)},
+        /* 2. Speech output */
+        {.dll = PCTK_DLL,
+         .func = "PCTKPRead",
+         .stub = stub_cast(pctalker::stub_PCTKPRead)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPReadEx",
+         .stub = stub_cast(pctalker::stub_PCTKPReadEx)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPReadW",
+         .stub = stub_cast(pctalker::stub_PCTKPReadW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPReadExW",
+         .stub = stub_cast(pctalker::stub_PCTKPReadExW)},
+        /* 3. Voice control */
+        {.dll = PCTK_DLL,
+         .func = "PCTKVReset",
+         .stub = stub_cast(pctalker::stub_PCTKVReset)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKGetVStatus",
+         .stub = stub_cast(pctalker::stub_PCTKGetVStatus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKVoiceGuide",
+         .stub = stub_cast(pctalker::stub_PCTKVoiceGuide)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKBeep",
+         .stub = stub_cast(pctalker::stub_PCTKBeep)},
+        /* 4. Character guidance */
+        {.dll = PCTK_DLL,
+         .func = "PCTKCGuide",
+         .stub = stub_cast(pctalker::stub_PCTKCGuide)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKCGuideEx",
+         .stub = stub_cast(pctalker::stub_PCTKCGuideEx)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKCGuideW",
+         .stub = stub_cast(pctalker::stub_PCTKCGuideW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKCGuideExW",
+         .stub = stub_cast(pctalker::stub_PCTKCGuideExW)},
+        /* 5. Configuration */
+        {.dll = PCTK_DLL,
+         .func = "PCTKGetStatus",
+         .stub = stub_cast(pctalker::stub_PCTKGetStatus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKSetStatus",
+         .stub = stub_cast(pctalker::stub_PCTKSetStatus)},
+        /* 6. Command dispatch */
+        {.dll = PCTK_DLL,
+         .func = "PCTKCommand",
+         .stub = stub_cast(pctalker::stub_PCTKCommand)},
+        /* 7. Dictionary */
+        {.dll = PCTK_DLL,
+         .func = "PCTKLoadUserDict",
+         .stub = stub_cast(pctalker::stub_PCTKLoadUserDict)},
+        /* 8. Braille */
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinStatus",
+         .stub = stub_cast(pctalker::stub_PCTKPinStatus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinFocus",
+         .stub = stub_cast(pctalker::stub_PCTKPinFocus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinFocusW",
+         .stub = stub_cast(pctalker::stub_PCTKPinFocusW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinIsFocus",
+         .stub = stub_cast(pctalker::stub_PCTKPinIsFocus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinWrite",
+         .stub = stub_cast(pctalker::stub_PCTKPinWrite)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinWriteW",
+         .stub = stub_cast(pctalker::stub_PCTKPinWriteW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinEDWrite",
+         .stub = stub_cast(pctalker::stub_PCTKPinEDWrite)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinEDWriteW",
+         .stub = stub_cast(pctalker::stub_PCTKPinEDWriteW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinStatusCell",
+         .stub = stub_cast(pctalker::stub_PCTKPinStatusCell)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinStatusCellW",
+         .stub = stub_cast(pctalker::stub_PCTKPinStatusCellW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPinReset",
+         .stub = stub_cast(pctalker::stub_PCTKPinReset)},
+        /* 9. 95Reader compatibility */
+        {.dll = PCTK_DLL,
+         .func = "SoundMessage",
+         .stub = stub_cast(pctalker::stub_SoundMessage)},
+        {.dll = PCTK_DLL,
+         .func = "SoundStatus",
+         .stub = stub_cast(pctalker::stub_SoundStatus)},
+        {.dll = PCTK_DLL,
+         .func = "SoundModifyMode",
+         .stub = stub_cast(pctalker::stub_SoundModifyMode)},
+        {.dll = PCTK_DLL,
+         .func = "SoundPause",
+         .stub = stub_cast(pctalker::stub_SoundPause)},
+        /* 10. Events and IME */
+        {.dll = PCTK_DLL,
+         .func = "AGSEvent",
+         .stub = stub_cast(pctalker::stub_AGSEvent)},
+        {.dll = PCTK_DLL,
+         .func = "GetUIActionMode",
+         .stub = stub_cast(pctalker::stub_GetUIActionMode)},
+        {.dll = PCTK_DLL,
+         .func = "IsImmInput",
+         .stub = stub_cast(pctalker::stub_IsImmInput)},
+        /* 11. Stubs */
+        {.dll = PCTK_DLL,
+         .func = "PCTKEventHook",
+         .stub = stub_cast(pctalker::stub_PCTKEventHook)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKGetVoiceLog",
+         .stub = stub_cast(pctalker::stub_PCTKGetVoiceLog)},
+        {.dll = PCTK_DLL,
+         .func = "SetKeyBreak",
+         .stub = stub_cast(pctalker::stub_SetKeyBreak)},
+        {.dll = PCTK_DLL,
+         .func = "EncodeFlags",
+         .stub = stub_cast(pctalker::stub_EncodeFlags)},
+        {.dll = PCTK_DLL,
+         .func = "dic_regist",
+         .stub = stub_cast(pctalker::stub_dic_regist)},
+        {.dll = PCTK_DLL,
+         .func = "dic_regist_detail",
+         .stub = stub_cast(pctalker::stub_dic_regist_detail)},
+        {.dll = PCTK_DLL,
+         .func = "dic_reg_from_file",
+         .stub = stub_cast(pctalker::stub_dic_reg_from_file)},
+        {.dll = PCTK_DLL,
+         .func = "dic_text_out",
+         .stub = stub_cast(pctalker::stub_dic_text_out)},
+        {.dll = PCTK_DLL,
+         .func = "dic_reg_detail_from_file",
+         .stub = stub_cast(pctalker::stub_dic_reg_detail_from_file)},
+        {.dll = PCTK_DLL,
+         .func = "dic_detail_text_out",
+         .stub = stub_cast(pctalker::stub_dic_detail_text_out)},
+        /* 12. Uppercase aliases */
+        {.dll = PCTK_DLL,
+         .func = "PCTKSTATUS",
+         .stub = stub_cast(pctalker::stub_PCTKStatus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKGETVERSION",
+         .stub = stub_cast(pctalker::stub_PCTKGetVersion)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKGETVSTATUS",
+         .stub = stub_cast(pctalker::stub_PCTKGetVStatus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKGETSTATUS",
+         .stub = stub_cast(pctalker::stub_PCTKGetStatus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKSETSTATUS",
+         .stub = stub_cast(pctalker::stub_PCTKSetStatus)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPREAD",
+         .stub = stub_cast(pctalker::stub_PCTKPRead)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPREADEX",
+         .stub = stub_cast(pctalker::stub_PCTKPReadEx)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPREADW",
+         .stub = stub_cast(pctalker::stub_PCTKPReadW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKPREADEXW",
+         .stub = stub_cast(pctalker::stub_PCTKPReadExW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKCGUIDE",
+         .stub = stub_cast(pctalker::stub_PCTKCGuide)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKCGUIDEEX",
+         .stub = stub_cast(pctalker::stub_PCTKCGuideEx)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKCGUIDEW",
+         .stub = stub_cast(pctalker::stub_PCTKCGuideW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKCGUIDEEXW",
+         .stub = stub_cast(pctalker::stub_PCTKCGuideExW)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKCOMMAND",
+         .stub = stub_cast(pctalker::stub_PCTKCommand)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKVOICEGUIDE",
+         .stub = stub_cast(pctalker::stub_PCTKVoiceGuide)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKVRESET",
+         .stub = stub_cast(pctalker::stub_PCTKVReset)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKBEEP",
+         .stub = stub_cast(pctalker::stub_PCTKBeep)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKLOADUSERDICT",
+         .stub = stub_cast(pctalker::stub_PCTKLoadUserDict)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKEVENTHOOK",
+         .stub = stub_cast(pctalker::stub_PCTKEventHook)},
+        {.dll = PCTK_DLL,
+         .func = "PCTKGETVOICELOG",
+         .stub = stub_cast(pctalker::stub_PCTKGetVoiceLog)},
     });
 #else
     std::array<StubEntry, 0>

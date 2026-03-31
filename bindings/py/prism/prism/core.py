@@ -23,6 +23,7 @@ class BackendId(IntEnum):
     ZDSR = 0x3D93C56C9E7F2A2E
     ZOOM_TEXT = 0xAE439D62DC7B1479
     BOY_PC_READER = 0x285aba1c16f3300f
+    PC_TALKER = 0x344B951962E3B835
 
 
 class PrismError(Exception):

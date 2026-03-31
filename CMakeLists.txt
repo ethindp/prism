@@ -197,7 +197,10 @@ if(WIN32)
                        ZDSRAPI.dll)
     add_import_library(
       BoyCtrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader32.def BoyCtrl.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR BoyCtrl)
+    add_import_library(
+      PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker32.def PCTKUSR.dll)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR BoyCtrl
+                                                  PCTalker)
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
                        SAAPI64.dll)
@@ -206,7 +209,14 @@ if(WIN32)
     add_import_library(
       BoyCtrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader.def
       BoyCtrl-x64.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR BoyCtrl)
+    add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
+                       PCTKUSR.dll)
+    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR BoyCtrl
+                                                  PCTalker)
+  else()
+    add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
+                       PCTKUSR.dll)
+    target_link_libraries(${PROJECT_NAME} PRIVATE PCTalker)
   endif()
 endif()
 if(APPLE)
@@ -340,18 +350,19 @@ if(MSVC)
       ${PROJECT_NAME}
       PROPERTIES
         LINK_FLAGS
-        "/STACK:8388608 /delayload:SAAPI32.dll /delayload:ZDSRAPI.dll /delayload:BoyCtrl.dll"
+        "/STACK:8388608 /delayload:SAAPI32.dll /delayload:ZDSRAPI.dll /delayload:BoyCtrl.dll /delayload:PCTKUSR.dll"
     )
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     set_target_properties(
       ${PROJECT_NAME}
       PROPERTIES
         LINK_FLAGS
-        "/STACK:8388608 /delayload:SAAPI64.dll /delayload:ZDSRAPI_x64.dll /delayload:BoyCtrl-x64.dll"
+        "/STACK:8388608 /delayload:SAAPI64.dll /delayload:ZDSRAPI_x64.dll /delayload:BoyCtrl-x64.dll /delayload:PCTKUSR.dll"
     )
   else()
-    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS
-                                                     "/STACK:8388608")
+    set_target_properties(
+      ${PROJECT_NAME} PROPERTIES LINK_FLAGS
+                                 "/STACK:8388608 /delayload:PCTKUSR.dll")
   endif()
   check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
@@ -365,13 +376,31 @@ elseif(
   CMAKE_CXX_COMPILER_ID MATCHES "Clang"
   AND WIN32
   AND NOT MINGW)
-  if(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+  if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
     target_link_options(
-      ${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608"
-      "LINKER:/delayload:SAAPI64.dll" "LINKER:/delayload:zdsrapi_x64.dll")
+      ${PROJECT_NAME}
+      PRIVATE
+      "LINKER:/STACK:8388608"
+      "LINKER:/delayload:SAAPI32.dll"
+      "LINKER:/delayload:ZDSRAPI.dll"
+      "LINKER:/delayload:BoyCtrl.dll"
+      "LINKER:/delayload:PCTKUSR.dll")
+  elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
+    target_link_options(
+      ${PROJECT_NAME}
+      PRIVATE
+      "LINKER:/STACK:8388608"
+      "LINKER:/delayload:SAAPI64.dll"
+      "LINKER:/delayload:ZDSRAPI_x64.dll"
+      "LINKER:/delayload:BoyCtrl-x64.dll"
+      "LINKER:/delayload:PCTKUSR.dll")
   else()
-    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
+    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608"
+                        "LINKER:/delayload:PCTKUSR.dll")
   endif()
+elseif(WIN32 AND MINGW)
+  message(
+    WARNING "Delay loading will malfunction and is NOT supported by MinGW!")
 endif()
 if(NOT MSVC)
   check_cxx_compiler_flag(-Wall COMP_HAS_WALL_OPTION)

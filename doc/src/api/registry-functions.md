@@ -111,6 +111,7 @@ The names used by Prism backends are:
 | Zhengdu Screen Reader | `"ZDSR"` |
 | ZoomText | `"ZoomText"` |
 | BoyPCReader | `"BoyPCReader"` |
+| PCTalker | `"PCTalker"` |
 
 ### prism_registry_name
 

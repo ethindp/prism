@@ -5,14 +5,6 @@ from enum import IntEnum
 
 from .lib import ffi, lib
 
-if sys.platform == "win32":
-    try:
-        from win32more.Windows.Win32.Foundation import HWND
-    except ImportError:
-        HWND = int
-else:
-    HWND = int
-
 
 class BackendId(IntEnum):
     INVALID = 0
@@ -30,6 +22,8 @@ class BackendId(IntEnum):
     UIA = 0x6238F019DB678F8E
     ZDSR = 0x3D93C56C9E7F2A2E
     ZOOM_TEXT = 0xAE439D62DC7B1479
+    BOY_PC_READER = 0x285aba1c16f3300f
+    PC_TALKER = 0x344B951962E3B835
 
 
 class PrismError(Exception):
@@ -113,6 +107,10 @@ class PrismInvalidAudioFormatError(PrismError, RuntimeError):
     """PRISM_ERROR_INVALID_AUDIO_FORMAT"""
 
 
+class PrismInternalBackendLimitExceededError(PrismError, RuntimeError):
+    """PRISM_ERROR_INVALID_AUDIO_FORMAT"""
+
+
 _ERROR_MAP = {
     lib.PRISM_ERROR_NOT_INITIALIZED: PrismNotInitializedError,
     lib.PRISM_ERROR_INVALID_PARAM: PrismInvalidParamError,
@@ -132,6 +130,7 @@ _ERROR_MAP = {
     lib.PRISM_ERROR_BACKEND_NOT_AVAILABLE: PrismBackendNotAvailableError,
     lib.PRISM_ERROR_UNKNOWN: PrismUnknownError,
     lib.PRISM_ERROR_INVALID_AUDIO_FORMAT: PrismInvalidAudioFormatError,
+    lib.PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED: PrismInternalBackendLimitExceededError,
 }
 
 
@@ -367,14 +366,8 @@ class Backend:
 class Context:
     _ctx: ffi.CData = None
 
-    def __init__(self, hwnd: HWND | int | None = None) -> None:
+    def __init__(self) -> None:
         config = lib.prism_config_init()
-        if hwnd is not None:
-            warnings.warn(
-                "Do not assign to hwnd; this field is deprecated and has no effect. It will be removed in version 0.8.0",
-                stacklevel=2,
-            )
-            config.platform_data = ffi.cast("void*", int(hwnd))
         self._ctx = lib.prism_init(ffi.new("PrismConfig *", config))
         if self._ctx == ffi.NULL:
             raise RuntimeError("Prism could not be initialized")

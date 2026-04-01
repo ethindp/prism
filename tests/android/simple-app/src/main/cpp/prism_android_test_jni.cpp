@@ -16,7 +16,6 @@ JNIEXPORT jlong JNICALL
 Java_com_github_ethindp_prism_tests_android_simpleapp_PrismNative_prism_1init(
     JNIEnv *env, jclass) {
   auto cfg = prism_config_init();
-  cfg.jni_env = env;
   auto *ctx = prism_init(&cfg);
   return to_handle(ctx);
 }

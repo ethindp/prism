@@ -399,7 +399,8 @@ prism_error_string(PrismError error) {
                                         "Already initialized",
                                         "Backend not available",
                                         "Unknown error",
-                                        "Invalid audio format"};
+                                        "Invalid audio format",
+                                        "Internal backend limit exceeded"};
   static_assert(std::size(strings) == PRISM_ERROR_COUNT,
                 "Error string table size mismatches error count");
   if (error >= PRISM_ERROR_COUNT)

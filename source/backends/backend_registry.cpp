@@ -103,12 +103,6 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::create(BackendId id) {
       auto b = e.factory();
       if (!b)
         return nullptr;
-#ifdef __ANDROID__
-      b->set_java_vm(java_vm);
-#endif
-#ifdef _WIN32
-      b->set_hwnd(hwnd_in);
-#endif
       return b;
     }
   }
@@ -123,12 +117,6 @@ BackendRegistry::create(std::string_view name) {
       auto b = e.factory();
       if (!b)
         return nullptr;
-#ifdef __ANDROID__
-      b->set_java_vm(java_vm);
-#endif
-#ifdef _WIN32
-      b->set_hwnd(hwnd_in);
-#endif
       return b;
     }
   }
@@ -139,12 +127,6 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::create_best() {
   std::shared_lock lock(mutex);
   for (const auto &e : entries) {
     if (auto backend = e.factory(); backend) {
-#ifdef __ANDROID__
-      backend->set_java_vm(java_vm);
-#endif
-#ifdef _WIN32
-      backend->set_hwnd(hwnd_in);
-#endif
       if (backend->initialize())
         return backend;
     }
@@ -161,12 +143,6 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire(BackendId id) {
       auto backend = e.factory();
       if (backend == nullptr)
         return nullptr;
-#ifdef __ANDROID__
-      backend->set_java_vm(java_vm);
-#endif
-#ifdef _WIN32
-      backend->set_hwnd(hwnd_in);
-#endif
       e.cached = backend;
       return backend;
     }
@@ -184,12 +160,6 @@ BackendRegistry::acquire(std::string_view name) {
       auto backend = e.factory();
       if (backend == nullptr)
         return nullptr;
-#ifdef __ANDROID__
-      backend->set_java_vm(java_vm);
-#endif
-#ifdef _WIN32
-      backend->set_hwnd(hwnd_in);
-#endif
       e.cached = backend;
       return backend;
     }
@@ -203,12 +173,6 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire_best() {
     if (auto existing = e.cached; !existing.expired())
       return existing.lock();
     if (auto backend = e.factory(); backend) {
-#ifdef __ANDROID__
-      backend->set_java_vm(java_vm);
-#endif
-#ifdef _WIN32
-      backend->set_hwnd(hwnd_in);
-#endif
       if (backend->initialize()) {
         e.cached = backend;
         return backend;
@@ -224,10 +188,3 @@ void BackendRegistry::clear_cache() {
     e.cached.reset();
   }
 }
-
-#ifdef __ANDROID__
-void BackendRegistry::set_java_vm(JavaVM *vm) { this->java_vm = vm; }
-#endif
-#ifdef _WIN32
-void BackendRegistry::set_hwnd(HWND hwnd) { hwnd_in = hwnd; }
-#endif

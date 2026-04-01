@@ -50,6 +50,8 @@ inline constexpr auto WebSpeechSynthesis = "WebSpeechSynthesis"_bid;
 inline constexpr auto UIA = "UIA"_bid;
 inline constexpr auto ZDSR = "ZDSR"_bid;
 inline constexpr auto ZoomText = "ZoomText"_bid;
+inline constexpr auto BoyPCReader = "BoyPCReader"_bid;
+inline constexpr auto PCTalker = "PCTalker"_bid;
 } // namespace Backends
 
 class BackendRegistry {

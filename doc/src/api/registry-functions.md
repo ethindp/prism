@@ -110,6 +110,8 @@ The names used by Prism backends are:
 | UIAutomation | `"UIA"` |
 | Zhengdu Screen Reader | `"ZDSR"` |
 | ZoomText | `"ZoomText"` |
+| BoyPCReader | `"BoyPCReader"` |
+| PCTalker | `"PCTalker"` |
 
 ### prism_registry_name
 

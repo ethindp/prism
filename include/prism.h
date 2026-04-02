@@ -19,7 +19,9 @@ extern "C" {
 #endif
 
 #if defined(_WIN32)
-#if defined(PRISM_BUILDING)
+#if defined(PRISM_STATIC)
+#define PRISM_API
+#elif defined(PRISM_BUILDING)
 #define PRISM_API __declspec(dllexport)
 #else
 #define PRISM_API __declspec(dllimport)

@@ -8,6 +8,7 @@
 
 #include "godot_prism_backend.h"
 #include "godot_prism_context.h"
+#include <cassert>
 
 using namespace godot;
 
@@ -20,6 +21,7 @@ void initialize_prism_types(ModuleInitializationLevel p_level) {
   GDREGISTER_CLASS(GodotPrismBackend);
   GDREGISTER_CLASS(GodotPrismContext);
   prism_singleton = memnew(GodotPrismContext);
+  assert(prism_singleton);
   Engine::get_singleton()->register_singleton("Prism", prism_singleton);
 }
 

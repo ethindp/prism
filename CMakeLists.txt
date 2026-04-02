@@ -146,7 +146,10 @@ target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 target_compile_definitions(
   ${PROJECT_NAME}
   PRIVATE PRISM_BUILDING
-  PUBLIC NOMINMAX)
+  PUBLIC
+    NOMINMAX
+    $<$<STREQUAL:$<TARGET_PROPERTY:${PROJECT_NAME},TYPE>,STATIC_LIBRARY>:PRISM_STATIC>
+)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 if(WIN32)
   target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib
@@ -619,6 +622,6 @@ else()
           DESTINATION share/prism)
   install(DIRECTORY include/ DESTINATION include)
 endif()
-if (PRISM_ENABLE_GDEXTENSION)
-add_subdirectory(gdextension)
+if(PRISM_ENABLE_GDEXTENSION)
+  add_subdirectory(gdextension)
 endif()

@@ -2,16 +2,16 @@
 
 #include "godot_cpp/variant/utility_functions.hpp"
 
+#include <bit>
 #include <cassert>
 #include <limits>
 
 static inline int64_t id_to_godot(PrismBackendId id) {
-  assert(id < std::numeric_limits<std::int64_t>::max());
-  return static_cast<int64_t>(id);
+  return std::bit_cast<std::int64_t>(id);
 }
 
 static inline PrismBackendId id_from_godot(int64_t v) {
-  return static_cast<PrismBackendId>(v);
+  return std::bit_cast<std::uint64_t>(v);
 }
 
 Ref<GodotPrismBackend> GodotPrismContext::_wrap(PrismBackend *raw) {

@@ -1,6 +1,7 @@
+@tool
 extends Node
 
 
 func _ready() -> void:
-	var example := ExampleClass.new()
-	example.print_type(example)
+	var backend := Prism.create_best()
+	print("Prism backend created: %s" % backend.name)

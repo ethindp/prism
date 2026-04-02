@@ -283,17 +283,17 @@ PrismError GodotPrismBackend::refresh_voices() {
   return prism_backend_refresh_voices(backend);
 }
 
-int GodotPrismBackend::get_voices_count() const {
+std::int64_t GodotPrismBackend::get_voices_count() const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_COUNT_VOICES) == 0) {
     return 0;
   }
   std::size_t count = 0;
   auto const err = prism_backend_count_voices(backend, &count);
-  return (err == PRISM_OK) ? static_cast<int>(count) : 0;
+  return (err == PRISM_OK) ? static_cast<std::int64_t>(count) : 0;
 }
 
-String GodotPrismBackend::get_voice_name(int index) const {
+String GodotPrismBackend::get_voice_name(std::int64_t index) const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_VOICE_NAME) == 0) {
     return String();
@@ -307,7 +307,7 @@ String GodotPrismBackend::get_voice_name(int index) const {
   return String::utf8(name);
 }
 
-String GodotPrismBackend::get_voice_language(int index) const {
+String GodotPrismBackend::get_voice_language(std::int64_t index) const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_VOICE_LANGUAGE) == 0) {
     return String();
@@ -321,7 +321,7 @@ String GodotPrismBackend::get_voice_language(int index) const {
   return String::utf8(lang);
 }
 
-void GodotPrismBackend::set_voice(int index) {
+void GodotPrismBackend::set_voice(std::int64_t index) {
   if (backend == nullptr) {
     UtilityFunctions::push_error("Prism: set_voice called on invalid backend");
     return;
@@ -338,7 +338,7 @@ void GodotPrismBackend::set_voice(int index) {
   }
 }
 
-int GodotPrismBackend::get_voice() const {
+std::int64_t GodotPrismBackend::get_voice() const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_VOICE) == 0) {
     return -1;
@@ -348,7 +348,7 @@ int GodotPrismBackend::get_voice() const {
   return (err == PRISM_OK) ? static_cast<int>(voice_id) : -1;
 }
 
-int GodotPrismBackend::get_channels() const {
+std::int64_t GodotPrismBackend::get_channels() const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_CHANNELS) == 0) {
     return -1;
@@ -358,7 +358,7 @@ int GodotPrismBackend::get_channels() const {
   return (err == PRISM_OK) ? static_cast<int>(ch) : -1;
 }
 
-int GodotPrismBackend::get_sample_rate() const {
+std::int64_t GodotPrismBackend::get_sample_rate() const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_SAMPLE_RATE) == 0) {
     return -1;
@@ -368,7 +368,7 @@ int GodotPrismBackend::get_sample_rate() const {
   return (err == PRISM_OK) ? static_cast<int>(sr) : -1;
 }
 
-int GodotPrismBackend::get_bit_depth() const {
+std::int64_t GodotPrismBackend::get_bit_depth() const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_BIT_DEPTH) == 0) {
     return -1;
@@ -429,7 +429,7 @@ bool GodotPrismBackend::has_feature(BitField<PrismBackendFeature> flag) const {
 TypedArray<Dictionary> GodotPrismBackend::get_voices() const {
   TypedArray<Dictionary> result;
   auto const count = get_voices_count();
-  for (int i = 0; i < count; ++i) {
+  for (std::int64_t i = 0; i < count; ++i) {
     Dictionary d;
     d["index"] = i;
     d["name"] = get_voice_name(i);
@@ -439,13 +439,13 @@ TypedArray<Dictionary> GodotPrismBackend::get_voices() const {
   return result;
 }
 
-int GodotPrismBackend::find_voice(const String &pattern) const {
+std::int64_t GodotPrismBackend::find_voice(const String &pattern) const {
   if (pattern.is_empty()) {
     return -1;
   }
   auto const lower = pattern.to_lower();
   auto const count = get_voices_count();
-  for (int i = 0; i < count; ++i) {
+  for (std::int64_t i = 0; i < count; ++i) {
     if (get_voice_name(i).to_lower().find(lower) != -1) {
       return i;
     }
@@ -453,13 +453,14 @@ int GodotPrismBackend::find_voice(const String &pattern) const {
   return -1;
 }
 
-int GodotPrismBackend::find_voice_by_language(const String &prefix) const {
+std::int64_t
+GodotPrismBackend::find_voice_by_language(const String &prefix) const {
   if (prefix.is_empty()) {
     return -1;
   }
   auto const lower = prefix.to_lower();
   auto const count = get_voices_count();
-  for (int i = 0; i < count; ++i) {
+  for (std::int64_t i = 0; i < count; ++i) {
     if (get_voice_language(i).to_lower().begins_with(lower)) {
       return i;
     }

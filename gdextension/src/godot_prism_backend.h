@@ -46,9 +46,7 @@ public:
   PrismError stop();
   PrismError pause();
   PrismError resume();
-
   bool get_speaking() const;
-
   void set_volume(float v);
   float get_volume() const;
   void set_pitch(float v);
@@ -56,19 +54,19 @@ public:
   void set_rate(float v);
   float get_rate() const;
   PrismError refresh_voices();
-  int get_voices_count() const;
-  String get_voice_name(int index) const;
-  String get_voice_language(int index) const;
-  void set_voice(int index);
-  int get_voice() const;
-  int get_channels() const;
-  int get_sample_rate() const;
-  int get_bit_depth() const;
+  std::int64_t get_voices_count() const;
+  String get_voice_name(std::int64_t index) const;
+  String get_voice_language(std::int64_t index) const;
+  void set_voice(std::int64_t index);
+  std::int64_t get_voice() const;
+  std::int64_t get_channels() const;
+  std::int64_t get_sample_rate() const;
+  std::int64_t get_bit_depth() const;
   Ref<AudioStreamWAV> speak_to_stream(const String &text);
   bool has_feature(BitField<PrismBackendFeature> flag) const;
   TypedArray<Dictionary> get_voices() const;
-  int find_voice(const String &pattern) const;
-  int find_voice_by_language(const String &prefix) const;
+  std::int64_t find_voice(const String &pattern) const;
+  std::int64_t find_voice_by_language(const String &prefix) const;
 };
 
 VARIANT_ENUM_CAST(PrismError);

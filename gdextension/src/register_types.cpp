@@ -15,7 +15,7 @@ using namespace godot;
 static GodotPrismContext *prism_singleton = nullptr;
 
 void initialize_prism_types(ModuleInitializationLevel p_level) {
-  if (p_level != MODULE_INITIALIZATION_LEVEL_CORE) {
+  if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
     return;
   }
   GDREGISTER_CLASS(GodotPrismBackend);
@@ -26,7 +26,7 @@ void initialize_prism_types(ModuleInitializationLevel p_level) {
 }
 
 void uninitialize_prism_types(ModuleInitializationLevel p_level) {
-  if (p_level != MODULE_INITIALIZATION_LEVEL_CORE) {
+  if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
     return;
   }
   Engine::get_singleton()->unregister_singleton("Prism");
@@ -46,7 +46,7 @@ prism_library_init(GDExtensionInterfaceGetProcAddress p_get_proc_address,
   init_obj.register_initializer(initialize_prism_types);
   init_obj.register_terminator(uninitialize_prism_types);
   init_obj.set_minimum_library_initialization_level(
-      MODULE_INITIALIZATION_LEVEL_CORE);
+      MODULE_INITIALIZATION_LEVEL_SCENE);
   return init_obj.init();
 }
 

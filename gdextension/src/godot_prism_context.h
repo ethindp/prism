@@ -30,16 +30,16 @@ protected:
 public:
   GodotPrismContext();
   ~GodotPrismContext() override;
-  int get_backends_count() const;
-  int id_at(int index) const;
-  int id_of(const String &name) const;
-  String name_of(int id) const;
-  int priority_of(int id) const;
-  bool has(int id) const;
-  Ref<GodotPrismBackend> get_backend(int id);
-  Ref<GodotPrismBackend> create(int id);
+  std::int64_t get_backends_count() const;
+  std::int64_t id_at(std::int64_t index) const;
+  std::int64_t id_of(const String &name) const;
+  String name_of(std::int64_t id) const;
+  std::int64_t priority_of(std::int64_t id) const;
+  bool has(std::int64_t id) const;
+  Ref<GodotPrismBackend> get_backend(std::int64_t id);
+  Ref<GodotPrismBackend> create(std::int64_t id);
   Ref<GodotPrismBackend> create_best();
-  Ref<GodotPrismBackend> acquire(int id);
+  Ref<GodotPrismBackend> acquire(std::int64_t id);
   Ref<GodotPrismBackend> acquire_best();
   TypedArray<Dictionary> get_available_backends() const;
 };

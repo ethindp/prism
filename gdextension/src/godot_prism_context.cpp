@@ -40,7 +40,7 @@ GodotPrismContext::~GodotPrismContext() {
   }
 }
 
-int GodotPrismContext::get_backends_count() const {
+std::int64_t GodotPrismContext::get_backends_count() const {
   if (ctx == nullptr) {
     UtilityFunctions::push_error(
         "Prism: called get_backends_count on a null context");
@@ -50,10 +50,10 @@ int GodotPrismContext::get_backends_count() const {
   if (n == std::numeric_limits<std::size_t>::max()) {
     return 0;
   }
-  return static_cast<int>(n);
+  return static_cast<std::int64_t>(n);
 }
 
-int GodotPrismContext::id_at(int index) const {
+std::int64_t GodotPrismContext::id_at(std::int64_t index) const {
   if (ctx == nullptr) {
     UtilityFunctions::push_error("Prism: called id_at on a null context");
     return id_to_godot(PRISM_BACKEND_INVALID);
@@ -65,7 +65,7 @@ int GodotPrismContext::id_at(int index) const {
       prism_registry_id_at(ctx, static_cast<std::size_t>(index)));
 }
 
-int GodotPrismContext::id_of(const String &name) const {
+std::int64_t GodotPrismContext::id_of(const String &name) const {
   if (ctx == nullptr) {
     UtilityFunctions::push_error("Prism: called id_of on a null context");
     return id_to_godot(PRISM_BACKEND_INVALID);
@@ -76,7 +76,7 @@ int GodotPrismContext::id_of(const String &name) const {
   return id_to_godot(prism_registry_id(ctx, name.utf8().get_data()));
 }
 
-String GodotPrismContext::name_of(int id) const {
+String GodotPrismContext::name_of(std::int64_t id) const {
   if (ctx == nullptr) {
     UtilityFunctions::push_error("Prism: called name_of on a null context");
     return String();
@@ -88,7 +88,7 @@ String GodotPrismContext::name_of(int id) const {
   return String::utf8(prism_registry_name(ctx, bid));
 }
 
-int GodotPrismContext::priority_of(int id) const {
+std::int64_t GodotPrismContext::priority_of(std::int64_t id) const {
   if (ctx == nullptr) {
     UtilityFunctions::push_error("Prism: called priority_of on a null context");
     return -1;
@@ -96,7 +96,7 @@ int GodotPrismContext::priority_of(int id) const {
   return prism_registry_priority(ctx, id_from_godot(id));
 }
 
-bool GodotPrismContext::has(int id) const {
+bool GodotPrismContext::has(std::int64_t id) const {
   if (ctx == nullptr) {
     UtilityFunctions::push_error("Prism: called has on a null context");
     return false;
@@ -104,7 +104,7 @@ bool GodotPrismContext::has(int id) const {
   return prism_registry_exists(ctx, id_from_godot(id));
 }
 
-Ref<GodotPrismBackend> GodotPrismContext::get_backend(int id) {
+Ref<GodotPrismBackend> GodotPrismContext::get_backend(std::int64_t id) {
   if (ctx == nullptr) {
     UtilityFunctions::push_error("Prism: called get_backend on a null context");
     return {};
@@ -112,7 +112,7 @@ Ref<GodotPrismBackend> GodotPrismContext::get_backend(int id) {
   return _wrap(prism_registry_get(ctx, id_from_godot(id)));
 }
 
-Ref<GodotPrismBackend> GodotPrismContext::create(int id) {
+Ref<GodotPrismBackend> GodotPrismContext::create(std::int64_t id) {
   if (ctx == nullptr) {
     UtilityFunctions::push_error("Prism: called create on a null context");
     return {};
@@ -128,7 +128,7 @@ Ref<GodotPrismBackend> GodotPrismContext::create_best() {
   return _wrap(prism_registry_create_best(ctx));
 }
 
-Ref<GodotPrismBackend> GodotPrismContext::acquire(int id) {
+Ref<GodotPrismBackend> GodotPrismContext::acquire(std::int64_t id) {
   if (ctx == nullptr) {
     UtilityFunctions::push_error("Prism: called acquire on a null context");
     return {};

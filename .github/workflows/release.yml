@@ -587,7 +587,9 @@ jobs:
             echo "::error::No template_release binaries — GODOTCPP_TARGET is not propagating"
             exit 1
           fi
-          zip -r "prismatoid-gdextension-${tag}.zip" prismatoid
+          mkdir -p addons/prismatoid
+          mv prismatoid/* addons/prismatoid
+          zip -r "prismatoid-gdextension-${tag}.zip" addons
       - uses: actions/create-github-app-token@v1
         id: app-token
         with:

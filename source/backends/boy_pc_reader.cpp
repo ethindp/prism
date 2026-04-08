@@ -11,89 +11,34 @@
 #include <array>
 #include <atomic>
 #include <bitset>
-#include <cassert>
-#include <mutex>
 #include <string_view>
 #include <tchar.h>
 #include <tlhelp32.h>
-#include <utility>
 #include <windows.h>
-
-// Whoever designed this screen reader API needs to learn how to properly design
-// C callbacks...
-class BoyPCReaderBackend;
-template <int Slot> struct CallbackSlot {
-  static BoyPCReaderBackend *instance;
-  static void __stdcall callback(int reason);
-};
-
-template <int Slot> BoyPCReaderBackend *CallbackSlot<Slot>::instance = nullptr;
-
-template <std::size_t... Is> struct SlotTableImpl {
-  static inline std::mutex mtx;
-  struct Entry {
-    BoyPCReaderBackend **instance;
-    BoyCtrlSpeakCompleteFunc func;
-  };
-
-  static constexpr std::array entries = {
-      Entry{.instance = &CallbackSlot<Is>::instance,
-            .func = &CallbackSlot<Is>::callback}...};
-
-  static BoyCtrlSpeakCompleteFunc acquire(BoyPCReaderBackend *obj) {
-    std::lock_guard lock(mtx);
-    for (auto &e : entries) {
-      if (*e.instance == nullptr) {
-        *e.instance = obj;
-        return e.func;
-      }
-    }
-    return nullptr;
-  }
-
-  static void release(BoyPCReaderBackend *obj) {
-    assert(obj != nullptr);
-    std::lock_guard lock(mtx);
-    for (auto &e : entries) {
-      if (*e.instance == obj) {
-        *e.instance = nullptr;
-        return;
-      }
-    }
-  }
-};
-
-template <std::size_t N, typename = std::make_index_sequence<N>>
-struct MakeSlotTable;
-
-template <std::size_t N, std::size_t... Is>
-struct MakeSlotTable<N, std::index_sequence<Is...>> {
-  using type = SlotTableImpl<Is...>;
-};
-
-template <std::size_t N> using SlotTable = typename MakeSlotTable<N>::type;
 
 class BoyPCReaderBackend final : public TextToSpeechBackend {
 private:
-  // This limit is most likely overkill, but this is deliberately so
-  // The objective is to have a limit so high that you are in practice never
-  // going to hit it unless you are deliberately trying to do so
-  using Slots = SlotTable<128>;
-  std::atomic_flag initialized;
-  std::atomic_flag speaking;
-  BoyCtrlSpeakCompleteFunc complete_callback{nullptr};
+  std::atomic_bool initialized{false};
+  static constexpr bool use_reader_channel = false;
+  static constexpr bool allow_break = true;
+
+  static BackendError map_error(BoyCtrlError error) {
+    switch (error) {
+    case e_bcerr_fail:
+    case e_bcerr_arg:
+      return BackendError::InternalBackendError;
+    case e_bcerr_unavailable:
+      return BackendError::BackendNotAvailable;
+    default:
+      return BackendError::Unknown;
+    }
+  }
 
 public:
-  void handle_speak_complete([[maybe_unused]] int reason) { speaking.clear(); }
-
   ~BoyPCReaderBackend() override {
-    if (complete_callback != nullptr) {
-      Slots::release(this);
-      complete_callback = nullptr;
-    }
-    if (initialized.test()) {
+    if (initialized.load()) {
       BoyCtrlUninitialize();
-      initialized.clear();
+      initialized.store(false);
     }
   }
 
@@ -126,63 +71,35 @@ public:
       CloseHandle(snapshot);
     }
     features |=
-        SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP | SUPPORTS_IS_SPEAKING;
+        SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
     return features;
   }
 
   BackendResult<> initialize() override {
-    if (initialized.test()) {
+    if (initialized.load()) {
       return std::unexpected(BackendError::AlreadyInitialized);
     }
-    if (complete_callback != nullptr) {
-      complete_callback = Slots::acquire(this);
-      if (complete_callback != nullptr) {
-        return std::unexpected(BackendError::InternalBackendLimitExceeded);
-      }
-    }
     if (const auto res = BoyCtrlInitializeU8(nullptr); res != e_bcerr_success) {
-      switch (res) {
-      case e_bcerr_fail:
-      case e_bcerr_arg:
-        return std::unexpected(BackendError::InternalBackendError);
-      case e_bcerr_unavailable:
-        return std::unexpected(BackendError::BackendNotAvailable);
-      default:
-        return std::unexpected(BackendError::Unknown);
-      }
+      return std::unexpected(map_error(res));
     }
     if (!BoyCtrlIsReaderRunning()) {
       BoyCtrlUninitialize();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    if (const auto res = BoyCtrlSetAnyKeyStopSpeaking(false); !res) {
-      BoyCtrlUninitialize();
-      return std::unexpected(BackendError::BackendNotAvailable);
-    }
-    initialized.test_and_set();
+    initialized.store(true);
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (!initialized.test()) {
+    if (!initialized.load()) {
       return std::unexpected(BackendError::NotInitialized);
     }
     if (!BoyCtrlIsReaderRunning()) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    // Temporary workaround to ensure interrupt always stops
-    // Todo: remove this when fixed upstream
     if (interrupt) {
-      if (const auto res = BoyCtrlStopSpeaking(false); res != e_bcerr_success) {
-        switch (res) {
-        case e_bcerr_fail:
-        case e_bcerr_arg:
-          return std::unexpected(BackendError::InternalBackendError);
-        case e_bcerr_unavailable:
-          return std::unexpected(BackendError::BackendNotAvailable);
-        default:
-          return std::unexpected(BackendError::Unknown);
-        }
+      if (const auto res = stop(); !res) {
+        return res;
       }
     }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
@@ -193,20 +110,12 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (const auto res = BoyCtrlSpeak(wstr.c_str(), false, !interrupt, true,
-                                      complete_callback);
+    if (const auto res =
+            BoyCtrlSpeak(wstr.c_str(), use_reader_channel, !interrupt,
+                         allow_break, nullptr);
         res != e_bcerr_success) {
-      switch (res) {
-      case e_bcerr_fail:
-      case e_bcerr_arg:
-        return std::unexpected(BackendError::InternalBackendError);
-      case e_bcerr_unavailable:
-        return std::unexpected(BackendError::BackendNotAvailable);
-      default:
-        return std::unexpected(BackendError::Unknown);
-      }
+      return std::unexpected(map_error(res));
     }
-    speaking.test_and_set();
     return {};
   }
 
@@ -215,41 +124,23 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    if (!initialized.test()) {
-      return std::unexpected(BackendError::NotInitialized);
-    }
-    if (!BoyCtrlIsReaderRunning()) {
-      return std::unexpected(BackendError::BackendNotAvailable);
-    }
-    return speaking.test();
+    return std::unexpected(BackendError::NotImplemented);
   }
 
   BackendResult<> stop() override {
-    if (!initialized.test()) {
+    if (!initialized.load()) {
       return std::unexpected(BackendError::NotInitialized);
     }
     if (!BoyCtrlIsReaderRunning()) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    if (const auto res = BoyCtrlStopSpeaking(false); res != e_bcerr_success) {
-      switch (res) {
-      case e_bcerr_fail:
-      case e_bcerr_arg:
-        return std::unexpected(BackendError::InternalBackendError);
-      case e_bcerr_unavailable:
-        return std::unexpected(BackendError::BackendNotAvailable);
-      default:
-        return std::unexpected(BackendError::Unknown);
-      }
+    if (const auto res = BoyCtrlStopSpeaking(use_reader_channel);
+        res != e_bcerr_success) {
+      return std::unexpected(map_error(res));
     }
     return {};
   }
 };
-
-template <int Slot> void __stdcall CallbackSlot<Slot>::callback(int reason) {
-  if (instance != nullptr)
-    instance->handle_speak_complete(reason);
-}
 
 REGISTER_BACKEND_WITH_ID(BoyPCReaderBackend, Backends::BoyPCReader,
                          "BoyPCReader", 101);

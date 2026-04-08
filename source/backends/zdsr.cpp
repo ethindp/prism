@@ -51,6 +51,8 @@ public:
   BackendResult<> initialize() override {
     if (const auto res = InitTTS(0, nullptr, TRUE); res > 0)
       return std::unexpected(BackendError::BackendNotAvailable);
+    if (const auto state = GetSpeakState(); state == 1 || state == 2)
+      return std::unexpected(BackendError::BackendNotAvailable);
     return {};
   }
 

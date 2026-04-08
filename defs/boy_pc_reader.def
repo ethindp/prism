@@ -12,12 +12,14 @@ EXPORTS
     BoyCtrlSetAnyKeyStopSpeaking
     BoyCtrlSpeak
     BoyCtrlSpeak2
+    BoyCtrlSpeak3
     BoyCtrlSpeakAnsi
     BoyCtrlSpeakEx
     BoyCtrlSpeakU8
     BoyCtrlStartTextToAudio
     BoyCtrlStopSpeaking
     BoyCtrlStopSpeaking2
+    BoyCtrlStopSpeaking3
     BoyCtrlStopSpeakingEx
     BoyCtrlUninitialize
     BoyCtrlVerify

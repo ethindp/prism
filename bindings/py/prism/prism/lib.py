@@ -28,7 +28,7 @@ with contextlib.suppress(AttributeError):
 
 
 def _is_android() -> bool:
-    with contextlib.suppress(ImportError):
+    with contextlib.suppress(AttributeError):
         if importlib.util.find_spec("", "android") is not None:
             return True
     if sys.platform == "linux":

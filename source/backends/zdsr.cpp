@@ -26,7 +26,7 @@ public:
     constexpr auto zdsr_processes = std::to_array<std::wstring_view>(
         {_T("ZDSRDaemon.exe"), _T("ZDSRMain.exe"), _T("ZDSRMain_x64.exe"),
          _T("ZDSRMainService.exe"), _T("ZDSRMultiEngine.exe"),
-         _T("ZDSRService.exe"), _T("ZDSRStart.exe")});
+         _T("ZDSRStart.exe")});
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot != INVALID_HANDLE_VALUE) {
       PROCESSENTRY32 entry{};

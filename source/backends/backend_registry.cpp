@@ -4,31 +4,6 @@
 #include <algorithm>
 #include <ranges>
 
-namespace {
-
-bool has_feature(const std::shared_ptr<TextToSpeechBackend> &backend,
-                 std::uint64_t flag) {
-  return backend != nullptr &&
-         (backend->get_features().to_ullong() & flag) != 0;
-}
-
-bool prepare_for_best_selection(
-    const std::shared_ptr<TextToSpeechBackend> &backend) {
-  if (backend == nullptr)
-    return false;
-
-  const auto init = backend->initialize();
-  if (!init && init.error() != BackendError::AlreadyInitialized)
-    return false;
-
-  if (!has_feature(backend, BackendFeature::SUPPORTS_IS_SPEAKING))
-    return true;
-
-  return backend->is_speaking().has_value();
-}
-
-} // namespace
-
 BackendRegistry &BackendRegistry::instance() {
   static BackendRegistry registry;
   return registry;
@@ -152,7 +127,7 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::create_best() {
   std::shared_lock lock(mutex);
   for (const auto &e : entries) {
     if (auto backend = e.factory(); backend) {
-      if (prepare_for_best_selection(backend))
+      if (backend->initialize())
         return backend;
     }
   }
@@ -195,13 +170,10 @@ BackendRegistry::acquire(std::string_view name) {
 std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire_best() {
   std::unique_lock lock(mutex);
   for (auto &e : entries) {
-    if (auto existing = e.cached.lock()) {
-      if (prepare_for_best_selection(existing))
-        return existing;
-      e.cached.reset();
-    }
+    if (auto existing = e.cached; !existing.expired())
+      return existing.lock();
     if (auto backend = e.factory(); backend) {
-      if (prepare_for_best_selection(backend)) {
+      if (backend->initialize()) {
         e.cached = backend;
         return backend;
       }

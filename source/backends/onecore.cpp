@@ -10,7 +10,13 @@
 #include <limits>
 #include <span>
 #ifdef _WIN32
+#include <concepts>
+#include <exception>
+#include <objbase.h>
+#include <optional>
 #include <tchar.h>
+#include <type_traits>
+#include <utility>
 #include <windows.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Foundation.Metadata.h>
@@ -27,6 +33,76 @@ using namespace Windows::Storage::Streams;
 using namespace Windows::Media::Core;
 using namespace Windows::Media::Playback;
 using namespace winrt::Windows::Foundation::Metadata;
+
+struct MtaEventGuard {
+  HANDLE h;
+  MtaEventGuard() : h(CreateEvent(nullptr, TRUE, FALSE, nullptr)) {}
+  ~MtaEventGuard() noexcept {
+    if (h != nullptr) {
+      CloseHandle(h);
+      h = nullptr;
+    }
+  }
+  MtaEventGuard(const MtaEventGuard &) = delete;
+  MtaEventGuard &operator=(const MtaEventGuard &) = delete;
+  explicit operator bool() const noexcept { return h != nullptr; }
+};
+
+template <typename F>
+  requires std::invocable<F>
+struct MtaContext {
+  using R = std::invoke_result_t<F>;
+  std::remove_reference_t<F> *fn;
+  [[maybe_unused]] std::conditional_t<std::is_void_v<R>, char, std::optional<R>>
+      result{};
+  std::exception_ptr ex;
+  HANDLE event;
+};
+
+inline bool is_current_thread_sta() noexcept {
+  APTTYPE type{};
+  APTTYPEQUALIFIER qual{};
+  HRESULT hr = CoGetApartmentType(&type, &qual);
+  if (FAILED(hr))
+    return false;
+  return type == APTTYPE_STA || type == APTTYPE_MAINSTA;
+}
+
+template <std::invocable F> auto run_on_mta(F &&fn) -> std::invoke_result_t<F> {
+  using R = std::invoke_result_t<F>;
+  if (!is_current_thread_sta()) {
+    if constexpr (std::is_void_v<R>) {
+      fn();
+      return;
+    } else
+      return fn();
+  }
+  MtaEventGuard evt;
+  if (!evt)
+    throw std::runtime_error("run_on_mta: CreateEvent failed");
+  MtaContext<F> ctx{.fn = &fn, .result = {}, .ex = nullptr, .event = evt.h};
+  auto const ok = TrySubmitThreadpoolCallback(
+      [](PTP_CALLBACK_INSTANCE, void *raw) noexcept {
+        auto &c = *static_cast<MtaContext<F> *>(raw);
+        try {
+          if constexpr (std::is_void_v<R>)
+            (*c.fn)();
+          else
+            c.result.emplace((*c.fn)());
+        } catch (...) {
+          c.ex = std::current_exception();
+        }
+        SetEvent(c.event);
+      },
+      &ctx, nullptr);
+  if (!ok)
+    throw std::runtime_error("run_on_mta: TrySubmitThreadpoolCallback failed");
+  WaitForSingleObject(evt.h, INFINITE);
+  if (ctx.ex)
+    std::rethrow_exception(ctx.ex);
+  if constexpr (!std::is_void_v<R>)
+    return std::move(*ctx.result);
+}
 
 class OneCoreBackend final : public TextToSpeechBackend {
 private:
@@ -49,7 +125,7 @@ public:
     player = nullptr;
   }
 
-  std::string_view get_name() const override { return "OneCore"; }
+  [[nodiscard]] std::string_view get_name() const override { return "OneCore"; }
 
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
@@ -108,7 +184,8 @@ public:
         if (const auto res = stop(); !res)
           return res;
       const auto wtext = to_hstring(text);
-      const auto stream = synth.SynthesizeTextToStreamAsync(wtext).get();
+      const auto stream = run_on_mta(
+          [&] { return synth.SynthesizeTextToStreamAsync(wtext).get(); });
       const auto source =
           MediaSource::CreateFromStream(stream, stream.ContentType());
       player.Source(source);
@@ -128,8 +205,9 @@ public:
       return std::unexpected(BackendError::InvalidUtf8);
     try {
       const auto wtext = to_hstring(text);
-      const auto stream = synth.SynthesizeTextToStreamAsync(wtext).get();
-      if (stream.ContentType() != L"audio/wav")
+      const auto stream = run_on_mta(
+          [&] { return synth.SynthesizeTextToStreamAsync(wtext).get(); });
+      if (stream.ContentType() != _T("audio/wav"))
         return std::unexpected(BackendError::NotImplemented);
       const auto size64 = stream.Size();
       if (size64 > std::numeric_limits<uint32_t>::max())
@@ -140,7 +218,9 @@ public:
       std::uint32_t total = 0;
       while (total < cap) {
         Buffer chunk(cap - total);
-        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+        run_on_mta([&] {
+          stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+        });
         const uint32_t got = chunk.Length();
         if (got == 0)
           break;
@@ -256,13 +336,10 @@ public:
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     try {
-      // This is really weird because Microsofts implementation of this is
-      // weird. SpeakingRate is a multiplier and not the (actual) absolute rate.
-      // So, we do this for now. Fix this later.
       if (rate < 0.0 || rate > 1.0)
         return std::unexpected(BackendError::RangeOutOfBounds);
       const auto val =
-          range_convert_midpoint(rate, 0.0, 0.5, 1.0, 0.5, 3.0, 6.0);
+          exp_range_convert(rate, 0.5, 1.0, 6.0);
       synth.Options().SpeakingRate(val);
       return {};
     } catch (const winrt::hresult_error &) {
@@ -274,9 +351,7 @@ public:
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     try {
-      return range_convert_midpoint(
-          static_cast<float>(synth.Options().SpeakingRate()), 0.5, 3.0, 6.0,
-          0.0, 0.5, 1.0);
+      return static_cast<float>(exp_range_convert_inv(synth.Options().SpeakingRate(), 0.5, 1.0, 6.0));
     } catch (const winrt::hresult_error &) {
       return std::unexpected(BackendError::Unknown);
     }
@@ -371,8 +446,9 @@ public:
     if (format_cached)
       return;
     try {
-      const auto stream = synth.SynthesizeTextToStreamAsync(L" ").get();
-      if (stream.ContentType() != L"audio/wav")
+      const auto stream = run_on_mta(
+          [&] { return synth.SynthesizeTextToStreamAsync(_T(" ")).get(); });
+      if (stream.ContentType() != _T("audio/wav"))
         return;
       const auto size64 = stream.Size();
       if (size64 > std::numeric_limits<uint32_t>::max())
@@ -383,7 +459,9 @@ public:
       std::uint32_t total = 0;
       while (total < cap) {
         Buffer chunk(cap - total);
-        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+        run_on_mta([&] {
+          stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+        });
         const uint32_t got = chunk.Length();
         if (got == 0)
           break;

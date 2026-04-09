@@ -53,6 +53,8 @@ float range_convert_midpoint(float old_value, float old_min, float old_midpoint,
                              float old_max, float new_min, float new_midpoint,
                              float new_max);
 // End NVGT code
+double exp_range_convert(float t, double out_min, double out_mid, double out_max);
+float exp_range_convert_inv(double val, double out_min, double out_mid, double out_max);
 
 struct TrimView {
   std::span<float> view; // points into caller memory

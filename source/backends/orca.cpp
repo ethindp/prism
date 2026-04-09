@@ -104,6 +104,21 @@ public:
       conn = nullptr;
       return std::unexpected(BackendError::BackendNotAvailable);
     }
+    error = nullptr;
+    gboolean success = FALSE;
+    const auto ok = orca_module_org_gnome_orca_module_call_execute_command_sync(
+        module_proxy, "InterruptSpeech", 0, &success, nullptr, &error);
+    if (ok == 0 || error != nullptr) {
+      if (error != nullptr)
+        g_error_free(error);
+      g_object_unref(module_proxy);
+      module_proxy = nullptr;
+      g_object_unref(service_proxy);
+      service_proxy = nullptr;
+      g_object_unref(conn);
+      conn = nullptr;
+      return std::unexpected(BackendError::BackendNotAvailable);
+    }
     return {};
   }
 

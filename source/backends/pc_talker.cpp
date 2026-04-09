@@ -74,12 +74,20 @@ public:
     if (thread == nullptr && request == nullptr && done == nullptr)
       return;
     quit.test_and_set(std::memory_order_relaxed);
-    WaitForSingleObject(thread, 5000);
-    CloseHandle(thread);
-    CloseHandle(request);
-    CloseHandle(done);
+    if (thread != nullptr) {
+      WaitForSingleObject(thread, 5000);
+      CloseHandle(thread);
+      thread = nullptr;
+    }
+    if (request != nullptr) {
+      CloseHandle(request);
+      request = nullptr;
+    }
+    if (done != nullptr) {
+      CloseHandle(done);
+      done = nullptr;
+    }
     DeleteCriticalSection(&lock);
-    thread = request = done = nullptr;
   }
 
   ~BrailleMarshaller() { shutdown(); }

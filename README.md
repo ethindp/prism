@@ -14,6 +14,7 @@ To build Prism, all you need do is create a build directory and run cmake as you
 | `PRISM_ENABLE_DEMOS` | Enable building of demo apps to demonstrate Prism either generally or being used in a specific language. |
 | `PRISM_ENABLE_LINTING` | Enable linting of source code with clang-tidy and other static analysis tools. |
 | `PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS` | DO NOT USE. Enables options primarily used by the vcpkg package manager. |
+| `PRISM_ENABLE_GDEXTENSION` | Build the GDExtension and Prism together (on by default). |
 
 Prism is also in vcpkg. To install it:
 
@@ -45,8 +46,11 @@ Currently bindings are an in-progress effort. The following Bindings exist:
 | --- | --- |
 | .NET | [prismatoid](https://www.nuget.org/packages/prismatoid) |
 | Python | [Prismatoid](https://pypi.org/project/prismatoid) |
+| Godot | Prismatoid (in-tree) |
 
 We welcome future bindings. If you write bindings and want them added here, please submit a PR!
+
+We also encourage bindings to either follow the Prism API or the Python bindings, with appropriate modifications to the aforementioned for language conventions. Bindings are of course free to add on extra functions, such as the Godot one adding `speak_to_stream`. However, the objective should be to make transitioning between languages as painless as possible, plus take advantage of binding-specific enhancements. This paragraph however is not a requirement and bindings will be accepted either way.
 
 ## License
 
@@ -54,12 +58,12 @@ This project is licensed under the Mozilla Public License version 2.0. Full deta
 
 This project uses code from other projects. Specifically:
 
-* The SAPI bridge is credited to the [NVGT](https://github.com/samtupy/nvgt) project, as well as the functions `range_convert` and `range_convert_midpoint` in utils.h and utils.cpp. Similar attribution goes to NVGT for the Android screen reader backend.
-* The `simdutf` library is licensed under the Apache-2.0 license.
+* The `simdutf` library is licensed under the Apache-2.0 license, and is used for Unicode validation and conversion.
 * On Windows, Prism includes NVDA controller client RPC definitions originally under LGPL-2.1 (and generated RPC stubs from those inputs). The Prism project has received permission to license the IDL files (and there generated outputs) under the MPL-2.0 regardless of the original license. Thus, you may assume that they are licensed under the MPL-2.0. The LGPL headers and license file in the LICENSES directory remain for providing attribution.
-
 
 ## Contributing
 
 Contributions are welcome. This includes, but is not limited to, documentation enhancements, new backends, bindings, build system improvements, etc. The project uses C++23 so please ensure that your compiler supports that standard.
+
+When requesting  features or enhancements, or submitting issues, please adhere to the following rules:
 

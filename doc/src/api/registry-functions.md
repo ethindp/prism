@@ -112,6 +112,8 @@ The names used by Prism backends are:
 | ZoomText | `"ZoomText"` |
 | BoyPCReader | `"BoyPCReader"` |
 | PCTalker | `"PCTalker"` |
+| SystemAccess | `"SystemAccess"` |
+| WindowEyes | `"WindowEyes"` |
 
 ### prism_registry_name
 

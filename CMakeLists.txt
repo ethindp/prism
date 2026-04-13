@@ -47,6 +47,20 @@ if(PRISM_ENABLE_LEGACY_BACKENDS)
   option(PRISM_ENABLE_LEGACY_WINDOW_EYES_BACKEND
          "Enable legacy WindowEyes backend" ON)
 endif()
+option(
+  PRISM_ENABLE_SHIMS
+  "Enable shim shared libraries for compatibility with older screen reader libraries"
+  OFF)
+if(PRISM_ENABLE_SHIMS)
+  option(PRISM_ENABLE_TOLK_SHIM "Enable tolk compatibility shim"
+         ${PRISM_ENABLE_SHIMS})
+  option(PRISM_ENABLE_UNIVERSAL_SPEECH_SHIM
+         "Enable UniversalSpeech compatibility shim" ${PRISM_ENABLE_SHIMS})
+  option(PRISM_ENABLE_SPEECH_CORE_SHIM "Enable SpeechCore compatibility shim"
+         ${PRISM_ENABLE_SHIMS})
+  option(PRISM_ENABLE_SRAL_SHIM "Enable SRAL compatibility shim"
+         ${PRISM_ENABLE_SHIMS})
+endif()
 if(MSVC AND PRISM_ENABLE_GDEXTENSION)
   set(CMAKE_MSVC_RUNTIME_LIBRARY
       "MultiThreadedDLL"
@@ -245,6 +259,7 @@ if(WIN32)
        AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
       add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa32.def
                          SAAPI32.dll)
+      target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess)
     endif()
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr32.def
                        ZDSRAPI.dll)
@@ -252,13 +267,13 @@ if(WIN32)
       BoyCtrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader32.def BoyCtrl.dll)
     add_import_library(
       PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker32.def PCTKUSR.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR BoyCtrl
-                                                  PCTalker)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ZDSR BoyCtrl PCTalker)
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     if(PRISM_ENABLE_LEGACY_BACKENDS
        AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
       add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
                          SAAPI64.dll)
+      target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess)
     endif()
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
                        ZDSRAPI_x64.dll)
@@ -267,8 +282,7 @@ if(WIN32)
       BoyCtrl-x64.dll)
     add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
                        PCTKUSR.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess ZDSR BoyCtrl
-                                                  PCTalker)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ZDSR BoyCtrl PCTalker)
   else()
     add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
                        PCTKUSR.dll)
@@ -683,4 +697,7 @@ else()
 endif()
 if(PRISM_ENABLE_GDEXTENSION)
   add_subdirectory(gdextension)
+endif()
+if(PRISM_ENABLE_SHIMS)
+  add_subdirectory(shims)
 endif()

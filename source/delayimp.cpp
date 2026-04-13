@@ -123,6 +123,16 @@ stub_BoyCtrlSpeak2([[maybe_unused]] const wchar_t *text) {
 }
 
 static BoyCtrlError __stdcall
+stub_BoyCtrlSpeak3([[maybe_unused]] const wchar_t *text,
+                   [[maybe_unused]] bool withSlave,
+                   [[maybe_unused]] const wchar_t *slaveName,
+                   [[maybe_unused]] bool append,
+                   [[maybe_unused]] bool allowBreak,
+                   [[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
+  return e_bcerr_unavailable;
+}
+
+static BoyCtrlError __stdcall
 stub_BoyCtrlSpeakEx([[maybe_unused]] const wchar_t *text,
                     [[maybe_unused]] int flags,
                     [[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
@@ -154,6 +164,12 @@ stub_BoyCtrlStopSpeakingEx([[maybe_unused]] int flags) {
 }
 
 static BoyCtrlError __stdcall stub_BoyCtrlStopSpeaking2() {
+  return e_bcerr_unavailable;
+}
+
+static BoyCtrlError __stdcall
+stub_BoyCtrlStopSpeaking3([[maybe_unused]] bool withSlave,
+                          [[maybe_unused]] const wchar_t *slaveName) {
   return e_bcerr_unavailable;
 }
 
@@ -445,6 +461,9 @@ static const
          .func = "BoyCtrlSpeak2",
          .stub = stub_cast(boy_pc_reader::stub_BoyCtrlSpeak2)},
         {.dll = BOY_PC_READER_DLL,
+         .func = "BoyCtrlSpeak3",
+         .stub = stub_cast(boy_pc_reader::stub_BoyCtrlSpeak3)},
+        {.dll = BOY_PC_READER_DLL,
          .func = "BoyCtrlSpeakEx",
          .stub = stub_cast(boy_pc_reader::stub_BoyCtrlSpeakEx)},
         {.dll = BOY_PC_READER_DLL,
@@ -462,6 +481,9 @@ static const
         {.dll = BOY_PC_READER_DLL,
          .func = "BoyCtrlStopSpeaking2",
          .stub = stub_cast(boy_pc_reader::stub_BoyCtrlStopSpeaking2)},
+        {.dll = BOY_PC_READER_DLL,
+         .func = "BoyCtrlStopSpeaking3",
+         .stub = stub_cast(boy_pc_reader::stub_BoyCtrlStopSpeaking3)},
         {.dll = BOY_PC_READER_DLL,
          .func = "BoyCtrlPauseScreenReader",
          .stub = stub_cast(boy_pc_reader::stub_BoyCtrlPauseScreenReader)},

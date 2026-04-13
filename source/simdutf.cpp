@@ -1,4 +1,4 @@
-/* auto-generated on 2026-04-01 22:11:56 -0400. Do not edit! */
+/* auto-generated on 2026-04-05 17:00:15 -0400. Do not edit! */
 /* begin file src\simdutf.cpp */
 #include "simdutf.h"
 
@@ -14803,6 +14803,20 @@ simdutf_warn_unused result base64_to_binary(
     const char16_t *input, size_t length, char *output, base64_options options,
     last_chunk_handling_options last_chunk_handling_options) noexcept {
   return get_default_implementation()->base64_to_binary(
+      input, length, output, options, last_chunk_handling_options);
+}
+
+simdutf_warn_unused full_result base64_to_binary_details(
+    const char *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_handling_options) noexcept {
+  return get_default_implementation()->base64_to_binary_details(
+      input, length, output, options, last_chunk_handling_options);
+}
+
+simdutf_warn_unused full_result base64_to_binary_details(
+    const char16_t *input, size_t length, char *output, base64_options options,
+    last_chunk_handling_options last_chunk_handling_options) noexcept {
+  return get_default_implementation()->base64_to_binary_details(
       input, length, output, options, last_chunk_handling_options);
 }
 
@@ -67244,6 +67258,12 @@ typedef struct simdutf_result {
   size_t count; /* position of error or number of code units validated */
 } simdutf_result;
 
+typedef struct simdutf_full_result {
+  simdutf_error_code error;
+  size_t input_count;  /* number of input units consumed */
+  size_t output_count; /* number of output bytes written */
+} simdutf_full_result;
+
 typedef enum simdutf_encoding_type {
   SIMDUTF_ENCODING_UNSPECIFIED = 0,
   SIMDUTF_ENCODING_UTF8 = 1,
@@ -67529,6 +67549,20 @@ simdutf_result simdutf_base64_to_binary_safe_utf16(
     simdutf_base64_options options,
     simdutf_last_chunk_handling_options last_chunk_options,
     bool decode_up_to_bad_char);
+
+/* detailed decoding returning input_count and output_count */
+simdutf_full_result simdutf_base64_to_binary_details(
+    const char *input, size_t length, char *output,
+    simdutf_base64_options options,
+    simdutf_last_chunk_handling_options last_chunk_options);
+simdutf_full_result simdutf_base64_to_binary_details_utf16(
+    const char16_t *input, size_t length, char *output,
+    simdutf_base64_options options,
+    simdutf_last_chunk_handling_options last_chunk_options);
+
+/* single-character base64 validation */
+bool simdutf_base64_valid(char input, simdutf_base64_options options);
+bool simdutf_base64_valid_utf16(char16_t input, simdutf_base64_options options);
 
 #ifdef __cplusplus
 } /* extern "C" */
@@ -68053,6 +68087,41 @@ simdutf_result simdutf_base64_to_binary_safe_utf16(
   if (outlen)
     *outlen = local_out;
   return to_c_result(r);
+}
+
+static simdutf_full_result to_c_full_result(const simdutf::full_result &r) {
+  simdutf_full_result out;
+  out.error = static_cast<simdutf_error_code>(r.error);
+  out.input_count = r.input_count;
+  out.output_count = r.output_count;
+  return out;
+}
+
+simdutf_full_result simdutf_base64_to_binary_details(
+    const char *input, size_t length, char *output,
+    simdutf_base64_options options,
+    simdutf_last_chunk_handling_options last_chunk_options) {
+  return to_c_full_result(simdutf::base64_to_binary_details(
+      input, length, output, static_cast<simdutf::base64_options>(options),
+      static_cast<simdutf::last_chunk_handling_options>(last_chunk_options)));
+}
+simdutf_full_result simdutf_base64_to_binary_details_utf16(
+    const char16_t *input, size_t length, char *output,
+    simdutf_base64_options options,
+    simdutf_last_chunk_handling_options last_chunk_options) {
+  return to_c_full_result(simdutf::base64_to_binary_details(
+      input, length, output, static_cast<simdutf::base64_options>(options),
+      static_cast<simdutf::last_chunk_handling_options>(last_chunk_options)));
+}
+
+bool simdutf_base64_valid(char input, simdutf_base64_options options) {
+  return simdutf::base64_valid(input,
+                               static_cast<simdutf::base64_options>(options));
+}
+bool simdutf_base64_valid_utf16(char16_t input,
+                                simdutf_base64_options options) {
+  return simdutf::base64_valid(input,
+                               static_cast<simdutf::base64_options>(options));
 }
 
 } // extern "C"

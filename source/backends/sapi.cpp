@@ -131,7 +131,7 @@ private:
   mutable std::mutex init_mtx;
   mutable std::condition_variable init_cv;
   std::optional<bool> ready = std::nullopt;
-  std::mutex voice_lock;
+  std::recursive_mutex voice_lock;
 
   void thread_proc(const std::stop_token &st) {
     InitHandshake handshake{.m = init_mtx,

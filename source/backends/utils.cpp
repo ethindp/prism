@@ -47,27 +47,30 @@ float range_convert_midpoint(float old_value, float old_min, float old_midpoint,
 }
 // End NVGT code
 
-double exp_range_convert(float t, double out_min, double out_mid, double out_max) {
-    const double log_min = std::log(out_min);
-    const double log_mid = std::log(out_mid);
-    const double log_max = std::log(out_max);
-    double log_val;
-    if (t <= 0.5)
-        log_val = log_min + (log_mid - log_min) * (t / 0.5);
-    else
-        log_val = log_mid + (log_max - log_mid) * ((t - 0.5) / 0.5);
-    return std::exp(log_val);
+double exp_range_convert(float t, double out_min, double out_mid,
+                         double out_max) {
+  const double log_min = std::log(out_min);
+  const double log_mid = std::log(out_mid);
+  const double log_max = std::log(out_max);
+  double log_val;
+  if (t <= 0.5)
+    log_val = log_min + ((log_mid - log_min) * (t / 0.5));
+  else
+    log_val = log_mid + ((log_max - log_mid) * ((t - 0.5) / 0.5));
+  return std::exp(log_val);
 }
 
-float exp_range_convert_inv(double val, double out_min, double out_mid, double out_max) {
-    const double log_min = std::log(out_min);
-    const double log_mid = std::log(out_mid);
-    const double log_max = std::log(out_max);
-    double log_val = std::log(std::clamp(val, out_min, out_max));
-    if (log_val <= log_mid)
-        return static_cast<float>(0.5 * (log_val - log_min) / (log_mid - log_min));
-    else
-        return static_cast<float>(0.5 + 0.5 * (log_val - log_mid) / (log_max - log_mid));
+float exp_range_convert_inv(double val, double out_min, double out_mid,
+                            double out_max) {
+  const double log_min = std::log(out_min);
+  const double log_mid = std::log(out_mid);
+  const double log_max = std::log(out_max);
+  double log_val = std::log(std::clamp(val, out_min, out_max));
+  if (log_val <= log_mid)
+    return static_cast<float>(0.5 * (log_val - log_min) / (log_mid - log_min));
+  else
+    return static_cast<float>(
+        0.5 + (0.5 * (log_val - log_mid) / (log_max - log_mid)));
 }
 
 struct TrimBounds {

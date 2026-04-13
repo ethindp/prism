@@ -64,11 +64,11 @@ static PrismContext *ctx;
 static fast_lock lock = FAST_LOCK_INIT;
 static PrismBackend *backend TSA_GUARDED_BY(lock);
 static PrismBackend *sapi_backend TSA_GUARDED_BY(lock);
-static atomic_bool prefer_sapi;
 static wchar_t *backend_name TSA_GUARDED_BY(lock);
 static wchar_t *sapi_backend_name TSA_GUARDED_BY(lock);
 static UnicodeLocale saved_locale TSA_GUARDED_BY(lock);
 static atomic_bool loaded;
+static atomic_bool prefer_sapi;
 
 static inline char *wchar_to_utf8(const wchar_t *src) {
   if (src == NULL)

@@ -206,15 +206,17 @@ if(PRISM_ENABLE_LINTING)
     set_property(TARGET tolk PROPERTY COMPILE_WARNING_LEVEL 4)
     target_compile_options(
       tolk
-      PRIVATE /external:anglebrackets
-              /external:W0
-              /analyze
-              /analyze:external-
-              /analyze:log
-              "${CMAKE_BINARY_DIR}/nativecodeanalysis/tolk/"
-              /analyze:log:format:sarif
-              /analyze:ruleset
-              "${_MERGED_RULESET_PATH}")
+      PRIVATE
+        /external:anglebrackets
+        /external:W0
+        "/external:I$<TARGET_PROPERTY:prism,INTERFACE_INCLUDE_DIRECTORIES>"
+        /analyze
+        /analyze:external-
+        /analyze:log
+        "${CMAKE_BINARY_DIR}/nativecodeanalysis/tolk/"
+        /analyze:log:format:sarif
+        /analyze:ruleset
+        "${_MERGED_RULESET_PATH}")
   endif()
 endif()
 set_target_properties(tolk PROPERTIES VERSION ${PROJECT_VERSION}

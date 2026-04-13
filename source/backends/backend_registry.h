@@ -106,11 +106,11 @@ private:
 };
 
 template <typename T> struct BackendRegistrar {
-  BackendRegistrar(BackendId id, std::string_view name, int priority) {
+  BackendRegistrar(BackendId id, std::string_view name, int priority) noexcept {
     BackendRegistry::instance().register_backend(
         id, name, priority, []() { return std::make_shared<T>(); });
   }
-  BackendRegistrar(std::string_view name, int priority)
+  BackendRegistrar(std::string_view name, int priority) noexcept
       : BackendRegistrar(make_backend_id(name), name, priority) {}
 };
 

@@ -18,7 +18,7 @@ private:
   GDBusConnection *conn{nullptr};
   OrcaServiceOrgGnomeOrcaService *service_proxy{nullptr};
   OrcaModuleOrgGnomeOrcaModule *module_proxy{nullptr};
-  static inline constexpr auto orca_speech_service_names =
+  static constexpr auto orca_speech_service_names =
       std::to_array<std::string_view>(
           {"/org/gnome/Orca/Service/SpeechAndVerbosityManager",
            "/org/gnome/Orca/Service/SpeechManager"});

@@ -19,7 +19,7 @@ void fast_lock_acquire(fast_lock *lk) TSA_NO_THREAD_SAFETY_ANALYSIS {
                               &lk->state, &expected, 2, memory_order_relaxed,
                               memory_order_relaxed))) {
       int cmp = 2;
-      WaitOnAddress(&lk->state, &cmp, sizeof(int), INFINITE);
+      WaitOnAddress((volatile void *)&lk->state, &cmp, sizeof(int), INFINITE);
     }
     expected = 0;
     if (atomic_compare_exchange_strong_explicit(&lk->state, &expected, 2,
@@ -57,7 +57,7 @@ void fast_lock_release(fast_lock *lk) TSA_NO_THREAD_SAFETY_ANALYSIS {
 #ifdef _WIN32
   if (atomic_fetch_sub_explicit(&lk->state, 1, memory_order_release) != 1) {
     atomic_store_explicit(&lk->state, 0, memory_order_release);
-    WakeByAddressSingle(&lk->state);
+    WakeByAddressSingle((void *)&lk->state);
   }
 #elif defined(__APPLE__)
   os_unfair_lock_unlock(&lk->inner);

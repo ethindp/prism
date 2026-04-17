@@ -31,7 +31,7 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
   private float ttsVolume = 1.0f;
   private float ttsRate = 1.0f;
   private float ttsPitch = 1.0f;
-  private boolean isTTSInitialized = false;
+  private volatile boolean isTTSInitialized = false;
   private CountDownLatch isTTSInitializedLatch;
   private CharsetDecoder decoder;
   private List<Voice> voiceList;
@@ -330,7 +330,7 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
   public Outcome<Unit, BackendError> setPitch(float pitch) {
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
     if (pitch < 0.0f || pitch > 1.0f) return Outcome.fromError(BackendError.RANGE_OUT_OF_BOUNDS);
-    ttsPitch = Utils.rangeConvertMidpoint(pitch, 0.0f, 0.5f, 1.0f, 0.25f, 2.125f, 4.0f);
+    ttsPitch = Utils.expRangeConvert(pitch, 0.25f, 2.125f, 4.0f);
     if (tts.setPitch(ttsPitch) == TextToSpeech.ERROR) {
       return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     }
@@ -340,8 +340,7 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
   @Override
   public Outcome<Float, BackendError> getPitch() {
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
-    return Outcome.fromResult(
-        Utils.rangeConvertMidpoint(ttsPitch, 0.25f, 2.125f, 4.0f, 0.0f, 0.5f, 1.0f));
+    return Outcome.fromResult(Utils.expRangeConvertInv(ttsPitch, 0.25f, 2.125f, 4.0f));
   }
 
   @Override
@@ -418,9 +417,11 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
 
   @Override
   public void close() {
-    tts.stop();
-    tts.shutdown();
-    tts = null;
+    if (tts != null) {
+      tts.stop();
+      tts.shutdown();
+      tts = null;
+    }
     isTTSInitialized = false;
     pendingUtterances.clear();
   }

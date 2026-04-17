@@ -42,7 +42,28 @@ private:
   std::shared_ptr<prism::java::AbstractTextToSpeechBackend> backend{nullptr};
 
 public:
-  ~AndroidTextToSpeechBackend() override {}
+  ~AndroidTextToSpeechBackend() override {
+    if (!backend)
+      return;
+    auto *env = djinni::jniGetThreadEnv();
+    if (!env)
+      return;
+    auto jobj = prism::jni::AbstractTextToSpeechBackend::fromCpp(env, backend);
+    if (!jobj)
+      return;
+    jclass cls = env->GetObjectClass(jobj.get());
+    if (cls) {
+      jmethodID mid = env->GetMethodID(cls, "close", "()V");
+      if (mid) {
+        env->CallVoidMethod(jobj.get(), mid);
+        if (env->ExceptionCheck()) {
+          env->ExceptionDescribe();
+          env->ExceptionClear();
+        }
+      }
+      env->DeleteLocalRef(cls);
+    }
+  }
 
   std::string_view get_name() const override {
     return "Android Text to Speech";

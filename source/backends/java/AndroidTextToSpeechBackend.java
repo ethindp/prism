@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
+public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements AutoCloseable {
   private TextToSpeech tts;
   private float ttsVolume = 1.0f;
   private float ttsRate = 1.0f;
@@ -305,6 +305,7 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
     if (tts.stop() != TextToSpeech.SUCCESS)
       return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
+    pendingUtterances.clear();
     return Outcome.fromResult(new Unit());
   }
 
@@ -312,8 +313,8 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
   public Outcome<Unit, BackendError> setRate(float rate) {
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
     if (rate < 0.0f || rate > 1.0f) return Outcome.fromError(BackendError.RANGE_OUT_OF_BOUNDS);
-    ttsRate = Utils.rangeConvertMidpoint(rate, 0.0f, 0.5f, 1.0f, 0.1f, 3.05f, 6.0f);
-    if (tts.setSpeechRate(rate) == TextToSpeech.ERROR) {
+    ttsRate = Utils.expRangeConvert(rate, 0.1f, 3.05f, 6.0f);
+    if (tts.setSpeechRate(ttsRate) == TextToSpeech.ERROR) {
       return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     }
     return Outcome.fromResult(new Unit());
@@ -321,8 +322,8 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
 
   @Override
   public Outcome<Float, BackendError> getRate() {
-    return Outcome.fromResult(
-        Utils.rangeConvertMidpoint(ttsRate, 0.1f, 3.05f, 6.0f, 0.0f, 0.5f, 1.0f));
+    if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
+    return Outcome.fromResult(Utils.expRangeConvertInv(ttsRate, 0.1f, 3.05f, 6.0f));
   }
 
   @Override
@@ -330,7 +331,7 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
     if (pitch < 0.0f || pitch > 1.0f) return Outcome.fromError(BackendError.RANGE_OUT_OF_BOUNDS);
     ttsPitch = Utils.rangeConvertMidpoint(pitch, 0.0f, 0.5f, 1.0f, 0.25f, 2.125f, 4.0f);
-    if (tts.setPitch(pitch) == TextToSpeech.ERROR) {
+    if (tts.setPitch(ttsPitch) == TextToSpeech.ERROR) {
       return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     }
     return Outcome.fromResult(new Unit());
@@ -338,12 +339,14 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
 
   @Override
   public Outcome<Float, BackendError> getPitch() {
+    if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
     return Outcome.fromResult(
         Utils.rangeConvertMidpoint(ttsPitch, 0.25f, 2.125f, 4.0f, 0.0f, 0.5f, 1.0f));
   }
 
   @Override
   public Outcome<Unit, BackendError> setVolume(float volume) {
+    if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
     if (volume < 0.0f || volume > 1.0f) return Outcome.fromError(BackendError.RANGE_OUT_OF_BOUNDS);
     ttsVolume = volume;
     return Outcome.fromResult(new Unit());
@@ -351,6 +354,7 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
 
   @Override
   public Outcome<Float, BackendError> getVolume() {
+    if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
     return Outcome.fromResult(ttsVolume);
   }
 
@@ -410,5 +414,14 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend {
     int index = voiceList.indexOf(current);
     if (index == -1) return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     return Outcome.fromResult((long) index);
+  }
+
+  @Override
+  public void close() {
+    tts.stop();
+    tts.shutdown();
+    tts = null;
+    isTTSInitialized = false;
+    pendingUtterances.clear();
   }
 }

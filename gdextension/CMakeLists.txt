@@ -22,7 +22,6 @@ get_target_property(GODOTCPP_SUFFIX godot::cpp GODOTCPP_SUFFIX)
 get_target_property(GODOTCPP_PLATFORM godot::cpp GODOTCPP_PLATFORM)
 project(
   prismatoid
-  VERSION 0.11.3
   DESCRIPTION "Prism bindings for Godot"
   LANGUAGES C CXX)
 add_library(${LIBNAME} SHARED)

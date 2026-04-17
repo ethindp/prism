@@ -338,8 +338,7 @@ public:
     try {
       if (rate < 0.0 || rate > 1.0)
         return std::unexpected(BackendError::RangeOutOfBounds);
-      const auto val =
-          exp_range_convert(rate, 0.5, 1.0, 6.0);
+      const auto val = exp_range_convert(rate, 0.5, 1.0, 6.0);
       synth.Options().SpeakingRate(val);
       return {};
     } catch (const winrt::hresult_error &) {
@@ -351,7 +350,8 @@ public:
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     try {
-      return static_cast<float>(exp_range_convert_inv(synth.Options().SpeakingRate(), 0.5, 1.0, 6.0));
+      return exp_range_convert_inv(synth.Options().SpeakingRate(), 0.5, 1.0,
+                                   6.0);
     } catch (const winrt::hresult_error &) {
       return std::unexpected(BackendError::Unknown);
     }

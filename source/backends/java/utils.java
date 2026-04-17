@@ -24,4 +24,25 @@ final class Utils {
       return rangeConvert(old_value, old_min, old_midpoint, new_min, new_midpoint);
     else return rangeConvert(old_value, old_midpoint, old_max, new_midpoint, new_max);
   }
+
+  public static float expRangeConvert(float t, float outMin, float outMid, float outMax) {
+    final float logMin = (float) Math.log(outMin);
+    final float logMid = (float) Math.log(outMid);
+    final float logMax = (float) Math.log(outMax);
+    return (float)
+        Math.exp(
+            (t <= 0.5f)
+                ? logMin + (logMid - logMin) * (t / 0.5f)
+                : logMid + (logMax - logMid) * ((t - 0.5f) / 0.5f));
+  }
+
+  public static float expRangeConvertInv(float val, float outMin, float outMid, float outMax) {
+    final float logMin = (float) Math.log(outMin);
+    final float logMid = (float) Math.log(outMid);
+    final float logMax = (float) Math.log(outMax);
+    final float logVal = (float) Math.log(val < outMin ? outMin : (val > outMax ? outMax : val));
+    return ((logVal <= logMid)
+        ? 0.5f * (logVal - logMin) / (logMid - logMin)
+        : 0.5f + (0.5f * (logVal - logMid) / (logMax - logMid)));
+  }
 }

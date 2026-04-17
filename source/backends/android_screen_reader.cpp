@@ -26,10 +26,10 @@ private:
 public:
   AndroidScreenReaderAudioCallbackAdapter(PrismLambda lambda, void *userdata)
       : lambda(std::move(lambda)), userdata(userdata) {}
-  void on_audio(std::int64_t java_userdata, const djinni::DataView &samples,
-                int64_t sample_count, int64_t channels,
-                int64_t sample_rate) override {
-    const float *float_samples = reinterpret_cast<const float *>(samples.buf());
+  void on_audio([[maybe_unused]] std::int64_t java_userdata,
+                const djinni::DataView &samples, int64_t sample_count,
+                int64_t channels, int64_t sample_rate) override {
+    const auto* float_samples = reinterpret_cast<const float *>(samples.buf());
     if (lambda) {
       lambda(static_cast<void *>(userdata), float_samples,
              static_cast<std::size_t>(sample_count),
@@ -46,19 +46,19 @@ private:
 public:
   ~AndroidScreenReaderBackend() override = default;
 
-  std::string_view get_name() const override { return "Android screen reader"; }
+  [[nodiscard]] std::string_view get_name() const override { return "Android screen reader"; }
 
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
     auto *env = djinni::jniGetThreadEnv();
     if (env != nullptr) {
-      auto java_class =
+      auto* java_class =
           env->FindClass("com/github/ethindp/prism/AndroidScreenReaderBackend");
       if (java_class != nullptr) {
         features |= IS_SUPPORTED_AT_RUNTIME;
       } else {
-        if (env->ExceptionCheck())
+        if (env->ExceptionCheck() != 0)
           env->ExceptionClear();
       }
     }
@@ -70,23 +70,23 @@ public:
     auto *jni_env = djinni::jniGetThreadEnv();
     if (jni_env == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
-    auto java_class = jni_env->FindClass(
+    auto* java_class = jni_env->FindClass(
         "com/github/ethindp/prism/AndroidScreenReaderBackend");
     if (java_class == nullptr) {
-      if (jni_env->ExceptionCheck())
+      if (jni_env->ExceptionCheck() != 0)
         jni_env->ExceptionClear();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     jmethodID constructor = jni_env->GetMethodID(java_class, "<init>", "()V");
-    if (!constructor) {
-      if (jni_env->ExceptionCheck())
+    if (constructor == nullptr) {
+      if (jni_env->ExceptionCheck() != 0)
         jni_env->ExceptionClear();
       jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    auto instance = jni_env->NewObject(java_class, constructor);
-    if (!instance) {
-      if (jni_env->ExceptionCheck())
+    auto* instance = jni_env->NewObject(java_class, constructor);
+    if (instance == nullptr) {
+      if (jni_env->ExceptionCheck() != 0)
         jni_env->ExceptionClear();
       jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -95,7 +95,7 @@ public:
     jni_env->DeleteLocalRef(java_class);
     jni_env->DeleteLocalRef(instance);
     if (!backend) {
-      if (jni_env->ExceptionCheck())
+      if (jni_env->ExceptionCheck() != 0)
         jni_env->ExceptionClear();
       return std::unexpected(BackendError::BackendNotAvailable);
     }

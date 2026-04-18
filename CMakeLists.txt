@@ -54,12 +54,6 @@ option(
 if(PRISM_ENABLE_SHIMS)
   option(PRISM_ENABLE_TOLK_SHIM "Enable tolk compatibility shim"
          ${PRISM_ENABLE_SHIMS})
-  option(PRISM_ENABLE_UNIVERSAL_SPEECH_SHIM
-         "Enable UniversalSpeech compatibility shim" ${PRISM_ENABLE_SHIMS})
-  option(PRISM_ENABLE_SPEECH_CORE_SHIM "Enable SpeechCore compatibility shim"
-         ${PRISM_ENABLE_SHIMS})
-  option(PRISM_ENABLE_SRAL_SHIM "Enable SRAL compatibility shim"
-         ${PRISM_ENABLE_SHIMS})
 endif()
 if(MSVC AND PRISM_ENABLE_GDEXTENSION)
   set(CMAKE_MSVC_RUNTIME_LIBRARY
@@ -67,9 +61,9 @@ if(MSVC AND PRISM_ENABLE_GDEXTENSION)
       CACHE STRING "Match godot-cpp non-debug CRT")
 endif()
 if(APPLE)
-  enable_language(Swift)
+  enable_language(Objc)
+  enable_language(Objcpp)
 endif()
-
 function(add_import_library target def_file dll_name)
   set(lib_file "${CMAKE_CURRENT_BINARY_DIR}/${target}.lib")
   if(DEFINED MSVC_CXX_ARCHITECTURE_ID)
@@ -119,19 +113,9 @@ file(GLOB_RECURSE android_headers CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/java/*.hpp")
 file(GLOB_RECURSE android_sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/java/*.cpp")
-if(APPLE)
-  file(
-    GLOB_RECURSE
-    sources
-    CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/*.swift")
-else()
-  file(GLOB_RECURSE sources CONFIGURE_DEPENDS
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
-       "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c")
-endif()
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c")
 # Remove platform-specific files
 if(NOT WIN32)
   list(REMOVE_ITEM sources
@@ -153,6 +137,14 @@ endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp
                             PROPERTIES COMPILE_OPTIONS "-w")
+if(APPLE)
+  set(PRISM_OBJCPP_SOURCES
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/avspeech.cpp"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/voiceover.cpp")
+  set_source_files_properties(
+    ${PRISM_OBJCPP_SOURCES} PROPERTIES COMPILE_OPTIONS
+                                       "-x;objective-c++;-fobjc-arc")
+endif()
 set(_comp_arch_id "")
 if(DEFINED MSVC_CXX_ARCHITECTURE_ID)
   set(_comp_arch_id "${MSVC_CXX_ARCHITECTURE_ID}")
@@ -290,8 +282,17 @@ if(WIN32)
   endif()
 endif()
 if(APPLE)
+  find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
   find_library(AVFOUNDATION_FRAMEWORK AVFoundation REQUIRED)
-  target_link_libraries(${PROJECT_NAME} PRIVATE ${AVFOUNDATION_FRAMEWORK} c++)
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${FOUNDATION_FRAMEWORK}
+                                                ${AVFOUNDATION_FRAMEWORK} c++)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${APPKIT_FRAMEWORK})
+  else()
+    find_library(UIKIT_FRAMEWORK UIKit REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${UIKIT_FRAMEWORK})
+  endif()
 endif()
 if(UNIX
    AND NOT APPLE
@@ -505,9 +506,6 @@ endif()
 if(APPLE)
   target_link_options(${PROJECT_NAME} PRIVATE
                       "LINKER:-headerpad_max_install_names")
-  set_target_properties(
-    prism PROPERTIES BUILD_RPATH "@loader_path;/usr/lib/swift"
-                     INSTALL_RPATH "@loader_path;/usr/lib/swift")
 endif()
 if(ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")

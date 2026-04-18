@@ -53,8 +53,8 @@
       pendingText = ""
       cancelDebounce()
       DispatchQueue.main.async {
-        NSAccessibility.post(element: w, notification: .windowCreated)
-        NSAccessibility.post(element: w, notification: .focusedWindowChanged)
+        NSAccessibilityPostNotification(w, .windowCreated)
+        NSAccessibilityPostNotification(w, .focusedWindowChanged)
       }
       return .ok
     }
@@ -135,10 +135,10 @@
       pendingText = ""
       guard let w = cachedWindow ?? pickBestWindow() else { return }
       cachedWindow = w
-      NSAccessibility.post(
-        element: w,
-        notification: .announcementRequested,
-        userInfo: [
+      NSAccessibilityPostNotificationWithUserInfo(
+        w,
+        .announcementRequested,
+        [
           .announcement: textToSpeak,
           .priority: NSAccessibilityPriorityLevel.high.rawValue,
         ]

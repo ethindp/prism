@@ -20,23 +20,39 @@
 
 @interface AVSpeechSyncDelegate : NSObject <AVSpeechSynthesizerDelegate>
 @property(nonatomic, strong) dispatch_semaphore_t sema;
-@property(atomic, assign) bool isDone;
+@property(atomic, assign) bool is_done;
 @end
 
 @implementation AVSpeechSyncDelegate
 - (void)speechSynthesizer:(AVSpeechSynthesizer *)synthesizer
     didFinishSpeechUtterance:(AVSpeechUtterance *)utterance {
-  self.isDone = true;
+  self.is_done = true;
   if (self.sema) {
     dispatch_semaphore_signal(self.sema);
   }
 }
 - (void)speechSynthesizer:(AVSpeechSynthesizer *)synthesizer
     didCancelSpeechUtterance:(AVSpeechUtterance *)utterance {
-  self.isDone = true;
+  self.is_done = true;
   if (self.sema) {
     dispatch_semaphore_signal(self.sema);
   }
+}
+@end
+
+@interface AVSpeechMemoryAccumulator : NSObject
+@property(nonatomic, strong) NSMutableArray<AVAudioPCMBuffer *> *buffers;
+@property(nonatomic, strong) AVAudioFormat *captured_format;
+@property(nonatomic, strong) dispatch_semaphore_t done_sema;
+@end
+
+@implementation AVSpeechMemoryAccumulator
+- (instancetype)init {
+  if ((self = [super init])) {
+    _buffers = [NSMutableArray array];
+    _done_sema = dispatch_semaphore_create(0);
+  }
+  return self;
 }
 @end
 
@@ -239,95 +255,91 @@ public:
       return std::unexpected(BackendError::InvalidUtf8);
     if (!callback)
       return std::unexpected(BackendError::InvalidParam);
-    NSString *nsText = [[NSString alloc] initWithBytes:text.data()
-                                                length:text.size()
-                                              encoding:NSUTF8StringEncoding];
-    if (!nsText)
+    if (!@available(macOS 10.15, iOS 13.0, *)) {
+      return std::unexpected(BackendError::NotImplemented);
+    }
+    NSString *ns_text = [[NSString alloc] initWithBytes:text.data()
+                                                 length:text.size()
+                                               encoding:NSUTF8StringEncoding];
+    if (!ns_text)
       return std::unexpected(BackendError::InvalidUtf8);
-    std::size_t v_idx = voice_idx.load(std::memory_order_acquire);
-    float current_vol = volume.load(std::memory_order_acquire);
-    float current_pitch = pitch.load(std::memory_order_acquire);
-    float current_rate = rate.load(std::memory_order_acquire);
+    const auto v_idx = voice_idx.load(std::memory_order_acquire);
+    const auto current_vol = volume.load(std::memory_order_acquire);
+    const auto current_pitch = pitch.load(std::memory_order_acquire);
+    const auto current_rate = rate.load(std::memory_order_acquire);
     std::string target_voice_id;
     {
       std::shared_lock sl(voices_lock);
-      if (v_idx < voices.size()) {
+      if (v_idx < voices.size())
         target_voice_id = voices[v_idx].identifier;
+    }
+    AVSpeechMemoryAccumulator *acc = [[AVSpeechMemoryAccumulator alloc] init];
+    __block AVSpeechSynthesizer *mem_synth = nil;
+    sync_on_main(^{
+      mem_synth = [[AVSpeechSynthesizer alloc] init];
+      AVSpeechUtterance *utterance =
+          [AVSpeechUtterance speechUtteranceWithString:ns_text];
+      utterance.volume = current_vol;
+      const auto pitch_multiplier =
+          (current_pitch < 0.5f) ? (0.5f + current_pitch)
+                                 : (1.0f + (current_pitch - 0.5f) * 2.0f);
+      utterance.pitchMultiplier = pitch_multiplier;
+      utterance.rate = AVSpeechUtteranceMinimumSpeechRate +
+                       (current_rate * (AVSpeechUtteranceMaximumSpeechRate -
+                                        AVSpeechUtteranceMinimumSpeechRate));
+      if (!target_voice_id.empty()) {
+        NSString *ns_id =
+            [NSString stringWithUTF8String:target_voice_id.c_str()];
+        AVSpeechSynthesisVoice *v =
+            [AVSpeechSynthesisVoice voiceWithIdentifier:ns_id];
+        if (v)
+          utterance.voice = v;
+      }
+      [mem_synth writeUtterance:utterance
+               toBufferCallback:^(AVAudioBuffer *_Nonnull buffer) {
+                 if (![buffer isKindOfClass:[AVAudioPCMBuffer class]])
+                   return;
+                 AVAudioPCMBuffer *pcm = (AVAudioPCMBuffer *)buffer;
+                 if (pcm.frameLength == 0) {
+                   dispatch_semaphore_signal(acc.done_sema);
+                   return;
+                 }
+                 if (!acc.captured_format)
+                   acc.captured_format = pcm.format;
+                 [acc.buffers addObject:pcm];
+               }];
+    });
+    wait_for_semaphore_pumping_main(acc.done_sema, 60.0 * 5.0);
+    if (acc.buffers.count == 0 || acc.captured_format == nil)
+      return {};
+    const auto channels = acc.captured_format.channelCount;
+    const auto sample_rate =
+        static_cast<std::size_t>(acc.captured_format.sampleRate);
+    auto total_frames = 0;
+    for (AVAudioPCMBuffer *b in acc.buffers)
+      total_frames += b.frameLength;
+    std::vector<float> audio_data;
+    audio_data.reserve(total_frames * channels);
+    for (AVAudioPCMBuffer *b in acc.buffers) {
+      auto *const *fd = b.floatChannelData;
+      if (!fd)
+        continue;
+      const auto frames = b.frameLength;
+      if (channels == 1) {
+        audio_data.insert(audio_data.end(), fd[0], fd[0] + frames);
+      } else {
+        const auto base = audio_data.size();
+        audio_data.resize(base + frames * channels);
+        for (std::size_t f = 0; f < frames; ++f)
+          for (std::size_t ch = 0; ch < channels; ++ch)
+            audio_data[base + f * channels + ch] = fd[ch][f];
       }
     }
-    __block BackendResult<> result = {};
-    __block std::vector<float> audio_data;
-    __block std::mutex audio_mtx;
-    __block std::size_t out_channels = 1;
-    __block std::size_t out_sample_rate = 22050;
-    if (@available(macOS 10.15, iOS 13.0, *)) {
-      __block AVSpeechSynthesizer *memSynth = nil;
-      AVSpeechSyncDelegate *memDelegate = [[AVSpeechSyncDelegate alloc] init];
-      dispatch_semaphore_t sema = dispatch_semaphore_create(0);
-      memDelegate.sema = sema;
-      sync_on_main(^{
-        memSynth = [[AVSpeechSynthesizer alloc] init];
-        memSynth.delegate = memDelegate;
-        AVSpeechUtterance *utterance =
-            [AVSpeechUtterance speechUtteranceWithString:nsText];
-        utterance.volume = current_vol;
-        float pitchMultiplier = (current_pitch < 0.5f)
-                                    ? (0.5f + current_pitch)
-                                    : (1.0f + (current_pitch - 0.5f) * 2.0f);
-        utterance.pitchMultiplier = pitchMultiplier;
-        utterance.rate = AVSpeechUtteranceMinimumSpeechRate +
-                         (current_rate * (AVSpeechUtteranceMaximumSpeechRate -
-                                          AVSpeechUtteranceMinimumSpeechRate));
-        if (!target_voice_id.empty()) {
-          NSString *nsId =
-              [NSString stringWithUTF8String:target_voice_id.c_str()];
-          AVSpeechSynthesisVoice *v =
-              [AVSpeechSynthesisVoice voiceWithIdentifier:nsId];
-          if (v)
-            utterance.voice = v;
-        }
-        [memSynth writeUtterance:utterance
-                toBufferCallback:^(AVAudioBuffer *_Nonnull buffer) {
-                  if (![buffer isKindOfClass:[AVAudioPCMBuffer class]])
-                    return;
-                  AVAudioPCMBuffer *pcmBuffer = (AVAudioPCMBuffer *)buffer;
-                  float *const *floatData = pcmBuffer.floatChannelData;
-                  if (!floatData)
-                    return;
-                  std::size_t frames = pcmBuffer.frameLength;
-                  std::size_t channels = pcmBuffer.format.channelCount;
-                  std::size_t sampleRate =
-                      static_cast<std::size_t>(pcmBuffer.format.sampleRate);
-                  std::lock_guard<std::mutex> lock(audio_mtx);
-                  out_channels = channels;
-                  out_sample_rate = sampleRate;
-                  std::size_t current_size = audio_data.size();
-                  audio_data.resize(current_size + frames * channels);
-                  if (channels == 1) {
-                    std::copy(floatData[0], floatData[0] + frames,
-                              audio_data.begin() + current_size);
-                  } else {
-                    for (std::size_t f = 0; f < frames; f++) {
-                      for (std::size_t ch = 0; ch < channels; ch++) {
-                        audio_data[current_size + f * channels + ch] =
-                            floatData[ch][f];
-                      }
-                    }
-                  }
-                }];
-      });
-      wait_for_semaphore_pumping_main(
-          sema, 60.0 * 5.0 /* robust 5-min internal timeout */);
-      if (!audio_data.empty()) {
-        auto const tv = trim_silence_rms_gate_inplace(
-            std::span<float>(audio_data), out_channels, out_sample_rate);
-        callback(userdata, tv.view.data(), tv.view.size() / out_channels,
-                 out_channels, out_sample_rate);
-      }
-    } else {
-      result = std::unexpected(BackendError::NotImplemented);
-    }
-    return result;
+    auto const tv = trim_silence_rms_gate_inplace(std::span<float>(audio_data),
+                                                  channels, sample_rate);
+    callback(userdata, tv.view.data(), tv.view.size() / channels, channels,
+             sample_rate);
+    return {};
   }
 
   BackendResult<> output(std::string_view text, bool interrupt) override {

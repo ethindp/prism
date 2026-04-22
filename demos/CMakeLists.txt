@@ -33,3 +33,18 @@ if(CMAKE_CONFIGURATION_TYPES)
                                    "${CMAKE_BINARY_DIR}/${cfg}")
   endforeach()
 endif()
+add_executable(speechd_backend_demo speechd_demo.cpp)
+target_compile_features(speechd_backend_demo PRIVATE cxx_std_23)
+target_link_libraries(speechd_backend_demo PRIVATE prism)
+set_property(TARGET speechd_backend_demo PROPERTY CXX_CLANG_TIDY
+                                               "${CMAKE_CXX_CLANG_TIDY}")
+set_target_properties(speechd_backend_demo PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+                                                   "${CMAKE_BINARY_DIR}")
+if(CMAKE_CONFIGURATION_TYPES)
+  foreach(cfg ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER "${cfg}" cfg_u)
+    set_target_properties(
+      speechd_backend_demo PROPERTIES "RUNTIME_OUTPUT_DIRECTORY_${cfg_u}"
+                                   "${CMAKE_BINARY_DIR}/${cfg}")
+  endforeach()
+endif()

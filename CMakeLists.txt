@@ -55,6 +55,9 @@ if(PRISM_ENABLE_SHIMS)
   option(PRISM_ENABLE_TOLK_SHIM "Enable tolk compatibility shim"
          ${PRISM_ENABLE_SHIMS})
 endif()
+option(PRISM_BUILD_WINELIBS
+       "Build Winelib bridges so Wine-hosted Prism can reach Linux TTS hosts"
+       OFF)
 if(MSVC AND PRISM_ENABLE_GDEXTENSION)
   set(CMAKE_MSVC_RUNTIME_LIBRARY
       "MultiThreadedDLL"
@@ -666,4 +669,27 @@ if(PRISM_ENABLE_GDEXTENSION)
 endif()
 if(PRISM_ENABLE_SHIMS)
   add_subdirectory(shims)
+endif()
+if(PRISM_BUILD_WINELIBS)
+  if(WIN32
+     OR APPLE
+     OR ANDROID
+     OR EMSCRIPTEN)
+    message(FATAL_ERROR "PRISM_BUILD_WINELIBS requires a Linux/BSD host build")
+  endif()
+  include(ExternalProject)
+  ExternalProject_Add(
+    prism_winelibs
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/winelibs
+    CMAKE_ARGS
+      -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/winelib-toolchain.cmake
+      -DCMAKE_BUILD_TYPE=$<CONFIG>
+      -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+      -DPRISM_DBUS_XML_DIR=${CMAKE_CURRENT_SOURCE_DIR}/dbus
+    INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/winelibs_install
+    BUILD_ALWAYS OFF)
+  install(
+    DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/winelibs_install/
+    DESTINATION .
+    USE_SOURCE_PERMISSIONS)
 endif()

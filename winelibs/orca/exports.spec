@@ -1,0 +1,5 @@
+@ cdecl prism_orca_available()
+@ cdecl prism_orca_create(ptr)
+@ cdecl prism_orca_destroy(ptr)
+@ cdecl prism_orca_speak(ptr str)
+@ cdecl prism_orca_stop(ptr)

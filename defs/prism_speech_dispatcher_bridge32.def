@@ -1,0 +1,7 @@
+LIBRARY "prism_speech_dispatcher_bridge.dll"
+EXPORTS
+    prism_speechd_available@0
+    prism_speechd_create@4
+    prism_speechd_destroy@4
+    prism_speechd_speak@8
+    prism_speechd_stop@4

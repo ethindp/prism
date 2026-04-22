@@ -36,6 +36,9 @@ static constexpr const char *BOY_PC_READER_DLL = "BoyCtrl.dll";
 #endif
 static constexpr const char *PCTK_DLL = "PCTKUSR.dll";
 #endif
+static constexpr const char *PRISM_ORCA_BRIDGE_DLL = "prism_orca_bridge.dll";
+static constexpr const char *PRISM_SPEECH_DISPATCHER_BRIDGE_DLL =
+    "prism_speech_dispatcher.dll";
 
 namespace system_access {
 static BOOL __stdcall stub_SA_SayW([[maybe_unused]] const wchar_t *text) {
@@ -122,13 +125,11 @@ stub_BoyCtrlSpeak2([[maybe_unused]] const wchar_t *text) {
   return e_bcerr_unavailable;
 }
 
-static BoyCtrlError __stdcall
-stub_BoyCtrlSpeak3([[maybe_unused]] const wchar_t *text,
-                   [[maybe_unused]] bool withSlave,
-                   [[maybe_unused]] const wchar_t *slaveName,
-                   [[maybe_unused]] bool append,
-                   [[maybe_unused]] bool allowBreak,
-                   [[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
+static BoyCtrlError __stdcall stub_BoyCtrlSpeak3(
+    [[maybe_unused]] const wchar_t *text, [[maybe_unused]] bool withSlave,
+    [[maybe_unused]] const wchar_t *slaveName, [[maybe_unused]] bool append,
+    [[maybe_unused]] bool allowBreak,
+    [[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
   return e_bcerr_unavailable;
 }
 
@@ -416,6 +417,54 @@ static int __stdcall stub_dic_reg_detail_from_file() { return 0; }
 static int __stdcall stub_dic_detail_text_out() { return 0; }
 } // namespace pctalker
 
+namespace prism_orca_bridge {
+using PrismOrcaDBusInstance = void *;
+
+bool __cdecl prism_orca_available_stub(void) { return false; }
+
+bool __cdecl
+prism_orca_create_stub([[maybe_unused]] PrismOrcaDBusInstance **out) {
+  return false;
+}
+
+void __cdecl
+prism_orca_destroy_stub([[maybe_unused]] PrismOrcaDBusInstance *h) {}
+
+bool __cdecl prism_orca_speak_stub([[maybe_unused]] PrismOrcaDBusInstance *h,
+                                   [[maybe_unused]] const char *text) {
+  return false;
+}
+
+bool __cdecl prism_orca_stop_stub([[maybe_unused]] PrismOrcaDBusInstance *h) {
+  return false;
+}
+} // namespace prism_orca_bridge
+
+namespace prism_speech_dispatcher_bridge {
+using PrismSpeechDispatcherInstance = void *;
+
+bool __cdecl prism_speechd_available_stub(void) { return false; }
+
+bool __cdecl prism_speechd_create_stub(
+    [[maybe_unused]] PrismSpeechDispatcherInstance **out) {
+  return false;
+}
+
+void __cdecl
+prism_speechd_destroy_stub([[maybe_unused]] PrismSpeechDispatcherInstance *h) {}
+
+bool __cdecl
+prism_speechd_speak_stub([[maybe_unused]] PrismSpeechDispatcherInstance *h,
+                         [[maybe_unused]] const char *text) {
+  return false;
+}
+
+bool __cdecl
+prism_speechd_stop_stub([[maybe_unused]] PrismSpeechDispatcherInstance *h) {
+  return false;
+}
+} // namespace prism_speech_dispatcher_bridge
+
 static const
 #if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
@@ -514,14 +563,12 @@ static const
         {.dll = BOY_PC_READER_DLL,
          .func = "BoyCtrlActivateYTApp",
          .stub = stub_cast(boy_pc_reader::stub_BoyCtrlActivateYTApp)},
-        /* 1. Engine presence */
         {.dll = PCTK_DLL,
          .func = "PCTKStatus",
          .stub = stub_cast(pctalker::stub_PCTKStatus)},
         {.dll = PCTK_DLL,
          .func = "PCTKGetVersion",
          .stub = stub_cast(pctalker::stub_PCTKGetVersion)},
-        /* 2. Speech output */
         {.dll = PCTK_DLL,
          .func = "PCTKPRead",
          .stub = stub_cast(pctalker::stub_PCTKPRead)},
@@ -534,7 +581,6 @@ static const
         {.dll = PCTK_DLL,
          .func = "PCTKPReadExW",
          .stub = stub_cast(pctalker::stub_PCTKPReadExW)},
-        /* 3. Voice control */
         {.dll = PCTK_DLL,
          .func = "PCTKVReset",
          .stub = stub_cast(pctalker::stub_PCTKVReset)},
@@ -547,7 +593,6 @@ static const
         {.dll = PCTK_DLL,
          .func = "PCTKBeep",
          .stub = stub_cast(pctalker::stub_PCTKBeep)},
-        /* 4. Character guidance */
         {.dll = PCTK_DLL,
          .func = "PCTKCGuide",
          .stub = stub_cast(pctalker::stub_PCTKCGuide)},
@@ -560,22 +605,18 @@ static const
         {.dll = PCTK_DLL,
          .func = "PCTKCGuideExW",
          .stub = stub_cast(pctalker::stub_PCTKCGuideExW)},
-        /* 5. Configuration */
         {.dll = PCTK_DLL,
          .func = "PCTKGetStatus",
          .stub = stub_cast(pctalker::stub_PCTKGetStatus)},
         {.dll = PCTK_DLL,
          .func = "PCTKSetStatus",
          .stub = stub_cast(pctalker::stub_PCTKSetStatus)},
-        /* 6. Command dispatch */
         {.dll = PCTK_DLL,
          .func = "PCTKCommand",
          .stub = stub_cast(pctalker::stub_PCTKCommand)},
-        /* 7. Dictionary */
         {.dll = PCTK_DLL,
          .func = "PCTKLoadUserDict",
          .stub = stub_cast(pctalker::stub_PCTKLoadUserDict)},
-        /* 8. Braille */
         {.dll = PCTK_DLL,
          .func = "PCTKPinStatus",
          .stub = stub_cast(pctalker::stub_PCTKPinStatus)},
@@ -609,7 +650,6 @@ static const
         {.dll = PCTK_DLL,
          .func = "PCTKPinReset",
          .stub = stub_cast(pctalker::stub_PCTKPinReset)},
-        /* 9. 95Reader compatibility */
         {.dll = PCTK_DLL,
          .func = "SoundMessage",
          .stub = stub_cast(pctalker::stub_SoundMessage)},
@@ -622,7 +662,6 @@ static const
         {.dll = PCTK_DLL,
          .func = "SoundPause",
          .stub = stub_cast(pctalker::stub_SoundPause)},
-        /* 10. Events and IME */
         {.dll = PCTK_DLL,
          .func = "AGSEvent",
          .stub = stub_cast(pctalker::stub_AGSEvent)},
@@ -632,7 +671,6 @@ static const
         {.dll = PCTK_DLL,
          .func = "IsImmInput",
          .stub = stub_cast(pctalker::stub_IsImmInput)},
-        /* 11. Stubs */
         {.dll = PCTK_DLL,
          .func = "PCTKEventHook",
          .stub = stub_cast(pctalker::stub_PCTKEventHook)},
@@ -663,7 +701,6 @@ static const
         {.dll = PCTK_DLL,
          .func = "dic_detail_text_out",
          .stub = stub_cast(pctalker::stub_dic_detail_text_out)},
-        /* 12. Uppercase aliases */
         {.dll = PCTK_DLL,
          .func = "PCTKSTATUS",
          .stub = stub_cast(pctalker::stub_PCTKStatus)},
@@ -724,10 +761,80 @@ static const
         {.dll = PCTK_DLL,
          .func = "PCTKGETVOICELOG",
          .stub = stub_cast(pctalker::stub_PCTKGetVoiceLog)},
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_available",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_available_stub)},
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_create",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_create_stub)},
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_destroy",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_destroy_stub)},
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_speak",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_speak_stub)},
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_stop",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_stop_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_available",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_available_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_create",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_create_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_destroy",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_destroy_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_speak",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_speak_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_stop",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_stop_stub)},
     });
 #else
-    std::array<StubEntry, 0>
-        stubs = {};
+    auto stubs = std::to_array<StubEntry>({
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_available",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_available_stub)},
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_create",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_create_stub)},
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_destroy",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_destroy_stub)},
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_speak",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_speak_stub)},
+        {.dll = PRISM_ORCA_BRIDGE_DLL,
+         .func = "prism_orca_stop",
+         .stub = stub_cast(prism_orca_bridge::prism_orca_stop_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_available",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_available_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_create",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_create_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_destroy",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_destroy_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_speak",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_speak_stub)},
+        {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+         .func = "prism_speechd_stop",
+         .stub = stub_cast(
+             prism_speech_dispatcher_bridge::prism_speechd_stop_stub)},
+    });
 #endif
 
 static int dummy_count = 0;

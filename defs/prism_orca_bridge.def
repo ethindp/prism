@@ -1,0 +1,7 @@
+LIBRARY "prism_orca_bridge.dll"
+EXPORTS
+    prism_orca_available
+    prism_orca_create
+    prism_orca_destroy
+    prism_orca_speak
+    prism_orca_stop

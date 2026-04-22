@@ -134,4 +134,106 @@ public:
 REGISTER_BACKEND_WITH_ID(SpeechDispatcherBackend, Backends::SpeechDispatcher,
                          "Speech Dispatcher", 97);
 #endif
+#elif defined(_WIN32)
+#include "raw/prism_speech_dispatcher_bridge.h"
+#include <atomic>
+#include <tchar.h>
+#include <windows.h>
+
+class SpeechDispatcherBackend final : public TextToSpeechBackend {
+private:
+  std::atomic<PrismSpeechDispatcherInstance *> instance{nullptr};
+
+public:
+  ~SpeechDispatcherBackend() override {
+    if (instance != nullptr) {
+      prism_speechd_destroy(instance);
+      instance = nullptr;
+    }
+  }
+
+  [[nodiscard]] std::string_view get_name() const override { return "Speech Dispatcher"; }
+
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    if (auto *const ntdll_handle = GetModuleHandle(_T("ntdll.dll"));
+        ntdll_handle != nullptr) {
+      if (auto *const wgv_addr =
+              GetProcAddress(ntdll_handle, "wine_get_version");
+          wgv_addr != nullptr) {
+        if (prism_speechd_available()) {
+          features |= IS_SUPPORTED_AT_RUNTIME;
+        }
+      }
+    }
+    features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    return features;
+  }
+
+  BackendResult<> initialize() override {
+    if (instance != nullptr) {
+      return std::unexpected(BackendError::AlreadyInitialized);
+    }
+    if (auto *const ntdll_handle = GetModuleHandle(_T("ntdll.dll"));
+        ntdll_handle == nullptr) {
+      return std::unexpected(BackendError::InternalBackendError);
+    } else {
+      if (auto *const wgv_addr =
+              GetProcAddress(ntdll_handle, "wine_get_version");
+          wgv_addr == nullptr) {
+        return std::unexpected(BackendError::BackendNotAvailable);
+      } else {
+        if (!prism_speechd_available()) {
+          return std::unexpected(BackendError::BackendNotAvailable);
+        }
+      }
+    }
+    PrismSpeechDispatcherInstance* h { nullptr };
+    if (const auto res = prism_speechd_create(&h);
+        !res || h == nullptr) {
+      if (!res) {
+        prism_speechd_destroy(h);
+        return std::unexpected(BackendError::BackendNotAvailable);
+      } else if (instance == nullptr) {
+        return std::unexpected(BackendError::InternalBackendError);
+      }
+    }
+    instance.exchange(h);
+    return {};
+  }
+
+  BackendResult<> speak(std::string_view text, bool interrupt) override {
+    if (instance == nullptr) {
+      return std::unexpected(BackendError::NotInitialized);
+    }
+    if (!simdutf::validate_utf8(text.data(), text.size())) {
+      return std::unexpected(BackendError::InvalidUtf8);
+    }
+    if (interrupt)
+      if (const auto res = stop(); !res)
+        return res;
+    if (const auto res = prism_speechd_speak(instance, text.data()); !res) {
+      return std::unexpected(BackendError::SpeakFailure);
+    }
+    return {};
+  }
+
+  BackendResult<> output(std::string_view text, bool interrupt) override {
+    return speak(text, interrupt);
+  }
+
+  BackendResult<> stop() override {
+    if (instance == nullptr) {
+      return std::unexpected(BackendError::NotInitialized);
+    }
+    if (const auto res = prism_speechd_stop(instance); !res) {
+      return std::unexpected(BackendError::InternalBackendError);
+    }
+    return {};
+  }
+};
+
+REGISTER_BACKEND_WITH_ID(SpeechDispatcherBackend, Backends::SpeechDispatcher,
+                         "Speech Dispatcher", 97);
 #endif

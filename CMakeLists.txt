@@ -176,7 +176,7 @@ if(PRISM_ENABLE_LEGACY_BACKENDS)
     target_compile_definitions(
       ${PROJECT_NAME} PRIVATE PRISM_ENABLE_SYSTEM_ACCESS_LEGACY_BACKEND)
   endif()
-  if(PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
+  if(PRISM_ENABLE_LEGACY_WINDOW_EYES_BACKEND)
     target_compile_definitions(${PROJECT_NAME}
                                PRIVATE PRISM_ENABLE_WINDOW_EYES_LEGACY_BACKEND)
   endif()
@@ -258,7 +258,16 @@ if(WIN32)
       BoyCtrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader32.def BoyCtrl.dll)
     add_import_library(
       PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker32.def PCTKUSR.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ZDSR BoyCtrl PCTalker)
+    add_import_library(
+      PrismOrcaBridge ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_orca_bridge32.def
+      prism_orca_bridge.dll)
+    add_import_library(
+      PrismSpeechDispatcherBridge
+      ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge32.def
+      prism_speech_dispatcher_bridge.dll)
+    target_link_libraries(
+      ${PROJECT_NAME} PRIVATE ZDSR BoyCtrl PCTalker PrismOrcaBridge
+                              PrismSpeechDispatcherBridge)
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     if(PRISM_ENABLE_LEGACY_BACKENDS
        AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
@@ -273,11 +282,28 @@ if(WIN32)
       BoyCtrl-x64.dll)
     add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
                        PCTKUSR.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ZDSR BoyCtrl PCTalker)
+    add_import_library(
+      PrismOrcaBridge ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_orca_bridge.def
+      prism_orca_bridge.dll)
+    add_import_library(
+      PrismSpeechDispatcherBridge
+      ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge.def
+      prism_speech_dispatcher_bridge.dll)
+    target_link_libraries(
+      ${PROJECT_NAME} PRIVATE ZDSR BoyCtrl PCTalker PrismOrcaBridge
+                              PrismSpeechDispatcherBridge)
   else()
     add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
                        PCTKUSR.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE PCTalker)
+    add_import_library(
+      PrismOrcaBridge ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_orca_bridge.def
+      prism_orca_bridge.dll)
+    add_import_library(
+      PrismSpeechDispatcherBridge
+      ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge.def
+      prism_speech_dispatcher_bridge.dll)
+    target_link_libraries(${PROJECT_NAME} PRIVATE PCTalker PrismOrcaBridge
+                                                  PrismSpeechDispatcherBridge)
   endif()
 endif()
 if(APPLE)
@@ -418,8 +444,13 @@ if(MSVC)
   target_link_options(${PROJECT_NAME} PRIVATE "/STACK:8388608")
   if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
     target_link_options(
-      ${PROJECT_NAME} ${_PRISM_LINK_VIS} /delayload:ZDSRAPI.dll
-      /delayload:BoyCtrl.dll /delayload:PCTKUSR.dll)
+      ${PROJECT_NAME}
+      ${_PRISM_LINK_VIS}
+      /delayload:ZDSRAPI.dll
+      /delayload:BoyCtrl.dll
+      /delayload:PCTKUSR.dll
+      /delayload:prism_orca_bridge.dll
+      /delayload:prism_speech_dispatcher_bridge.dll)
     if(PRISM_ENABLE_LEGACY_BACKENDS
        AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
       target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
@@ -427,16 +458,23 @@ if(MSVC)
     endif()
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     target_link_options(
-      ${PROJECT_NAME} ${_PRISM_LINK_VIS} /delayload:ZDSRAPI_x64.dll
-      /delayload:BoyCtrl-x64.dll /delayload:PCTKUSR.dll)
+      ${PROJECT_NAME}
+      ${_PRISM_LINK_VIS}
+      /delayload:ZDSRAPI_x64.dll
+      /delayload:BoyCtrl-x64.dll
+      /delayload:PCTKUSR.dll
+      /delayload:prism_orca_bridge.dll
+      /delayload:prism_speech_dispatcher_bridge.dll)
     if(PRISM_ENABLE_LEGACY_BACKENDS
        AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
       target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
                           /delayload:SAAPI64.dll)
     endif()
   else()
-    target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
-                        /delayload:PCTKUSR.dll)
+    target_link_options(
+      ${PROJECT_NAME} ${_PRISM_LINK_VIS} /delayload:PCTKUSR.dll
+      /delayload:prism_orca_bridge.dll
+      /delayload:prism_speech_dispatcher_bridge.dll)
   endif()
   check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
@@ -453,8 +491,13 @@ elseif(
   if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
-      ${PROJECT_NAME} ${_PRISM_LINK_VIS} "LINKER:/delayload:ZDSRAPI.dll"
-      "LINKER:/delayload:BoyCtrl.dll" "LINKER:/delayload:PCTKUSR.dll")
+      ${PROJECT_NAME}
+      ${_PRISM_LINK_VIS}
+      "LINKER:/delayload:ZDSRAPI.dll"
+      "LINKER:/delayload:BoyCtrl.dll"
+      "LINKER:/delayload:PCTKUSR.dll"
+      "LINKER:/delayload:prism_orca_bridge.dll"
+      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
     if(PRISM_ENABLE_LEGACY_BACKENDS
        AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
       target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
@@ -463,17 +506,24 @@ elseif(
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
-      ${PROJECT_NAME} ${_PRISM_LINK_VIS} "LINKER:/delayload:ZDSRAPI_x64.dll"
-      "LINKER:/delayload:BoyCtrl-x64.dll" "LINKER:/delayload:PCTKUSR.dll")
+      ${PROJECT_NAME}
+      ${_PRISM_LINK_VIS}
+      "LINKER:/delayload:ZDSRAPI_x64.dll"
+      "LINKER:/delayload:BoyCtrl-x64.dll"
+      "LINKER:/delayload:PCTKUSR.dll"
+      "LINKER:/delayload:prism_orca_bridge.dll"
+      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
     if(PRISM_ENABLE_LEGACY_BACKENDS
        AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
       target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
-                          "LINKER:/delayload:SAAPI32.dll")
+                          "LINKER:/delayload:SAAPI64.dll")
     endif()
   else()
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
-    target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
-                        "LINKER:/delayload:PCTKUSR.dll")
+    target_link_options(
+      ${PROJECT_NAME} ${_PRISM_LINK_VIS} "LINKER:/delayload:PCTKUSR.dll"
+      "LINKER:/delayload:prism_orca_bridge.dll"
+      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
   endif()
 elseif(WIN32 AND MINGW)
   message(

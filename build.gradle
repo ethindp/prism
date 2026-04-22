@@ -3,7 +3,7 @@ plugins {
     id "com.diffplug.spotless" version "8.1.0"
 }
 dependencies {
-    implementation "com.ibm.icu:icu4j:78.1"
+    implementation "com.ibm.icu:icu4j:78.3"
 }
 def gitVersion = providers.exec {
     commandLine 'git', 'describe', '--tags', '--always', '--dirty'

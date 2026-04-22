@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: MPL-2.0
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs:        ${{ steps.compute.outputs.docs }}
+      windows:     ${{ steps.compute.outputs.windows }}
+      linux:       ${{ steps.compute.outputs.linux }}
+      macos:       ${{ steps.compute.outputs.macos }}
+      ios:         ${{ steps.compute.outputs.ios }}
+      android:     ${{ steps.compute.outputs.android }}
+      emscripten:  ${{ steps.compute.outputs.emscripten }}
+      gdextension: ${{ steps.compute.outputs.gdextension }}
+      wheels:      ${{ steps.compute.outputs.wheels }}
+      sdist:       ${{ steps.compute.outputs.sdist }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            docs:
+              - 'doc/**'
+            gdext_src:
+              - 'gdextension/**'
+            windows:
+              - 'source/backends/sapi.cpp'
+              - 'source/backends/nvda.cpp'
+              - 'source/backends/jaws.cpp'
+              - 'source/backends/uia.cpp'
+              - 'source/backends/onecore.cpp'
+              - 'source/backends/window_eyes.cpp'
+              - 'source/backends/zdsr.cpp'
+              - 'source/backends/zoom_text.cpp'
+              - 'source/backends/pc_talker.cpp'
+              - 'source/backends/boy_pc_reader.cpp'
+              - 'source/backends/moderncom/**'
+              - 'source/delayimp.cpp'
+            linux:
+              - 'source/backends/speech_dispatcher.cpp'
+              - 'source/backends/orca.cpp'
+              - 'dbus/**'
+            apple:
+              - 'source/backends/voiceover.cpp'
+              - 'source/backends/avspeech.cpp'
+            android:
+              - 'source/backends/android_tts.cpp'
+              - 'source/backends/android_screen_reader.cpp'
+              - 'source/backends/java/**'
+              - 'source/AndroidManifest.xml'
+              - 'android/**'
+              - 'build.gradle'
+              - 'settings.gradle'
+              - 'gradle.properties'
+              - 'gradle/**'
+              - 'gradlew'
+              - 'gradlew.bat'
+            web:
+              - 'source/backends/web_speech_synthesis_backend.cpp'
+            python:
+              - 'bindings/py/**'
+              - 'pyproject.toml'
+              - 'pytest.ini'
+              - 'uv.lock'
+            core:
+              - 'include/**'
+              - 'source/prism.cpp'
+              - 'source/simdutf.*'
+              - 'source/backend_check.cpp'
+              - 'source/backends/backend.h'
+              - 'source/backends/backend_registry.*'
+              - 'source/backends/utils.*'
+              - 'source/backends/concurrentqueue.h'
+              - 'source/backends/dr_wav.h'
+              - 'source/backends/wav.c'
+              - 'CMakeLists.txt'
+              - 'cmake/**'
+              - 'shims/**'
+            ci:
+              - '.github/workflows/**'
+      - id: compute
+        env:
+          F_DOCS:      ${{ steps.filter.outputs.docs }}
+          F_GDEXT_SRC: ${{ steps.filter.outputs.gdext_src }}
+          F_WINDOWS:   ${{ steps.filter.outputs.windows }}
+          F_LINUX:     ${{ steps.filter.outputs.linux }}
+          F_APPLE:     ${{ steps.filter.outputs.apple }}
+          F_ANDROID:   ${{ steps.filter.outputs.android }}
+          F_WEB:       ${{ steps.filter.outputs.web }}
+          F_PYTHON:    ${{ steps.filter.outputs.python }}
+          F_CORE:      ${{ steps.filter.outputs.core }}
+          F_CI:        ${{ steps.filter.outputs.ci }}
+        run: |
+          any() {
+            for v in "$@"; do
+              if [ "$v" = "true" ]; then echo true; return; fi
+            done
+            echo false
+          }
+          ALL=$(any "$F_CORE" "$F_CI")
+          PLATFORM_ANY=$(any "$F_WINDOWS" "$F_LINUX" "$F_APPLE" "$F_ANDROID" "$F_WEB")
+          {
+            echo "docs=$(any "$ALL" "$F_DOCS")"
+            echo "windows=$(any "$ALL" "$F_WINDOWS")"
+            echo "linux=$(any "$ALL" "$F_LINUX")"
+            echo "macos=$(any "$ALL" "$F_APPLE")"
+            echo "ios=$(any "$ALL" "$F_APPLE")"
+            echo "android=$(any "$ALL" "$F_ANDROID")"
+            echo "emscripten=$(any "$ALL" "$F_WEB")"
+            echo "gdextension=$(any "$ALL" "$F_GDEXT_SRC" "$PLATFORM_ANY")"
+            echo "wheels=$(any "$ALL" "$F_PYTHON" "$PLATFORM_ANY")"
+            echo "sdist=$(any "$ALL" "$F_PYTHON")"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    uses: ./.github/workflows/build.yml
+    with:
+      build_docs:        ${{ needs.changes.outputs.docs == 'true' }}
+      build_windows:     ${{ needs.changes.outputs.windows == 'true' }}
+      build_linux:       ${{ needs.changes.outputs.linux == 'true' }}
+      build_macos:       ${{ needs.changes.outputs.macos == 'true' }}
+      build_ios:         ${{ needs.changes.outputs.ios == 'true' }}
+      build_android:     ${{ needs.changes.outputs.android == 'true' }}
+      build_emscripten:  ${{ needs.changes.outputs.emscripten == 'true' }}
+      build_gdextension: ${{ needs.changes.outputs.gdextension == 'true' }}
+      build_wheels:      ${{ needs.changes.outputs.wheels == 'true' }}
+      build_sdist:       ${{ needs.changes.outputs.sdist == 'true' }}

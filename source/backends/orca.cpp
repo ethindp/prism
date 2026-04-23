@@ -221,17 +221,14 @@ public:
         }
       }
     }
-    PrismOrcaDBusInstance* h { nullptr };
-    if (const auto res = prism_orca_create(&h);
-        !res || h == nullptr) {
-      if (!res) {
-        prism_orca_destroy(h);
-        return std::unexpected(BackendError::BackendNotAvailable);
-      } else if (h == nullptr) {
-        return std::unexpected(BackendError::InternalBackendError);
-      }
+    PrismOrcaDBusInstance *h = nullptr;
+    if (!prism_orca_create(&h)) {
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
-    instance.exchange(h);
+    if (h == nullptr) {
+      return std::unexpected(BackendError::InternalBackendError);
+    }
+    instance.store(h);
     return {};
   }
 

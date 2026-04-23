@@ -152,7 +152,9 @@ public:
     }
   }
 
-  [[nodiscard]] std::string_view get_name() const override { return "Speech Dispatcher"; }
+  [[nodiscard]] std::string_view get_name() const override {
+    return "Speech Dispatcher";
+  }
 
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
@@ -189,17 +191,14 @@ public:
         }
       }
     }
-    PrismSpeechDispatcherInstance* h { nullptr };
-    if (const auto res = prism_speechd_create(&h);
-        !res || h == nullptr) {
-      if (!res) {
-        prism_speechd_destroy(h);
-        return std::unexpected(BackendError::BackendNotAvailable);
-      } else if (h == nullptr) {
-        return std::unexpected(BackendError::InternalBackendError);
-      }
+    PrismSpeechDispatcherInstance *h = nullptr;
+    if (!prism_speechd_create(&h)) {
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
-    instance.exchange(h);
+    if (h == nullptr) {
+      return std::unexpected(BackendError::InternalBackendError);
+    }
+    instance.store(h);
     return {};
   }
 

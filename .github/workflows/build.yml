@@ -90,9 +90,9 @@ jobs:
                 Get-ChildItem "${src}/shims" -Recurse -File | ForEach-Object {
                   $item = $_
                   switch ($item.Extension) {
-                    ".dll" { Copy-Item $_.FullName "dist/${linkage}/${config}/bin/" }
-                    ".lib" { Copy-Item $_.FullName "dist/${linkage}/${config}/lib/" }
-                    ".pdb" { if ($config -eq "debug") { Copy-Item $_.FullName "dist/${linkage}/${config}/bin/" } }
+                    ".dll" { Copy-Item $item.FullName "dist/${linkage}/${config}/bin/" }
+                    ".lib" { Copy-Item $item.FullName "dist/${linkage}/${config}/lib/" }
+                    ".pdb" { if ($config -eq "debug") { Copy-Item $item.FullName "dist/${linkage}/${config}/bin/" } }
                   }
                 }
               }

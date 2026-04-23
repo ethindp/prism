@@ -58,10 +58,22 @@ endif()
 option(PRISM_BUILD_WINELIBS
        "Build Winelib bridges so Wine-hosted Prism can reach Linux TTS hosts"
        OFF)
-if(MSVC AND PRISM_ENABLE_GDEXTENSION)
-  set(CMAKE_MSVC_RUNTIME_LIBRARY
-      "MultiThreadedDLL"
-      CACHE STRING "Match godot-cpp non-debug CRT")
+if(WIN32)
+  if(PRISM_ENABLE_GDEXTENSION)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY
+        "MultiThreadedDLL"
+        CACHE STRING "Match godot-cpp non-debug CRT")
+  else()
+    if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+      set(CMAKE_MSVC_RUNTIME_LIBRARY
+          "MultiThreaded"
+          CACHE STRING "Set MSVC CRT library type")
+    else()
+      set(CMAKE_MSVC_RUNTIME_LIBRARY
+          "MultiThreadedDebug"
+          CACHE STRING "Set MSVC CRT library type")
+    endif()
+  endif()
 endif()
 function(add_import_library target def_file dll_name)
   set(lib_file "${CMAKE_CURRENT_BINARY_DIR}/${target}.lib")

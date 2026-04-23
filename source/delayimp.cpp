@@ -38,7 +38,7 @@ static constexpr const char *PCTK_DLL = "PCTKUSR.dll";
 #endif
 static constexpr const char *PRISM_ORCA_BRIDGE_DLL = "prism_orca_bridge.dll";
 static constexpr const char *PRISM_SPEECH_DISPATCHER_BRIDGE_DLL =
-    "prism_speech_dispatcher.dll";
+    "prism_speech_dispatcher_bridge.dll";
 
 namespace system_access {
 static BOOL __stdcall stub_SA_SayW([[maybe_unused]] const wchar_t *text) {

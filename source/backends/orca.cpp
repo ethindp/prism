@@ -227,7 +227,7 @@ public:
       if (!res) {
         prism_orca_destroy(h);
         return std::unexpected(BackendError::BackendNotAvailable);
-      } else if (instance == nullptr) {
+      } else if (h == nullptr) {
         return std::unexpected(BackendError::InternalBackendError);
       }
     }

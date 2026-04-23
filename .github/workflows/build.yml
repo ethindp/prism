@@ -50,6 +50,16 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.msvc_arch }}
+      - name: Upgrade CMake via winget
+        shell: pwsh
+        run: |
+          winget install --id Kitware.CMake `
+            --exact `
+            --silent `
+            --accept-source-agreements `
+            --accept-package-agreements `
+            --disable-interactivity `
+            --force
       - name: Build all configurations
         shell: pwsh
         run: |
@@ -118,8 +128,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
+      - name: Install latest CMake from Kitware
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ca-certificates gpg wget
+          test -f /usr/share/doc/kitware-archive-keyring/copyright || wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+          echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ noble main' | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
+          sudo apt-get update -y
+          test -f /usr/share/doc/kitware-archive-keyring/copyright || sudo rm /usr/share/keyrings/kitware-archive-keyring.gpg
+          sudo apt-get install -y kitware-archive-keyring
+          sudo apt-get install cmake -y || sudo apt-get full-upgrade -y
       - name: Install deps
-        run: sudo apt-get update && sudo apt-get install -y libspeechd-dev libglib2.0-dev wine64-tools libgio-2.0-dev libdbus-1-dev
+        run: sudo apt-get update && sudo apt-get install -y libspeechd-dev libglib2.0-dev wine64-tools libdbus-1-dev
       - name: Build all configurations
         run: |
           for shared in ON OFF; do
@@ -149,7 +169,7 @@ jobs:
               mkdir -p "dist/${linkage}/${config}/lib/wine"
               cp "$bridge_dir"/*.dll.so "dist/${linkage}/${config}/lib/wine/"
               if [ -d "${src}/shims" ]; then
-                find "${src}/shims" -mindepth 2 -type f -exec cp {} "dist/${linkage}/${config}/lib/" \;
+                find "${src}/shims" -type f -name '*.so' -exec cp {} "dist/${linkage}/${config}/lib/" \;
               fi
             done
           done
@@ -213,7 +233,7 @@ jobs:
               arm_shims="build-arm64-${linkage}-${config}/shims"
               x86_shims="build-x86_64-${linkage}-${config}/shims"
               if [ -d "$arm_shims" ]; then
-                find "$arm_shims" -mindepth 2 -type f | while read -r arm_file; do
+                find "$arm_shims" -maxdepth 3 -type f \( -name '*.dylib' -o -name '*.a' \) | while read -r arm_file; do
                   rel="${arm_file#$arm_shims/}"
                   fname=$(basename "$rel")
                   lipo -create "$arm_file" "${x86_shims}/${rel}" -output "dist/${linkage}/${config}/lib/${fname}"
@@ -269,7 +289,7 @@ jobs:
                 cp -r "${src}"/*.dSYM "dist/${linkage}/${config}/lib/" 2>/dev/null || true
               fi
               if [ -d "${src}/shims" ]; then
-                find "${src}/shims" -mindepth 2 -type f -exec cp {} "dist/${linkage}/${config}/lib/" \;
+                find "${src}/shims" -maxdepth 3 -type f \( -name '*.dylib' -o -name '*.a' \) -exec cp {} "dist/${linkage}/${config}/lib/" \;
               fi
             done
           done
@@ -316,6 +336,16 @@ jobs:
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: latest
+      - name: Install latest CMake from Kitware
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ca-certificates gpg wget
+          test -f /usr/share/doc/kitware-archive-keyring/copyright || wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+          echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ noble main' | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
+          sudo apt-get update -y
+          test -f /usr/share/doc/kitware-archive-keyring/copyright || sudo rm /usr/share/keyrings/kitware-archive-keyring.gpg
+          sudo apt-get install -y kitware-archive-keyring
+          sudo apt-get install cmake -y || sudo apt-get full-upgrade -y
       - name: Build all configurations
         run: |
           for bt in Release Debug; do
@@ -330,7 +360,7 @@ jobs:
           mkdir -p dist/static/{release,debug} dist/include
           for config in release debug; do
             if [ -d "build-${config}/shims" ]; then
-              find "build-${config}/shims" -mindepth 2 -type f -exec cp {} "dist/static/${config}/" \;
+              find "build-${config}/shims" -type f -name '*.a' -exec cp {} "dist/static/${config}/" \;
             fi
           done
           cp build-release/libprism.a dist/static/release/
@@ -386,7 +416,25 @@ jobs:
         if: matrix.target.platform == 'linux' && (matrix.target.arch == 'x86_64' || matrix.target.arch == 'arm64')
         run: |
           sudo apt-get update
-          sudo apt-get install -y libspeechd-dev libglib2.0-dev
+          sudo apt-get install -y libspeechd-dev libglib2.0-dev libdbus-1-dev
+      - name: Install latest CMake on Linux
+        if: matrix.target.os == 'ubuntu-latest' || matrix.target.os == 'ubuntu-24.04-arm'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ca-certificates gpg wget
+          test -f /usr/share/doc/kitware-archive-keyring/copyright || wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+          echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ noble main' | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
+          sudo apt-get update -y
+          test -f /usr/share/doc/kitware-archive-keyring/copyright || sudo rm /usr/share/keyrings/kitware-archive-keyring.gpg
+          sudo apt-get install -y kitware-archive-keyring
+          sudo apt-get install cmake -y || sudo apt-get full-upgrade -y
+      - name: Install latest CMake on Windows
+        if: matrix.target.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          winget install --id Kitware.CMake --exact --silent `
+            --accept-source-agreements --accept-package-agreements `
+            --disable-interactivity --force
       - name: MSVC setup
         if: matrix.target.platform == 'windows'
         uses: ilammy/msvc-dev-cmd@v1
@@ -560,6 +608,9 @@ jobs:
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
           CIBW_ARCHS: ${{ matrix.archs || 'auto' }}
           ANDROID_API_LEVEL: 30
+          CIBW_BEFORE_ALL_LINUX: pip install "cmake>=4.2" "ninja"
+          CIBW_BEFORE_ALL_WINDOWS: pip install "cmake>=4.2" "ninja"
+          CIBW_BEFORE_ALL_MACOS: pip install "cmake>=4.2" "ninja"
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}

@@ -45,10 +45,14 @@ jobs:
               - 'source/backends/boy_pc_reader.cpp'
               - 'source/backends/moderncom/**'
               - 'source/delayimp.cpp'
+              - 'source/backends/speech_dispatcher.cpp'
+              - 'source/backends/orca.cpp'
+              - 'idl/**'
             linux:
               - 'source/backends/speech_dispatcher.cpp'
               - 'source/backends/orca.cpp'
               - 'dbus/**'
+              - 'winelibs/**'
             apple:
               - 'source/backends/voiceover.cpp'
               - 'source/backends/avspeech.cpp'

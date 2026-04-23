@@ -37,9 +37,9 @@ set(CMAKE_EXTRA_INCLUDE_FILES "stdatomic.h")
 if(NEEDS_C11_ATOMICS_FLAG)
   set(CMAKE_REQUIRED_FLAGS /experimental:c11atomics)
 endif()
-check_type_size(atomic_bool ATOMIC_BOOL_SIZE RESULT_VARIABLE HAVE_ATOMIC_BOOL)
-check_type_size(atomic_int ATOMIC_INT_SIZE RESULT_VARIABLE HAVE_ATOMIC_INT)
-if(NOT HAVE_ATOMIC_BOOL OR NOT HAVE_ATOMIC_INT)
+check_type_size(atomic_bool ATOMIC_BOOL_SIZE)
+check_type_size(atomic_int ATOMIC_INT_SIZE)
+if(NOT HAVE_ATOMIC_BOOL_SIZE OR NOT HAVE_ATOMIC_INT_SIZE)
   message(
     FATAL_ERROR
       "Atomic bool and int types must exist on this implementation, but they do not, or could not be found"
@@ -244,4 +244,9 @@ install(
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+if(MSVC)
+  install(FILES $<TARGET_PDB_FILE:tolk>
+          DESTINATION ${CMAKE_INSTALL_BINDIR}
+          OPTIONAL)
+endif()
 install(FILES tolk.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

@@ -98,7 +98,7 @@ public:
                      &err);
     if (conn == nullptr) {
       std::free(err);
-      return std::unexpected(BackendError::InternalBackendError);
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     return {};
   }

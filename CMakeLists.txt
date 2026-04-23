@@ -654,13 +654,6 @@ if(NOT ANDROID)
     message(STATUS "IPO not supported for this build")
   endif()
 endif()
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(CMAKE_INSTALL_DEBUG_LIBRARIES ON)
-else()
-  set(CMAKE_INSTALL_DEBUG_LIBRARIES OFF)
-endif()
-set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
-include(InstallRequiredSystemLibraries)
 if(PRISM_ENABLE_TESTS)
   enable_testing()
   add_subdirectory(tests)
@@ -697,20 +690,11 @@ else()
     RUNTIME DESTINATION "bin"
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib")
-  if(WIN32)
-    if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
-      install(
-        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI.dll"
-              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI32.dll"
-        DESTINATION "bin"
-        OPTIONAL)
-    elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
-      install(
-        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
-              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI64.dll"
-        DESTINATION "bin"
-        OPTIONAL)
-    endif()
+  if(MSVC AND BUILD_SHARED_LIBS)
+    install(
+      FILES $<TARGET_PDB_FILE:${PROJECT_NAME}>
+      DESTINATION "bin"
+      OPTIONAL)
   endif()
   install(
     EXPORT prismTargets

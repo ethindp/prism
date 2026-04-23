@@ -61,6 +61,8 @@ jobs:
                 -G Ninja `
                 -DPRISM_ENABLE_TESTS=OFF `
                 -DPRISM_ENABLE_DEMOS=OFF `
+                -DPRISM_ENABLE_SHIMS=ON `
+                -DPRISM_ENABLE_LEGACY_BACKENDS=ON `
                 "-DCMAKE_BUILD_TYPE=$bt" `
                 "-DBUILD_SHARED_LIBS=$shared" `
                 -DPRISM_ENABLE_GDEXTENSION=OFF ${{ matrix.extra_cmake }}
@@ -83,6 +85,15 @@ jobs:
               }
               if ($config -eq "debug") {
                 cp "${src}/prism.pdb" "dist/${linkage}/${config}/bin/" -ErrorAction SilentlyContinue
+              }
+              if (Test-Path "${src}/shims") {
+                Get-ChildItem "${src}/shims" -Recurse -File | ForEach-Object {
+                  switch ($_.Extension) {
+                    ".dll" { Copy-Item $_.FullName "dist/${linkage}/${config}/bin/" }
+                    ".lib" { Copy-Item $_.FullName "dist/${linkage}/${config}/lib/" }
+                    ".pdb" { if ($config -eq "debug") { Copy-Item $_.FullName "dist/${linkage}/${config}/bin/" } }
+                  }
+                }
               }
             }
           }
@@ -136,7 +147,10 @@ jobs:
               fi
               bridge_dir="${src}/winelibs_install/lib/wine"
               mkdir -p "dist/${linkage}/${config}/lib/wine"
-              cp "$bridge_dir/*" "dist/${linkage}/${config}/lib/wine/"
+              cp "$bridge_dir"/*.dll.so "dist/${linkage}/${config}/lib/wine/"
+              if [ -d "${src}/shims" ]; then
+                find "${src}/shims" -mindepth 2 -type f -exec cp {} "dist/${linkage}/${config}/lib/" \;
+              fi
             done
           done
           mkdir -p dist/include
@@ -196,6 +210,15 @@ jobs:
                 cp -r "build-arm64-${linkage}-${config}/libprism.dylib.dSYM" \
                   "dist/${linkage}/${config}/lib/" 2>/dev/null || true
               fi
+              arm_shims="build-arm64-${linkage}-${config}/shims"
+              x86_shims="build-x86_64-${linkage}-${config}/shims"
+              if [ -d "$arm_shims" ]; then
+                find "$arm_shims" -mindepth 2 -type f | while read -r arm_file; do
+                  rel="${arm_file#$arm_shims/}"
+                  fname=$(basename "$rel")
+                  lipo -create "$arm_file" "${x86_shims}/${rel}" -output "dist/${linkage}/${config}/lib/${fname}"
+                done
+              fi
             done
           done
           mkdir -p dist/include
@@ -244,6 +267,9 @@ jobs:
               fi
               if [ "$config" = "debug" ]; then
                 cp -r "${src}"/*.dSYM "dist/${linkage}/${config}/lib/" 2>/dev/null || true
+              fi
+              if [ -d "${src}/shims" ]; then
+                find "${src}/shims" -mindepth 2 -type f -exec cp {} "dist/${linkage}/${config}/lib/" \;
               fi
             done
           done
@@ -302,6 +328,11 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist/static/{release,debug} dist/include
+          for config in release debug; do
+            if [ -d "build-${config}/shims" ]; then
+              find "build-${config}/shims" -mindepth 2 -type f -exec cp {} "dist/static/${config}/" \;
+            fi
+          done
           cp build-release/libprism.a dist/static/release/
           cp build-debug/libprism.a dist/static/debug/
           cp include/prism.h dist/include/

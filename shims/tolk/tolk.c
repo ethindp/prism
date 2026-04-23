@@ -21,8 +21,10 @@ static const bool is_unix = false;
 static const bool is_web = false;
 #elif defined(__APPLE__)
 #include <TargetConditionals.h>
-#if TARGET_OS_IOS || TARGET_OS_SIMULATOR || TARGET_OS_TVOS ||                  \
-    TARGET_OS_WATCHOS || TARGET_OS_VISIONOS
+#if TARGET_OS_IOS || TARGET_OS_SIMULATOR ||                                    \
+    (defined(TARGET_OS_TVOS) && TARGET_OS_TVOS) ||                             \
+    (defined(TARGET_OS_WATCHOS) && TARGET_OS_WATCHOS) ||                       \
+    (defined(TARGET_OS_VISIONOS) && TARGET_OS_VISIONOS)
 static const bool is_windows = false;
 static const bool is_macos = false;
 static const bool is_ios = true;

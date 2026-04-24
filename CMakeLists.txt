@@ -654,13 +654,6 @@ if(NOT ANDROID)
     message(STATUS "IPO not supported for this build")
   endif()
 endif()
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(CMAKE_INSTALL_DEBUG_LIBRARIES ON)
-else()
-  set(CMAKE_INSTALL_DEBUG_LIBRARIES OFF)
-endif()
-set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
-include(InstallRequiredSystemLibraries)
 if(PRISM_ENABLE_TESTS)
   enable_testing()
   add_subdirectory(tests)
@@ -697,11 +690,12 @@ else()
     RUNTIME DESTINATION "bin"
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib")
-if(MSVC AND BUILD_SHARED_LIBS)
-  install(FILES $<TARGET_PDB_FILE:${PROJECT_NAME}>
-          DESTINATION "bin"
-          OPTIONAL)
-endif()
+  if(MSVC AND BUILD_SHARED_LIBS)
+    install(
+      FILES $<TARGET_PDB_FILE:${PROJECT_NAME}>
+      DESTINATION "bin"
+      OPTIONAL)
+  endif()
   install(
     EXPORT prismTargets
     FILE prism-config.cmake

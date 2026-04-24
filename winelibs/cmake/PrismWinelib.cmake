@@ -31,7 +31,7 @@ function(prism_add_winelib NAME)
   if(PAW_DEPS)
     target_link_libraries(${_tgt} PRIVATE ${PAW_DEPS})
   endif()
-    install(
+  install(
     FILES "$<TARGET_FILE_DIR:${_tgt}>/${_tgt}.dll.so"
     DESTINATION wine
     PERMISSIONS

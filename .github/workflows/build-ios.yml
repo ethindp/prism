@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Build iOS
+on:
+  workflow_call:
+
+env:
+  CMAKE_COMMON: >-
+    -G Ninja
+    -DPRISM_ENABLE_TESTS=OFF
+    -DPRISM_ENABLE_DEMOS=OFF
+    -DPRISM_ENABLE_LEGACY_BACKENDS=ON
+    -DPRISM_ENABLE_SHIMS=ON
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download iOS toolchain
+        run: curl -sSL https://raw.githubusercontent.com/leetal/ios-cmake/master/ios.toolchain.cmake -o ios.toolchain.cmake
+      - name: Build all configurations
+        run: |
+          for shared in ON OFF; do
+            linkage=$( [ "$shared" = "ON" ] && echo "dynamic" || echo "static" )
+            for bt in Release Debug; do
+              config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
+              cmake -B "build-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
+                -DCMAKE_BUILD_TYPE="$bt" \
+                -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake \
+                -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=16.0 \
+                -DCMAKE_Swift_FLAGS="-target arm64-apple-ios16.0" \
+                -DBUILD_SHARED_LIBS="$shared" \
+                -DPRISM_ENABLE_GDEXTENSION=OFF
+              cmake --build "build-${linkage}-${config}"
+            done
+          done
+      - name: Package
+        run: |
+          for linkage in dynamic static; do
+            for config in release debug; do
+              bt=$( [ "$config" = "release" ] && echo Release || echo Debug )
+              rm -rf "dist/${linkage}/${config}"
+              cmake --install "build-${linkage}-${config}" \
+                    --prefix  "dist/${linkage}/${config}" \
+                    --config  "$bt"
+              if [ "$config" = "debug" ]; then
+                src_build="build-${linkage}-${config}"
+                find "dist/${linkage}/${config}" -type f -name '*.dylib' | while read -r installed; do
+                  dylib_name=$(basename "$installed")
+                  src_dylib=$(find "$src_build" -type f -name "$dylib_name" -not -path '*/CMakeFiles/*' | head -n1)
+                  [ -n "$src_dylib" ] || continue
+                  [ ! -d "${src_dylib}.dSYM" ] && dsymutil "$src_dylib"
+                  [ -d "${src_dylib}.dSYM" ] || continue
+                  rm -rf "${installed}.dSYM"
+                  cp -R "${src_dylib}.dSYM" "${installed}.dSYM"
+                done
+              fi
+            done
+          done
+          mv dist/dynamic/release/include dist/include
+          rm -rf dist/dynamic/debug/include dist/static/release/include dist/static/debug/include
+          cp -r LICENSES dist
+          cp NOTICE dist
+          cd dist && zip -r ../prism-ios-arm64.zip .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios-arm64
+          path: prism-ios-arm64.zip

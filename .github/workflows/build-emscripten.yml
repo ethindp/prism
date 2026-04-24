@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Build Emscripten
+on:
+  workflow_call:
+
+env:
+  CMAKE_COMMON: >-
+    -G Ninja
+    -DPRISM_ENABLE_TESTS=OFF
+    -DPRISM_ENABLE_DEMOS=OFF
+    -DPRISM_ENABLE_LEGACY_BACKENDS=ON
+    -DPRISM_ENABLE_SHIMS=ON
+
+jobs:
+  emscripten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+      - name: Build all configurations
+        run: |
+          for bt in Release Debug; do
+            config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
+            emcmake cmake -B "build-${config}" ${{ env.CMAKE_COMMON }} \
+              -DCMAKE_BUILD_TYPE="$bt" \
+              -DPRISM_ENABLE_GDEXTENSION=OFF
+            cmake --build "build-${config}"
+          done
+      - name: Package
+        run: |
+          for config in release debug; do
+            bt=$( [ "$config" = "release" ] && echo Release || echo Debug )
+            rm -rf "dist/static/${config}"
+            cmake --install "build-${config}" \
+                  --prefix  "dist/static/${config}" \
+                  --config  "$bt"
+          done
+          mv dist/static/release/include dist/include
+          rm -rf dist/static/debug/include
+          cp -r LICENSES dist
+          cp NOTICE dist
+          cd dist && zip -r ../prism-wasm.zip .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wasm
+          path: prism-wasm.zip

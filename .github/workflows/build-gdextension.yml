@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Build GDExtension
+on:
+  workflow_call:
+
+env:
+  CMAKE_COMMON: >-
+    -G Ninja
+    -DPRISM_ENABLE_TESTS=OFF
+    -DPRISM_ENABLE_DEMOS=OFF
+    -DPRISM_ENABLE_LEGACY_BACKENDS=ON
+    -DPRISM_ENABLE_SHIMS=ON
+
+jobs:
+  gdextension:
+    strategy:
+      fail-fast: true
+      matrix:
+        target-type: [template_debug, template_release]
+        target:
+          - { platform: linux,   arch: x86_64, os: ubuntu-latest }
+          - { platform: linux,   arch: x86_32, os: ubuntu-latest }
+          - { platform: linux,   arch: arm64,  os: ubuntu-24.04-arm }
+          - { platform: linux,   arch: arm32,  os: ubuntu-24.04-arm }
+          - { platform: windows, arch: x86_64, os: windows-latest }
+          - { platform: windows, arch: x86_32, os: windows-latest }
+          - { platform: windows, arch: arm64,  os: windows-latest }
+          - { platform: macos,   arch: arm64,  os: macos-latest }
+          - { platform: macos,   arch: x86_64, os: macos-latest }
+          - { platform: android, arch: x86_64, os: ubuntu-latest }
+          - { platform: android, arch: x86_32, os: ubuntu-latest }
+          - { platform: android, arch: arm64,  os: ubuntu-latest }
+          - { platform: android, arch: arm32,  os: ubuntu-latest }
+          - { platform: ios,     arch: arm64,  os: macos-latest }
+          - { platform: web,     arch: wasm32, os: ubuntu-latest }
+    runs-on: ${{ matrix.target.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: install multilib (x86_32)
+        if: matrix.target.platform == 'linux' && matrix.target.arch == 'x86_32'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib
+      - name: install armhf cross-compiler
+        if: matrix.target.platform == 'linux' && matrix.target.arch == 'arm32'
+        run: |
+          sudo dpkg --add-architecture armhf
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+      - name: install native deps
+        if: matrix.target.platform == 'linux' && (matrix.target.arch == 'x86_64' || matrix.target.arch == 'arm64')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libspeechd-dev libglib2.0-dev libdbus-1-dev
+      - name: MSVC setup
+        if: matrix.target.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: >-
+            ${{
+              matrix.target.arch == 'x86_64' && 'amd64'       ||
+              matrix.target.arch == 'x86_32' && 'x86'         ||
+              matrix.target.arch == 'arm64'  && 'amd64_arm64'
+            }}
+      - name: NDK setup
+        if: matrix.target.platform == 'android'
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r29
+      - name: download iOS toolchain
+        if: matrix.target.platform == 'ios'
+        run: curl -sSL https://raw.githubusercontent.com/leetal/ios-cmake/master/ios.toolchain.cmake -o ios.toolchain.cmake
+      - name: Emscripten setup
+        if: matrix.target.platform == 'web'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+      - name: Configure
+        shell: bash
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          if [ "${{ matrix.target-type }}" = "template_release" ]; then
+            cmake_bt="Release"
+          else
+            cmake_bt="Debug"
+          fi
+          args=(
+            -B build ${{ env.CMAKE_COMMON }}
+            -DCMAKE_BUILD_TYPE="$cmake_bt"
+            -DBUILD_SHARED_LIBS=OFF
+            -DPRISM_ENABLE_GDEXTENSION=ON
+            -DGODOTCPP_TARGET="${{ matrix.target-type }}"
+          )
+          use_emcmake=false
+          case "${{ matrix.target.platform }}-${{ matrix.target.arch }}" in
+            linux-x86_64|linux-arm64)
+              ;;
+            linux-x86_32)
+              args+=( -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32"
+                      -DCMAKE_SYSTEM_NAME=Linux
+                      -DCMAKE_SYSTEM_PROCESSOR=x86_32 )
+              ;;
+            linux-arm32)
+              args+=( -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc
+                      -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++
+                      -DCMAKE_SYSTEM_NAME=Linux
+                      -DCMAKE_SYSTEM_PROCESSOR=arm32 )
+              ;;
+            windows-x86_64)
+              ;;
+            windows-x86_32)
+              args+=( -DCMAKE_SYSTEM_NAME=Windows
+                      -DCMAKE_SYSTEM_PROCESSOR=x86_32 )
+              ;;
+            windows-arm64)
+              args+=( -DCMAKE_SYSTEM_NAME=Windows
+                      -DCMAKE_SYSTEM_PROCESSOR=arm64 )
+              ;;
+            macos-arm64)
+              args+=( -DCMAKE_OSX_ARCHITECTURES=arm64
+                      -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 )
+              ;;
+            macos-x86_64)
+              args+=( -DCMAKE_OSX_ARCHITECTURES=x86_64
+                      -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
+                      -DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0 )
+              ;;
+            android-*)
+              declare -A abi_map=( [arm64]=arm64-v8a [arm32]=armeabi-v7a
+                                   [x86_64]=x86_64  [x86_32]=x86 )
+              args+=( "-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake"
+                      "-DANDROID_ABI=${abi_map[${{ matrix.target.arch }}]}"
+                      -DANDROID_PLATFORM=android-21 )
+              ;;
+            ios-arm64)
+              args+=( -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake
+                      -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=16.0
+                      "-DCMAKE_Swift_FLAGS=-target arm64-apple-ios16.0" )
+              ;;
+            web-wasm32)
+              use_emcmake=true
+              ;;
+          esac
+          if [ "$use_emcmake" = "true" ]; then
+            emcmake cmake "${args[@]}"
+          else
+            cmake "${args[@]}"
+          fi
+      - name: Build
+        run: cmake --build build --target prismatoid
+      - name: Verify and fix binary name
+        shell: bash
+        run: |
+          platform="${{ matrix.target.platform }}"
+          arch="${{ matrix.target.arch }}"
+          target="${{ matrix.target-type }}"
+          outdir="gdextension/project/bin/${platform}"
+          case "$platform" in
+            windows)    ext="dll" ;;
+            macos|ios)  ext="dylib" ;;
+            *)          ext="so" ;;
+          esac
+          expected="prismatoid.${platform}.${target}.${arch}.${ext}"
+          actual=$(find "$outdir" -type f 2>/dev/null | head -1)
+          if [ -z "$actual" ]; then
+            echo "No binary found in ${outdir}"
+            exit 1
+          fi
+          actual_name=$(basename "$actual")
+          if [ "$actual_name" = "$expected" ]; then
+            echo "Binary name correct: ${actual_name}"
+          else
+            echo "Renaming ${actual_name} -> ${expected}"
+            mv "$actual" "${outdir}/${expected}"
+          fi
+      - name: Remove Windows ancillary files
+        if: matrix.target.platform == 'windows'
+        shell: pwsh
+        run: |
+          Remove-Item gdextension/project/bin/* -Include *.exp,*.lib,*.pdb `
+            -Recurse -Force -ErrorAction SilentlyContinue
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: gdextension-${{ matrix.target.platform }}-${{ matrix.target.arch }}-${{ matrix.target-type }}
+          path: gdextension/project/bin/**

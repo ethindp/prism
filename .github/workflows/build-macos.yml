@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Build macOS
+on:
+  workflow_call:
+
+env:
+  CMAKE_COMMON: >-
+    -G Ninja
+    -DPRISM_ENABLE_TESTS=OFF
+    -DPRISM_ENABLE_DEMOS=OFF
+    -DPRISM_ENABLE_LEGACY_BACKENDS=ON
+    -DPRISM_ENABLE_SHIMS=ON
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build all configurations
+        run: |
+          for shared in ON OFF; do
+            linkage=$( [ "$shared" = "ON" ] && echo "dynamic" || echo "static" )
+            for bt in Release Debug; do
+              config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
+              for arch in arm64 x86_64; do
+                extra_flags=""
+                if [ "$arch" = "x86_64" ]; then
+                  extra_flags="-DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0"
+                fi
+                cmake -B "build-${arch}-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
+                  -DCMAKE_BUILD_TYPE="$bt" \
+                  -DCMAKE_OSX_ARCHITECTURES="$arch" \
+                  -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+                  -DBUILD_SHARED_LIBS="$shared" \
+                  -DPRISM_ENABLE_GDEXTENSION=OFF \
+                  $extra_flags
+                cmake --build "build-${arch}-${linkage}-${config}"
+              done
+            done
+          done
+      - name: Package
+        run: |
+          for linkage in dynamic static; do
+            for config in release debug; do
+              bt=$( [ "$config" = "release" ] && echo Release || echo Debug )
+              rm -rf "dist/${linkage}/${config}"
+              cmake --install "build-arm64-${linkage}-${config}" \
+                    --prefix  "dist/${linkage}/${config}" \
+                    --config  "$bt"
+              rm -rf "stage-x86-${linkage}-${config}"
+              cmake --install "build-x86_64-${linkage}-${config}" \
+                    --prefix  "stage-x86-${linkage}-${config}" \
+                    --config  "$bt"
+              base="dist/${linkage}/${config}"
+              stage="stage-x86-${linkage}-${config}"
+              find "$base" -type f \( -name '*.dylib' -o -name '*.a' \) | while read -r arm_file; do
+                rel="${arm_file#$base/}"
+                x86_file="$stage/$rel"
+                if [ -f "$x86_file" ]; then
+                  lipo -create "$arm_file" "$x86_file" -output "${arm_file}.universal"
+                  mv "${arm_file}.universal" "$arm_file"
+                fi
+              done
+              if [ "$config" = "debug" ]; then
+                arm_build="build-arm64-${linkage}-${config}"
+                x86_build="build-x86_64-${linkage}-${config}"
+                find "$base" -type f -name '*.dylib' | while read -r installed; do
+                  rel_from_base="${installed#$base/}"           # e.g. lib/libtolk.0.11.3.dylib
+                  dylib_name=$(basename "$installed")            # e.g. libtolk.0.11.3.dylib
+                  arm_dylib=$(find "$arm_build" -type f -name "$dylib_name" -not -path '*/CMakeFiles/*' | head -n1)
+                  x86_dylib=$(find "$x86_build" -type f -name "$dylib_name" -not -path '*/CMakeFiles/*' | head -n1)
+                  [ -n "$arm_dylib" ] || continue
+                  [ ! -d "${arm_dylib}.dSYM" ] && dsymutil "$arm_dylib"
+                  [ -n "$x86_dylib" ] && [ ! -d "${x86_dylib}.dSYM" ] && dsymutil "$x86_dylib"
+                  arm_dsym="${arm_dylib}.dSYM"
+                  x86_dsym="${x86_dylib:+${x86_dylib}.dSYM}"
+                  [ -d "$arm_dsym" ] || continue
+                  out_dsym="${installed}.dSYM"
+                  rm -rf "$out_dsym"
+                  cp -R "$arm_dsym" "$out_dsym"
+                  inner_rel="Contents/Resources/DWARF/${dylib_name}"
+                  arm_dwarf="$arm_dsym/$inner_rel"
+                  out_dwarf="$out_dsym/$inner_rel"
+                  if [ -n "$x86_dsym" ] && [ -d "$x86_dsym" ]; then
+                    x86_dwarf="$x86_dsym/$inner_rel"
+                    if [ -f "$arm_dwarf" ] && [ -f "$x86_dwarf" ]; then
+                      lipo -create "$arm_dwarf" "$x86_dwarf" -output "${out_dwarf}.universal"
+                      mv "${out_dwarf}.universal" "$out_dwarf"
+                    fi
+                  fi
+                done
+              fi
+            done
+          done
+          mv dist/dynamic/release/include dist/include
+          rm -rf dist/dynamic/debug/include dist/static/release/include dist/static/debug/include
+          cp -r LICENSES dist
+          cp NOTICE dist
+          cd dist && zip -r ../prism-macos-universal.zip .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-universal
+          path: prism-macos-universal.zip

@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Build Docs
+on:
+  workflow_call:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build docs
+        run: |
+          cargo install --all-features mdbook
+          mdbook build doc
+      - uses: actions/upload-artifact@v7
+        with:
+          name: docs
+          path: doc/book

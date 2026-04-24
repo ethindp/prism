@@ -25,22 +25,38 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v${version}" >> "$GITHUB_OUTPUT"
 
-  build:
-    uses: ./.github/workflows/build.yml
-    with:
-      build_docs:        true
-      build_windows:     true
-      build_linux:       true
-      build_macos:       true
-      build_ios:         true
-      build_android:     true
-      build_emscripten:  true
-      build_gdextension: true
-      build_wheels:      true
-      build_sdist:       true
+  build-docs:
+    uses: ./.github/workflows/build-docs.yml
+
+  build-windows:
+    uses: ./.github/workflows/build-windows.yml
+
+  build-linux:
+    uses: ./.github/workflows/build-linux.yml
+
+  build-macos:
+    uses: ./.github/workflows/build-macos.yml
+
+  build-ios:
+    uses: ./.github/workflows/build-ios.yml
+
+  build-android:
+    uses: ./.github/workflows/build-android.yml
+
+  build-emscripten:
+    uses: ./.github/workflows/build-emscripten.yml
+
+  build-gdextension:
+    uses: ./.github/workflows/build-gdextension.yml
+
+  build-wheels:
+    uses: ./.github/workflows/build-wheels.yml
+
+  build-sdist:
+    uses: ./.github/workflows/build-sdist.yml
 
   release:
-    needs: [version, build]
+    needs: [version, build-docs, build-windows, build-linux, build-macos, build-ios, build-android, build-emscripten, build-gdextension, build-wheels, build-sdist]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

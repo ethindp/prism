@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Build SDist
+on:
+  workflow_call:
+
+jobs:
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build sdist
+        run: pipx run build --sdist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cibw-sdist
+          path: dist/*.tar.gz

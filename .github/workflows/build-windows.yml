@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Build Windows
+on:
+  workflow_call:
+
+jobs:
+  windows:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: x64,   msvc_arch: amd64,       extra_cmake: "" }
+          - { name: arm64, msvc_arch: amd64_arm64,  extra_cmake: "-DCMAKE_SYSTEM_PROCESSOR=ARM64" }
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
+      - name: Build all configurations
+        shell: pwsh
+        run: |
+          foreach ($shared in @("ON", "OFF")) {
+            $linkage = if ($shared -eq "ON") { "dynamic" } else { "static" }
+            foreach ($bt in @("Release", "Debug")) {
+              $config = $bt.ToLower()
+              cmake -B "build-${linkage}-${config}" `
+                -G Ninja `
+                -DPRISM_ENABLE_TESTS=OFF `
+                -DPRISM_ENABLE_DEMOS=OFF `
+                -DPRISM_ENABLE_SHIMS=ON `
+                -DPRISM_ENABLE_LEGACY_BACKENDS=ON `
+                "-DCMAKE_BUILD_TYPE=$bt" `
+                "-DBUILD_SHARED_LIBS=$shared" `
+                -DPRISM_ENABLE_GDEXTENSION=OFF ${{ matrix.extra_cmake }}
+              cmake --build "build-${linkage}-${config}"
+            }
+          }
+      - name: Package
+        shell: pwsh
+        run: |
+          foreach ($shared in @("ON", "OFF")) {
+            $linkage = if ($shared -eq "ON") { "dynamic" } else { "static" }
+            foreach ($bt in @("Release", "Debug")) {
+              $config = $bt.ToLower()
+              if (Test-Path "dist/${linkage}/${config}") {
+                Remove-Item "dist/${linkage}/${config}" -Recurse -Force
+              }
+              cmake --install "build-${linkage}-${config}" `
+                    --prefix  "dist/${linkage}/${config}" `
+                    --config  $bt
+            }
+          }
+          Move-Item dist/dynamic/release/include dist/include
+          Remove-Item dist/dynamic/debug/include,dist/static/release/include,dist/static/debug/include `
+            -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Recurse LICENSES dist/
+          Copy-Item NOTICE dist/
+          Compress-Archive -Path dist/* -DestinationPath "prism-windows-${{ matrix.name }}.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ matrix.name }}
+          path: prism-windows-${{ matrix.name }}.zip

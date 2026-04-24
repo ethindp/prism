@@ -90,20 +90,50 @@ jobs:
               - 'CMakeLists.txt'
               - 'cmake/**'
               - 'shims/**'
-            ci:
-              - '.github/workflows/**'
+            ci_core:
+              - '.github/workflows/ci.yml'
+            ci_docs:
+              - '.github/workflows/build-docs.yml'
+            ci_windows:
+              - '.github/workflows/build-windows.yml'
+            ci_linux:
+              - '.github/workflows/build-linux.yml'
+            ci_macos:
+              - '.github/workflows/build-macos.yml'
+            ci_ios:
+              - '.github/workflows/build-ios.yml'
+            ci_android:
+              - '.github/workflows/build-android.yml'
+            ci_emscripten:
+              - '.github/workflows/build-emscripten.yml'
+            ci_gdextension:
+              - '.github/workflows/build-gdextension.yml'
+            ci_wheels:
+              - '.github/workflows/build-wheels.yml'
+            ci_sdist:
+              - '.github/workflows/build-sdist.yml'
       - id: compute
         env:
-          F_DOCS:      ${{ steps.filter.outputs.docs }}
-          F_GDEXT_SRC: ${{ steps.filter.outputs.gdext_src }}
-          F_WINDOWS:   ${{ steps.filter.outputs.windows }}
-          F_LINUX:     ${{ steps.filter.outputs.linux }}
-          F_APPLE:     ${{ steps.filter.outputs.apple }}
-          F_ANDROID:   ${{ steps.filter.outputs.android }}
-          F_WEB:       ${{ steps.filter.outputs.web }}
-          F_PYTHON:    ${{ steps.filter.outputs.python }}
-          F_CORE:      ${{ steps.filter.outputs.core }}
-          F_CI:        ${{ steps.filter.outputs.ci }}
+          F_DOCS:          ${{ steps.filter.outputs.docs }}
+          F_GDEXT_SRC:     ${{ steps.filter.outputs.gdext_src }}
+          F_WINDOWS:       ${{ steps.filter.outputs.windows }}
+          F_LINUX:         ${{ steps.filter.outputs.linux }}
+          F_APPLE:         ${{ steps.filter.outputs.apple }}
+          F_ANDROID:       ${{ steps.filter.outputs.android }}
+          F_WEB:           ${{ steps.filter.outputs.web }}
+          F_PYTHON:        ${{ steps.filter.outputs.python }}
+          F_CORE:          ${{ steps.filter.outputs.core }}
+          F_CI_CORE:       ${{ steps.filter.outputs.ci_core }}
+          F_CI_DOCS:       ${{ steps.filter.outputs.ci_docs }}
+          F_CI_WINDOWS:    ${{ steps.filter.outputs.ci_windows }}
+          F_CI_LINUX:      ${{ steps.filter.outputs.ci_linux }}
+          F_CI_MACOS:      ${{ steps.filter.outputs.ci_macos }}
+          F_CI_IOS:        ${{ steps.filter.outputs.ci_ios }}
+          F_CI_ANDROID:    ${{ steps.filter.outputs.ci_android }}
+          F_CI_EMSCRIPTEN: ${{ steps.filter.outputs.ci_emscripten }}
+          F_CI_GDEXT:      ${{ steps.filter.outputs.ci_gdextension }}
+          F_CI_WHEELS:     ${{ steps.filter.outputs.ci_wheels }}
+          F_CI_SDIST:      ${{ steps.filter.outputs.ci_sdist }}
         run: |
           any() {
             for v in "$@"; do
@@ -111,32 +141,67 @@ jobs:
             done
             echo false
           }
-          ALL=$(any "$F_CORE" "$F_CI")
+          CI_ALL=$(any "$F_CORE" "$F_CI_CORE")
           PLATFORM_ANY=$(any "$F_WINDOWS" "$F_LINUX" "$F_APPLE" "$F_ANDROID" "$F_WEB")
           {
-            echo "docs=$(any "$ALL" "$F_DOCS")"
-            echo "windows=$(any "$ALL" "$F_WINDOWS")"
-            echo "linux=$(any "$ALL" "$F_LINUX")"
-            echo "macos=$(any "$ALL" "$F_APPLE")"
-            echo "ios=$(any "$ALL" "$F_APPLE")"
-            echo "android=$(any "$ALL" "$F_ANDROID")"
-            echo "emscripten=$(any "$ALL" "$F_WEB")"
-            echo "gdextension=$(any "$ALL" "$F_GDEXT_SRC" "$PLATFORM_ANY")"
-            echo "wheels=$(any "$ALL" "$F_PYTHON" "$PLATFORM_ANY")"
-            echo "sdist=$(any "$ALL" "$F_PYTHON")"
+            echo "docs=$(any "$CI_ALL" "$F_DOCS" "$F_CI_DOCS")"
+            echo "windows=$(any "$CI_ALL" "$F_WINDOWS" "$F_CI_WINDOWS")"
+            echo "linux=$(any "$CI_ALL" "$F_LINUX" "$F_CI_LINUX")"
+            echo "macos=$(any "$CI_ALL" "$F_APPLE" "$F_CI_MACOS")"
+            echo "ios=$(any "$CI_ALL" "$F_APPLE" "$F_CI_IOS")"
+            echo "android=$(any "$CI_ALL" "$F_ANDROID" "$F_CI_ANDROID")"
+            echo "emscripten=$(any "$CI_ALL" "$F_WEB" "$F_CI_EMSCRIPTEN")"
+            echo "gdextension=$(any "$CI_ALL" "$F_GDEXT_SRC" "$PLATFORM_ANY" "$F_CI_GDEXT")"
+            echo "wheels=$(any "$CI_ALL" "$F_PYTHON" "$PLATFORM_ANY" "$F_CI_WHEELS")"
+            echo "sdist=$(any "$CI_ALL" "$F_PYTHON" "$F_CI_SDIST")"
           } >> "$GITHUB_OUTPUT"
 
-  build:
+  build-docs:
     needs: changes
-    uses: ./.github/workflows/build.yml
-    with:
-      build_docs:        ${{ needs.changes.outputs.docs == 'true' }}
-      build_windows:     ${{ needs.changes.outputs.windows == 'true' }}
-      build_linux:       ${{ needs.changes.outputs.linux == 'true' }}
-      build_macos:       ${{ needs.changes.outputs.macos == 'true' }}
-      build_ios:         ${{ needs.changes.outputs.ios == 'true' }}
-      build_android:     ${{ needs.changes.outputs.android == 'true' }}
-      build_emscripten:  ${{ needs.changes.outputs.emscripten == 'true' }}
-      build_gdextension: ${{ needs.changes.outputs.gdextension == 'true' }}
-      build_wheels:      ${{ needs.changes.outputs.wheels == 'true' }}
-      build_sdist:       ${{ needs.changes.outputs.sdist == 'true' }}
+    if: needs.changes.outputs.docs == 'true'
+    uses: ./.github/workflows/build-docs.yml
+
+  build-windows:
+    needs: changes
+    if: needs.changes.outputs.windows == 'true'
+    uses: ./.github/workflows/build-windows.yml
+
+  build-linux:
+    needs: changes
+    if: needs.changes.outputs.linux == 'true'
+    uses: ./.github/workflows/build-linux.yml
+
+  build-macos:
+    needs: changes
+    if: needs.changes.outputs.macos == 'true'
+    uses: ./.github/workflows/build-macos.yml
+
+  build-ios:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    uses: ./.github/workflows/build-ios.yml
+
+  build-android:
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    uses: ./.github/workflows/build-android.yml
+
+  build-emscripten:
+    needs: changes
+    if: needs.changes.outputs.emscripten == 'true'
+    uses: ./.github/workflows/build-emscripten.yml
+
+  build-gdextension:
+    needs: changes
+    if: needs.changes.outputs.gdextension == 'true'
+    uses: ./.github/workflows/build-gdextension.yml
+
+  build-wheels:
+    needs: changes
+    if: needs.changes.outputs.wheels == 'true'
+    uses: ./.github/workflows/build-wheels.yml
+
+  build-sdist:
+    needs: changes
+    if: needs.changes.outputs.sdist == 'true'
+    uses: ./.github/workflows/build-sdist.yml

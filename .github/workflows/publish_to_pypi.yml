@@ -6,15 +6,16 @@ on:
 permissions:
   contents: read
 jobs:
-  build:
+  build-wheels:
     if: ${{ !github.event.release.prerelease }}
-    uses: ./.github/workflows/build.yml
-    with:
-      build_wheels: true
-      build_sdist:  true
+    uses: ./.github/workflows/build-wheels.yml
+
+  build-sdist:
+    if: ${{ !github.event.release.prerelease }}
+    uses: ./.github/workflows/build-sdist.yml
 
   upload_pypi:
-    needs: build
+    needs: [build-wheels, build-sdist]
     runs-on: ubuntu-latest
     environment:
       name: pypi

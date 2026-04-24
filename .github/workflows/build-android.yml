@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Build Android
+on:
+  workflow_call:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: Build
+        run: chmod +x gradlew && ./gradlew assembleRelease assembleDebug
+      - name: Package
+        run: |
+          mkdir -p dist/{debug,release,include}
+          cp build/android/gradle/outputs/aar/*-release.aar dist/release/
+          cp build/android/gradle/outputs/aar/*-debug.aar dist/debug/
+          cp include/prism.h dist/include/
+          cp -r LICENSES dist
+          cp NOTICE dist
+          cd dist && zip -r ../prism-android.zip .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: prism-android.zip

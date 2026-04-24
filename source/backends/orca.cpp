@@ -88,31 +88,29 @@ public:
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     for (const auto &name : orca_speech_service_names) {
-      GError *error = nullptr;
-      module_proxy = orca_module_org_gnome_orca_module_proxy_new_sync(
+      auto *candidate = orca_module_org_gnome_orca_module_proxy_new_sync(
           conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service", name.data(),
           nullptr, &error);
       if (error != nullptr)
         g_error_free(error);
-      if (module_proxy != nullptr)
+      if (candidate == nullptr)
+        continue;
+      GVariant *result = nullptr;
+      const auto ok = orca_module_org_gnome_orca_module_call_list_commands_sync(
+          candidate, &result, nullptr, &error);
+      if (result != nullptr)
+        g_variant_unref(result);
+      if (ok != 0 && error == nullptr) {
+        module_proxy = candidate;
         break;
+      }
+      if (error != nullptr) {
+        g_error_free(error);
+        error = nullptr;
+      }
+      g_object_unref(candidate);
     }
     if (module_proxy == nullptr) {
-      g_object_unref(service_proxy);
-      service_proxy = nullptr;
-      g_object_unref(conn);
-      conn = nullptr;
-      return std::unexpected(BackendError::BackendNotAvailable);
-    }
-    error = nullptr;
-    gboolean success = FALSE;
-    const auto ok = orca_module_org_gnome_orca_module_call_execute_command_sync(
-        module_proxy, "InterruptSpeech", 0, &success, nullptr, &error);
-    if (ok == 0 || error != nullptr) {
-      if (error != nullptr)
-        g_error_free(error);
-      g_object_unref(module_proxy);
-      module_proxy = nullptr;
       g_object_unref(service_proxy);
       service_proxy = nullptr;
       g_object_unref(conn);

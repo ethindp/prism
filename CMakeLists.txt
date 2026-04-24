@@ -697,21 +697,11 @@ else()
     RUNTIME DESTINATION "bin"
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib")
-  if(WIN32)
-    if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
-      install(
-        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI.dll"
-              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI32.dll"
-        DESTINATION "bin"
-        OPTIONAL)
-    elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
-      install(
-        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
-              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI64.dll"
-        DESTINATION "bin"
-        OPTIONAL)
-    endif()
-  endif()
+if(MSVC AND BUILD_SHARED_LIBS)
+  install(FILES $<TARGET_PDB_FILE:${PROJECT_NAME}>
+          DESTINATION "bin"
+          OPTIONAL)
+endif()
   install(
     EXPORT prismTargets
     FILE prism-config.cmake

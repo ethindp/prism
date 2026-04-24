@@ -31,9 +31,9 @@ function(prism_add_winelib NAME)
   if(PAW_DEPS)
     target_link_libraries(${_tgt} PRIVATE ${PAW_DEPS})
   endif()
-  install(
+    install(
     FILES "$<TARGET_FILE_DIR:${_tgt}>/${_tgt}.dll.so"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/wine
+    DESTINATION wine
     PERMISSIONS
       OWNER_READ
       OWNER_WRITE

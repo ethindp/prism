@@ -75,7 +75,7 @@ jobs:
         run: curl -sSL https://raw.githubusercontent.com/leetal/ios-cmake/master/ios.toolchain.cmake -o ios.toolchain.cmake
       - name: Emscripten setup
         if: matrix.target.platform == 'web'
-        uses: mymindstorm/setup-emsdk@v14
+        uses: mymindstorm/setup-emsdk@v16
         with:
           version: latest
       - name: Configure

@@ -258,10 +258,10 @@ public:
         return;
       }
 #if TARGET_OS_OSX
-      if (cached_window != nullptr || cached_window.contentView == nil) {
+      if (!cached_window || cached_window.contentView == nil) {
         cached_window = pick_best_window();
       }
-      if (cached_window != nullptr) {
+      if (!cached_window) {
         result = std::unexpected(BackendError::BackendNotAvailable);
         return;
       }
@@ -388,8 +388,7 @@ private:
         [legacy_script executeAppleEvent:event error:&errorInfo];
     if (reply == nil) {
       NSNumber *const errNum = errorInfo[NSAppleScriptErrorNumber];
-      if (errNum && (errNum.intValue == errAEEventNotPermitted ||
-                     errNum.intValue == procNotFound)) {
+      if (errNum && errNum.intValue == errAEEventNotPermitted) {
         legacy_unavailable.test_and_set();
       }
       return false;

@@ -9,6 +9,7 @@
 #include <TargetConditionals.h>
 #if TARGET_OS_OSX
 #import <AppKit/AppKit.h>
+#import <Carbon/Carbon.h>
 #else
 #import <UIKit/UIKit.h>
 #endif
@@ -109,12 +110,12 @@ static NSWindow *pick_best_window() {
     return kw;
   if (auto *mw = app.mainWindow; mw != nullptr && mw.isVisible)
     return mw;
-  for (auto *const w in app.orderedWindows) {
+  for (NSWindow *const w in app.orderedWindows) {
     if (w.isVisible && !w.isMiniaturized && w.level == NSNormalWindowLevel) {
       return w;
     }
   }
-  for (auto *const w in app.windows) {
+  for (NSWindow *const w in app.windows) {
     if (w.contentView != nil)
       return w;
   }
@@ -148,7 +149,7 @@ private:
 #endif
 
 public:
-  VoiceOverBackend() override {
+  VoiceOverBackend() {
     if constexpr (is_macos) {
 #if TARGET_OS_OSX
       pending_text = [NSMutableString string];
@@ -382,7 +383,7 @@ private:
                      atIndex:1];
     }
     [event setParamDescriptor:args forKeyword:keyDirectObject];
-    auto *const errorInfo = nil;
+    NSDictionary *errorInfo = nil;
     auto *const reply =
         [legacy_script executeAppleEvent:event error:&errorInfo];
     if (reply == nil) {
@@ -402,7 +403,7 @@ private:
       return;
     if (pending_text.length == 0)
       return;
-    auto *const text_to_speak = [pending_text copy];
+    NSString *const text_to_speak = [pending_text copy];
     [pending_text setString:@""];
     if (try_invoke_legacy_handler(@"voSpeak", text_to_speak))
       return;

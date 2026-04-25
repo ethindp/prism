@@ -387,8 +387,9 @@ private:
     auto *const reply =
         [legacy_script executeAppleEvent:event error:&errorInfo];
     if (reply == nil) {
-      auto *errNum = errorInfo[NSAppleScriptErrorNumber];
-      if (errNum && errNum.intValue == errAEEventNotPermitted) {
+      NSNumber *const errNum = errorInfo[NSAppleScriptErrorNumber];
+      if (errNum && (errNum.intValue == errAEEventNotPermitted ||
+                     errNum.intValue == procNotFound)) {
         legacy_unavailable.test_and_set();
       }
       return false;

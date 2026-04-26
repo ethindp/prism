@@ -112,6 +112,7 @@ The names used by Prism backends are:
 | ZoomText | `"ZoomText"` |
 | BoyPCReader | `"BoyPCReader"` |
 | PCTalker | `"PCTalker"` |
+| Sense Reader | `"SenseReader"` |
 | SystemAccess | `"SystemAccess"` |
 | WindowEyes | `"WindowEyes"` |
 

@@ -580,6 +580,7 @@ if(PRISM_ENABLE_LINTING)
       "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sense_reader.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")

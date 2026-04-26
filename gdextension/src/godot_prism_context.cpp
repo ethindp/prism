@@ -206,6 +206,9 @@ void GodotPrismContext::_bind_methods() {
                                  "PC_TALKER",
                                  id_to_godot(PRISM_BACKEND_PC_TALKER));
   ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId",
+                                 "SENSE_READER",
+                                 id_to_godot(PRISM_BACKEND_SENSE_READER));
+  ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId",
                                  "SYSTEM_ACCESS",
                                  id_to_godot(PRISM_BACKEND_SYSTEM_ACCESS));
   ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId",

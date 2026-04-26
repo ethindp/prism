@@ -36,7 +36,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.3.1
+        uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
           CIBW_ARCHS: ${{ matrix.archs || 'auto' }}

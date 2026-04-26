@@ -52,6 +52,7 @@ inline constexpr auto ZDSR = "ZDSR"_bid;
 inline constexpr auto ZoomText = "ZoomText"_bid;
 inline constexpr auto BoyPCReader = "BoyPCReader"_bid;
 inline constexpr auto PCTalker = "PCTalker"_bid;
+inline constexpr auto SenseReader = "SenseReader"_bid;
 inline constexpr auto SystemAccess = "SystemAccess"_bid;
 inline constexpr auto WindowEyes = "WindowEyes"_bid;
 } // namespace Backends

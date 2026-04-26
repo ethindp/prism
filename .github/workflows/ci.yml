@@ -44,6 +44,7 @@ jobs:
               - 'source/backends/zoom_text.cpp'
               - 'source/backends/pc_talker.cpp'
               - 'source/backends/boy_pc_reader.cpp'
+              - 'source/backends/sense_reader.cpp'
               - 'source/backends/moderncom/**'
               - 'source/delayimp.cpp'
               - 'source/backends/speech_dispatcher.cpp'

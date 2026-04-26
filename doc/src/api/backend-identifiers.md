@@ -21,6 +21,7 @@ Prism defines constants for all known backend identifiers. These constants are 6
 | `PRISM_BACKEND_ZOOM_TEXT` | ZoomText (Windows) |
 | `PRISM_BACKEND_BOY_PC_READER` | BoyPCReader (windows only) |
 | `PRISM_BACKEND_PC_TALKER` | PCTalker (windows only) |
+| `PRISM_BACKEND_SENSE_READER` | Sense Reader screen reader (Windows) |
 | `PRISM_BACKEND_SYSTEM_ACCESS` | SystemAccess screen reader (windows) (only available if explicitly enabled at build time) |
 | `PRISM_BACKEND_WINDOW_EYES` | WindowEyes screen reader (windows) (only available if explicitly enabled at build time) |
 

@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Lint Windows (MSVC /analyze)
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: x64,   msvc_arch: amd64,       extra_cmake: "" }
+          - { name: arm64, msvc_arch: amd64_arm64, extra_cmake: "-DCMAKE_SYSTEM_PROCESSOR=ARM64" }
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
+      - name: Lint all configurations
+        shell: pwsh
+        run: |
+          foreach ($shared in @("ON", "OFF")) {
+            $linkage = if ($shared -eq "ON") { "dynamic" } else { "static" }
+            foreach ($bt in @("Release", "Debug")) {
+              $config = $bt.ToLower()
+              cmake -B "build-${linkage}-${config}" `
+                -G Ninja `
+                -DPRISM_ENABLE_TESTS=OFF `
+                -DPRISM_ENABLE_DEMOS=OFF `
+                -DPRISM_ENABLE_SHIMS=ON `
+                -DPRISM_ENABLE_LEGACY_BACKENDS=ON `
+                -DPRISM_ENABLE_LINTING=ON `
+                "-DCMAKE_BUILD_TYPE=$bt" `
+                "-DBUILD_SHARED_LIBS=$shared" `
+                -DPRISM_ENABLE_GDEXTENSION=OFF ${{ matrix.extra_cmake }}
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              cmake --build "build-${linkage}-${config}" --target prism
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
+      - name: Collect SARIF logs
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path sarif | Out-Null
+          Get-ChildItem -Path . -Recurse -Filter *.sarif `
+            | Where-Object { $_.FullName -match 'nativecodeanalysis' } `
+            | ForEach-Object {
+                $rel = (Resolve-Path -Relative $_.FullName) -replace '[\\/:]','_'
+                Copy-Item $_.FullName "sarif/${rel}"
+              }
+      - name: Upload SARIF artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sarif-windows-msvc-${{ matrix.name }}
+          path: sarif/**
+          if-no-files-found: ignore

@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Lint iOS
+on:
+  workflow_call:
+
+env:
+  CMAKE_COMMON: >-
+    -G Ninja
+    -DPRISM_ENABLE_TESTS=OFF
+    -DPRISM_ENABLE_DEMOS=OFF
+    -DPRISM_ENABLE_LEGACY_BACKENDS=ON
+    -DPRISM_ENABLE_SHIMS=ON
+    -DPRISM_ENABLE_LINTING=ON
+
+jobs:
+  lint:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install LLVM (clang-tidy)
+        run: |
+          brew install llvm ninja
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+      - name: Download iOS toolchain
+        run: curl -sSL https://raw.githubusercontent.com/leetal/ios-cmake/master/ios.toolchain.cmake -o ios.toolchain.cmake
+      - name: Lint all configurations
+        run: |
+          export PATH="$(brew --prefix llvm)/bin:$PATH"
+          clang-tidy --version
+          for shared in ON OFF; do
+            linkage=$( [ "$shared" = "ON" ] && echo "dynamic" || echo "static" )
+            for bt in Release Debug; do
+              config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
+              cmake -B "build-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
+                -DCMAKE_BUILD_TYPE="$bt" \
+                -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake \
+                -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=16.0 \
+                -DCMAKE_Swift_FLAGS="-target arm64-apple-ios16.0" \
+                -DBUILD_SHARED_LIBS="$shared" \
+                -DPRISM_ENABLE_GDEXTENSION=OFF
+              cmake --build "build-${linkage}-${config}" --target prism
+            done
+          done

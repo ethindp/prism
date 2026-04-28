@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Lint macOS
+on:
+  workflow_call:
+
+env:
+  CMAKE_COMMON: >-
+    -G Ninja
+    -DPRISM_ENABLE_TESTS=OFF
+    -DPRISM_ENABLE_DEMOS=OFF
+    -DPRISM_ENABLE_LEGACY_BACKENDS=ON
+    -DPRISM_ENABLE_SHIMS=ON
+    -DPRISM_ENABLE_LINTING=ON
+
+jobs:
+  lint:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install LLVM
+        run: |
+          brew install llvm ninja
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+      - name: Lint all configurations
+        run: |
+          export PATH="$(brew --prefix llvm)/bin:$PATH"
+          for shared in ON OFF; do
+            linkage=$( [ "$shared" = "ON" ] && echo "dynamic" || echo "static" )
+            for bt in Release Debug; do
+              config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
+              for arch in arm64 x86_64; do
+                extra_flags=""
+                if [ "$arch" = "x86_64" ]; then
+                  extra_flags="-DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0"
+                fi
+                cmake -B "build-${arch}-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
+                  -DCMAKE_BUILD_TYPE="$bt" \
+                  -DCMAKE_OSX_ARCHITECTURES="$arch" \
+                  -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+                  -DBUILD_SHARED_LIBS="$shared" \
+                  -DPRISM_ENABLE_GDEXTENSION=OFF \
+                  $extra_flags
+                cmake --build "build-${arch}-${linkage}-${config}" --target prism
+              done
+            done
+          done

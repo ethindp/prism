@@ -39,6 +39,10 @@ if(APPLE)
   target_link_libraries(${LIBNAME}
                         PRIVATE ${CMAKE_Swift_IMPLICIT_LINK_LIBRARIES})
 endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_definitions(${LIBNAME} PRIVATE TYPED_METHOD_BIND)
+  target_compile_definitions(godot-cpp PUBLIC TYPED_METHOD_BIND)
+endif()
 set_property(TARGET ${LIBNAME} PROPERTY CXX_STANDARD 23)
 set_property(TARGET ${LIBNAME} PROPERTY C_STANDARD 18)
 set_target_properties(

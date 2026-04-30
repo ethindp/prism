@@ -29,8 +29,7 @@ public:
                 int64_t channels, int64_t sample_rate) override {
     const auto *float_samples = reinterpret_cast<const float *>(samples.buf());
     if (lambda) {
-      lambda(static_cast<void *>(userdata), float_samples,
-             static_cast<std::size_t>(sample_count),
+      lambda(userdata, float_samples, static_cast<std::size_t>(sample_count),
              static_cast<std::size_t>(channels),
              static_cast<std::size_t>(sample_rate));
     }
@@ -74,7 +73,7 @@ public:
     std::bitset<64> features;
     auto *env = djinni::jniGetThreadEnv();
     if (env != nullptr) {
-      auto* java_class =
+      auto *java_class =
           env->FindClass("com/github/ethindp/prism/AndroidTextToSpeechBackend");
       if (java_class != nullptr) {
         features |= IS_SUPPORTED_AT_RUNTIME;
@@ -97,7 +96,7 @@ public:
     auto *jni_env = djinni::jniGetThreadEnv();
     if (jni_env == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
-    auto* java_class = jni_env->FindClass(
+    auto *java_class = jni_env->FindClass(
         "com/github/ethindp/prism/AndroidTextToSpeechBackend");
     if (java_class == nullptr) {
       if (jni_env->ExceptionCheck() != 0)
@@ -111,7 +110,7 @@ public:
       jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    auto* instance = jni_env->NewObject(java_class, constructor);
+    auto *instance = jni_env->NewObject(java_class, constructor);
     if (instance == nullptr) {
       if (jni_env->ExceptionCheck() != 0)
         jni_env->ExceptionClear();

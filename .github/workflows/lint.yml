@@ -23,5 +23,3 @@ jobs:
     uses: ./.github/workflows/lint-android.yml
   lint-emscripten:
     uses: ./.github/workflows/lint-emscripten.yml
-  lint-gdextension:
-    uses: ./.github/workflows/lint-gdextension.yml

@@ -577,7 +577,7 @@ if(PRISM_ENABLE_LINTING)
       "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/concurrentqueue.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sense_reader.h"

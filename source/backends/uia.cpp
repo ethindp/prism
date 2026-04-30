@@ -4,7 +4,14 @@
 #include "backend.h"
 #include "backend_registry.h"
 #ifdef _WIN32
+#ifdef _MSC_VER
+#pragma warning(push, 0)
+#pragma warning(disable : 28182)
+#endif
 #include "concurrentqueue.h"
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #include "moderncom/com_ptr.h"
 #include "moderncom/interfaces.h"
 #include <UIAutomation.h>

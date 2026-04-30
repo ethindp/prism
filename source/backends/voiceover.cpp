@@ -415,7 +415,8 @@ private:
     NSAccessibilityPostNotificationWithUserInfo(
         w, NSAccessibilityAnnouncementRequestedNotification, @{
           NSAccessibilityAnnouncementKey : text_to_speak,
-          NSAccessibilityPriorityKey : NSAccessibilityPriorityHigh,
+          // NOLINTNEXTLINE(readability-redundant-parentheses)
+          NSAccessibilityPriorityKey : @(NSAccessibilityPriorityHigh),
         });
   }
 #else

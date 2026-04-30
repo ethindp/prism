@@ -20,10 +20,9 @@ jobs:
       - name: Install LLVM
         run: |
           brew install llvm ninja
-          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+          ln -s $(brew --prefix llvm)/bin/clang-tidy $(brew --prefix)/bin/clang-tidy
       - name: Lint all configurations
         run: |
-          export PATH="$(brew --prefix llvm)/bin:$PATH"
           for shared in ON OFF; do
             linkage=$( [ "$shared" = "ON" ] && echo "dynamic" || echo "static" )
             for bt in Release Debug; do

@@ -239,7 +239,7 @@ public:
       utterance.volume = current_vol;
       const auto pitch_multiplier =
           (current_pitch < 0.5F) ? (0.5F + current_pitch)
-                                 : (1.0F + (current_pitch - 0.5F) * 2.0F);
+                                 : (1.0F + ((current_pitch - 0.5F) * 2.0F));
       utterance.pitchMultiplier = pitch_multiplier;
       utterance.rate = AVSpeechUtteranceMinimumSpeechRate +
                        (current_rate * (AVSpeechUtteranceMaximumSpeechRate -
@@ -291,7 +291,7 @@ public:
         utterance.volume = current_vol;
         const auto pitch_multiplier =
             (current_pitch < 0.5F) ? (0.5F + current_pitch)
-                                   : (1.0F + (current_pitch - 0.5F) * 2.0F);
+                                   : (1.0F + ((current_pitch - 0.5F) * 2.0F));
         utterance.pitchMultiplier = pitch_multiplier;
         utterance.rate = AVSpeechUtteranceMinimumSpeechRate +
                          (current_rate * (AVSpeechUtteranceMaximumSpeechRate -
@@ -321,10 +321,10 @@ public:
       wait_for_semaphore_pumping_main(acc.done_sema, 60.0 * 5.0);
       if (acc.buffers.count == 0 || acc.captured_format == nil)
         return {};
-      const auto channels = acc.captured_format.channelCount;
+      const std::uint64_t channels = acc.captured_format.channelCount;
       const auto sample_rate =
           static_cast<std::size_t>(acc.captured_format.sampleRate);
-      AVAudioFrameCount total_frames = 0;
+      std::uint64_t total_frames = 0;
       for (AVAudioPCMBuffer *b in acc.buffers)
         total_frames += b.frameLength;
       std::vector<float> audio_data;
@@ -414,7 +414,7 @@ public:
   BackendResult<> set_volume(float vol) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (vol < 0.0f || vol > 1.0f)
+    if (vol < 0.0F || vol > 1.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
     volume.store(vol, std::memory_order_release);
     return {};
@@ -429,7 +429,7 @@ public:
   BackendResult<> set_rate(float r) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (r < 0.0f || r > 1.0f)
+    if (r < 0.0F || r > 1.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
     rate.store(r, std::memory_order_release);
     return {};
@@ -444,7 +444,7 @@ public:
   BackendResult<> set_pitch(float p) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (p < 0.0f || p > 1.0f)
+    if (p < 0.0F || p > 1.0F)
       return std::unexpected(BackendError::RangeOutOfBounds);
     pitch.store(p, std::memory_order_release);
     return {};
@@ -464,14 +464,14 @@ public:
     std::vector<VoiceInfo> new_voices;
     new_voices.reserve(apple_voices.count);
     for (AVSpeechSynthesisVoice *v in apple_voices) {
-      auto const *v_name = v.name ?: @"Unknown";
-      auto const *v_lang = v.language ?: @"en-US";
-      const std::string c_id(v.identifier ? v.identifier.UTF8String : "");
+      auto const *v_name = v.name != nullptr ?: @"Unknown";
+      auto const *v_lang = v.language != nullptr ?: @"en-US";
+      const std::string c_id(v.identifier != nullptr ? v.identifier.UTF8String
+                                                     : "");
       const std::string c_name(v_name.UTF8String);
       const std::string c_lang(v_lang.UTF8String);
-      new_voices.emplace_back(VoiceInfo{.identifier = std::move(c_id),
-                                        .name = std::move(c_name),
-                                        .language = std::move(c_lang)});
+      new_voices.emplace_back(
+          VoiceInfo{.identifier = c_id, .name = c_name, .language = c_lang});
     }
     {
       std::unique_lock ul(voices_lock);
@@ -482,7 +482,7 @@ public:
       current_lang = [AVSpeechSynthesisVoice currentLanguageCode];
     });
     const std::string default_lang =
-        current_lang ? current_lang.UTF8String : "en-US";
+        current_lang != nullptr ? current_lang.UTF8String : "en-US";
     std::size_t default_idx = 0;
     {
       std::shared_lock sl(voices_lock);

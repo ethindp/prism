@@ -10,7 +10,7 @@ BackendRegistry &BackendRegistry::instance() {
 }
 
 void BackendRegistry::register_backend(BackendId id, std::string_view name,
-                                       int priority, Factory factory) {
+                                       int priority, Factory factory) noexcept {
   std::unique_lock lock(mutex);
   Entry entry{.id = id,
               .name = name,

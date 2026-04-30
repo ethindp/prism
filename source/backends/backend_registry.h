@@ -63,7 +63,7 @@ public:
 
   static BackendRegistry &instance();
   void register_backend(BackendId id, std::string_view name, int priority,
-                        Factory factory) noexcept;
+                        Factory factory);
   [[nodiscard]] bool has(BackendId id) const;
   [[nodiscard]] bool has(std::string_view name) const;
   [[nodiscard]] std::string_view name(BackendId id) const;

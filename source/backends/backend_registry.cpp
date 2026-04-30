@@ -10,7 +10,7 @@ BackendRegistry &BackendRegistry::instance() {
 }
 
 void BackendRegistry::register_backend(BackendId id, std::string_view name,
-                                       int priority, Factory factory) noexcept {
+                                       int priority, Factory factory) {
   std::unique_lock lock(mutex);
   if (std::ranges::any_of(entries,
                           [id](const auto &e) { return e.id == id; })) {

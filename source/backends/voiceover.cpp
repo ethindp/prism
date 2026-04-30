@@ -141,7 +141,7 @@ private:
   __weak NSWindow *cached_window{nullptr};
   NSAppleScript *legacy_script{nullptr};
   std::atomic_flag legacy_unavailable;
-  static inline constexpr double debounce_delay = 0.015;
+  static constexpr double debounce_delay = 0.015;
 #else
   NSMutableArray<NSString *> *queue{nullptr};
   bool is_speaking_flag{false};
@@ -195,7 +195,7 @@ public:
       }
 #if TARGET_OS_OSX
       auto *const w = pick_best_window();
-      if (!w) {
+      if (w == nullptr) {
         result = std::unexpected(BackendError::BackendNotAvailable);
         return;
       }
@@ -249,7 +249,7 @@ public:
     NSString *ns_text = [[NSString alloc] initWithBytes:text.data()
                                                  length:text.size()
                                                encoding:NSUTF8StringEncoding];
-    if (!ns_text)
+    if (ns_text == nullptr)
       return std::unexpected(BackendError::InvalidUtf8);
     __block BackendResult<> result = {};
     sync_on_main(^{
@@ -258,10 +258,10 @@ public:
         return;
       }
 #if TARGET_OS_OSX
-      if (!cached_window || cached_window.contentView == nil) {
+      if (cached_window == nullptr || cached_window.contentView == nil) {
         cached_window = pick_best_window();
       }
-      if (!cached_window) {
+      if (cached_window == nullptr) {
         result = std::unexpected(BackendError::BackendNotAvailable);
         return;
       }
@@ -337,7 +337,7 @@ private:
 
 #if TARGET_OS_OSX
   void cancel_debounce() {
-    if (debounce_block) {
+    if (debounce_block != nullptr) {
       dispatch_block_cancel(debounce_block);
       debounce_block = nullptr;
     }
@@ -360,9 +360,10 @@ private:
   bool try_invoke_legacy_handler(NSString *handlerName, NSString *argument) {
     if (legacy_unavailable.test())
       return false;
-    if (!legacy_script)
+    if (legacy_script == nullptr)
       return false;
-    ProcessSerialNumber psn = {0, kCurrentProcess};
+    ProcessSerialNumber psn = {.highLongOfPSN = 0,
+                               .lowLongOfPSN = kCurrentProcess};
     auto *const target = [NSAppleEventDescriptor
         descriptorWithDescriptorType:typeProcessSerialNumber
                                bytes:&psn
@@ -377,7 +378,7 @@ private:
                                   descriptorWithString:handlerName]
                    forKeyword:keyASSubroutineName];
     auto *const args = [NSAppleEventDescriptor listDescriptor];
-    if (argument) {
+    if (argument != nullptr) {
       [args insertDescriptor:[NSAppleEventDescriptor
                                  descriptorWithString:argument]
                      atIndex:1];
@@ -388,7 +389,7 @@ private:
         [legacy_script executeAppleEvent:event error:&errorInfo];
     if (reply == nil) {
       NSNumber *const errNum = errorInfo[NSAppleScriptErrorNumber];
-      if (errNum && errNum.intValue == errAEEventNotPermitted) {
+      if (errNum != nullptr && errNum.intValue == errAEEventNotPermitted) {
         legacy_unavailable.test_and_set();
       }
       return false;
@@ -407,14 +408,14 @@ private:
     [pending_text setString:@""];
     if (try_invoke_legacy_handler(@"voSpeak", text_to_speak))
       return;
-    NSWindow *w = cached_window ?: pick_best_window();
-    if (!w)
+    NSWindow *w = cached_window != nullptr ? cached_window : pick_best_window();
+    if (w == nullptr)
       return;
     cached_window = w;
     NSAccessibilityPostNotificationWithUserInfo(
         w, NSAccessibilityAnnouncementRequestedNotification, @{
           NSAccessibilityAnnouncementKey : text_to_speak,
-          NSAccessibilityPriorityKey : @(NSAccessibilityPriorityHigh),
+          NSAccessibilityPriorityKey : @NSAccessibilityPriorityHigh,
         });
   }
 #else

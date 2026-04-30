@@ -324,6 +324,9 @@ public:
       const std::uint64_t channels = acc.captured_format.channelCount;
       const auto sample_rate =
           static_cast<std::size_t>(acc.captured_format.sampleRate);
+      if (channels < 1 || sample_rate < 1) {
+        return std::unexpected(BackendError::InternalBackendError);
+      }
       std::uint64_t total_frames = 0;
       for (AVAudioPCMBuffer *b in acc.buffers)
         total_frames += b.frameLength;
@@ -464,8 +467,8 @@ public:
     std::vector<VoiceInfo> new_voices;
     new_voices.reserve(apple_voices.count);
     for (AVSpeechSynthesisVoice *v in apple_voices) {
-      auto const *v_name = v.name != nullptr ?: @"Unknown";
-      auto const *v_lang = v.language != nullptr ?: @"en-US";
+      auto const *v_name = v.name != nullptr ? v.name : @"Unknown";
+      auto const *v_lang = v.language != nullptr ? v.language : @"en-US";
       const std::string c_id(v.identifier != nullptr ? v.identifier.UTF8String
                                                      : "");
       const std::string c_name(v_name.UTF8String);

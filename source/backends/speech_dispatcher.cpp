@@ -134,7 +134,7 @@ public:
 REGISTER_BACKEND_WITH_ID(SpeechDispatcherBackend, Backends::SpeechDispatcher,
                          "Speech Dispatcher", 97);
 #endif
-#elif defined(_WIN32)
+#elifdef _WIN32
 #include "raw/prism_speech_dispatcher_bridge.h"
 #include <atomic>
 #include <tchar.h>

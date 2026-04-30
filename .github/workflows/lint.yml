@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Lint
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: ['master', 'lint-workflows']
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  lint-linux:
+    uses: ./.github/workflows/lint-linux.yml
+  lint-windows-msvc:
+    uses: ./.github/workflows/lint-windows-msvc.yml
+  lint-windows-clang-tidy:
+    uses: ./.github/workflows/lint-windows-clang-tidy.yml
+  lint-macos:
+    uses: ./.github/workflows/lint-macos.yml
+  lint-ios:
+    uses: ./.github/workflows/lint-ios.yml
+  lint-android:
+    uses: ./.github/workflows/lint-android.yml
+  lint-emscripten:
+    uses: ./.github/workflows/lint-emscripten.yml
+  lint-gdextension:
+    uses: ./.github/workflows/lint-gdextension.yml

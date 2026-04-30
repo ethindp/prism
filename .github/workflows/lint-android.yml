@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Lint Android
+on:
+  workflow_call:
+
+env:
+  CMAKE_COMMON: >-
+    -G Ninja
+    -DPRISM_ENABLE_TESTS=OFF
+    -DPRISM_ENABLE_DEMOS=OFF
+    -DPRISM_ENABLE_LEGACY_BACKENDS=ON
+    -DPRISM_ENABLE_SHIMS=ON
+    -DPRISM_ENABLE_LINTING=ON
+
+jobs:
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, x86_64]
+        build_type: [Release, Debug]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+      - uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r29
+      - name: Lint
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          export PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+          for shared in ON OFF; do
+            linkage=$( [ "$shared" = "ON" ] && echo "dynamic" || echo "static" )
+            config=$(echo "${{ matrix.build_type }}" | tr '[:upper:]' '[:lower:]')
+            cmake -B "build-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
+              -DCMAKE_BUILD_TYPE="${{ matrix.build_type }}" \
+              -DBUILD_SHARED_LIBS="$shared" \
+              -DPRISM_ENABLE_GDEXTENSION=OFF \
+              "-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake" \
+              "-DANDROID_ABI=${{ matrix.abi }}" \
+              -DANDROID_PLATFORM=android-30
+            cmake --build "build-${linkage}-${config}" --target prism
+          done

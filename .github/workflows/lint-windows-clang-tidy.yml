@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Lint Windows (clang-tidy)
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: x64,   msvc_arch: amd64,       extra_cmake: "" }
+          - { name: arm64, msvc_arch: amd64_arm64, extra_cmake: "-DCMAKE_SYSTEM_PROCESSOR=ARM64" }
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
+      - name: Set up LLVM toolchain if needed
+        shell: pwsh
+        run: |
+          if (-not (Get-Command clang-cl -ErrorAction SilentlyContinue)) {
+            choco install -y llvm
+            "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          }
+      - name: Lint all configurations
+        shell: pwsh
+        run: |
+          foreach ($shared in @("ON", "OFF")) {
+            $linkage = if ($shared -eq "ON") { "dynamic" } else { "static" }
+            foreach ($bt in @("Release", "Debug")) {
+              $config = $bt.ToLower()
+              cmake -B "build-${linkage}-${config}" `
+                -G Ninja `
+                -DCMAKE_C_COMPILER=clang `
+                -DCMAKE_CXX_COMPILER=clang++ `
+                -DPRISM_ENABLE_TESTS=OFF `
+                -DPRISM_ENABLE_DEMOS=OFF `
+                -DPRISM_ENABLE_SHIMS=ON `
+                -DPRISM_ENABLE_LEGACY_BACKENDS=ON `
+                -DPRISM_ENABLE_LINTING=ON `
+                "-DCMAKE_BUILD_TYPE=$bt" `
+                "-DBUILD_SHARED_LIBS=$shared" `
+                -DPRISM_ENABLE_GDEXTENSION=OFF ${{ matrix.extra_cmake }}
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              cmake --build "build-${linkage}-${config}" --target prism
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }

@@ -415,7 +415,7 @@ private:
     NSAccessibilityPostNotificationWithUserInfo(
         w, NSAccessibilityAnnouncementRequestedNotification, @{
           NSAccessibilityAnnouncementKey : text_to_speak,
-          NSAccessibilityPriorityKey : @NSAccessibilityPriorityHigh,
+          NSAccessibilityPriorityKey : NSAccessibilityPriorityHigh,
         });
   }
 #else

@@ -469,10 +469,13 @@ public:
     for (AVSpeechSynthesisVoice *v in apple_voices) {
       auto const *v_name = v.name != nullptr ? v.name : @"Unknown";
       auto const *v_lang = v.language != nullptr ? v.language : @"en-US";
-      const std::string c_id(v.identifier != nullptr && v.identifier.UTF8String != nullptr ? v.identifier.UTF8String
-                                                     : "");
-      const std::string c_name(v_name.UTF8String);
-      const std::string c_lang(v_lang.UTF8String);
+      auto const *id_cstr =
+          v.identifier != nullptr ? v.identifier.UTF8String : nullptr;
+      auto const *name_cstr = v_name.UTF8String;
+      auto const *lang_cstr = v_lang.UTF8String;
+      const std::string c_id(id_cstr != nullptr ? id_cstr : "");
+      const std::string c_name(name_cstr != nullptr ? name_cstr : "");
+      const std::string c_lang(lang_cstr != nullptr ? lang_cstr : "");
       new_voices.emplace_back(
           VoiceInfo{.identifier = c_id, .name = c_name, .language = c_lang});
     }
@@ -484,8 +487,9 @@ public:
     sync_on_main(^{
       current_lang = [AVSpeechSynthesisVoice currentLanguageCode];
     });
-    const std::string default_lang =
-        current_lang != nullptr && current_lang.UTF8String != nullptr ? current_lang.UTF8String : "en-US";
+    auto const *lang_cstr =
+        current_lang != nullptr ? current_lang.UTF8String : nullptr;
+    const std::string default_lang = lang_cstr != nullptr ? lang_cstr : "en-US";
     std::size_t default_idx = 0;
     {
       std::shared_lock sl(voices_lock);

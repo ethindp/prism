@@ -12,54 +12,20 @@
 #ifndef _WIN32
 #include <locale.h>
 #endif
-#ifdef _WIN32
-static const bool is_windows = true;
-static const bool is_macos = false;
-static const bool is_ios = false;
-static const bool is_android = false;
-static const bool is_unix = false;
-static const bool is_web = false;
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
 #include <TargetConditionals.h>
-#if TARGET_OS_IOS || TARGET_OS_SIMULATOR ||                                    \
-    (defined(TARGET_OS_TVOS) && TARGET_OS_TVOS) ||                             \
-    (defined(TARGET_OS_WATCHOS) && TARGET_OS_WATCHOS) ||                       \
-    (defined(TARGET_OS_VISIONOS) && TARGET_OS_VISIONOS)
-static const bool is_windows = false;
-static const bool is_macos = false;
-static const bool is_ios = true;
-static const bool is_android = false;
-static const bool is_unix = false;
-static const bool is_web = false;
-#else
-static const bool is_windows = false;
-static const bool is_macos = true;
-static const bool is_ios = false;
-static const bool is_android = false;
-static const bool is_unix = false;
-static const bool is_web = false;
+#include <xlocale.h>
 #endif
+#if defined(_WIN32)
+static const PrismBackendId default_tts_backend = PRISM_BACKEND_SAPI;
+#elif defined(__APPLE__)
+static const PrismBackendId default_tts_backend = PRISM_BACKEND_AV_SPEECH;
 #elif defined(__ANDROID__)
-static const bool is_windows = false;
-static const bool is_macos = false;
-static const bool is_ios = false;
-static const bool is_android = true;
-static const bool is_unix = false;
-static const bool is_web = false;
+static const PrismBackendId default_tts_backend = PRISM_BACKEND_ANDROID_TTS;
 #elif defined(__EMSCRIPTEN__)
-static const bool is_windows = false;
-static const bool is_macos = false;
-static const bool is_ios = false;
-static const bool is_android = false;
-static const bool is_unix = false;
-static const bool is_web = true;
+static const PrismBackendId default_tts_backend = PRISM_BACKEND_WEB_SPEECH;
 #else
-static const bool is_windows = false;
-static const bool is_macos = false;
-static const bool is_ios = false;
-static const bool is_android = false;
-static const bool is_unix = true;
-static const bool is_web = false;
+static const PrismBackendId default_backend = PRISM_BACKEND_SPEECH_DISPATCHER;
 #endif
 
 static PrismContext *ctx;
@@ -68,7 +34,11 @@ static PrismBackend *backend TSA_GUARDED_BY(lock);
 static PrismBackend *sapi_backend TSA_GUARDED_BY(lock);
 static wchar_t *backend_name TSA_GUARDED_BY(lock);
 static wchar_t *sapi_backend_name TSA_GUARDED_BY(lock);
-static UnicodeLocale saved_locale TSA_GUARDED_BY(lock);
+#ifdef _WIN32
+static UnicodeLocale utf8_locale TSA_GUARDED_BY(lock);
+#else
+static locale_t utf8_locale TSA_GUARDED_BY(lock);
+#endif
 static atomic_bool loaded;
 static atomic_bool prefer_sapi;
 
@@ -78,13 +48,13 @@ static inline char *wchar_to_utf8(const wchar_t *src) {
 #ifdef _WIN32
   return utf16_to_utf8_alloc((const uint16_t *)src, (size_t)-1);
 #else
-  size_t len = wcstombs(NULL, src, 0);
+  size_t len = wcstombs_l(NULL, src, 0, utf8_locale);
   if (len == (size_t)-1)
     return NULL;
   char *buf = malloc(len + 1);
   if (buf == NULL)
     return NULL;
-  wcstombs(buf, src, len + 1);
+  wcstombs_l(buf, src, len + 1, utf8_locale);
   return buf;
 #endif
 }
@@ -95,13 +65,13 @@ static inline wchar_t *utf8_to_wchar(const char *src) {
 #ifdef _WIN32
   return (wchar_t *)utf8_to_utf16_alloc(src, (size_t)-1, NULL);
 #else
-  size_t len = mbstowcs(NULL, src, 0);
+  size_t len = mbsrtowcs_l(NULL, src, 0, utf8_locale);
   if (len == (size_t)-1)
     return NULL;
   wchar_t *buf = malloc((len + 1) * sizeof(wchar_t));
   if (buf == NULL)
     return NULL;
-  mbstowcs(buf, src, len + 1);
+  mbsrtowcs_l(buf, src, len + 1, utf8_locale);
   return buf;
 #endif
 }
@@ -112,8 +82,12 @@ TOLK_API void TOLK_CALL Tolk_Load(void) {
     fast_lock_release(&lock);
     return;
   }
-  utf_locale_save(&saved_locale);
+#ifdef _WIN32
+  utf_locale_save(&utf8_locale);
   utf_locale_set_utf8();
+#else
+  utf8_locale = newlocale(LC_CTYPE_MASK, "C.UTF-8", (locale_t)0);
+#endif
   PrismConfig cfg = prism_config_init();
   ctx = prism_init(&cfg);
   if (ctx == NULL) {
@@ -127,13 +101,7 @@ TOLK_API void TOLK_CALL Tolk_Load(void) {
       backend = NULL;
     }
   }
-  sapi_backend =
-      prism_registry_create(ctx, is_windows           ? PRISM_BACKEND_SAPI
-                                 : is_macos || is_ios ? PRISM_BACKEND_AV_SPEECH
-                                 : is_unix    ? PRISM_BACKEND_SPEECH_DISPATCHER
-                                 : is_android ? PRISM_BACKEND_ANDROID_TTS
-                                 : is_web     ? PRISM_BACKEND_WEB_SPEECH
-                                              : PRISM_BACKEND_INVALID);
+  sapi_backend = prism_registry_create(ctx, default_tts_backend);
   if (sapi_backend != NULL) {
     if (prism_backend_initialize(sapi_backend) != PRISM_OK) {
       prism_backend_free(sapi_backend);
@@ -171,13 +139,15 @@ TOLK_API void TOLK_CALL Tolk_Unload(void) {
   backend_name = NULL;
   free(sapi_backend_name);
   sapi_backend_name = NULL;
-  utf_locale_restore(&saved_locale);
+#ifdef _WIN32
+  utf_locale_restore(&lock);
+#else
+  freelocale(utf8_locale);
+#endif
   fast_lock_release(&lock);
 }
 
-TOLK_API void TOLK_CALL Tolk_TrySAPI(bool trySAPI) {
-  return; // Do nothing
-}
+TOLK_API void TOLK_CALL Tolk_TrySAPI(bool trySAPI) {}
 
 TOLK_API void TOLK_CALL Tolk_PreferSAPI(bool preferSAPI) {
   atomic_store(&prefer_sapi, preferSAPI);

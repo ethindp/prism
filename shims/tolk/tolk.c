@@ -3,19 +3,15 @@
 #include "tolk.h"
 #include "lock.h"
 #include "thread_safety.h"
-#include "unicode.h"
 #include <prism.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
-#ifndef _WIN32
-#include <locale.h>
-#endif
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
-#include <xlocale.h>
 #endif
+#include "simdutf_c.h"
 #if defined(_WIN32)
 static const PrismBackendId default_tts_backend = PRISM_BACKEND_SAPI;
 #elif defined(__APPLE__)
@@ -25,7 +21,8 @@ static const PrismBackendId default_tts_backend = PRISM_BACKEND_ANDROID_TTS;
 #elif defined(__EMSCRIPTEN__)
 static const PrismBackendId default_tts_backend = PRISM_BACKEND_WEB_SPEECH;
 #else
-static const PrismBackendId default_backend = PRISM_BACKEND_SPEECH_DISPATCHER;
+static const PrismBackendId default_tts_backend =
+    PRISM_BACKEND_SPEECH_DISPATCHER;
 #endif
 
 static PrismContext *ctx;
@@ -34,27 +31,43 @@ static PrismBackend *backend TSA_GUARDED_BY(lock);
 static PrismBackend *sapi_backend TSA_GUARDED_BY(lock);
 static wchar_t *backend_name TSA_GUARDED_BY(lock);
 static wchar_t *sapi_backend_name TSA_GUARDED_BY(lock);
-#ifdef _WIN32
-static UnicodeLocale utf8_locale TSA_GUARDED_BY(lock);
-#else
-static locale_t utf8_locale TSA_GUARDED_BY(lock);
-#endif
 static atomic_bool loaded;
 static atomic_bool prefer_sapi;
 
 static inline char *wchar_to_utf8(const wchar_t *src) {
   if (src == NULL)
     return NULL;
-#ifdef _WIN32
-  return utf16_to_utf8_alloc((const uint16_t *)src, (size_t)-1);
-#else
-  size_t len = wcstombs_l(NULL, src, 0, utf8_locale);
-  if (len == (size_t)-1)
-    return NULL;
-  char *buf = malloc(len + 1);
+#if WCHAR_MAX <= 0xFFFFu
+  const char16_t *in = (const char16_t *)src;
+  size_t in_len = 0;
+  while (in[in_len] != 0)
+    ++in_len;
+  size_t out_len = simdutf_utf8_length_from_utf16(in, in_len);
+  char *buf = malloc(out_len + 1);
   if (buf == NULL)
     return NULL;
-  wcstombs_l(buf, src, len + 1, utf8_locale);
+  size_t written = simdutf_convert_utf16_to_utf8(in, in_len, buf);
+  if (written == 0 && in_len != 0) {
+    free(buf);
+    return NULL;
+  }
+  buf[written] = '\0';
+  return buf;
+#else
+  const char32_t *in = (const char32_t *)src;
+  size_t in_len = 0;
+  while (in[in_len] != 0)
+    ++in_len;
+  size_t out_len = simdutf_utf8_length_from_utf32(in, in_len);
+  char *buf = malloc(out_len + 1);
+  if (buf == NULL)
+    return NULL;
+  size_t written = simdutf_convert_utf32_to_utf8(in, in_len, buf);
+  if (written == 0 && in_len != 0) {
+    free(buf);
+    return NULL;
+  }
+  buf[written] = '\0';
   return buf;
 #endif
 }
@@ -62,16 +75,30 @@ static inline char *wchar_to_utf8(const wchar_t *src) {
 static inline wchar_t *utf8_to_wchar(const char *src) {
   if (src == NULL)
     return NULL;
-#ifdef _WIN32
-  return (wchar_t *)utf8_to_utf16_alloc(src, (size_t)-1, NULL);
-#else
-  size_t len = mbsrtowcs_l(NULL, src, 0, utf8_locale);
-  if (len == (size_t)-1)
-    return NULL;
-  wchar_t *buf = malloc((len + 1) * sizeof(wchar_t));
+  size_t in_len = strlen(src);
+#if WCHAR_MAX <= 0xFFFFu
+  size_t out_len = simdutf_utf16_length_from_utf8(src, in_len);
+  wchar_t *buf = malloc((out_len + 1) * sizeof(wchar_t));
   if (buf == NULL)
     return NULL;
-  mbsrtowcs_l(buf, src, len + 1, utf8_locale);
+  size_t written = simdutf_convert_utf8_to_utf16(src, in_len, (char16_t *)buf);
+  if (written == 0 && in_len != 0) {
+    free(buf);
+    return NULL;
+  }
+  buf[written] = L'\0';
+  return buf;
+#else
+  size_t out_len = simdutf_utf32_length_from_utf8(src, in_len);
+  wchar_t *buf = malloc((out_len + 1) * sizeof(wchar_t));
+  if (buf == NULL)
+    return NULL;
+  size_t written = simdutf_convert_utf8_to_utf32(src, in_len, (char32_t *)buf);
+  if (written == 0 && in_len != 0) {
+    free(buf);
+    return NULL;
+  }
+  buf[written] = L'\0';
   return buf;
 #endif
 }
@@ -82,12 +109,6 @@ TOLK_API void TOLK_CALL Tolk_Load(void) {
     fast_lock_release(&lock);
     return;
   }
-#ifdef _WIN32
-  utf_locale_save(&utf8_locale);
-  utf_locale_set_utf8();
-#else
-  utf8_locale = newlocale(LC_CTYPE_MASK, "C.UTF-8", (locale_t)0);
-#endif
   PrismConfig cfg = prism_config_init();
   ctx = prism_init(&cfg);
   if (ctx == NULL) {
@@ -139,11 +160,6 @@ TOLK_API void TOLK_CALL Tolk_Unload(void) {
   backend_name = NULL;
   free(sapi_backend_name);
   sapi_backend_name = NULL;
-#ifdef _WIN32
-  utf_locale_restore(&lock);
-#else
-  freelocale(utf8_locale);
-#endif
   fast_lock_release(&lock);
 }
 

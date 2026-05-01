@@ -79,7 +79,7 @@ private:
   std::atomic<std::size_t> audio_bit_depth{32};
 
   static void sync_on_main(dispatch_block_t block) {
-    if ([NSThread isMainThread] != NO) {
+    if ([NSThread isMainThread] == YES) {
       block();
     } else {
       dispatch_sync(dispatch_get_main_queue(), block);
@@ -88,7 +88,7 @@ private:
 
   static void wait_for_semaphore_pumping_main(dispatch_semaphore_t sema,
                                               double timeout_sec) {
-    if ([NSThread isMainThread] != NO) {
+    if ([NSThread isMainThread] == YES) {
       NSDate *start = [NSDate date];
       while (dispatch_semaphore_wait(
                  sema, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_MSEC)) !=
@@ -186,7 +186,7 @@ public:
               writeUtterance:probe_utt
             toBufferCallback:^(AVAudioBuffer *buffer) {
               if (probed_format == nil &&
-                  [buffer isKindOfClass:[AVAudioPCMBuffer class]] != NO) {
+                  [buffer isKindOfClass:[AVAudioPCMBuffer class]] == YES) {
                 probed_format = [(AVAudioPCMBuffer *)buffer format];
               }
             }];
@@ -307,7 +307,7 @@ public:
         }
         [mem_synth writeUtterance:utterance
                  toBufferCallback:^(AVAudioBuffer *_Nonnull buffer) {
-                   if ([buffer isKindOfClass:[AVAudioPCMBuffer class]] != NO)
+                   if ([buffer isKindOfClass:[AVAudioPCMBuffer class]] == NO)
                      return;
                    auto *pcm = (AVAudioPCMBuffer *)buffer;
                    if (pcm.frameLength == 0) {

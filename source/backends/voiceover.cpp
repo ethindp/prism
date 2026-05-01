@@ -88,7 +88,7 @@ consteval std::string_view get_backend_display_name() {
 }
 
 static inline void sync_on_main(dispatch_block_t block) {
-  if ([NSThread isMainThread]) {
+  if ([NSThread isMainThread] != NO) {
     block();
   } else {
     dispatch_sync(dispatch_get_main_queue(), block);
@@ -97,7 +97,7 @@ static inline void sync_on_main(dispatch_block_t block) {
 
 static inline bool is_voiceover_active() {
 #if TARGET_OS_OSX
-  return [[NSWorkspace sharedWorkspace] isVoiceOverEnabled];
+  return static_cast<bool>([[NSWorkspace sharedWorkspace] isVoiceOverEnabled]);
 #else
   return UIAccessibilityIsVoiceOverRunning();
 #endif
@@ -106,12 +106,13 @@ static inline bool is_voiceover_active() {
 #if TARGET_OS_OSX
 static NSWindow *pick_best_window() {
   auto *const app = [NSApplication sharedApplication];
-  if (auto *kw = app.keyWindow; kw != nullptr && kw.isVisible)
+  if (auto *kw = app.keyWindow; kw != nullptr && kw.isVisible == YES)
     return kw;
-  if (auto *mw = app.mainWindow; mw != nullptr && mw.isVisible)
+  if (auto *mw = app.mainWindow; mw != nullptr && mw.isVisible == YES)
     return mw;
   for (NSWindow *const w in app.orderedWindows) {
-    if (w.isVisible && !w.isMiniaturized && w.level == NSNormalWindowLevel) {
+    if (w.isVisible == YES && w.isMiniaturized == NO &&
+        w.level == NSNormalWindowLevel) {
       return w;
     }
   }
@@ -206,7 +207,7 @@ public:
       legacy_script =
           [[NSAppleScript alloc] initWithSource:VOICE_OVER_APPLE_SCRIPT_SOURCE];
       NSDictionary *compileError = nil;
-      if (![legacy_script compileAndReturnError:&compileError]) {
+      if ([legacy_script compileAndReturnError:&compileError] == NO) {
         legacy_script = nil;
         legacy_unavailable.test_and_set();
       }
@@ -400,7 +401,7 @@ private:
   void fire_announcement_now() {
     if (!initialized.test())
       return;
-    if (![[NSWorkspace sharedWorkspace] isVoiceOverEnabled])
+    if ([[NSWorkspace sharedWorkspace] isVoiceOverEnabled] == NO)
       return;
     if (pending_text.length == 0)
       return;

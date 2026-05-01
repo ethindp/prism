@@ -35,8 +35,8 @@ static atomic_bool loaded;
 static atomic_bool prefer_sapi;
 
 static inline char *wchar_to_utf8(const wchar_t *src) {
-  if (src == NULL)
-    return NULL;
+  if (src == nullptr)
+    return nullptr;
 #if WCHAR_MAX <= 0xFFFFu
   const char16_t *in = (const char16_t *)src;
   size_t in_len = 0;
@@ -44,12 +44,12 @@ static inline char *wchar_to_utf8(const wchar_t *src) {
     ++in_len;
   size_t out_len = simdutf_utf8_length_from_utf16(in, in_len);
   char *buf = malloc(out_len + 1);
-  if (buf == NULL)
-    return NULL;
+  if (buf == nullptr)
+    return nullptr;
   size_t written = simdutf_convert_utf16_to_utf8(in, in_len, buf);
   if (written == 0 && in_len != 0) {
     free(buf);
-    return NULL;
+    return nullptr;
   }
   buf[written] = '\0';
   return buf;
@@ -60,12 +60,12 @@ static inline char *wchar_to_utf8(const wchar_t *src) {
     ++in_len;
   size_t out_len = simdutf_utf8_length_from_utf32(in, in_len);
   char *buf = malloc(out_len + 1);
-  if (buf == NULL)
-    return NULL;
+  if (buf == nullptr)
+    return nullptr;
   size_t written = simdutf_convert_utf32_to_utf8(in, in_len, buf);
   if (written == 0 && in_len != 0) {
     free(buf);
-    return NULL;
+    return nullptr;
   }
   buf[written] = '\0';
   return buf;
@@ -73,30 +73,30 @@ static inline char *wchar_to_utf8(const wchar_t *src) {
 }
 
 static inline wchar_t *utf8_to_wchar(const char *src) {
-  if (src == NULL)
-    return NULL;
+  if (src == nullptr)
+    return nullptr;
   size_t in_len = strlen(src);
 #if WCHAR_MAX <= 0xFFFFu
   size_t out_len = simdutf_utf16_length_from_utf8(src, in_len);
   wchar_t *buf = malloc((out_len + 1) * sizeof(wchar_t));
-  if (buf == NULL)
-    return NULL;
+  if (buf == nullptr)
+    return nullptr;
   size_t written = simdutf_convert_utf8_to_utf16(src, in_len, (char16_t *)buf);
   if (written == 0 && in_len != 0) {
     free(buf);
-    return NULL;
+    return nullptr;
   }
   buf[written] = L'\0';
   return buf;
 #else
   size_t out_len = simdutf_utf32_length_from_utf8(src, in_len);
   wchar_t *buf = malloc((out_len + 1) * sizeof(wchar_t));
-  if (buf == NULL)
-    return NULL;
+  if (buf == nullptr)
+    return nullptr;
   size_t written = simdutf_convert_utf8_to_utf32(src, in_len, (char32_t *)buf);
   if (written == 0 && in_len != 0) {
     free(buf);
-    return NULL;
+    return nullptr;
   }
   buf[written] = L'\0';
   return buf;
@@ -111,27 +111,27 @@ TOLK_API void TOLK_CALL Tolk_Load(void) {
   }
   PrismConfig cfg = prism_config_init();
   ctx = prism_init(&cfg);
-  if (ctx == NULL) {
+  if (ctx == nullptr) {
     fast_lock_release(&lock);
     return;
   }
   backend = prism_registry_create_best(ctx);
-  if (backend != NULL) {
+  if (backend != nullptr) {
     if (prism_backend_initialize(backend) != PRISM_OK) {
       prism_backend_free(backend);
-      backend = NULL;
+      backend = nullptr;
     }
   }
   sapi_backend = prism_registry_create(ctx, default_tts_backend);
-  if (sapi_backend != NULL) {
+  if (sapi_backend != nullptr) {
     if (prism_backend_initialize(sapi_backend) != PRISM_OK) {
       prism_backend_free(sapi_backend);
-      sapi_backend = NULL;
+      sapi_backend = nullptr;
     }
   }
-  if (backend != NULL)
+  if (backend != nullptr)
     backend_name = utf8_to_wchar(prism_backend_name(backend));
-  if (sapi_backend != NULL)
+  if (sapi_backend != nullptr)
     sapi_backend_name = utf8_to_wchar(prism_backend_name(sapi_backend));
   atomic_store(&loaded, true);
   fast_lock_release(&lock);
@@ -146,20 +146,20 @@ TOLK_API void TOLK_CALL Tolk_Unload(void) {
     return;
   }
   atomic_store(&loaded, false);
-  if (backend != NULL) {
+  if (backend != nullptr) {
     prism_backend_free(backend);
-    backend = NULL;
+    backend = nullptr;
   }
-  if (sapi_backend != NULL) {
+  if (sapi_backend != nullptr) {
     prism_backend_free(sapi_backend);
-    sapi_backend = NULL;
+    sapi_backend = nullptr;
   }
   prism_shutdown(ctx);
-  ctx = NULL;
+  ctx = nullptr;
   free(backend_name);
-  backend_name = NULL;
+  backend_name = nullptr;
   free(sapi_backend_name);
-  sapi_backend_name = NULL;
+  sapi_backend_name = nullptr;
   fast_lock_release(&lock);
 }
 
@@ -172,13 +172,13 @@ TOLK_API void TOLK_CALL Tolk_PreferSAPI(bool preferSAPI) {
 TOLK_API const wchar_t *TOLK_CALL Tolk_DetectScreenReader(void) {
   static _Thread_local wchar_t buf[256];
   if (!atomic_load(&loaded))
-    return NULL;
+    return nullptr;
   fast_lock_acquire(&lock);
   const wchar_t *name =
       atomic_load(&prefer_sapi) ? sapi_backend_name : backend_name;
-  if (name == NULL) {
+  if (name == nullptr) {
     fast_lock_release(&lock);
-    return NULL;
+    return nullptr;
   }
   wcsncpy(buf, name, 255);
   buf[255] = L'\0';
@@ -191,7 +191,7 @@ TOLK_API bool TOLK_CALL Tolk_HasSpeech(void) {
     return false;
   fast_lock_acquire(&lock);
   PrismBackend *b = atomic_load(&prefer_sapi) ? sapi_backend : backend;
-  if (b == NULL) {
+  if (b == nullptr) {
     fast_lock_release(&lock);
     return false;
   }
@@ -205,7 +205,7 @@ TOLK_API bool TOLK_CALL Tolk_HasBraille(void) {
     return false;
   fast_lock_acquire(&lock);
   PrismBackend *b = atomic_load(&prefer_sapi) ? sapi_backend : backend;
-  if (b == NULL) {
+  if (b == nullptr) {
     fast_lock_release(&lock);
     return false;
   }
@@ -215,15 +215,15 @@ TOLK_API bool TOLK_CALL Tolk_HasBraille(void) {
 }
 
 TOLK_API bool TOLK_CALL Tolk_Output(const wchar_t *str, bool interrupt) {
-  if (str == NULL || !atomic_load(&loaded))
+  if (str == nullptr || !atomic_load(&loaded))
     return false;
   char *utf8 = wchar_to_utf8(str);
-  if (utf8 == NULL)
+  if (utf8 == nullptr)
     return false;
   fast_lock_acquire(&lock);
   PrismBackend *b = atomic_load(&prefer_sapi) ? sapi_backend : backend;
   PrismError err = PRISM_ERROR_NOT_INITIALIZED;
-  if (b != NULL)
+  if (b != nullptr)
     err = prism_backend_output(b, utf8, interrupt);
   fast_lock_release(&lock);
   free(utf8);
@@ -231,15 +231,15 @@ TOLK_API bool TOLK_CALL Tolk_Output(const wchar_t *str, bool interrupt) {
 }
 
 TOLK_API bool TOLK_CALL Tolk_Speak(const wchar_t *str, bool interrupt) {
-  if (str == NULL || !atomic_load(&loaded))
+  if (str == nullptr || !atomic_load(&loaded))
     return false;
   char *utf8 = wchar_to_utf8(str);
-  if (utf8 == NULL)
+  if (utf8 == nullptr)
     return false;
   fast_lock_acquire(&lock);
   PrismBackend *b = atomic_load(&prefer_sapi) ? sapi_backend : backend;
   PrismError err = PRISM_ERROR_NOT_INITIALIZED;
-  if (b != NULL)
+  if (b != nullptr)
     err = prism_backend_speak(b, utf8, interrupt);
   fast_lock_release(&lock);
   free(utf8);
@@ -247,15 +247,15 @@ TOLK_API bool TOLK_CALL Tolk_Speak(const wchar_t *str, bool interrupt) {
 }
 
 TOLK_API bool TOLK_CALL Tolk_Braille(const wchar_t *str) {
-  if (str == NULL || !atomic_load(&loaded))
+  if (str == nullptr || !atomic_load(&loaded))
     return false;
   char *utf8 = wchar_to_utf8(str);
-  if (utf8 == NULL)
+  if (utf8 == nullptr)
     return false;
   fast_lock_acquire(&lock);
   PrismBackend *b = atomic_load(&prefer_sapi) ? sapi_backend : backend;
   PrismError err = PRISM_ERROR_NOT_INITIALIZED;
-  if (b != NULL)
+  if (b != nullptr)
     err = prism_backend_braille(b, utf8);
   fast_lock_release(&lock);
   free(utf8);
@@ -268,7 +268,7 @@ TOLK_API bool TOLK_CALL Tolk_IsSpeaking(void) {
   fast_lock_acquire(&lock);
   PrismBackend *b = atomic_load(&prefer_sapi) ? sapi_backend : backend;
   bool speaking = false;
-  if (b != NULL)
+  if (b != nullptr)
     if (prism_backend_is_speaking(b, &speaking) != PRISM_OK) {
       fast_lock_release(&lock);
       return false;
@@ -283,7 +283,7 @@ TOLK_API bool TOLK_CALL Tolk_Silence(void) {
   fast_lock_acquire(&lock);
   PrismBackend *b = atomic_load(&prefer_sapi) ? sapi_backend : backend;
   PrismError err = PRISM_ERROR_NOT_INITIALIZED;
-  if (b != NULL)
+  if (b != nullptr)
     err = prism_backend_stop(b);
   fast_lock_release(&lock);
   return err == PRISM_OK;

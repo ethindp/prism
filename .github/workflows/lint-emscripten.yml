@@ -26,15 +26,18 @@ jobs:
           version: latest
       - name: Lint all configurations
         run: |
-          if [ -x "${EMSDK}/upstream/bin/clang-tidy" ]; then
-            export PATH="${EMSDK}/upstream/bin:${PATH}"
-          else
-            sudo apt-get install -y clang-tidy
+          EMSDK_TIDY="${EMSDK}/upstream/bin/clang-tidy"
+          if [ ! -x "${EMSDK_TIDY}" ]; then
+            echo "ERROR: emsdk clang-tidy not found at ${EMSDK_TIDY}" >&2
+            ls -la "${EMSDK}/upstream/bin/" || true
+            exit 1
           fi
           for bt in Release Debug; do
             config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
             emcmake cmake -B "build-${config}" ${{ env.CMAKE_COMMON }} \
               -DCMAKE_BUILD_TYPE="$bt" \
+              -DCMAKE_C_CLANG_TIDY="${EMSDK_TIDY}" \
+              -DCMAKE_CXX_CLANG_TIDY="${EMSDK_TIDY}" \
               -DPRISM_ENABLE_GDEXTENSION=OFF
-            cmake --build "build-${config}" --target prism
+            cmake --build "build-${config}"
           done

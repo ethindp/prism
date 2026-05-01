@@ -307,7 +307,7 @@ public:
         }
         [mem_synth writeUtterance:utterance
                  toBufferCallback:^(AVAudioBuffer *_Nonnull buffer) {
-                   if (![buffer isKindOfClass:[AVAudioPCMBuffer class]] != NO)
+                   if ([buffer isKindOfClass:[AVAudioPCMBuffer class]] != NO)
                      return;
                    auto *pcm = (AVAudioPCMBuffer *)buffer;
                    if (pcm.frameLength == 0) {

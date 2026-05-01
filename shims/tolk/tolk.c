@@ -8,17 +8,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
-#if defined(__APPLE__)
+#ifdef __APPLE__
 #include <TargetConditionals.h>
 #endif
 #include "simdutf_c.h"
-#if defined(_WIN32)
+#ifdef _WIN32
 static const PrismBackendId default_tts_backend = PRISM_BACKEND_SAPI;
-#elif defined(__APPLE__)
+#elifdef __APPLE__
 static const PrismBackendId default_tts_backend = PRISM_BACKEND_AV_SPEECH;
-#elif defined(__ANDROID__)
+#elifdef __ANDROID__
 static const PrismBackendId default_tts_backend = PRISM_BACKEND_ANDROID_TTS;
-#elif defined(__EMSCRIPTEN__)
+#elifdef __EMSCRIPTEN__
 static const PrismBackendId default_tts_backend = PRISM_BACKEND_WEB_SPEECH;
 #else
 static const PrismBackendId default_tts_backend =

@@ -327,7 +327,7 @@ private:
     cached_window = nullptr;
     legacy_script = nil;
 #else
-    if (observer) {
+    if (observer != nullptr) {
       [[NSNotificationCenter defaultCenter] removeObserver:observer];
       observer = nullptr;
     }

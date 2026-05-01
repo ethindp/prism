@@ -27,9 +27,9 @@ void fast_lock_acquire(fast_lock *lk) TSA_NO_THREAD_SAFETY_ANALYSIS {
                                                 memory_order_relaxed))
       return;
   }
-#elif defined(__APPLE__)
+#elifdef __APPLE__
   os_unfair_lock_lock(&lk->inner);
-#elif defined(__linux__)
+#elifdef __linux__
   int expected = 0;
   if (atomic_compare_exchange_strong_explicit(
           &lk->state, &expected, 1, memory_order_acquire, memory_order_relaxed))
@@ -59,9 +59,9 @@ void fast_lock_release(fast_lock *lk) TSA_NO_THREAD_SAFETY_ANALYSIS {
     atomic_store_explicit(&lk->state, 0, memory_order_release);
     WakeByAddressSingle((void *)&lk->state);
   }
-#elif defined(__APPLE__)
+#elifdef __APPLE__
   os_unfair_lock_unlock(&lk->inner);
-#elif defined(__linux__)
+#elifdef __linux__
   if (atomic_fetch_sub_explicit(&lk->state, 1, memory_order_release) != 1) {
     atomic_store_explicit(&lk->state, 0, memory_order_release);
     syscall(SYS_futex, &lk->state, FUTEX_WAKE | FUTEX_PRIVATE_FLAG, 1, NULL,

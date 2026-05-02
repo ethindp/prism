@@ -17,6 +17,10 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.msvc_arch }}
+      - name: Install current CMake
+        uses: lukka/get-cmake@v4.3.2
+        with:
+          cmakeVersion: latest
       - name: Build all configurations
         shell: pwsh
         run: |

@@ -370,6 +370,9 @@ if(UNIX
         COMMENT "Generating Orca Module DBus Code")
       target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/orca-service.c"
                                              "${GEN_DIR}/orca-module.c")
+      set_source_files_properties(
+        "${GEN_DIR}/orca-service.c" "${GEN_DIR}/orca-module.c"
+        PROPERTIES SKIP_LINTING TRUE)
       target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
       target_include_directories(
         ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
@@ -424,6 +427,9 @@ if(UNIX
         COMMENT "Generating Orca Module DBus Code")
       target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/orca-service.c"
                                              "${GEN_DIR}/orca-module.c")
+      set_source_files_properties(
+        "${GEN_DIR}/orca-service.c" "${GEN_DIR}/orca-module.c"
+        PROPERTIES SKIP_LINTING TRUE)
       target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
       target_include_directories(
         ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})

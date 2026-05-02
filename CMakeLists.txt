@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: MPL-2.0
-
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
@@ -20,6 +19,7 @@ project(
   VERSION 0.13.0
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
+
 option(PRISM_ENABLE_TESTS "Enable tests" OFF)
 option(PRISM_ENABLE_DEMOS "Enable demo applications" OFF)
 option(
@@ -112,7 +112,25 @@ function(add_import_library target def_file dll_name)
                                              IMPORTED_LOCATION "${dll_name}")
   add_dependencies(${target} ${target}_gen)
 endfunction()
-
+add_library(prism_backend_iface INTERFACE)
+target_compile_features(prism_backend_iface INTERFACE cxx_std_23 c_std_17)
+set(_prism_backend_targets "")
+function(prism_add_backend src)
+  get_filename_component(name "${src}" NAME_WE)
+  set(tgt "prism_backend_${name}")
+  add_library(${tgt} OBJECT "${src}")
+  target_link_libraries(${tgt} PRIVATE prism_backend_iface)
+  set_target_properties(
+    ${tgt}
+    PROPERTIES POSITION_INDEPENDENT_CODE ON
+               CXX_VISIBILITY_PRESET hidden
+               C_VISIBILITY_PRESET hidden
+               VISIBILITY_INLINES_HIDDEN ON)
+  list(APPEND _prism_backend_targets ${tgt})
+  set(_prism_backend_targets
+      "${_prism_backend_targets}"
+      PARENT_SCOPE)
+endfunction()
 file(
   GLOB_RECURSE
   headers
@@ -127,7 +145,15 @@ file(GLOB_RECURSE android_sources CONFIGURE_DEPENDS
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c")
-# Remove platform-specific files
+file(GLOB backend_sources CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/*.cpp")
+list(REMOVE_ITEM backend_sources
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/backend_registry.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/utils.cpp")
+list(REMOVE_ITEM sources ${backend_sources})
+foreach(src ${backend_sources})
+  prism_add_backend("${src}")
+endforeach()
 if(NOT WIN32)
   list(REMOVE_ITEM sources
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
@@ -145,15 +171,29 @@ if(NOT EMSCRIPTEN)
 else()
   add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
 endif()
-set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set(_prism_backend_link_items "")
+foreach(_tgt ${_prism_backend_targets})
+  list(APPEND _prism_backend_link_items "$<BUILD_INTERFACE:${_tgt}>")
+endforeach()
+target_link_libraries(${PROJECT_NAME} PRIVATE ${_prism_backend_link_items})
+target_link_libraries(${PROJECT_NAME}
+                      PRIVATE "$<BUILD_INTERFACE:prism_backend_iface>")
+set_target_properties(
+  ${PROJECT_NAME}
+  PROPERTIES POSITION_INDEPENDENT_CODE ON
+             CXX_VISIBILITY_PRESET hidden
+             C_VISIBILITY_PRESET hidden
+             VISIBILITY_INLINES_HIDDEN ON)
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp
-                            PROPERTIES COMPILE_OPTIONS "-w")
+                            PROPERTIES COMPILE_OPTIONS "-w" SKIP_LINTING TRUE)
 if(APPLE)
-  set(PRISM_OBJCPP_SOURCES
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/avspeech.cpp"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/voiceover.cpp")
   set_source_files_properties(
-    ${PRISM_OBJCPP_SOURCES} PROPERTIES COMPILE_OPTIONS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/avspeech.cpp" TARGET_DIRECTORY
+    prism_backend_avspeech PROPERTIES COMPILE_OPTIONS
+                                      "-x;objective-c++;-fobjc-arc")
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/voiceover.cpp" TARGET_DIRECTORY
+    prism_backend_voiceover PROPERTIES COMPILE_OPTIONS
                                        "-x;objective-c++;-fobjc-arc")
 endif()
 set(_comp_arch_id "")
@@ -167,13 +207,18 @@ endif()
 string(TOLOWER "${_comp_arch_id}" _comp_arch_id_lc)
 set_property(TARGET ${PROJECT_NAME} PROPERTY OUTPUT_NAME ${PROJECT_NAME})
 target_include_directories(
-  ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                         $<INSTALL_INTERFACE:include>)
+  ${PROJECT_NAME}
+  PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+         "$<INSTALL_INTERFACE:include>")
+target_include_directories(
+  prism_backend_iface
+  INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/source>"
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/source/backends>")
 if(ANDROID)
   target_include_directories(${PROJECT_NAME}
                              PRIVATE "${PROJECT_SOURCE_DIR}/source/backends")
 endif()
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
 target_compile_definitions(
   ${PROJECT_NAME}
   PRIVATE PRISM_BUILDING
@@ -181,16 +226,29 @@ target_compile_definitions(
     NOMINMAX
     $<$<STREQUAL:$<TARGET_PROPERTY:${PROJECT_NAME},TYPE>,STATIC_LIBRARY>:PRISM_STATIC>
 )
+target_compile_definitions(
+  prism_backend_iface
+  INTERFACE
+    PRISM_BUILDING
+    NOMINMAX
+    $<$<STREQUAL:$<TARGET_PROPERTY:${PROJECT_NAME},TYPE>,STATIC_LIBRARY>:PRISM_STATIC>
+)
 if(PRISM_ENABLE_LEGACY_BACKENDS)
   target_compile_definitions(${PROJECT_NAME}
                              PRIVATE PRISM_ENABLE_LEGACY_BACKENDS)
+  target_compile_definitions(prism_backend_iface
+                             INTERFACE PRISM_ENABLE_LEGACY_BACKENDS)
   if(PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
     target_compile_definitions(
       ${PROJECT_NAME} PRIVATE PRISM_ENABLE_SYSTEM_ACCESS_LEGACY_BACKEND)
+    target_compile_definitions(
+      prism_backend_iface INTERFACE PRISM_ENABLE_SYSTEM_ACCESS_LEGACY_BACKEND)
   endif()
   if(PRISM_ENABLE_LEGACY_WINDOW_EYES_BACKEND)
     target_compile_definitions(${PROJECT_NAME}
                                PRIVATE PRISM_ENABLE_WINDOW_EYES_LEGACY_BACKEND)
+    target_compile_definitions(
+      prism_backend_iface INTERFACE PRISM_ENABLE_WINDOW_EYES_LEGACY_BACKEND)
   endif()
 endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
@@ -200,25 +258,6 @@ if(_PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
 else()
   set(_PRISM_LINK_VIS PRIVATE)
 endif()
-if(_PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
-  if(MSVC)
-    target_link_options(${PROJECT_NAME} INTERFACE
-                        "/WHOLEARCHIVE:$<TARGET_LINKER_FILE:${PROJECT_NAME}>")
-  elseif(APPLE)
-    target_link_options(
-      ${PROJECT_NAME} INTERFACE
-      "LINKER:-force_load,$<TARGET_LINKER_FILE:${PROJECT_NAME}>")
-  else()
-    target_link_options(
-      ${PROJECT_NAME} INTERFACE "LINKER:--whole-archive"
-      "$<TARGET_LINKER_FILE:${PROJECT_NAME}>" "LINKER:--no-whole-archive")
-  endif()
-endif()
-set_target_properties(
-  ${PROJECT_NAME}
-  PROPERTIES CXX_VISIBILITY_PRESET hidden
-             C_VISIBILITY_PRESET hidden
-             VISIBILITY_INLINES_HIDDEN ON)
 if(WIN32)
   target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib
                                                 uiautomationcore.lib)
@@ -261,6 +300,13 @@ if(WIN32)
     VERBATIM)
   target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/nvda_controller.c")
   target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
+  target_include_directories(prism_backend_iface
+                             INTERFACE "$<BUILD_INTERFACE:${GEN_DIR}>")
+  add_custom_target(prism_nvda_codegen DEPENDS "${GEN_DIR}/nvda_controller.h"
+                                               "${GEN_DIR}/nvda_controller.c")
+  if(TARGET prism_backend_nvda)
+    add_dependencies(prism_backend_nvda prism_nvda_codegen)
+  endif()
   target_link_libraries(${PROJECT_NAME} PRIVATE rpcrt4)
   if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
     if(PRISM_ENABLE_LEGACY_BACKENDS
@@ -378,24 +424,38 @@ if(UNIX
       set_source_files_properties(
         "${GEN_DIR}/orca-service.c" "${GEN_DIR}/orca-module.c"
         PROPERTIES SKIP_LINTING TRUE)
+      add_custom_target(
+        prism_orca_codegen
+        DEPENDS "${GEN_DIR}/orca-service.h" "${GEN_DIR}/orca-service.c"
+                "${GEN_DIR}/orca-module.h" "${GEN_DIR}/orca-module.c")
+      if(TARGET prism_backend_orca)
+        add_dependencies(prism_backend_orca prism_orca_codegen)
+      endif()
       target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
       target_include_directories(
         ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+      target_include_directories(
+        prism_backend_iface INTERFACE "$<BUILD_INTERFACE:${GEN_DIR}>"
+                                      ${GIO_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${GIO_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${GIO_LIBRARIES})
     else()
       target_compile_definitions(${PROJECT_NAME} PRIVATE NO_ORCA)
+      target_compile_definitions(prism_backend_iface INTERFACE NO_ORCA)
     endif()
     if(PRISM_VCPKG_WANTS_SPEECH_DISPATCHER_BACKEND)
       pkg_check_modules(LIBSPEECHD speech-dispatcher REQUIRED)
       target_include_directories(
         ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
                                 ${CMAKE_CURRENT_BINARY_DIR})
+      target_include_directories(prism_backend_iface
+                                 INTERFACE ${LIBSPEECHD_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE
                               ${LIBSPEECHD_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARIES})
     else()
       target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)
+      target_compile_definitions(prism_backend_iface INTERFACE NO_LIBSPEECHD)
     endif()
   else()
     find_package(PkgConfig REQUIRED)
@@ -435,24 +495,38 @@ if(UNIX
       set_source_files_properties(
         "${GEN_DIR}/orca-service.c" "${GEN_DIR}/orca-module.c"
         PROPERTIES SKIP_LINTING TRUE)
+      add_custom_target(
+        prism_orca_codegen
+        DEPENDS "${GEN_DIR}/orca-service.h" "${GEN_DIR}/orca-service.c"
+                "${GEN_DIR}/orca-module.h" "${GEN_DIR}/orca-module.c")
+      if(TARGET prism_backend_orca)
+        add_dependencies(prism_backend_orca prism_orca_codegen)
+      endif()
       target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
       target_include_directories(
         ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+      target_include_directories(
+        prism_backend_iface INTERFACE "$<BUILD_INTERFACE:${GEN_DIR}>"
+                                      ${GIO_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${GIO_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${GIO_LIBRARIES})
     else()
       target_compile_definitions(${PROJECT_NAME} PRIVATE NO_ORCA)
+      target_compile_definitions(prism_backend_iface INTERFACE NO_ORCA)
     endif()
     pkg_check_modules(LIBSPEECHD speech-dispatcher)
     if(LIBSPEECHD_FOUND)
       target_include_directories(
         ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
                                 ${CMAKE_CURRENT_BINARY_DIR})
+      target_include_directories(prism_backend_iface
+                                 INTERFACE ${LIBSPEECHD_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE
                               ${LIBSPEECHD_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSPEECHD_LIBRARIES})
     else()
       target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)
+      target_compile_definitions(prism_backend_iface INTERFACE NO_LIBSPEECHD)
     endif()
   endif()
 endif()
@@ -462,6 +536,11 @@ if(WIN32 OR WINDOWS_STORE)
     PUBLIC _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
            _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
            BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
+  target_compile_definitions(
+    prism_backend_iface
+    INTERFACE _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
+              _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
+              BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
 endif()
 if(MSVC)
   target_link_options(${PROJECT_NAME} PRIVATE "/STACK:8388608")
@@ -503,9 +582,11 @@ if(MSVC)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
   if(MSVC_HAS_UTF8_OPTION)
     target_compile_options(${PROJECT_NAME} PUBLIC /utf-8)
+    target_compile_options(prism_backend_iface INTERFACE /utf-8)
   endif()
   if(MSVC_HAS_BIGOBJ)
     target_compile_options(${PROJECT_NAME} PUBLIC /bigobj)
+    target_compile_options(prism_backend_iface INTERFACE /bigobj)
   endif()
 elseif(
   CMAKE_CXX_COMPILER_ID MATCHES "Clang"
@@ -561,18 +642,28 @@ if(NOT MSVC)
   if(COMP_HAS_WALL_OPTION AND COMP_HAS_WEXTRA_OPTION)
     target_compile_options(${PROJECT_NAME}
                            PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
+    target_compile_options(prism_backend_iface
+                           INTERFACE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
   endif()
   if(COMP_HAS_WTHREAD_SAFETY_OPTION)
     target_compile_options(
       ${PROJECT_NAME}
       PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety>
               $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety>)
+    target_compile_options(
+      prism_backend_iface
+      INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety>
+                $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety>)
   endif()
   if(COMP_HAS_WTHREAD_SAFETY_NEGATIVE_OPTION)
     target_compile_options(
       ${PROJECT_NAME}
       PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety-negative>
               $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety-negative>)
+    target_compile_options(
+      prism_backend_iface
+      INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety-negative>
+                $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety-negative>)
   endif()
 endif()
 if(APPLE)
@@ -604,6 +695,10 @@ if(PRISM_ENABLE_LINTING)
       set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}")
       set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY
                                                        "${CLANG_TIDY_COMMAND}")
+      foreach(_tgt ${_prism_backend_targets})
+        set_target_properties(${_tgt} PROPERTIES CXX_CLANG_TIDY
+                                                 "${CLANG_TIDY_COMMAND}")
+      endforeach()
       set_source_files_properties(${SKIP_LINT_FILES} PROPERTIES SKIP_LINTING ON)
     endif()
   else()
@@ -634,6 +729,23 @@ if(PRISM_ENABLE_LINTING)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nativecodeanalysis")
     set_property(TARGET ${PROJECT_NAME} PROPERTY COMPILE_WARNING_AS_ERROR ON)
     set_property(TARGET ${PROJECT_NAME} PROPERTY COMPILE_WARNING_LEVEL 4)
+    foreach(_tgt ${_prism_backend_targets})
+      set_property(TARGET ${_tgt} PROPERTY COMPILE_WARNING_AS_ERROR ON)
+      set_property(TARGET ${_tgt} PROPERTY COMPILE_WARNING_LEVEL 4)
+    endforeach()
+    target_compile_options(
+      prism_backend_iface
+      INTERFACE /external:anglebrackets
+                /external:W0
+                "/external:I ${CMAKE_BINARY_DIR}/generated"
+                "/external:I ${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw"
+                /analyze
+                /analyze:external-
+                /analyze:log
+                "${CMAKE_BINARY_DIR}/nativecodeanalysis/"
+                /analyze:log:format:sarif
+                /analyze:ruleset
+                "${_MERGED_RULESET_PATH}")
     target_compile_options(
       ${PROJECT_NAME}
       PRIVATE /external:anglebrackets
@@ -662,6 +774,9 @@ if(NOT ANDROID)
   if(IPO_SUPPORTED)
     set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION
                                                  TRUE)
+    foreach(_tgt ${_prism_backend_targets})
+      set_property(TARGET ${_tgt} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endforeach()
   else()
     message(STATUS "IPO not supported for this build")
   endif()
@@ -673,10 +788,34 @@ endif()
 if(PRISM_ENABLE_DEMOS)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/demos)
 endif()
+add_library(${PROJECT_NAME}_consume INTERFACE)
+get_target_property(_PRISM_LIB_TYPE_FOR_CONSUME ${PROJECT_NAME} TYPE)
+if(_PRISM_LIB_TYPE_FOR_CONSUME STREQUAL "STATIC_LIBRARY")
+  # From my tests, CMake does not rewrite target names inside the LINK_LIBRARY
+  # genex when exporting, so we need separate BUILD_INTERFACE /
+  # INSTALL_INTERFACE forms
+  target_link_libraries(
+    ${PROJECT_NAME}_consume
+    INTERFACE
+      "$<BUILD_INTERFACE:$<LINK_LIBRARY:WHOLE_ARCHIVE,${PROJECT_NAME}>>"
+      "$<INSTALL_INTERFACE:$<LINK_LIBRARY:WHOLE_ARCHIVE,${PROJECT_NAME}::${PROJECT_NAME}_impl>>"
+  )
+else()
+  target_link_libraries(
+    ${PROJECT_NAME}_consume
+    INTERFACE "$<BUILD_INTERFACE:${PROJECT_NAME}>"
+              "$<INSTALL_INTERFACE:${PROJECT_NAME}::${PROJECT_NAME}_impl>")
+endif()
+set_target_properties(${PROJECT_NAME} PROPERTIES EXPORT_NAME
+                                                 ${PROJECT_NAME}_impl)
+set_target_properties(${PROJECT_NAME}_consume PROPERTIES EXPORT_NAME
+                                                         ${PROJECT_NAME})
+add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME}_consume)
+add_library(${PROJECT_NAME}::${PROJECT_NAME}_impl ALIAS ${PROJECT_NAME})
 if(DEFINED SKBUILD)
   set(PRISM_PY_NATIVE_DIR "${SKBUILD_PLATLIB_DIR}/prism/_native")
   install(
-    TARGETS ${PROJECT_NAME}
+    TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_consume
     RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"
     LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
     ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
@@ -697,7 +836,7 @@ if(DEFINED SKBUILD)
   endif()
 else()
   install(
-    TARGETS ${PROJECT_NAME}
+    TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_consume
     EXPORT prismTargets
     RUNTIME DESTINATION "bin"
     LIBRARY DESTINATION "lib"

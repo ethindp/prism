@@ -17,6 +17,7 @@ def prismVersion = gitVersion.orElse(cmakeVersion).orElse('0.0.0').get()
 android {
     namespace = 'com.github.ethindp.prism'
     compileSdk = 36
+    ndkVersion = '29.0.14206865'
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
@@ -43,6 +44,7 @@ android {
         cmake {
             path file('CMakeLists.txt')
             buildStagingDirectory = file('build/android/.cxx')
+            version '4.3.2'
         }
     }
     libraryVariants.configureEach { variant ->

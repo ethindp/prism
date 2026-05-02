@@ -370,6 +370,9 @@ if(UNIX
         COMMENT "Generating Orca Module DBus Code")
       target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/orca-service.c"
                                              "${GEN_DIR}/orca-module.c")
+      set_source_files_properties(
+        "${GEN_DIR}/orca-service.c" "${GEN_DIR}/orca-module.c"
+        PROPERTIES SKIP_LINTING TRUE)
       target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
       target_include_directories(
         ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
@@ -424,6 +427,9 @@ if(UNIX
         COMMENT "Generating Orca Module DBus Code")
       target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/orca-service.c"
                                              "${GEN_DIR}/orca-module.c")
+      set_source_files_properties(
+        "${GEN_DIR}/orca-service.c" "${GEN_DIR}/orca-module.c"
+        PROPERTIES SKIP_LINTING TRUE)
       target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
       target_include_directories(
         ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
@@ -577,7 +583,7 @@ if(PRISM_ENABLE_LINTING)
       "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/concurrentqueue.h"
+      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/concurrentqueue.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sense_reader.h"

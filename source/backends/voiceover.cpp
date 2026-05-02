@@ -88,7 +88,7 @@ consteval std::string_view get_backend_display_name() {
 }
 
 static inline void sync_on_main(dispatch_block_t block) {
-  if ([NSThread isMainThread]) {
+  if ([NSThread isMainThread] != NO) {
     block();
   } else {
     dispatch_sync(dispatch_get_main_queue(), block);
@@ -97,7 +97,7 @@ static inline void sync_on_main(dispatch_block_t block) {
 
 static inline bool is_voiceover_active() {
 #if TARGET_OS_OSX
-  return [[NSWorkspace sharedWorkspace] isVoiceOverEnabled];
+  return static_cast<bool>([[NSWorkspace sharedWorkspace] isVoiceOverEnabled]);
 #else
   return UIAccessibilityIsVoiceOverRunning();
 #endif
@@ -106,12 +106,13 @@ static inline bool is_voiceover_active() {
 #if TARGET_OS_OSX
 static NSWindow *pick_best_window() {
   auto *const app = [NSApplication sharedApplication];
-  if (auto *kw = app.keyWindow; kw != nullptr && kw.isVisible)
+  if (auto *kw = app.keyWindow; kw != nullptr && kw.isVisible == YES)
     return kw;
-  if (auto *mw = app.mainWindow; mw != nullptr && mw.isVisible)
+  if (auto *mw = app.mainWindow; mw != nullptr && mw.isVisible == YES)
     return mw;
   for (NSWindow *const w in app.orderedWindows) {
-    if (w.isVisible && !w.isMiniaturized && w.level == NSNormalWindowLevel) {
+    if (w.isVisible == YES && w.isMiniaturized == NO &&
+        w.level == NSNormalWindowLevel) {
       return w;
     }
   }
@@ -141,7 +142,7 @@ private:
   __weak NSWindow *cached_window{nullptr};
   NSAppleScript *legacy_script{nullptr};
   std::atomic_flag legacy_unavailable;
-  static inline constexpr double debounce_delay = 0.015;
+  static constexpr double debounce_delay = 0.015;
 #else
   NSMutableArray<NSString *> *queue{nullptr};
   bool is_speaking_flag{false};
@@ -195,7 +196,7 @@ public:
       }
 #if TARGET_OS_OSX
       auto *const w = pick_best_window();
-      if (!w) {
+      if (w == nullptr) {
         result = std::unexpected(BackendError::BackendNotAvailable);
         return;
       }
@@ -206,7 +207,7 @@ public:
       legacy_script =
           [[NSAppleScript alloc] initWithSource:VOICE_OVER_APPLE_SCRIPT_SOURCE];
       NSDictionary *compileError = nil;
-      if (![legacy_script compileAndReturnError:&compileError]) {
+      if ([legacy_script compileAndReturnError:&compileError] == NO) {
         legacy_script = nil;
         legacy_unavailable.test_and_set();
       }
@@ -249,7 +250,7 @@ public:
     NSString *ns_text = [[NSString alloc] initWithBytes:text.data()
                                                  length:text.size()
                                                encoding:NSUTF8StringEncoding];
-    if (!ns_text)
+    if (ns_text == nullptr)
       return std::unexpected(BackendError::InvalidUtf8);
     __block BackendResult<> result = {};
     sync_on_main(^{
@@ -258,10 +259,10 @@ public:
         return;
       }
 #if TARGET_OS_OSX
-      if (!cached_window || cached_window.contentView == nil) {
+      if (cached_window == nullptr || cached_window.contentView == nil) {
         cached_window = pick_best_window();
       }
-      if (!cached_window) {
+      if (cached_window == nullptr) {
         result = std::unexpected(BackendError::BackendNotAvailable);
         return;
       }
@@ -326,7 +327,7 @@ private:
     cached_window = nullptr;
     legacy_script = nil;
 #else
-    if (observer) {
+    if (observer != nullptr) {
       [[NSNotificationCenter defaultCenter] removeObserver:observer];
       observer = nullptr;
     }
@@ -337,7 +338,7 @@ private:
 
 #if TARGET_OS_OSX
   void cancel_debounce() {
-    if (debounce_block) {
+    if (debounce_block != nullptr) {
       dispatch_block_cancel(debounce_block);
       debounce_block = nullptr;
     }
@@ -360,9 +361,10 @@ private:
   bool try_invoke_legacy_handler(NSString *handlerName, NSString *argument) {
     if (legacy_unavailable.test())
       return false;
-    if (!legacy_script)
+    if (legacy_script == nullptr)
       return false;
-    ProcessSerialNumber psn = {0, kCurrentProcess};
+    ProcessSerialNumber psn = {.highLongOfPSN = 0,
+                               .lowLongOfPSN = kCurrentProcess};
     auto *const target = [NSAppleEventDescriptor
         descriptorWithDescriptorType:typeProcessSerialNumber
                                bytes:&psn
@@ -377,7 +379,7 @@ private:
                                   descriptorWithString:handlerName]
                    forKeyword:keyASSubroutineName];
     auto *const args = [NSAppleEventDescriptor listDescriptor];
-    if (argument) {
+    if (argument != nullptr) {
       [args insertDescriptor:[NSAppleEventDescriptor
                                  descriptorWithString:argument]
                      atIndex:1];
@@ -388,7 +390,7 @@ private:
         [legacy_script executeAppleEvent:event error:&errorInfo];
     if (reply == nil) {
       NSNumber *const errNum = errorInfo[NSAppleScriptErrorNumber];
-      if (errNum && errNum.intValue == errAEEventNotPermitted) {
+      if (errNum != nullptr && errNum.intValue == errAEEventNotPermitted) {
         legacy_unavailable.test_and_set();
       }
       return false;
@@ -399,7 +401,7 @@ private:
   void fire_announcement_now() {
     if (!initialized.test())
       return;
-    if (![[NSWorkspace sharedWorkspace] isVoiceOverEnabled])
+    if ([[NSWorkspace sharedWorkspace] isVoiceOverEnabled] == NO)
       return;
     if (pending_text.length == 0)
       return;
@@ -407,13 +409,14 @@ private:
     [pending_text setString:@""];
     if (try_invoke_legacy_handler(@"voSpeak", text_to_speak))
       return;
-    NSWindow *w = cached_window ?: pick_best_window();
-    if (!w)
+    NSWindow *w = cached_window != nullptr ? cached_window : pick_best_window();
+    if (w == nullptr)
       return;
     cached_window = w;
     NSAccessibilityPostNotificationWithUserInfo(
         w, NSAccessibilityAnnouncementRequestedNotification, @{
           NSAccessibilityAnnouncementKey : text_to_speak,
+          // NOLINTNEXTLINE(readability-redundant-parentheses)
           NSAccessibilityPriorityKey : @(NSAccessibilityPriorityHigh),
         });
   }

@@ -20,21 +20,26 @@ jobs:
       - name: Install host tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build
+          sudo apt-get install -y ninja-build wget gnupg
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh all
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: latest
       - name: Lint all configurations
         run: |
-          if [ -x "${EMSDK}/upstream/bin/clang-tidy" ]; then
-            export PATH="${EMSDK}/upstream/bin:${PATH}"
-          else
-            sudo apt-get install -y clang-tidy
+          EM_SYSROOT="${EMSDK}/upstream/emscripten/cache/sysroot"
+          if [ ! -d "${EM_SYSROOT}" ]; then
+            EM_SYSROOT=$(em-config CACHE)/sysroot
           fi
+          TIDY_FLAGS="/usr/bin/clang-tidy-20;--extra-arg=--sysroot=${EM_SYSROOT};--extra-arg=-stdlib=libc++"
           for bt in Release Debug; do
             config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
             emcmake cmake -B "build-${config}" ${{ env.CMAKE_COMMON }} \
               -DCMAKE_BUILD_TYPE="$bt" \
+              -DCMAKE_C_CLANG_TIDY="${TIDY_FLAGS}" \
+              -DCMAKE_CXX_CLANG_TIDY="${TIDY_FLAGS}" \
               -DPRISM_ENABLE_GDEXTENSION=OFF
-            cmake --build "build-${config}" --target prism
+            cmake --build "build-${config}"
           done

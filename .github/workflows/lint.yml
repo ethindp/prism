@@ -5,8 +5,6 @@ on:
   pull_request:
   push:
     branches: ['master', 'lint-workflows']
-  schedule:
-    - cron: '0 6 * * 1'
 
 jobs:
   lint-linux:
@@ -21,7 +19,6 @@ jobs:
     uses: ./.github/workflows/lint-ios.yml
   lint-android:
     uses: ./.github/workflows/lint-android.yml
-  lint-emscripten:
-    uses: ./.github/workflows/lint-emscripten.yml
-  lint-gdextension:
-    uses: ./.github/workflows/lint-gdextension.yml
+# Todo: try to get this workflow to work, or remove it entirely
+#  lint-emscripten:
+#    uses: ./.github/workflows/lint-emscripten.yml

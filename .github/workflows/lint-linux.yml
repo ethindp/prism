@@ -26,9 +26,11 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libspeechd-dev libglib2.0-dev libdbus-1-dev \
-            clang-tidy ninja-build
+          sudo apt-get install -y libspeechd-dev libglib2.0-dev libdbus-1-dev ninja-build wget wine64-tools
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh all
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-20 100
       - name: Lint all configurations
         run: |
           for shared in ON OFF; do
@@ -37,8 +39,15 @@ jobs:
               config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
               cmake -B "build-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
                 -DCMAKE_BUILD_TYPE="$bt" \
+                -DCMAKE_C_COMPILER=clang-20 \
+                -DCMAKE_CXX_COMPILER=clang++-20 \
+                -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+                -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
+                -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
+                -DCMAKE_C_CLANG_TIDY=/usr/bin/clang-tidy-20 \
+                -DCMAKE_CXX_CLANG_TIDY=/usr/bin/clang-tidy-20 \
                 -DBUILD_SHARED_LIBS="$shared" \
-                -DPRISM_BUILD_WINELIBS=OFF \
+                -DPRISM_BUILD_WINELIBS=ON \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}" --target prism
             done

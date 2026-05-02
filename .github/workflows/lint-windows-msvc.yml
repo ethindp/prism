@@ -9,14 +9,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: x64,   msvc_arch: amd64,       extra_cmake: "" }
-          - { name: arm64, msvc_arch: amd64_arm64, extra_cmake: "-DCMAKE_SYSTEM_PROCESSOR=ARM64" }
-    runs-on: windows-latest
+          - { name: x64,   msvc_arch: amd64,       extra_cmake: "", os: windows-latest }
+          - { name: arm64, msvc_arch: amd64_arm64, extra_cmake: "-DCMAKE_SYSTEM_PROCESSOR=ARM64", os: windows-2025-vs2026 }
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.msvc_arch }}
+      - name: Install current CMake
+        uses: lukka/get-cmake@v4.3.2
+        with:
+          cmakeVersion: latest
       - name: Lint all configurations
         shell: pwsh
         run: |
@@ -26,6 +30,8 @@ jobs:
               $config = $bt.ToLower()
               cmake -B "build-${linkage}-${config}" `
                 -G Ninja `
+                -DCMAKE_C_COMPILER=cl `
+                -DCMAKE_CXX_COMPILER=cl `
                 -DPRISM_ENABLE_TESTS=OFF `
                 -DPRISM_ENABLE_DEMOS=OFF `
                 -DPRISM_ENABLE_SHIMS=ON `

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
 
 include(CheckCCompilerFlag)
 include(CheckIPOSupported)
@@ -11,14 +11,16 @@ include(CheckIncludeFile)
 include(GNUInstallDirs)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(
   tolk
-  VERSION 0.13.0
+  VERSION 0.14.0
   DESCRIPTION "Tolk shim for Prism"
-  LANGUAGES C)
+  LANGUAGES C CXX)
 
 check_include_file(stdatomic.h HAS_STD_ATOMICS)
 if(NOT HAS_STD_ATOMICS)
@@ -164,7 +166,7 @@ int main(void) {
 else()
   find_package(Threads REQUIRED)
 endif()
-add_library(tolk SHARED tolk.c lock.c unicode.c)
+add_library(tolk SHARED tolk.c lock.c simdutf.cpp)
 target_compile_definitions(tolk PRIVATE TOLK_BUILDING)
 if(NEEDS_C11_ATOMICS_FLAG)
   target_compile_options(tolk PRIVATE /experimental:c11atomics)
@@ -182,10 +184,6 @@ if(NOT MSVC)
       tolk PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety>
                    $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety>)
   endif()
-endif()
-if(NOT MSVC)
-  set_target_properties(tolk PROPERTIES C_VISIBILITY_PRESET hidden
-                                        VISIBILITY_INLINES_HIDDEN ON)
 endif()
 if(PRISM_ENABLE_LINTING)
   if(NOT CMAKE_C_COMPILER_ID MATCHES "MSVC")
@@ -238,6 +236,11 @@ endif()
 target_include_directories(
   tolk PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
               $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+set_target_properties(
+  tolk
+  PROPERTIES CXX_VISIBILITY_PRESET hidden
+             C_VISIBILITY_PRESET hidden
+             VISIBILITY_INLINES_HIDDEN ON)
 install(
   TARGETS tolk
   EXPORT tolkTargets
@@ -245,8 +248,9 @@ install(
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 if(MSVC)
-  install(FILES $<TARGET_PDB_FILE:tolk>
-          DESTINATION ${CMAKE_INSTALL_BINDIR}
-          OPTIONAL)
+  install(
+    FILES $<TARGET_PDB_FILE:tolk>
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    OPTIONAL)
 endif()
 install(FILES tolk.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

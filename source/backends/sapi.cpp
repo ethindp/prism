@@ -703,7 +703,9 @@ public:
     }
     CComPtr<ISpObjectToken> current_token;
     hr = voice->GetVoice(&current_token);
-    assert(SUCCEEDED(hr) && current_token != nullptr);
+    if (FAILED(hr) || current_token == nullptr) {
+      return std::unexpected(BackendError::InternalBackendError);
+    }
     {
       std::shared_lock sl(voices_lock);
       for (std::size_t i = 0; i < voices.size(); ++i) {

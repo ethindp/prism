@@ -12,6 +12,8 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
       - name: Build
         run: chmod +x gradlew && ./gradlew assembleRelease assembleDebug
       - name: Package

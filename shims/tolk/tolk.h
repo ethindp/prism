@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPLv3
+// SPDX-License-Identifier: MPL-2.0
 
 #ifndef TOLK_H
 #define TOLK_H

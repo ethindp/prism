@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MPL-2.0
+
 #ifndef FAST_LOCK_H
 #define FAST_LOCK_H
 

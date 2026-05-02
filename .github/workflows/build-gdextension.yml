@@ -64,6 +64,10 @@ jobs:
               matrix.target.arch == 'x86_32' && 'x86'         ||
               matrix.target.arch == 'arm64'  && 'amd64_arm64'
             }}
+      - name: Install current CMake
+        uses: lukka/get-cmake@v4.3.2
+        with:
+          cmakeVersion: latest
       - name: NDK setup
         if: matrix.target.platform == 'android'
         uses: nttld/setup-ndk@v1

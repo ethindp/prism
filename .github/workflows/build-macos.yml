@@ -16,6 +16,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Install current CMake
+        uses: lukka/get-cmake@v4.3.2
+        with:
+          cmakeVersion: latest
       - name: Build all configurations
         run: |
           for shared in ON OFF; do

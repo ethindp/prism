@@ -73,7 +73,7 @@ jobs:
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r30
+          ndk-version: r29
       - name: download iOS toolchain
         if: matrix.target.platform == 'ios'
         run: curl -sSL https://raw.githubusercontent.com/leetal/ios-cmake/master/ios.toolchain.cmake -o ios.toolchain.cmake

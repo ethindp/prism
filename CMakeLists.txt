@@ -214,6 +214,11 @@ if(_PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
       "$<TARGET_LINKER_FILE:${PROJECT_NAME}>" "LINKER:--no-whole-archive")
   endif()
 endif()
+set_target_properties(
+  ${PROJECT_NAME}
+  PROPERTIES CXX_VISIBILITY_PRESET hidden
+             C_VISIBILITY_PRESET hidden
+             VISIBILITY_INLINES_HIDDEN ON)
 if(WIN32)
   target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib
                                                 uiautomationcore.lib)

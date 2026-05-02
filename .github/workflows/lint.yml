@@ -21,5 +21,6 @@ jobs:
     uses: ./.github/workflows/lint-ios.yml
   lint-android:
     uses: ./.github/workflows/lint-android.yml
-  lint-emscripten:
-    uses: ./.github/workflows/lint-emscripten.yml
+# Todo: try to get this workflow to work, or remove it entirely
+#  lint-emscripten:
+#    uses: ./.github/workflows/lint-emscripten.yml

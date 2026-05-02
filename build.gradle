@@ -5,6 +5,15 @@ plugins {
 dependencies {
     implementation "com.ibm.icu:icu4j:78.3"
 }
+allprojects {
+    plugins.withId('java-base') {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(25)
+            }
+        }
+    }
+}
 def gitVersion = providers.exec {
     commandLine 'git', 'describe', '--tags', '--always', '--dirty'
 }.standardOutput.asText.map { it.trim().replaceFirst('^v', '') }
@@ -17,7 +26,7 @@ def prismVersion = gitVersion.orElse(cmakeVersion).orElse('0.0.0').get()
 android {
     namespace = 'com.github.ethindp.prism'
     compileSdk = 36
-    ndkVersion = '29.0.14206865'
+    ndkVersion = '30.0.14904198'
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
@@ -44,7 +53,7 @@ android {
         cmake {
             path file('CMakeLists.txt')
             buildStagingDirectory = file('build/android/.cxx')
-            version '4.3.2'
+            version '4.1.2'
         }
     }
     libraryVariants.configureEach { variant ->

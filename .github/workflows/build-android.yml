@@ -12,10 +12,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
-      - name: Install current CMake
-        uses: lukka/get-cmake@v4.3.2
-        with:
-          cmakeVersion: latest
       - name: Build
         run: chmod +x gradlew && ./gradlew assembleRelease assembleDebug
       - name: Package

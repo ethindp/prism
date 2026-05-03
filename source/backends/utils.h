@@ -45,16 +45,17 @@ struct TrimParams {
 
 // These functions are taken from NVGT, and therefore these files are
 // Zlib-licensed.
-double range_convert(double old_value, double old_min, double old_max,
-                     double new_min, double new_max);
+double range_convert(double v, double a0, double a1, double b0, double b1);
 float range_convert(float old_value, float old_min, float old_max,
                     float new_min, float new_max);
 float range_convert_midpoint(float old_value, float old_min, float old_midpoint,
                              float old_max, float new_min, float new_midpoint,
                              float new_max);
 // End NVGT code
-double exp_range_convert(float t, double out_min, double out_mid, double out_max);
-float exp_range_convert_inv(double val, double out_min, double out_mid, double out_max);
+double exp_range_convert(float t, double out_min, double out_mid,
+                         double out_max);
+float exp_range_convert_inv(double val, double out_min, double out_mid,
+                            double out_max);
 
 struct TrimView {
   std::span<float> view; // points into caller memory

@@ -1,5 +1,4 @@
 import sys
-import warnings
 from dataclasses import dataclass, field, fields
 from enum import IntEnum
 
@@ -114,6 +113,9 @@ class PrismInternalBackendLimitExceededError(PrismError, RuntimeError):
     """PRISM_ERROR_INVALID_AUDIO_FORMAT"""
 
 
+class PrismBackendEnteredUndefinedStateError(PrismError, RuntimeError):
+    """PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE"""
+
 _ERROR_MAP = {
     lib.PRISM_ERROR_NOT_INITIALIZED: PrismNotInitializedError,
     lib.PRISM_ERROR_INVALID_PARAM: PrismInvalidParamError,
@@ -134,6 +136,7 @@ _ERROR_MAP = {
     lib.PRISM_ERROR_UNKNOWN: PrismUnknownError,
     lib.PRISM_ERROR_INVALID_AUDIO_FORMAT: PrismInvalidAudioFormatError,
     lib.PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED: PrismInternalBackendLimitExceededError,
+    lib.PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE: PrismBackendEnteredUndefinedStateError,
 }
 
 

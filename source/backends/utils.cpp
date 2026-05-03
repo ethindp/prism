@@ -23,10 +23,9 @@
 #include <utility>
 
 // Begin NVGT code
-double range_convert(double old_value, double old_min, double old_max,
-                     double new_min, double new_max) {
-  return (((old_value - old_min) / (old_max - old_min)) * (new_max - new_min)) +
-         new_min;
+double range_convert(double v, double a0, double a1, double b0, double b1) {
+  const double t = (v - a0) / (a1 - a0);
+  return std::lerp(b0, b1, t);
 }
 
 float range_convert(float old_value, float old_min, float old_max,

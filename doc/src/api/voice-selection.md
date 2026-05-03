@@ -192,6 +192,7 @@ The zero-based index of the voice to select.
 | `PRISM_ERROR_RANGE_OUT_OF_BOUNDS` | `voice_id` is out of range. |
 | `PRISM_ERROR_VOICE_NOT_FOUND` | The voice does not exist. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support voice selection. |
+| `PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE` | An error occured when the backend was executing a function which has caused the backend to enter an undefined state. The caller should re-initialize the backend from scratch. |
 
 #### Remarks
 

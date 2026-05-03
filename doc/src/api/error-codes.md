@@ -24,5 +24,6 @@ When a function returns a `PrismError`, the `prism_error_string` function can be
 | `PRISM_ERROR_UNKNOWN` | 17 | An unspecified error occurred |
 | `PRISM_ERROR_INVALID_AUDIO_FORMAT` | 18 | Either the backend speech engine or backend voice have an audio format that Prism does not know how to handle, or the parameters that the underlying speech engine provided to Prism were nonsensical. |
 | `PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED` | The backend possesses an internal hard ceiling as to how many instances may be instantiated at any given time, and this limit would be exceeded were another to be initialized. |
+| `PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE` | An error occured when the backend was executing a function which has caused the backend to enter an undefined state. The caller should re-initialize the backend from scratch. |
 
 The constant `PRISM_ERROR_COUNT` equals the total number of error codes and MAY be used for bounds checking or table sizing. This constant may increase in future versions as new error codes are added.

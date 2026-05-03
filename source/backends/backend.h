@@ -35,7 +35,8 @@ enum class BackendError : std::uint8_t {
   BackendNotAvailable,
   Unknown,
   InvalidAudioFormat,
-  InternalBackendLimitExceeded
+  InternalBackendLimitExceeded,
+  BackendEnteredUndefinedState
 };
 
 template <typename T = void>

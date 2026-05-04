@@ -3,6 +3,7 @@ plugins {
     id "com.diffplug.spotless" version "8.4.0"
 }
 dependencies {
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
     implementation "com.ibm.icu:icu4j:78.3"
 }
 allprojects {
@@ -42,6 +43,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
+        coreLibraryDesugaringEnabled = true
     }
     defaultConfig {
         minSdk 30

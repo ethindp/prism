@@ -125,7 +125,7 @@ PRISM_API PRISM_NODISCARD PrismBackendId PRISM_CALL
 prism_registry_id_at(PrismContext *ctx, size_t index) {
   const auto list = ctx->registry.list();
   if (index >= list.size())
-    return std::numeric_limits<std::size_t>::max();
+    return PRISM_BACKEND_INVALID;
   return to_prism_id(list[index]);
 }
 

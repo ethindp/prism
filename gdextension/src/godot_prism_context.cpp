@@ -47,9 +47,6 @@ std::int64_t GodotPrismContext::get_backends_count() const {
     return 0;
   }
   auto const n = prism_registry_count(ctx);
-  if (n == std::numeric_limits<std::size_t>::max()) {
-    return 0;
-  }
   return static_cast<std::int64_t>(n);
 }
 

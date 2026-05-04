@@ -14,6 +14,9 @@ env:
 
 jobs:
   lint:
+    permissions:
+      contents: read
+      security-events: write
     strategy:
       fail-fast: false
       matrix:
@@ -30,7 +33,9 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r29
-      - name: Lint
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      - name: Lint C++ code
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
@@ -47,3 +52,19 @@ jobs:
               -DANDROID_PLATFORM=android-30
             cmake --build "build-${linkage}-${config}" --target prism
           done
+      - name: Run Android Lint
+        run: ./gradlew :lint --continue --no-daemon --stacktrace
+      - name: Upload lint reports
+        if: always()   # so reports are uploaded even when lint fails the build
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: |
+            build/android/gradle/reports/lint-results-*.html
+            build/android/gradle/reports/lint-results-*.xml
+            build/android/gradle/reports/lint-results-*.sarif
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: build/android/gradle/reports/lint-results-debug.sarif

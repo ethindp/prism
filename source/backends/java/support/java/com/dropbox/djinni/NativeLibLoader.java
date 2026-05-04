@@ -176,7 +176,7 @@ public class NativeLibLoader {
     }
 
     private static void loadLibrary(String abspath) {
-        System.load(abspath);
+        System.loadLibrary(abspath);
         log.log(Level.INFO, "Loaded " + abspath);
     }
 }

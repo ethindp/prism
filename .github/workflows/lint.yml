@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
   push:
-    branches: ['master', 'lint-workflows']
+    branches: ['master']
 
 jobs:
   lint-linux:
@@ -19,6 +19,9 @@ jobs:
     uses: ./.github/workflows/lint-ios.yml
   lint-android:
     uses: ./.github/workflows/lint-android.yml
+    permissions:
+      contents: read
+      security-events: write
 # Todo: try to get this workflow to work, or remove it entirely
 #  lint-emscripten:
 #    uses: ./.github/workflows/lint-emscripten.yml

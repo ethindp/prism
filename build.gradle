@@ -26,6 +26,16 @@ def  cmakeVersion = providers.fileContents(layout.projectDirectory.file('CMakeLi
 }
 def  prismVersion = gitVersion.orElse(cmakeVersion).orElse('0.0.0').get()
 android {
+    lint {
+        textReport = true
+        abortOnError = true
+        warningsAsErrors = true
+        checkDependencies = true
+        explainIssues = true
+        xmlReport = true
+        htmlReport = true
+        sarifReport = true
+    }
     namespace = 'com.github.ethindp.prism'
     compileSdk = 36
     ndkVersion = '30.0.14904198'

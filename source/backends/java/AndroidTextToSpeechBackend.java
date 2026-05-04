@@ -11,6 +11,7 @@ import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 import com.snapchat.djinni.Outcome;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.*;
@@ -186,112 +187,104 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
     out.flip();
     String textString = out.toString();
     ParcelFileDescriptor pfd;
-    try {
-      var memfd = Os.memfd_create("tts_synthesis", 0);
-      pfd = ParcelFileDescriptor.dup(memfd);
-      Os.close(memfd);
-    } catch (ErrnoException | IOException e) {
-      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
+    File tempFile = null;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      try {
+        var memfd = Os.memfd_create("tts_synthesis", 0);
+        pfd = ParcelFileDescriptor.dup(memfd);
+        Os.close(memfd);
+      } catch (ErrnoException | IOException e) {
+        return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
+      }
+    } else {
+      try {
+        tempFile = File.createTempFile("prism_tts_", ".wav", PrismContext.get().getCacheDir());
+        pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_WRITE);
+      } catch (IOException e) {
+        if (tempFile != null) tempFile.delete();
+        return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
+      }
     }
     String utteranceId = UUID.randomUUID().toString();
     CountDownLatch latch = new CountDownLatch(1);
     final AtomicBoolean success = new AtomicBoolean(false);
-    pendingUtterances.put(
-        utteranceId,
-        (status) -> {
-          if (status == TextToSpeech.SUCCESS) success.set(true);
-          latch.countDown();
-        });
-    Bundle params = new Bundle();
-    params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
-    int result = tts.synthesizeToFile(textString, params, pfd, utteranceId);
-    if (result != TextToSpeech.SUCCESS) {
-      pendingUtterances.remove(utteranceId);
-      try {
-        pfd.close();
-      } catch (IOException ignored) {
-      }
-      return Outcome.fromError(BackendError.SPEAK_FAILURE);
-    }
     try {
-      if (!latch.await(60, TimeUnit.SECONDS)) {
-        pendingUtterances.remove(utteranceId);
-        try {
-          pfd.close();
-        } catch (IOException ignored) {
+      pendingUtterances.put(
+          utteranceId,
+          (status) -> {
+            if (status == TextToSpeech.SUCCESS) success.set(true);
+            latch.countDown();
+          });
+      Bundle params = new Bundle();
+      params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
+      int result = tts.synthesizeToFile(textString, params, pfd, utteranceId);
+      if (result != TextToSpeech.SUCCESS) {
+        return Outcome.fromError(BackendError.SPEAK_FAILURE);
+      }
+      try {
+        if (!latch.await(60, TimeUnit.SECONDS)) {
+          return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
         }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
       }
-    } catch (InterruptedException e) {
-      pendingUtterances.remove(utteranceId);
-      try {
-        pfd.close();
-      } catch (IOException ignored) {
+      if (!success.get()) {
+        return Outcome.fromError(BackendError.SPEAK_FAILURE);
       }
-      Thread.currentThread().interrupt();
-      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
-    }
-    pendingUtterances.remove(utteranceId);
-    if (!success.get()) {
       try {
-        pfd.close();
-      } catch (IOException ignored) {
-      }
-      return Outcome.fromError(BackendError.SPEAK_FAILURE);
-    }
-    try {
-      Os.lseek(pfd.getFileDescriptor(), 0, OsConstants.SEEK_SET);
-    } catch (ErrnoException e) {
-      try {
-        pfd.close();
-      } catch (IOException ignored) {
-      }
-      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
-    }
-    try (FileInputStream fis = new FileInputStream(pfd.getFileDescriptor())) {
-      byte[] header = new byte[44];
-      if (fis.read(header) != 44) {
+        Os.lseek(pfd.getFileDescriptor(), 0, OsConstants.SEEK_SET);
+      } catch (ErrnoException e) {
         return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
       }
-      ByteBuffer headerBuf = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN);
-      short channels = headerBuf.getShort(22);
-      int sampleRate = headerBuf.getInt(24);
-      short bitsPerSample = headerBuf.getShort(34);
-      if (bitsPerSample != 16) {
-        return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
-      }
-      byte[] data;
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        data = fis.readAllBytes();
-      } else {
-        int dataSize = (int) (pfd.getStatSize() - 44);
-        data = new byte[dataSize];
-        int totalRead = 0;
-        while (totalRead < dataSize) {
-          int read = fis.read(data, totalRead, dataSize - totalRead);
-          if (read == -1) break;
-          totalRead += read;
+      try (FileInputStream fis = new FileInputStream(pfd.getFileDescriptor())) {
+        byte[] header = new byte[44];
+        if (fis.read(header) != 44) {
+          return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
         }
+        ByteBuffer headerBuf = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN);
+        short channels = headerBuf.getShort(22);
+        int sampleRate = headerBuf.getInt(24);
+        short bitsPerSample = headerBuf.getShort(34);
+        if (bitsPerSample != 16) {
+          return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
+        }
+        byte[] data;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          data = fis.readAllBytes();
+        } else {
+          int dataSize = (int) (pfd.getStatSize() - 44);
+          data = new byte[dataSize];
+          int totalRead = 0;
+          while (totalRead < dataSize) {
+            int read = fis.read(data, totalRead, dataSize - totalRead);
+            if (read == -1) break;
+            totalRead += read;
+          }
+        }
+        ByteBuffer pcmBuf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
+        ShortBuffer shortBuf = pcmBuf.asShortBuffer();
+        int sampleCount = shortBuf.remaining();
+        ByteBuffer floatBytes =
+            ByteBuffer.allocate(sampleCount * 4).order(ByteOrder.nativeOrder());
+        FloatBuffer floatBuf = floatBytes.asFloatBuffer();
+        for (int i = 0; i < sampleCount; i++) {
+          float sample = shortBuf.get(i) / 32768.0f;
+          floatBuf.put(sample);
+        }
+        callback.onAudio(userdata, floatBytes, sampleCount / channels, channels, sampleRate);
+      } catch (IOException e) {
+        return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
       }
-      ByteBuffer pcmBuf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
-      ShortBuffer shortBuf = pcmBuf.asShortBuffer();
-      int sampleCount = shortBuf.remaining();
-      ByteBuffer floatBytes = ByteBuffer.allocate(sampleCount * 4).order(ByteOrder.nativeOrder());
-      FloatBuffer floatBuf = floatBytes.asFloatBuffer();
-      for (int i = 0; i < sampleCount; i++) {
-        float sample = shortBuf.get(i) / 32768.0f;
-        floatBuf.put(sample);
-      }
-      callback.onAudio(userdata, floatBytes, sampleCount / channels, channels, sampleRate);
-    } catch (IOException e) {
-      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
+      return Outcome.fromResult(new Unit());
     } finally {
+      pendingUtterances.remove(utteranceId);
       try {
         pfd.close();
       } catch (IOException ignored) {
       }
+      if (tempFile != null) tempFile.delete();
     }
-    return Outcome.fromResult(new Unit());
   }
 
   @Override

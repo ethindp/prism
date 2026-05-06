@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install LLVM
         run: |
-          brew install llvm ninja
+          brew install llvm
           ln -s $(brew --prefix llvm)/bin/clang-tidy $(brew --prefix)/bin/clang-tidy
       - name: Lint all configurations
         run: |
@@ -30,12 +30,12 @@ jobs:
               for arch in arm64 x86_64; do
                 extra_flags=""
                 if [ "$arch" = "x86_64" ]; then
-                  extra_flags="-DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx15.0"
+                  extra_flags="-DCMAKE_Swift_COMPILER_TARGET=x86_64-apple-macosx11.0"
                 fi
                 cmake -B "build-${arch}-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
                   -DCMAKE_BUILD_TYPE="$bt" \
                   -DCMAKE_OSX_ARCHITECTURES="$arch" \
-                  -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+                  -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
                   -DBUILD_SHARED_LIBS="$shared" \
                   -DPRISM_ENABLE_GDEXTENSION=OFF \
                   $extra_flags

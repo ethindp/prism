@@ -31,8 +31,8 @@ jobs:
               cmake -B "build-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
                 -DCMAKE_BUILD_TYPE="$bt" \
                 -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake \
-                -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=16.0 \
-                -DCMAKE_Swift_FLAGS="-target arm64-apple-ios16.0" \
+                -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=13.0 \
+                -DCMAKE_Swift_FLAGS="-target arm64-apple-ios13.0" \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}"

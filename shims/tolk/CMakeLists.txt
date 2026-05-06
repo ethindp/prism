@@ -18,7 +18,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(
   tolk
-  VERSION 0.14.1
+  VERSION 0.14.2
   DESCRIPTION "Tolk shim for Prism"
   LANGUAGES C CXX)
 

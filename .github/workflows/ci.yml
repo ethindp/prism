@@ -182,6 +182,21 @@ jobs:
     if: needs.changes.outputs.ios == 'true'
     uses: ./.github/workflows/build-ios.yml
 
+  build-tvos:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    uses: ./.github/workflows/build-tvos.yml
+
+  build-visionos:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    uses: ./.github/workflows/build-visionos.yml
+
+  build-watchos:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    uses: ./.github/workflows/build-watchos.yml
+
   build-android:
     needs: changes
     if: needs.changes.outputs.android == 'true'

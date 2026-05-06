@@ -21,8 +21,6 @@ jobs:
         run: |
           brew install llvm
           echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
-      - name: Download iOS toolchain
-        run: curl -sSL https://raw.githubusercontent.com/leetal/ios-cmake/master/ios.toolchain.cmake -o ios.toolchain.cmake
       - name: Lint all configurations
         run: |
           export PATH="$(brew --prefix llvm)/bin:$PATH"
@@ -33,9 +31,9 @@ jobs:
               config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
               cmake -B "build-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
                 -DCMAKE_BUILD_TYPE="$bt" \
-                -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake \
-                -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=13.0 \
-                -DCMAKE_Swift_FLAGS="-target arm64-apple-ios13.0" \
+                -DCMAKE_SYSTEM_NAME=iOS \
+                -DCMAKE_OSX_ARCHITECTURES=arm64 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}" --target prism

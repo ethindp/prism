@@ -327,6 +327,8 @@ The caller assumes ownership of the returned backend and MUST eventually pass it
 
 Acquires a backend instance, reusing a cached instance if available or creating a new one otherwise.
 
+Note: If you do not have a specific reason to share state with other callers, prefer `prism_registry_create` or `prism_registry_create_best`.
+
 #### Syntax
 
 ```c
@@ -349,9 +351,11 @@ Returns a pointer to a backend instance (either existing or newly created) on su
 
 #### Remarks
 
-This function implements a simple caching mechanism. When called, it first checks whether a cached instance of the requested backend exists and is still alive. If so, it returns a handle to that instance. If not, it creates a new instance and stores it in the cache before returning.
+Note: A program that does not have a specific reason to share backend state with other callers SHOULD invoke `prism_registry_create` instead.
 
-Unlike `prism_registry_create_best`, this function does not automatically initialize the backend. The returned backend may be uninitialized (if it was just created) or initialized (if it was retrieved from the cache and a previous caller initialized it). Applications SHOULD call `prism_backend_initialize` and handle `PRISM_ERROR_ALREADY_INITIALIZED` gracefully.
+When invoked for a backend identifier whose cache entry holds a live instance, this function performs a single cache lookup and returns the instance. Otherwise, the function performs a cache lookup, an unsynchronized construction via the registered factory, and a cache install of the constructed instance. Concurrent invocations for the same uncached identifier MAY each perform unsynchronized construction; the cache retains a single instance, and all callers receive that instance. Constructed instances not retained in the cache are destroyed when their reference counts reach zero.
+
+Unlike `prism_registry_create_best`, this function does not automatically initialize the backend. The returned backend may be uninitialized (if it was just created) or initialized (if it was retrieved from the cache and a previous caller initialized it). Applications SHALL call `prism_backend_initialize` and handle `PRISM_ERROR_ALREADY_INITIALIZED` gracefully.
 
 The returned handle shares ownership with other handles to the same cached instance. When `prism_backend_free` is called, it releases the caller's reference; the underlying backend is destroyed only when all references have been released.
 
@@ -379,12 +383,14 @@ Returns a pointer to an initialized backend instance on success. Returns `NULL` 
 
 #### Remarks
 
+Note: A program that does not have a specific reason to share backend state with other callers SHOULD invoke `prism_registry_create_best` instead.
+
 This function combines the automatic backend selection of `prism_registry_create_best` with the caching behavior of `prism_registry_acquire`.
 
-When called, it iterates through backends in priority order. For each backend, it first checks the cache. If a cached instance exists, it returns that instance immediately (the cached instance is assumed to be usable since it was previously initialized). If no cached instance exists, it attempts to create and initialize a new instance. If initialization succeeds, the instance is cached and returned. If initialization fails, the next backend is tried.
+The function performs cache lookups against the registered backend identifiers in descending priority order. If any lookup yields a live instance, that instance is returned and no further operations are performed. Otherwise, the function performs unsynchronized operations in descending priority order: for each registered backend identifier, it invokes the registered factory and, if construction succeeds, calls prism_backend_initialize on the result. The first backend identifier for which initialization succeeds is associated with the constructed instance via a cache install, and the instance is returned. Backends whose construction or initialization fails contribute no observable effect to the cache.
 
 The returned backend is always initialized. Applications SHOULD NOT call `prism_backend_initialize` on the returned backend.
 
 This is the most convenient function for applications that simply want a working TTS backend without any specific preferences.
 
-The caching behavior means that repeated calls to this function will return the same backend instance (assuming it has not been freed). This is typically the desired behavior, as it ensures consistent voice settings across the application.
+Repeated invocations from a single thread will return the same instance, provided the instance has not been freed. Concurrent invocations from multiple threads MAY each perform unsynchronized construction; in such cases, the cache retains at most one instance per backend identifier, and all callers receive an initialized backend.

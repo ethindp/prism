@@ -39,7 +39,7 @@ dev = [
 minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
 cmake.version = ">=3.31.0"
-cmake.define = { PRISM_ENABLE_TESTS = "OFF", PRISM_ENABLE_GDEXTENSION = "OFF" }
+cmake.define = { PRISM_ENABLE_TESTS = "OFF", PRISM_ENABLE_GDEXTENSION = "OFF", PRISM_ENABLE_LEGACY_BACKENDS = "ON"}
 cmake.source-dir = "."
 build.verbose = true
 wheel.packages = ["bindings/py/prism/prism"]
@@ -82,7 +82,7 @@ sdist.exclude = [
 ]
 
 [tool.cibuildwheel]
-build = "cp310-* cp311-* cp312-* cp313-* cp314-* cp313t-* cp314t-* pp311-*"
+build = "cp310-* cp311-* cp312-* cp313-* cp314-* cp313t-* cp314t-*"
 build-verbosity = 1
 container-engine = "podman"
 manylinux-x86_64-image = "manylinux_2_34"
@@ -94,7 +94,8 @@ manylinux-s390x-image = "manylinux_2_34"
 manylinux-riscv64-image = "manylinux_2_39"
 manylinux-pypy_aarch64-image = "manylinux_2_34"
 manylinux-pypy_i686-image = "manylinux_2_34"
-enable = ["cpython-freethreading", "pypy"]
+enable = ["cpython-freethreading"]
+
 [tool.cibuildwheel.linux]
 archs = ["x86_64", "i686", "aarch64", "riscv64", "ppc64le", "s390x"]
 before-all = [

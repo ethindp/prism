@@ -1,10 +1,12 @@
 #pragma once
 
 #include "backend.h"
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <ranges>
 #include <shared_mutex>
 #include <string_view>
 #include <vector>
@@ -88,6 +90,45 @@ public:
   void set_hwnd(HWND hwnd);
 #endif
 private:
+  template <typename Pred>
+  std::shared_ptr<TextToSpeechBackend> acquire(Pred pred) {
+    Factory factory;
+    {
+      std::unique_lock lock(mutex);
+      auto it = std::ranges::find_if(entries, pred);
+      if (it == entries.end())
+        return nullptr;
+      if (auto cached = it->cached.lock(); cached != nullptr)
+        return cached;
+      factory = it->factory;
+    }
+    auto backend = factory != nullptr ? factory() : nullptr;
+    if (backend == nullptr)
+      return nullptr;
+    {
+      std::unique_lock lock(mutex);
+      auto it = std::ranges::find_if(entries, pred);
+      if (it == entries.end())
+        return backend;
+      if (auto cached = it->cached.lock(); cached != nullptr)
+        return cached;
+      it->cached = backend;
+      return backend;
+    }
+  }
+
+  template <typename Pred>
+  std::shared_ptr<TextToSpeechBackend> create(Pred pred) {
+    Factory factory;
+    {
+      std::shared_lock lock(mutex);
+      auto it = std::ranges::find_if(entries, pred);
+      if (it == entries.end())
+        return nullptr;
+      factory = it->factory;
+    }
+    return factory != nullptr ? factory() : nullptr;
+  }
   struct Entry {
     BackendId id;
     std::string_view name;

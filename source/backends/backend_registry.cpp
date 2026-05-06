@@ -79,8 +79,6 @@ std::shared_ptr<TextToSpeechBackend> BackendRegistry::get(BackendId id) {
   std::shared_lock lock(mutex);
   for (const auto &e : entries) {
     if (e.id == id) {
-      if (e.cached.expired())
-        return nullptr;
       return e.cached.lock();
     }
   }
@@ -92,8 +90,6 @@ BackendRegistry::get(std::string_view name) {
   std::shared_lock lock(mutex);
   for (const auto &e : entries) {
     if (e.name == name) {
-      if (e.cached.expired())
-        return nullptr;
       return e.cached.lock();
     }
   }
@@ -101,87 +97,69 @@ BackendRegistry::get(std::string_view name) {
 }
 
 std::shared_ptr<TextToSpeechBackend> BackendRegistry::create(BackendId id) {
-  std::shared_lock lock(mutex);
-  for (const auto &e : entries) {
-    if (e.id == id) {
-      auto b = e.factory();
-      if (!b)
-        return nullptr;
-      return b;
-    }
-  }
-  return nullptr;
+  return create([id](const Entry &e) { return e.id == id; });
 }
 
 std::shared_ptr<TextToSpeechBackend>
 BackendRegistry::create(std::string_view name) {
-  std::shared_lock lock(mutex);
-  for (const auto &e : entries) {
-    if (e.name == name) {
-      auto b = e.factory();
-      if (!b)
-        return nullptr;
-      return b;
-    }
-  }
-  return nullptr;
+  return create([name](const Entry &e) { return e.name == name; });
 }
 
 std::shared_ptr<TextToSpeechBackend> BackendRegistry::create_best() {
-  std::shared_lock lock(mutex);
-  for (const auto &e : entries) {
-    if (auto backend = e.factory(); backend) {
-      if (backend->initialize())
-        return backend;
-    }
+  std::vector<Factory> factories;
+  {
+    std::shared_lock lock(mutex);
+    factories.reserve(entries.size());
+    for (const auto &e : entries)
+      factories.push_back(e.factory);
+  }
+  for (auto &f : factories) {
+    if (auto b = f(); b && b->initialize())
+      return b;
   }
   return nullptr;
 }
 
 std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire(BackendId id) {
-  std::unique_lock lock(mutex);
-  for (auto &e : entries) {
-    if (e.id == id) {
-      if (auto existing = e.cached; !existing.expired())
-        return existing.lock();
-      auto backend = e.factory();
-      if (backend == nullptr)
-        return nullptr;
-      e.cached = backend;
-      return backend;
-    }
-  }
-  return nullptr;
+  return acquire([id](const Entry &e) { return e.id == id; });
 }
 
 std::shared_ptr<TextToSpeechBackend>
 BackendRegistry::acquire(std::string_view name) {
-  std::unique_lock lock(mutex);
-  for (auto &e : entries) {
-    if (e.name == name) {
-      if (auto existing = e.cached; !existing.expired())
-        return existing.lock();
-      auto backend = e.factory();
-      if (backend == nullptr)
-        return nullptr;
-      e.cached = backend;
-      return backend;
-    }
-  }
-  return nullptr;
+  return acquire([name](const Entry &e) { return e.name == name; });
 }
 
 std::shared_ptr<TextToSpeechBackend> BackendRegistry::acquire_best() {
-  std::unique_lock lock(mutex);
-  for (auto &e : entries) {
-    if (auto existing = e.cached; !existing.expired())
-      return existing.lock();
-    if (auto backend = e.factory(); backend) {
-      if (backend->initialize()) {
-        e.cached = backend;
-        return backend;
-      }
+  {
+    std::shared_lock lock(mutex);
+    for (const auto &e : entries) {
+      if (auto cached = e.cached.lock(); cached != nullptr)
+        return cached;
     }
+  }
+  std::vector<std::tuple<BackendId, Factory>> snapshot;
+  {
+    std::shared_lock lock(mutex);
+    snapshot.reserve(entries.size());
+    for (const auto &e : entries) {
+      snapshot.emplace_back(e.id, e.factory);
+    }
+  }
+  for (auto &[id, factory] : snapshot) {
+    if (factory == nullptr)
+      continue;
+    auto backend = factory();
+    if (backend == nullptr || !backend->initialize())
+      continue;
+    std::unique_lock lock(mutex);
+    auto it = std::ranges::find_if(
+        entries, [id = id](const Entry &e) { return e.id == id; });
+    if (it == entries.end())
+      return backend;
+    if (auto cached = it->cached.lock(); cached != nullptr)
+      return cached;
+    it->cached = backend;
+    return backend;
   }
   return nullptr;
 }

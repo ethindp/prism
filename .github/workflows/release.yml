@@ -74,6 +74,7 @@ jobs:
           unzip -q artifacts/windows-arm64/prism-windows-arm64.zip -d "${sdk}/windows/arm64/"
           unzip -q artifacts/macos-universal/prism-macos-universal.zip -d "${sdk}/macos/universal/"
           unzip -q artifacts/ios-arm64/prism-ios-arm64.zip         -d "${sdk}/ios/arm64/"
+          unzip -q artifacts/ios-simulator-arm64/prism-ios-simulator-arm64.zip         -d "${sdk}/ios-simulator/arm64/"
           unzip -q artifacts/linux-x64/prism-linux-x64.zip         -d "${sdk}/linux/x64/"
           unzip -q artifacts/linux-arm64/prism-linux-arm64.zip     -d "${sdk}/linux/arm64/"
           unzip -q artifacts/android/prism-android.zip             -d "${sdk}/android/"
@@ -161,6 +162,7 @@ jobs:
             artifacts/windows-arm64/prism-windows-arm64.zip
             artifacts/macos-universal/prism-macos-universal.zip
             artifacts/ios-arm64/prism-ios-arm64.zip
+            artifacts/ios-simulator-arm64/prism-ios-simulator-arm64.zip
             artifacts/linux-x64/prism-linux-x64.zip
             artifacts/linux-arm64/prism-linux-arm64.zip
             artifacts/android/prism-android.zip

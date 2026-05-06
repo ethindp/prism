@@ -39,3 +39,30 @@ jobs:
               cmake --build "build-${linkage}-${config}" --target prism
             done
           done
+  lint-simulator:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install LLVM (clang-tidy)
+        run: |
+          brew install llvm
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+      - name: Lint all configurations
+        run: |
+          export PATH="$(brew --prefix llvm)/bin:$PATH"
+          clang-tidy --version
+          for shared in ON OFF; do
+            linkage=$( [ "$shared" = "ON" ] && echo "dynamic" || echo "static" )
+            for bt in Release Debug; do
+              config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
+              cmake -B "build-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
+                -DCMAKE_BUILD_TYPE="$bt" \
+                -DCMAKE_SYSTEM_NAME=iOS \
+                -DCMAKE_OSX_SYSROOT=iphonesimulator \
+                -DCMAKE_OSX_ARCHITECTURES=arm64 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+                -DBUILD_SHARED_LIBS="$shared" \
+                -DPRISM_ENABLE_GDEXTENSION=OFF
+              cmake --build "build-${linkage}-${config}" --target prism
+            done
+          done

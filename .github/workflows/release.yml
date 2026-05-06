@@ -40,6 +40,15 @@ jobs:
   build-ios:
     uses: ./.github/workflows/build-ios.yml
 
+  build-tvos:
+    uses: ./.github/workflows/build-tvos.yml
+
+  build-visionos:
+    uses: ./.github/workflows/build-visionos.yml
+
+  build-watchos:
+    uses: ./.github/workflows/build-watchos.yml
+
   build-android:
     uses: ./.github/workflows/build-android.yml
 
@@ -74,6 +83,13 @@ jobs:
           unzip -q artifacts/windows-arm64/prism-windows-arm64.zip -d "${sdk}/windows/arm64/"
           unzip -q artifacts/macos-universal/prism-macos-universal.zip -d "${sdk}/macos/universal/"
           unzip -q artifacts/ios-arm64/prism-ios-arm64.zip         -d "${sdk}/ios/arm64/"
+          unzip -q artifacts/ios-simulator-arm64/prism-ios-simulator-arm64.zip         -d "${sdk}/ios-simulator/arm64/"
+          unzip -q artifacts/tvos-arm64/prism-tvos-arm64.zip         -d "${sdk}/tvos/arm64/"
+          unzip -q artifacts/tvos-simulator-arm64/prism-tvos-simulator-arm64.zip         -d "${sdk}/tvos-simulator/arm64/"
+          unzip -q artifacts/visionos-arm64/prism-visionos-arm64.zip         -d "${sdk}/visionos/arm64/"
+          unzip -q artifacts/visionos-simulator-arm64/prism-visionos-simulator-arm64.zip         -d "${sdk}/visionos-simulator/arm64/"
+          unzip -q artifacts/watchos-arm64/prism-watchos-arm64.zip         -d "${sdk}/watchos/arm64/"
+          unzip -q artifacts/watchos-simulator-arm64/prism-watchos-simulator-arm64.zip         -d "${sdk}/watchos-simulator/arm64/"
           unzip -q artifacts/linux-x64/prism-linux-x64.zip         -d "${sdk}/linux/x64/"
           unzip -q artifacts/linux-arm64/prism-linux-arm64.zip     -d "${sdk}/linux/arm64/"
           unzip -q artifacts/android/prism-android.zip             -d "${sdk}/android/"
@@ -161,6 +177,13 @@ jobs:
             artifacts/windows-arm64/prism-windows-arm64.zip
             artifacts/macos-universal/prism-macos-universal.zip
             artifacts/ios-arm64/prism-ios-arm64.zip
+            artifacts/ios-simulator-arm64/prism-ios-simulator-arm64.zip
+            artifacts/tvos-arm64/prism-tvos-arm64.zip
+            artifacts/tvos-simulator-arm64/prism-tvos-simulator-arm64.zip
+                        artifacts/visionos-arm64/prism-visionos-arm64.zip
+            artifacts/visionos-simulator-arm64/prism-visionos-simulator-arm64.zip
+                        artifacts/watchos-arm64/prism-watchos-arm64.zip
+            artifacts/watchos-simulator-arm64/prism-watchos-simulator-arm64.zip
             artifacts/linux-x64/prism-linux-x64.zip
             artifacts/linux-arm64/prism-linux-arm64.zip
             artifacts/android/prism-android.zip

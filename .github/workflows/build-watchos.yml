@@ -12,7 +12,7 @@ env:
     -DPRISM_ENABLE_SHIMS=ON
 
 jobs:
-  ios:
+  watchos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -28,9 +28,9 @@ jobs:
               config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
               cmake -B "build-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
                 -DCMAKE_BUILD_TYPE="$bt" \
-                -DCMAKE_SYSTEM_NAME=iOS \
+                -DCMAKE_SYSTEM_NAME=watchOS \
                 -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=6.0 \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}"
@@ -63,12 +63,12 @@ jobs:
           rm -rf dist/dynamic/debug/include dist/static/release/include dist/static/debug/include
           cp -r LICENSES dist
           cp NOTICE dist
-          cd dist && zip -r ../prism-ios-arm64.zip .
+          cd dist && zip -r ../prism-watchos-arm64.zip .
       - uses: actions/upload-artifact@v7
         with:
-          name: ios-arm64
-          path: prism-ios-arm64.zip
-  ios-simulator:
+          name: watchos-arm64
+          path: prism-watchos-arm64.zip
+  watchos-simulator:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -84,10 +84,10 @@ jobs:
               config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
               cmake -B "build-${linkage}-${config}" ${{ env.CMAKE_COMMON }} \
                 -DCMAKE_BUILD_TYPE="$bt" \
-                -DCMAKE_SYSTEM_NAME=iOS \
-                -DCMAKE_OSX_SYSROOT=iphonesimulator \
+                -DCMAKE_SYSTEM_NAME=watchOS \
+                -DCMAKE_OSX_SYSROOT=watchsimulator \
                 -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=6.0 \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}"
@@ -120,8 +120,8 @@ jobs:
           rm -rf dist/dynamic/debug/include dist/static/release/include dist/static/debug/include
           cp -r LICENSES dist
           cp NOTICE dist
-          cd dist && zip -r ../prism-ios-simulator-arm64.zip .
+          cd dist && zip -r ../prism-watchos-simulator-arm64.zip .
       - uses: actions/upload-artifact@v7
         with:
-          name: ios-simulator-arm64
-          path: prism-ios-simulator-arm64.zip
+          name: watchos-simulator-arm64
+          path: prism-watchos-simulator-arm64.zip

@@ -122,7 +122,7 @@ environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
 
 [tool.cibuildwheel.macos]
 archs = ["arm64", "x86_64"]
-environment = { MACOSX_DEPLOYMENT_TARGET = "15.0", CMAKE_OSX_DEPLOYMENT_TARGET = "15.0", CMAKE_BUILD_PARALLEL_LEVEL = "4"}
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0", CMAKE_OSX_DEPLOYMENT_TARGET = "11.0", CMAKE_BUILD_PARALLEL_LEVEL = "4"}
 before-build = ["xcode-select --print-path || xcode-select --install"]
 
 [tool.cibuildwheel.windows]

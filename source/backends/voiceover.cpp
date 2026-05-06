@@ -5,6 +5,7 @@
 #include "backend_registry.h"
 #ifdef __OBJC__
 #ifdef __APPLE__
+#if !TARGET_OS_WATCH
 #import <Foundation/Foundation.h>
 #include <TargetConditionals.h>
 #if TARGET_OS_OSX
@@ -441,5 +442,6 @@ private:
 
 REGISTER_BACKEND_WITH_ID(VoiceOverBackend, Backends::VoiceOver, "VoiceOver",
                          102);
+#endif
 #endif
 #endif

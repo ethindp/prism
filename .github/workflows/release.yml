@@ -76,7 +76,7 @@ jobs:
         run: |
           tag="${{ needs.version.outputs.tag }}"
           sdk="prism-sdk-${tag}"
-          mkdir -p "${sdk}"/{windows/x64,windows/arm64,macos/universal,ios/arm64,linux/x64,linux/arm64,android,wasm,include,doc,LICENSES}
+          mkdir -p "${sdk}"/{windows/x64,windows/arm64,macos/universal,ios/arm64,ios-simulator/arm64,tvos/arm64,tvos-simulator/arm64,visionos/arm64,visionos-simulator/arm64,watchos/arm64,watchos-simulator/arm64,linux/x64,linux/arm64,android,wasm,include,doc,LICENSES}
           cp include/prism.h "${sdk}/include/"
           cp -r artifacts/docs/* "${sdk}/doc/"
           unzip -q artifacts/windows-x64/prism-windows-x64.zip     -d "${sdk}/windows/x64/"

@@ -16,7 +16,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.14.3
+  VERSION 0.14.4
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 

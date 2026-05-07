@@ -157,6 +157,9 @@ jobs:
             echo "sdist=$(any "$CI_ALL" "$F_PYTHON" "$F_CI_SDIST")"
           } >> "$GITHUB_OUTPUT"
 
+  lint-clang-format:
+    uses: ./.github/workflows/lint-format.yml
+
   build-docs:
     needs: changes
     if: needs.changes.outputs.docs == 'true'

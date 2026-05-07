@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MPL-2.0
+gdextension/godot-cpp/**
+source/simdutf.cpp
+source/simdutf.h
+shims/tolk/simdutf.cpp
+shims/tolk/simdutf.h
+shims/tolk/simdutf_c.h
+source/backends/concurrentqueue.h
+source/backends/dr_wav.h
+source/backends/wav.c
+source/backends/java/support/**
+source/backends/raw/fsapi.c
+source/backends/raw/wineyes.c
+source/backends/raw/wineyes.h
+source/backends/raw/sense_reader.h
+source/backends/raw/zt.h

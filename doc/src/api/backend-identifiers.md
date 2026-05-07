@@ -6,8 +6,8 @@ Prism defines constants for all known backend identifiers. These constants are 6
 | --- | --- |
 | `PRISM_BACKEND_INVALID` | Invalid/sentinel value (always 0) |
 | `PRISM_BACKEND_SAPI` | Microsoft SAPI (Windows) |
-| `PRISM_BACKEND_AV_SPEECH` | AVSpeechSynthesizer (macOS/iOS) |
-| `PRISM_BACKEND_VOICE_OVER` | VoiceOver screen reader (macOS/iOS) |
+| `PRISM_BACKEND_AV_SPEECH` | AVSpeechSynthesizer (macOS, iOS, tvOS, WatchOS, VisionOS) |
+| `PRISM_BACKEND_VOICE_OVER` | VoiceOver screen reader (macOS, iOS, WatchOS, VisionOS) |
 | `PRISM_BACKEND_SPEECH_DISPATCHER` | Speech Dispatcher (Linux/BSD) |
 | `PRISM_BACKEND_NVDA` | NVDA screen reader (Windows) |
 | `PRISM_BACKEND_JAWS` | JAWS screen reader (Windows) |

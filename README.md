@@ -4,6 +4,15 @@ Prism is the Platform-agnostic Reader Interface for Speech and Messages. Since t
 
 Prism aims to unify the various screen reader abstraction libraries like SpeechCore, UniversalSpeech, SRAL, Tolk, etc., into a single unified system with a single unified API. Of course, we also support traditional TTS engines. I have tried to develop Prism in such a way that compilation is trivial and requires no external dependencies. To that end, the CMake builder will download all needed dependencies. However, since it uses [cpm.cmake](https://github.com/cpm-cmake/CPM.cmake), vendoring of dependencies is very possible.
 
+## Minimum system requirements
+
+Prism requires the following to be met to function properly. If your system does not meet these minimums, Prism MAY malfunction or fail to load at all. If you attempt to load Prism and the load fails, or if Prism malfunctions, please verify that you meet the requirements in this section before opening an issue.
+
+* For windows, Windows 10 or later is required. Older versions of windows are NOT supported.
+* Apple platforms require either MacOS 11, iOS 11, tvOS 11, WatchOS 6, or VisionOS 1.
+* Linux requires Glib 2.80.0 or later and Orca 49 or later for the Orca backend to function. Speech-dispatcher will work with any version of speech dispatcher that supports ABI version 2 (which means that versions 0.11.1 and on will definitely work).
+* Android requires version 11 or later.
+
 ## Building
 
 To build Prism, all you need do is create a build directory and run cmake as you ordinarily would. The following build options are available:
@@ -15,6 +24,12 @@ To build Prism, all you need do is create a build directory and run cmake as you
 | `PRISM_ENABLE_LINTING` | Enable linting of source code with clang-tidy and other static analysis tools. |
 | `PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS` | DO NOT USE. Enables options primarily used by the vcpkg package manager. |
 | `PRISM_ENABLE_GDEXTENSION` | Build the GDExtension and Prism together (on by default). |
+| `PRISM_ENABLE_LEGACY_BACKENDS` | Enable all legacy backends supported by Prism. For the purposes of this option and the `LEGACY_*` options which follow, a "legacy" backend is a backend which is supported but which has a very limited number of users, or is only available for compatibility reasons. |
+| `PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND` | Enable the system access backend. |
+| `PRISM_ENABLE_LEGACY_WINDOW_EYES_BACKEND` | Enable the window eyes backend. |
+| `PRISM_ENABLE_SHIMS` | Enable compatibility shims. |
+| `PRISM_ENABLE_TOLK_SHIM` | Enable Tolk compatibility shim. |
+| `PRISM_BUILD_WINELIBS` | Build winelibs which allow Windows apps which use Prism to talk to Linux and BSD backends when these apps are running under Wine. Requires a Linux system and `winegcc` to be available. |
 
 Prism is also in vcpkg. To install it:
 
@@ -64,6 +79,3 @@ This project uses code from other projects. Specifically:
 ## Contributing
 
 Contributions are welcome. This includes, but is not limited to, documentation enhancements, new backends, bindings, build system improvements, etc. The project uses C++23 so please ensure that your compiler supports that standard.
-
-When requesting  features or enhancements, or submitting issues, please adhere to the following rules:
-

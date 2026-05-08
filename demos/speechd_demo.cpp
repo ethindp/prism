@@ -27,7 +27,7 @@ int main() {
     return 1;
   }
   if (const auto res = prism_backend_speak(
-          backend, "Hello! Testing the NVDA backend!", true);
+          backend, "Hello! Testing the Speech Dispatcher backend!", true);
       res != PRISM_OK) {
     std::println("Error: could not speak using Speech Dispatcher: {}",
                  prism_error_string(res));

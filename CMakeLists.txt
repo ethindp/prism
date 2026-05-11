@@ -37,6 +37,10 @@ if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
     PRISM_VCPKG_WANTS_ORCA_BACKEND
     "Indicates that the Prism vcpkg port is being built with the orca feature enabled"
     OFF)
+  option(
+    PRISM_VCPKG_WANTS_SPIEL_BACKEND
+    "Indicates that the Prism vcpkg port is being built with the spiel feature enabled"
+    OFF)
 endif()
 option(PRISM_ENABLE_GDEXTENSION "Enable building of the Godot GDExtension" ON)
 option(PRISM_ENABLE_LEGACY_BACKENDS
@@ -460,6 +464,17 @@ if(UNIX
       target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)
       target_compile_definitions(prism_backend_iface INTERFACE NO_LIBSPEECHD)
     endif()
+    if(PRISM_VCPKG_WANTS_SPIEL_BACKEND)
+      pkg_check_modules(SPIEL spiel-1.0 REQUIRED)
+      target_include_directories(${PROJECT_NAME} PRIVATE ${SPIEL_INCLUDE_DIRS})
+      target_include_directories(prism_backend_iface
+                                 INTERFACE ${SPIEL_INCLUDE_DIRS})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARIES})
+    else()
+      target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPIEL)
+      target_compile_definitions(prism_backend_iface INTERFACE NO_LIBSPIEL)
+    endif()
   else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GIO gio-unix-2.0)
@@ -530,6 +545,17 @@ if(UNIX
     else()
       target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPEECHD)
       target_compile_definitions(prism_backend_iface INTERFACE NO_LIBSPEECHD)
+    endif()
+    pkg_check_modules(SPIEL spiel-1.0)
+    if(SPIEL_FOUND)
+      target_include_directories(${PROJECT_NAME} PRIVATE ${SPIEL_INCLUDE_DIRS})
+      target_include_directories(prism_backend_iface
+                                 INTERFACE ${SPIEL_INCLUDE_DIRS})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARIES})
+    else()
+      target_compile_definitions(${PROJECT_NAME} PRIVATE NO_LIBSPIEL)
+      target_compile_definitions(prism_backend_iface INTERFACE NO_LIBSPIEL)
     endif()
   endif()
 endif()

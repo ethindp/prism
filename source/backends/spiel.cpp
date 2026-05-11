@@ -60,8 +60,8 @@ using Command =
                  RefreshVoicesCommand, ShutdownCommand>;
 
 bool valid_normalized(float v) {
-  return !(v < 0.0F || v > 1.0F ||
-           (!std::isnormal(v) && std::fpclassify(v) != FP_ZERO));
+  return v >= 0.0F && v <= 1.0F &&
+         (std::isnormal(v) || std::fpclassify(v) == FP_ZERO);
 }
 
 class SpielBackend final : public TextToSpeechBackend {
@@ -149,7 +149,7 @@ private:
     GListModel *model = spiel_speaker_get_voices(speaker);
     const guint n = g_list_model_get_n_items(model);
     for (guint i = 0; i < n; ++i) {
-      auto *v = static_cast<SpielVoice *>(g_list_model_get_object(model, i));
+      auto *v = SPIEL_VOICE(g_list_model_get_object(model, i));
       const char *vid = spiel_voice_get_identifier(v);
       if (vid != nullptr && id == vid)
         return v;
@@ -165,7 +165,7 @@ private:
     GListModel *model = spiel_speaker_get_voices(speaker);
     const guint n = g_list_model_get_n_items(model);
     for (guint i = 0; i < n; ++i) {
-      auto *v = static_cast<SpielVoice *>(g_list_model_get_object(model, i));
+      auto *v = SPIEL_VOICE(g_list_model_get_object(model, i));
       const char *id = spiel_voice_get_identifier(v);
       const char *name = spiel_voice_get_name(v);
       const char *const *langs = spiel_voice_get_languages(v);
@@ -198,21 +198,27 @@ private:
       voice_idx.store(0, std::memory_order_release);
   }
 
-  static void on_notify_speaking(GObject *obj, GParamSpec *, gpointer ud) {
+  static void on_notify_speaking(GObject *obj,
+                                 [[maybe_unused]] GParamSpec *spec,
+                                 gpointer ud) {
     gboolean v = FALSE;
     g_object_get(obj, "speaking", &v, nullptr);
     static_cast<SpielBackend *>(ud)->speaking.store(static_cast<bool>(v),
                                                     std::memory_order_release);
   }
 
-  static void on_notify_paused(GObject *obj, GParamSpec *, gpointer ud) {
+  static void on_notify_paused(GObject *obj, [[maybe_unused]] GParamSpec *spec,
+                               gpointer ud) {
     gboolean v = FALSE;
     g_object_get(obj, "paused", &v, nullptr);
     static_cast<SpielBackend *>(ud)->paused.store(static_cast<bool>(v),
                                                   std::memory_order_release);
   }
 
-  static void on_voices_items_changed(GListModel *, guint, guint, guint,
+  static void on_voices_items_changed([[maybe_unused]] GListModel *model,
+                                      [[maybe_unused]] guint position,
+                                      [[maybe_unused]] guint removed,
+                                      [[maybe_unused]] guint added,
                                       gpointer ud) {
     static_cast<SpielBackend *>(ud)->rebuild_voice_snapshot();
   }
@@ -225,7 +231,7 @@ private:
       if (err != nullptr)
         g_error_free(err);
       {
-        std::lock_guard g(self->ready_mtx);
+        std::scoped_lock g(self->ready_mtx);
         self->ready = false;
       }
       self->ready_cv.notify_all();
@@ -244,7 +250,7 @@ private:
     }
     self->rebuild_voice_snapshot();
     {
-      std::lock_guard g(self->ready_mtx);
+      std::scoped_lock g(self->ready_mtx);
       self->ready = true;
     }
     self->ready_cv.notify_all();
@@ -317,7 +323,7 @@ public:
         GVariantIter it;
         const char *name = nullptr;
         g_variant_iter_init(&it, names);
-        while (g_variant_iter_loop(&it, "&s", &name)) {
+        while (g_variant_iter_loop(&it, "&s", &name) != FALSE) {
           if (std::string_view{name}.ends_with(PROVIDER_SUFFIX)) {
             found = true;
             break;
@@ -367,7 +373,8 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     if (!simdutf::validate_utf8(text.data(), text.size()))
       return std::unexpected(BackendError::InvalidUtf8);
-    std::string voice_id, language;
+    std::string voice_id;
+    std::string language;
     const auto r = rate.load();
     const auto p = pitch.load();
     const auto v = volume.load();

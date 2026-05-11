@@ -223,7 +223,8 @@ private:
     static_cast<SpielBackend *>(ud)->rebuild_voice_snapshot();
   }
 
-  static void on_speaker_ready(GObject *, GAsyncResult *result, gpointer ud) {
+  static void on_speaker_ready([[maybe_unused]] GObject *obj,
+                               GAsyncResult *result, gpointer ud) {
     auto *self = static_cast<SpielBackend *>(ud);
     GError *err = nullptr;
     self->speaker = spiel_speaker_new_finish(result, &err);
@@ -256,7 +257,7 @@ private:
     self->ready_cv.notify_all();
   }
 
-  void thread_proc(const std::stop_token &) {
+  void thread_proc([[maybe_unused]] const std::stop_token &st) {
     worker_ctx = g_main_context_new();
     g_main_context_push_thread_default(worker_ctx);
     worker_loop = g_main_loop_new(worker_ctx, FALSE);
@@ -362,7 +363,7 @@ public:
       ready_cv.wait(lock, [this] { return ready.has_value(); });
       return std::unexpected(BackendError::InternalBackendError);
     }
-    if (!*ready)
+    if (ready && !*ready)
       return std::unexpected(BackendError::BackendNotAvailable);
     initialized.test_and_set(std::memory_order_release);
     return {};

@@ -115,6 +115,7 @@ The names used by Prism backends are:
 | Sense Reader | `"SenseReader"` |
 | SystemAccess | `"SystemAccess"` |
 | WindowEyes | `"WindowEyes"` |
+| Spiel | `"Spiel"` |
 
 ### prism_registry_name
 

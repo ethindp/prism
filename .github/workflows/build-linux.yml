@@ -30,7 +30,7 @@ jobs:
           cmakeVersion: latest
       - name: Install libspiel
         run: |
-          git clone -b SPIEL_1_0_4 https://github.com/project-spiel/libspiel.git
+          git clone https://github.com/project-spiel/libspiel.git
           cd libspiel
           meson setup build --prefix=/usr/local -Dtests=false -Ddocs=false
           meson compile -C build

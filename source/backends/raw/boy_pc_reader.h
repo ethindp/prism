@@ -36,28 +36,16 @@ BoyCtrlInitializeAnsi(const char *logPath);
 __declspec(dllimport) BoyCtrlError __stdcall
 BoyCtrlInitializeU8(const char *logPath);
 __declspec(dllimport) BoyCtrlError __stdcall
-BoyCtrlSpeak(const wchar_t *text, bool withSlave, bool append, bool allowBreak,
-             BoyCtrlSpeakCompleteFunc onCompletion);
-__declspec(dllimport) BoyCtrlError __stdcall BoyCtrlSpeak2(const wchar_t *text);
-__declspec(dllimport) BoyCtrlError __stdcall
-BoyCtrlSpeak3(const wchar_t *text, bool withSlave, const wchar_t *slaveName,
-              bool append, bool allowBreak,
-              BoyCtrlSpeakCompleteFunc onCompletion);
+BoyCtrlSpeak(const wchar_t *text, bool append, BoyCtrlSpeakCompleteFunc onCompletion);
 __declspec(dllimport) BoyCtrlError __stdcall
 BoyCtrlSpeakEx(const wchar_t *text, int flags,
                BoyCtrlSpeakCompleteFunc onCompletion);
 __declspec(dllimport) BoyCtrlError __stdcall
-BoyCtrlSpeakAnsi(const char *text, bool withSlave, bool append, bool allowBreak,
-                 BoyCtrlSpeakCompleteFunc onCompletion);
+BoyCtrlSpeakAnsi(const char *text, bool append, BoyCtrlSpeakCompleteFunc onCompletion);
 __declspec(dllimport) BoyCtrlError __stdcall
-BoyCtrlSpeakU8(const char *text, bool withSlave, bool append, bool allowBreak,
-               BoyCtrlSpeakCompleteFunc onCompletion);
-__declspec(dllimport) BoyCtrlError __stdcall
-BoyCtrlStopSpeaking(bool withSlave);
+BoyCtrlSpeakU8(const char *text, bool append, BoyCtrlSpeakCompleteFunc onCompletion);
+__declspec(dllimport) BoyCtrlError __stdcall BoyCtrlStopSpeaking();
 __declspec(dllimport) BoyCtrlError __stdcall BoyCtrlStopSpeakingEx(int flags);
-__declspec(dllimport) BoyCtrlError __stdcall BoyCtrlStopSpeaking2();
-__declspec(dllimport) BoyCtrlError __stdcall
-BoyCtrlStopSpeaking3(bool withSlave, const wchar_t *slaveName);
 __declspec(dllimport) BoyCtrlError __stdcall BoyCtrlPauseScreenReader(int ms);
 __declspec(dllimport) void __stdcall BoyCtrlUninitialize();
 __declspec(dllimport) bool __stdcall BoyCtrlIsReaderRunning();

@@ -318,7 +318,7 @@ if(WIN32)
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr32.def
                        ZDSRAPI.dll)
     add_import_library(
-      BoyCtrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader32.def BoyCtrl.dll)
+      byctrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader32.def byctrl.dll)
     add_import_library(
       PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker32.def PCTKUSR.dll)
     add_import_library(
@@ -329,7 +329,7 @@ if(WIN32)
       ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge32.def
       prism_speech_dispatcher_bridge.dll)
     target_link_libraries(
-      ${PROJECT_NAME} PRIVATE ZDSR BoyCtrl PCTalker PrismOrcaBridge
+      ${PROJECT_NAME} PRIVATE ZDSR byctrl PCTalker PrismOrcaBridge
                               PrismSpeechDispatcherBridge)
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     if(PRISM_ENABLE_LEGACY_BACKENDS
@@ -341,8 +341,8 @@ if(WIN32)
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
                        ZDSRAPI_x64.dll)
     add_import_library(
-      BoyCtrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader.def
-      BoyCtrl-x64.dll)
+      byctrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader.def
+      byctrl-x64.dll)
     add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
                        PCTKUSR.dll)
     add_import_library(
@@ -353,7 +353,7 @@ if(WIN32)
       ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge.def
       prism_speech_dispatcher_bridge.dll)
     target_link_libraries(
-      ${PROJECT_NAME} PRIVATE ZDSR BoyCtrl PCTalker PrismOrcaBridge
+      ${PROJECT_NAME} PRIVATE ZDSR byctrl PCTalker PrismOrcaBridge
                               PrismSpeechDispatcherBridge)
   else()
     add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
@@ -552,7 +552,7 @@ if(MSVC)
       ${PROJECT_NAME}
       ${_PRISM_LINK_VIS}
       /delayload:ZDSRAPI.dll
-      /delayload:BoyCtrl.dll
+      /delayload:byctrl.dll
       /delayload:PCTKUSR.dll
       /delayload:prism_orca_bridge.dll
       /delayload:prism_speech_dispatcher_bridge.dll)
@@ -566,7 +566,7 @@ if(MSVC)
       ${PROJECT_NAME}
       ${_PRISM_LINK_VIS}
       /delayload:ZDSRAPI_x64.dll
-      /delayload:BoyCtrl-x64.dll
+      /delayload:byctrl-x64.dll
       /delayload:PCTKUSR.dll
       /delayload:prism_orca_bridge.dll
       /delayload:prism_speech_dispatcher_bridge.dll)
@@ -601,7 +601,7 @@ elseif(
       ${PROJECT_NAME}
       ${_PRISM_LINK_VIS}
       "LINKER:/delayload:ZDSRAPI.dll"
-      "LINKER:/delayload:BoyCtrl.dll"
+      "LINKER:/delayload:byctrl.dll"
       "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
       "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
@@ -616,7 +616,7 @@ elseif(
       ${PROJECT_NAME}
       ${_PRISM_LINK_VIS}
       "LINKER:/delayload:ZDSRAPI_x64.dll"
-      "LINKER:/delayload:BoyCtrl-x64.dll"
+      "LINKER:/delayload:byctrl-x64.dll"
       "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
       "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")

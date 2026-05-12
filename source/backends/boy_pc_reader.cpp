@@ -25,6 +25,28 @@
 #include <utility>
 #include <windows.h>
 
+#if defined(_M_IX86) || defined(__i386__)
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlInitialize@4=__imp__BoyCtrlInitialize")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlInitializeAnsi@4=__imp__BoyCtrlInitializeAnsi")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlInitializeU8@4=__imp__BoyCtrlInitializeU8")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlUninitialize@0=__imp__BoyCtrlUninitialize")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlSpeak@12=__imp__BoyCtrlSpeak")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlSpeakAnsi@12=__imp__BoyCtrlSpeakAnsi")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlSpeakU8=__imp__BoyCtrlSpeakU8")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlSpeakEx@12=__imp__BoyCtrlSpeakEx")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlStopSpeaking@0=__imp__BoyCtrlStopSpeaking")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlStopSpeakingEx@4=__imp__BoyCtrlStopSpeakingEx")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlPauseScreenReader@4=__imp__BoyCtrlPauseScreenReader")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlIsReaderRunning@0=__imp__BoyCtrlIsReaderRunning")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlVerify@4=__imp__BoyCtrlVerify")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlSetAnyKeyStopSpeaking@4=__imp__BoyCtrlSetAnyKeyStopSpeaking")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlGetReaderState@0=__imp__BoyCtrlGetReaderState")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlReportInfo@4=__imp__BoyCtrlReportInfo")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlStartTextToAudio@32=__imp__BoyCtrlStartTextToAudio")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlCancelTextToAudio@4=__imp__BoyCtrlCancelTextToAudio")
+#pragma comment(linker, "/alternatename:__imp__BoyCtrlActivateYTApp@16=__imp__BoyCtrlActivateYTApp")
+#endif
+
 // Whoever designed this screen reader API needs to learn how to properly design
 // C callbacks...
 class BoyPCReaderBackend;
@@ -275,7 +297,7 @@ public:
         // Temporary workaround to ensure interrupt always stops
         // Todo: remove this when fixed upstream
         if (interrupt) {
-          if (const auto res = BoyCtrlStopSpeaking(false);
+          if (const auto res = BoyCtrlStopSpeaking();
               res != e_bcerr_success) {
             if (!is_recoverable(res))
               return std::unexpected(map_error(res));
@@ -283,8 +305,7 @@ public:
           }
         }
         if (!needs_recovery) {
-          const auto res = BoyCtrlSpeak(wstr.c_str(), false, !interrupt, true,
-                                        complete_callback);
+          const auto res = BoyCtrlSpeak(wstr.c_str(), !interrupt, complete_callback);
           if (res == e_bcerr_success) {
             speaking.test_and_set();
             return {};
@@ -300,9 +321,8 @@ public:
         return std::unexpected(BackendError::BackendNotAvailable);
       std::shared_lock lock(lifecycle_mtx);
       if (interrupt)
-        BoyCtrlStopSpeaking(false);
-      if (const auto res = BoyCtrlSpeak(wstr.c_str(), false, !interrupt, true,
-                                        complete_callback);
+        BoyCtrlStopSpeaking();
+      if (const auto res = BoyCtrlSpeak(wstr.c_str(), !interrupt, complete_callback);
           res != e_bcerr_success)
         return std::unexpected(map_error(res));
       speaking.test_and_set();
@@ -329,7 +349,7 @@ public:
     {
       std::shared_lock lock(lifecycle_mtx);
       if (BoyCtrlIsReaderRunning()) {
-        const auto res = BoyCtrlStopSpeaking(false);
+        const auto res = BoyCtrlStopSpeaking();
         if (res == e_bcerr_success) {
           speaking.clear();
           return {};
@@ -341,7 +361,7 @@ public:
     if (!attempt_recovery())
       return std::unexpected(BackendError::BackendNotAvailable);
     std::shared_lock lock(lifecycle_mtx);
-    if (const auto res = BoyCtrlStopSpeaking(false); res != e_bcerr_success)
+    if (const auto res = BoyCtrlStopSpeaking(); res != e_bcerr_success)
       return std::unexpected(map_error(res));
     speaking.clear();
     return {};

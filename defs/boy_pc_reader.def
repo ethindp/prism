@@ -1,25 +1,21 @@
-LIBRARY "BoyCtrl-x64.dll"
+LIBRARY "byctrl-x64.dll"
 EXPORTS
-    BoyCtrlActivateYTApp
-    BoyCtrlCancelTextToAudio
-    BoyCtrlGetReaderState
     BoyCtrlInitialize
     BoyCtrlInitializeAnsi
     BoyCtrlInitializeU8
-    BoyCtrlIsReaderRunning
-    BoyCtrlPauseScreenReader
-    BoyCtrlReportInfo
-    BoyCtrlSetAnyKeyStopSpeaking
-    BoyCtrlSpeak
-    BoyCtrlSpeak2
-    BoyCtrlSpeak3
-    BoyCtrlSpeakAnsi
-    BoyCtrlSpeakEx
-    BoyCtrlSpeakU8
-    BoyCtrlStartTextToAudio
-    BoyCtrlStopSpeaking
-    BoyCtrlStopSpeaking2
-    BoyCtrlStopSpeaking3
-    BoyCtrlStopSpeakingEx
     BoyCtrlUninitialize
+    BoyCtrlSpeak
+    BoyCtrlSpeakAnsi
+    BoyCtrlSpeakU8
+    BoyCtrlSpeakEx
+    BoyCtrlStopSpeaking
+    BoyCtrlStopSpeakingEx
+    BoyCtrlPauseScreenReader
+    BoyCtrlIsReaderRunning
     BoyCtrlVerify
+    BoyCtrlSetAnyKeyStopSpeaking
+    BoyCtrlGetReaderState
+    BoyCtrlReportInfo
+    BoyCtrlStartTextToAudio
+    BoyCtrlCancelTextToAudio
+    BoyCtrlActivateYTApp

@@ -1,25 +1,21 @@
-LIBRARY "BoyCtrl.dll"
+LIBRARY "byctrl.dll"
 EXPORTS
-    BoyCtrlActivateYTApp@16
-    BoyCtrlCancelTextToAudio@4
-    BoyCtrlGetReaderState@0
-    BoyCtrlInitialize@4
-    BoyCtrlInitializeAnsi@4
-    BoyCtrlInitializeU8@4
-    BoyCtrlIsReaderRunning@0
-    BoyCtrlPauseScreenReader@4
-    BoyCtrlReportInfo@4
-    BoyCtrlSetAnyKeyStopSpeaking@4
-    BoyCtrlSpeak@20
-    BoyCtrlSpeak2@4
-    BoyCtrlSpeak3@24
-    BoyCtrlSpeakAnsi@20
-    BoyCtrlSpeakEx@12
-    BoyCtrlSpeakU8@20
-    BoyCtrlStartTextToAudio@32
-    BoyCtrlStopSpeaking@4
-    BoyCtrlStopSpeaking2@0
-    BoyCtrlStopSpeaking3@8
-    BoyCtrlStopSpeakingEx@4
-    BoyCtrlUninitialize@0
-    BoyCtrlVerify@4
+BoyCtrlActivateYTApp@16
+BoyCtrlCancelTextToAudio@4
+BoyCtrlGetReaderState@0
+BoyCtrlInitialize@4
+BoyCtrlInitializeAnsi@4
+BoyCtrlInitializeU8@4
+BoyCtrlIsReaderRunning@0
+BoyCtrlPauseScreenReader@4
+BoyCtrlReportInfo@4
+BoyCtrlSetAnyKeyStopSpeaking@4
+BoyCtrlSpeak@12
+BoyCtrlSpeakAnsi@12
+BoyCtrlSpeakEx@12
+BoyCtrlSpeakU8@12
+BoyCtrlStopSpeaking@0
+BoyCtrlStopSpeakingEx@4
+BoyCtrlStartTextToAudio@32
+BoyCtrlUninitialize@0
+BoyCtrlVerify@4

@@ -25,8 +25,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install deps
         run: |
-          sudo apt-get update && sudo apt-get install -y clang-18 clang-tidy-18 libc++-18-dev libc++abi-18-dev gcc-14 g++-14 libspeechd-dev libglib2.0-dev wine64-tools libdbus-1-dev build-essential meson ninja-build pkg-config git libglib2.0-bin libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgirepository1.0-dev gobject-introspection gi-docgen dbus-daemon python3 python3-tap python3-dbusmock
-          sudo sed -i -E '/^Requires\.private:/ s/(, *libunwind\b)|(\blibunwind *, *)//' /usr/lib/*/pkgconfig/gstreamer-1.0.pc
+          sudo apt-get update && sudo apt-get install -y clang-18 clang-tidy-18 libspeechd-dev libglib2.0-dev wine64-tools libdbus-1-dev build-essential meson ninja-build pkg-config git libglib2.0-bin libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgirepository1.0-dev gobject-introspection gi-docgen dbus-daemon python3 python3-tap python3-dbusmock
           sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-18 100
           git clone https://github.com/project-spiel/libspiel.git
           cd libspiel
@@ -45,9 +44,6 @@ jobs:
                 -DCMAKE_BUILD_TYPE="$bt" \
                 -DCMAKE_C_COMPILER=clang-18 \
                 -DCMAKE_CXX_COMPILER=clang++-18 \
-                -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
-                -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" \
-                -DCMAKE_SHARED_LINKER_FLAGS="-stdlib=libc++" \
                 -DCMAKE_C_CLANG_TIDY=/usr/bin/clang-tidy-18 \
                 -DCMAKE_CXX_CLANG_TIDY=/usr/bin/clang-tidy-18 \
                 -DBUILD_SHARED_LIBS="$shared" \

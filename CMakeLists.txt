@@ -16,7 +16,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.14.4
+  VERSION 0.15.0
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 
@@ -345,8 +345,7 @@ if(WIN32)
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
                        ZDSRAPI_x64.dll)
     add_import_library(
-      byctrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader.def
-      byctrl-x64.dll)
+      byctrl ${CMAKE_CURRENT_SOURCE_DIR}/defs/boy_pc_reader.def byctrl-x64.dll)
     add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
                        PCTKUSR.dll)
     add_import_library(
@@ -719,7 +718,8 @@ if(PRISM_ENABLE_LINTING)
     list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
   endif()
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    find_program(CLANG_TIDY_EXE NAMES "clang-tidy-22" "clang-tidy-21" "clang-tidy-20" "clang-tidy")
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy-22" "clang-tidy-21"
+                                      "clang-tidy-20" "clang-tidy")
     if(CLANG_TIDY_EXE)
       set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}")
       set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY

@@ -18,7 +18,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(
   tolk
-  VERSION 0.14.4
+  VERSION 0.15.0
   DESCRIPTION "Tolk shim for Prism"
   LANGUAGES C CXX)
 
@@ -191,7 +191,8 @@ if(NOT MSVC)
 endif()
 if(PRISM_ENABLE_LINTING)
   if(NOT CMAKE_C_COMPILER_ID MATCHES "MSVC")
-    find_program(CLANG_TIDY_EXE NAMES "clang-tidy-22" "clang-tidy-21" "clang-tidy-20" "clang-tidy")
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy-22" "clang-tidy-21"
+                                      "clang-tidy-20" "clang-tidy")
     if(CLANG_TIDY_EXE)
       set_target_properties(tolk PROPERTIES C_CLANG_TIDY "${CLANG_TIDY_EXE}")
     endif()

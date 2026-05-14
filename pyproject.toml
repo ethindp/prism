@@ -100,25 +100,51 @@ enable = ["cpython-freethreading"]
 archs = ["x86_64", "i686", "aarch64", "riscv64", "ppc64le", "s390x"]
 before-all = [
     """
-    set -e
+    set -euo pipefail
     if command -v dnf >/dev/null 2>&1; then
         rhel_ver=$(rpm -E %rhel 2>/dev/null)
         if [[ "$rhel_ver" =~ ^[0-9]+$ ]]; then
-            dnf install -y dnf-plugins-core || true
+            dnf install -y dnf-plugins-core
             dnf config-manager --set-enabled crb 2>/dev/null || dnf config-manager --set-enabled powertools 2>/dev/null || true
-            dnf install -y "https://dl.fedoraproject.org/pub/epel/epel-release-latest-${rhel_ver}.noarch.rpm" || true
+            dnf install -y "https://dl.fedoraproject.org/pub/epel/epel-release-latest-${rhel_ver}.noarch.rpm"
         fi
-        dnf install -y speech-dispatcher-devel
+        dnf install -y speech-dispatcher-devel ninja-build pkgconf-pkg-config git curl xz gstreamer1-devel gstreamer1-plugins-base-devel dbus-daemon libffi-devel pcre2-devel zlib-devel gettext gettext-devel
     elif command -v apk >/dev/null 2>&1; then
-        apk add --no-cache speech-dispatcher-dev
+        apk add --no-cache speech-dispatcher-dev build-base ninja pkgconf git curl xz gstreamer-dev gst-plugins-base-dev dbus python3 libffi-dev pcre2-dev zlib-dev gettext-dev
     elif command -v apt-get >/dev/null 2>&1; then
         export DEBIAN_FRONTEND=noninteractive
-        apt-get update || true
-        apt-get install -y libspeechd-dev
+        apt-get update
+        apt-get install -y libspeechd-dev libdbus-1-dev wine64-tools build-essential ninja-build pkg-config git curl xz-utils libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev dbus-daemon python3 libffi-dev libpcre2-dev zlib1g-dev gettext
     fi
+    /opt/python/cp311-cp311/bin/pip install --quiet --upgrade 'meson>=1.3.2'
+    export PATH=/opt/python/cp311-cp311/bin:$PATH
+    GLIB_VERSION=2.88.1
+    curl -fL "https://download.gnome.org/sources/glib/${GLIB_SERIES}/glib-${GLIB_VERSION}.tar.xz" -o glib.tar.xz
+    curl -fL "https://download.gnome.org/sources/glib/${GLIB_SERIES}/glib-${GLIB_VERSION}.sha256sum" -o glib.sha256sum
+    sha256sum -c glib.sha256sum
+    tar xJf glib.tar.xz
+    cd "glib-${GLIB_VERSION}"
+    meson setup build --prefix=/usr/local --buildtype=release -Dtests=false -Dintrospection=disabled -Ddocumentation=false -Dman-pages=disabled -Dnls=disabled
+    meson compile -C build
+    meson install -C build
+    cd ..
+    rm -rf "glib-${GLIB_VERSION}"
+    export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}
+    echo /usr/local/lib64 >  /etc/ld.so.conf.d/usr-local.conf
+    echo /usr/local/lib   >> /etc/ld.so.conf.d/usr-local.conf
+    ldconfig
+    git clone https://github.com/project-spiel/libspiel.git
+    cd libspiel
+    git checkout adceb56
+    meson setup build --prefix=/usr/local --buildtype=release -Dtests=false -Ddocs=false -Dutils=false -Dintrospection=false
+    meson compile -C build
+    meson install -C build
+    cd ..
+    rm -rf libspiel
+    ldconfig
     """,
 ]
-environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
+environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4", PKG_CONFIG_PATH = "/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig", LD_LIBRARY_PATH = "/usr/local/lib64:/usr/local/lib" }
 
 [tool.cibuildwheel.macos]
 archs = ["arm64", "x86_64"]

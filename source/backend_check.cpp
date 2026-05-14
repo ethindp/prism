@@ -30,6 +30,7 @@ CHECK(PRISM_BACKEND_PC_TALKER, Backends::PCTalker);
 CHECK(PRISM_BACKEND_SENSE_READER, Backends::SenseReader);
 CHECK(PRISM_BACKEND_SYSTEM_ACCESS, Backends::SystemAccess);
 CHECK(PRISM_BACKEND_WINDOW_EYES, Backends::WindowEyes);
+CHECK(PRISM_BACKEND_SPIEL, Backends::Spiel);
 
 #undef CHECK
 #undef U64

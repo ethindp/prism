@@ -2,6 +2,7 @@
 
 #include "prism.h"
 #include "backends/backend_registry.h"
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <new>
@@ -257,18 +258,24 @@ PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_is_speaking(
 
 PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_set_volume(PrismBackend *backend, float volume) {
+  if (!std::isfinite(volume) || volume < 0.0F || volume > 1.0F)
+    return PRISM_ERROR_RANGE_OUT_OF_BOUNDS;
   const auto r = backend->impl->set_volume(volume);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_set_rate(PrismBackend *backend, float rate) {
+  if (!std::isfinite(rate) || rate < 0.0F || rate > 1.0F)
+    return PRISM_ERROR_RANGE_OUT_OF_BOUNDS;
   const auto r = backend->impl->set_rate(rate);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_set_pitch(PrismBackend *backend, float pitch) {
+  if (!std::isfinite(pitch) || pitch < 0.0F || pitch > 1.0F)
+    return PRISM_ERROR_RANGE_OUT_OF_BOUNDS;
   const auto r = backend->impl->set_pitch(pitch);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
@@ -404,7 +411,7 @@ prism_error_string(PrismError error) {
                                         "Backend entered undefined state"};
   static_assert(std::size(strings) == PRISM_ERROR_COUNT,
                 "Error string table size mismatches error count");
-  if (error >= PRISM_ERROR_COUNT)
+  if (static_cast<std::uint8_t>(error) >= PRISM_ERROR_COUNT)
     return "Unknown error";
   return strings[error];
 }

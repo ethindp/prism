@@ -115,6 +115,7 @@ The names used by Prism backends are:
 | Sense Reader | `"SenseReader"` |
 | SystemAccess | `"SystemAccess"` |
 | WindowEyes | `"WindowEyes"` |
+| Spiel | `"Spiel"` |
 
 ### prism_registry_name
 
@@ -326,8 +327,6 @@ The caller assumes ownership of the returned backend and MUST eventually pass it
 ### prism_registry_acquire
 
 Acquires a backend instance, reusing a cached instance if available or creating a new one otherwise.
-
-Note: If you do not have a specific reason to share state with other callers, prefer `prism_registry_create` or `prism_registry_create_best`.
 
 #### Syntax
 

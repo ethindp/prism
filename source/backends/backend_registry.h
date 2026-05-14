@@ -57,6 +57,7 @@ inline constexpr auto PCTalker = "PCTalker"_bid;
 inline constexpr auto SenseReader = "SenseReader"_bid;
 inline constexpr auto SystemAccess = "SystemAccess"_bid;
 inline constexpr auto WindowEyes = "WindowEyes"_bid;
+inline constexpr auto Spiel = "Spiel"_bid;
 } // namespace Backends
 
 class BackendRegistry {

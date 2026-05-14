@@ -42,6 +42,8 @@ jobs:
           TRIPLET=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
           GCC_DIR="/usr/lib/gcc/${TRIPLET}/14"
           [ -d "$GCC_DIR" ] || { echo "GCC dir not found: $GCC_DIR"; exit 1; }
+          /usr/bin/clang-tidy-22 --extra-arg-before=--gcc-install-dir=/usr/lib/gcc/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/14 --extra-arg=-std=gnu++23 -dump-config /dev/null 2>&1 | head -5
+          echo '#include <expected>' | /usr/bin/clang++-22 --gcc-install-dir=/usr/lib/gcc/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/14 -std=gnu++23 -E -x c++ - 2>&1 | grep -E "expected|^# 1" | head -10
           for shared in ON OFF; do
             linkage=$( [ "$shared" = "ON" ] && echo "dynamic" || echo "static" )
             for bt in Release Debug; do

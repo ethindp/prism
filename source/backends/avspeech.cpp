@@ -350,7 +350,7 @@ public:
       }
       auto const tv = trim_silence_rms_gate_inplace(
           std::span<float>(audio_data), channels, sample_rate);
-      callback(userdata, tv.view.data(), tv.view.size() / channels, channels,
+      callback(userdata, tv.view.data(), tv.view.size(), channels,
                sample_rate);
     } else {
       return std::unexpected(BackendError::NotImplemented);

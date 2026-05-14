@@ -52,10 +52,23 @@ jobs:
               -DANDROID_PLATFORM=android-30
             cmake --build "build-${linkage}-${config}" --target prism
           done
-      - name: Run Android Lint
+  lint-java:
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r29
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      - name: Lint
         run: ./gradlew :lint --continue --no-daemon --stacktrace
       - name: Upload lint reports
-        if: always()   # so reports are uploaded even when lint fails the build
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: lint-reports
@@ -67,5 +80,5 @@ jobs:
         if: always()
         uses: github/codeql-action/upload-sarif@v4.35.3
         with:
-          sarif_file: build/android/gradle/reports/lint-results-${{matrix.build_type}}.sarif
+          sarif_file: build/android/gradle/reports/lint-results-debug.sarif
           wait-for-processing: true

@@ -28,7 +28,7 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 22
-          sudo apt-get install -y clang-tidy-22 gcc-14 g++-14 libspeechd-dev libglib2.0-dev wine64-tools libdbus-1-dev build-essential meson ninja-build pkg-config git libglib2.0-bin libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgirepository1.0-dev gobject-introspection gi-docgen dbus-daemon python3 python3-tap python3-dbusmock
+          sudo apt-get install -y clang-tidy-22 libspeechd-dev libglib2.0-dev wine64-tools libdbus-1-dev build-essential meson ninja-build pkg-config git libglib2.0-bin libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgirepository1.0-dev gobject-introspection gi-docgen dbus-daemon python3 python3-tap python3-dbusmock
           sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-22 100
           git clone https://github.com/project-spiel/libspiel.git
           cd libspiel
@@ -39,9 +39,6 @@ jobs:
           rm -rf libspiel
       - name: Lint all configurations
         run: |
-          TRIPLET=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
-          GCC_DIR="/usr/lib/gcc/${TRIPLET}/14"
-          [ -d "$GCC_DIR" ] || { echo "GCC dir not found: $GCC_DIR"; exit 1; }
           for shared in ON OFF; do
             linkage=$( [ "$shared" = "ON" ] && echo "dynamic" || echo "static" )
             for bt in Release Debug; do
@@ -50,8 +47,6 @@ jobs:
                 -DCMAKE_BUILD_TYPE="$bt" \
                 -DCMAKE_C_COMPILER=clang-22 \
                 -DCMAKE_CXX_COMPILER=clang++-22 \
-                -DCMAKE_C_FLAGS="--gcc-install-dir=${GCC_DIR}" \
-                -DCMAKE_CXX_FLAGS="--gcc-install-dir=${GCC_DIR}" \
                 -DCMAKE_C_CLANG_TIDY=/usr/bin/clang-tidy-22 \
                 -DCMAKE_CXX_CLANG_TIDY=/usr/bin/clang-tidy-22 \
                 -DBUILD_SHARED_LIBS="$shared" \

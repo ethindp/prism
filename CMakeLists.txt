@@ -719,7 +719,7 @@ if(PRISM_ENABLE_LINTING)
     list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
   endif()
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy-22" "clang-tidy-21" "clang-tidy-20" "clang-tidy")
     if(CLANG_TIDY_EXE)
       set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}")
       set_target_properties(${PROJECT_NAME} PROPERTIES CXX_CLANG_TIDY

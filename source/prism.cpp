@@ -411,7 +411,7 @@ prism_error_string(PrismError error) {
                                         "Backend entered undefined state"};
   static_assert(std::size(strings) == PRISM_ERROR_COUNT,
                 "Error string table size mismatches error count");
-  if (static_cast<std::uint8_t>(error) >= PRISM_ERROR_COUNT)
+  if (static_cast<std::uint32_t>(error) >= PRISM_ERROR_COUNT)
     return "Unknown error";
   return strings[error];
 }

@@ -242,7 +242,7 @@ class Backend:
             channels,
             rate,
         ) -> None:
-            pcm_data = ffi.unpack(samples_ptr, count * channels)
+            pcm_data = ffi.unpack(samples_ptr, count)
             on_audio_data(pcm_data, channels, rate)
 
         self._active_callback = audio_callback_shim

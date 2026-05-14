@@ -32,8 +32,10 @@
 #include <atlbase.h>
 #include <mmreg.h>
 #include <sapi.h>
+#include <shlwapi.h>
 #include <tchar.h>
 #include <windows.h>
+#include <xmllite.h>
 
 struct VoiceInfo {
   CComPtr<ISpObjectToken> token;
@@ -202,7 +204,59 @@ private:
     DWORD flags = base_flags;
     const auto p = pitch.load(std::memory_order_acquire);
     if (p != 0) {
-      wtext = std::format(_T("<pitch absmiddle=\"{}\"/>{}"), p, wtext);
+      CComPtr<IStream> stream;
+      stream.Attach(SHCreateMemStream(nullptr, 0));
+      if (!stream)
+        return std::unexpected(BackendError::MemoryFailure);
+      CComPtr<IXmlWriter> writer;
+      HRESULT hr = CreateXmlWriter(__uuidof(IXmlWriter),
+                                   reinterpret_cast<void **>(&writer), nullptr);
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      hr = writer->SetProperty(XmlWriterProperty_OmitXmlDeclaration, TRUE);
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      CComPtr<IXmlWriterOutput> output;
+      hr = CreateXmlWriterOutputWithEncodingName(stream, nullptr, _T("utf-16"),
+                                                 &output);
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      hr = writer->SetOutput(output);
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      const auto pitch_str = std::to_wstring(p);
+      hr = writer->WriteStartElement(nullptr, _T("pitch"), nullptr);
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      hr = writer->WriteAttributeString(nullptr, _T("absmiddle"), nullptr,
+                                        pitch_str.c_str());
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      hr = writer->WriteString(wtext.c_str());
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InvalidUtf8);
+      hr = writer->WriteEndElement();
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      hr = writer->Flush();
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      LARGE_INTEGER zero{};
+      ULARGE_INTEGER end_pos{};
+      hr = stream->Seek(zero, STREAM_SEEK_END, &end_pos);
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      const auto bytes = static_cast<std::size_t>(end_pos.QuadPart);
+      if (bytes == 0 || (bytes % sizeof(wchar_t)) != 0)
+        return std::unexpected(BackendError::InternalBackendError);
+      hr = stream->Seek(zero, STREAM_SEEK_SET, nullptr);
+      if (FAILED(hr))
+        return std::unexpected(BackendError::InternalBackendError);
+      wtext.resize(bytes / sizeof(wchar_t));
+      ULONG read = 0;
+      hr = stream->Read(wtext.data(), static_cast<ULONG>(bytes), &read);
+      if (FAILED(hr) || read != bytes)
+        return std::unexpected(BackendError::InternalBackendError);
       flags |= SPF_IS_XML;
     }
     return SapiSpeakParams{.text = std::move(wtext), .flags = flags};
@@ -343,10 +397,13 @@ public:
     std::unique_lock vl(voice_lock);
     if (auto const r = require_ready_locked(); !r)
       return r;
+    const bool old_paused = paused;
     paused = false;
     if (interrupt)
-      if (FAILED(voice->Speak(nullptr, SPF_PURGEBEFORESPEAK, nullptr)))
+      if (FAILED(voice->Speak(nullptr, SPF_PURGEBEFORESPEAK, nullptr))) {
+        paused = old_paused;
         return std::unexpected(BackendError::SpeakFailure);
+      }
     if (FAILED(voice->Speak(wtext.c_str(), flags, nullptr)))
       return std::unexpected(BackendError::SpeakFailure);
     return {};

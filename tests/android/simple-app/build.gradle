@@ -16,7 +16,7 @@ android {
     }
     defaultConfig {
         applicationId "com.github.ethindp.prism.tests.android.simpleapp"
-        minSdk 30
+        minSdk 21
         targetSdk 35
         versionCode 1
         versionName "1.0"
@@ -36,6 +36,69 @@ android {
                 def  osArch = System.getProperty("os.arch").toLowerCase()
                 def  isArm64 = (osArch == "aarch64" || osArch == "arm64")
                 if (isArm64) {
+                    api21AospArm64 {
+                        device = "Pixel 6"
+                        apiLevel = 21
+                        systemImageSource = "google_apis"
+                        require64Bit = true
+                        testedAbi = "arm64-v8a"
+                    }
+                    api22AospArm64 {
+                        device = "Pixel 6"
+                        apiLevel = 22
+                        systemImageSource = "google_apis"
+                        require64Bit = true
+                        testedAbi = "arm64-v8a"
+                    }
+                    api23AospArm64 {
+                        device = "Pixel 6"
+                        apiLevel = 23
+                        systemImageSource = "google_apis"
+                        require64Bit = true
+                        testedAbi = "arm64-v8a"
+                    }
+                    api24AospArm64 {
+                        device = "Pixel 6"
+                        apiLevel = 24
+                        systemImageSource = "google_apis"
+                        require64Bit = true
+                        testedAbi = "arm64-v8a"
+                    }
+                    api25AospArm64 {
+                        device = "Pixel 6"
+                        apiLevel = 25
+                        systemImageSource = "google_apis"
+                        require64Bit = true
+                        testedAbi = "arm64-v8a"
+                    }
+                    api26AospArm64 {
+                        device = "Pixel 6"
+                        apiLevel = 26
+                        systemImageSource = "google_apis"
+                        require64Bit = true
+                        testedAbi = "arm64-v8a"
+                    }
+                    api27AospArm64 {
+                        device = "Pixel 6"
+                        apiLevel = 27
+                        systemImageSource = "google_apis"
+                        require64Bit = true
+                        testedAbi = "arm64-v8a"
+                    }
+                    api28AospArm64 {
+                        device = "Pixel 6"
+                        apiLevel = 28
+                        systemImageSource = "google_apis"
+                        require64Bit = true
+                        testedAbi = "arm64-v8a"
+                    }
+                    api29AospArm64 {
+                        device = "Pixel 6"
+                        apiLevel = 29
+                        systemImageSource = "google_apis"
+                        require64Bit = true
+                        testedAbi = "arm64-v8a"
+                    }
                     api30AospArm64 {
                         device = "Pixel 6"
                         apiLevel = 30
@@ -86,6 +149,69 @@ android {
                         testedAbi = "arm64-v8a"
                     }
                 } else {
+                    api21AospX64 {
+                        device = "Pixel 2"
+                        apiLevel = 21
+                        systemImageSource = "google_apis"
+                        testedAbi = "x86_64"
+                        require64Bit = true
+                    }
+                    api22AospX64 {
+                        device = "Pixel 2"
+                        apiLevel = 22
+                        systemImageSource = "google_apis"
+                        testedAbi = "x86_64"
+                        require64Bit = true
+                    }
+                    api23AospX64 {
+                        device = "Pixel 2"
+                        apiLevel = 23
+                        systemImageSource = "google_apis"
+                        testedAbi = "x86_64"
+                        require64Bit = true
+                    }
+                    api24AospX64 {
+                        device = "Pixel 2"
+                        apiLevel = 24
+                        systemImageSource = "google_apis"
+                        testedAbi = "x86_64"
+                        require64Bit = true
+                    }
+                    api25AospX64 {
+                        device = "Pixel 2"
+                        apiLevel = 25
+                        systemImageSource = "google_apis"
+                        testedAbi = "x86_64"
+                        require64Bit = true
+                    }
+                    api26AospX64 {
+                        device = "Pixel 2"
+                        apiLevel = 26
+                        systemImageSource = "google_apis"
+                        testedAbi = "x86_64"
+                        require64Bit = true
+                    }
+                    api27AospX64 {
+                        device = "Pixel 2"
+                        apiLevel = 27
+                        systemImageSource = "default"
+                        testedAbi = "x86_64"
+                        require64Bit = true
+                    }
+                    api28AospX64 {
+                        device = "Pixel 2"
+                        apiLevel = 28
+                        systemImageSource = "google_apis"
+                        testedAbi = "x86_64"
+                        require64Bit = true
+                    }
+                    api29AospX64 {
+                        device = "Pixel 2"
+                        apiLevel = 29
+                        systemImageSource = "google_apis"
+                        testedAbi = "x86_64"
+                        require64Bit = true
+                    }
                     api31AospX64 {
                         device = "Pixel 2"
                         apiLevel = 31
@@ -135,6 +261,15 @@ android {
                     def  osArch = System.getProperty("os.arch").toLowerCase()
                     def  isArm64 = (osArch == "aarch64" || osArch == "arm64")
                     if (isArm64) {
+                        targetDevices.add(devices.api21AospArm64)
+                        targetDevices.add(devices.api22AospArm64)
+                        targetDevices.add(devices.api23AospArm64)
+                        targetDevices.add(devices.api24AospArm64)
+                        targetDevices.add(devices.api25AospArm64)
+                        targetDevices.add(devices.api26AospArm64)
+                        targetDevices.add(devices.api27AospArm64)
+                        targetDevices.add(devices.api28AospArm64)
+                        targetDevices.add(devices.api29AospArm64)
                         targetDevices.add(devices.api30AospArm64)
                         targetDevices.add(devices.api31AospArm64)
                         targetDevices.add(devices.api32AospArm64)
@@ -143,6 +278,15 @@ android {
                         targetDevices.add(devices.api35AospArm64)
                         targetDevices.add(devices.api36AospArm64)
                     } else {
+                        targetDevices.add(devices.api21AospX64)
+                        targetDevices.add(devices.api22AospX64)
+                        targetDevices.add(devices.api23AospX64)
+                        targetDevices.add(devices.api24AospX64)
+                        targetDevices.add(devices.api25AospX64)
+                        targetDevices.add(devices.api26AospX64)
+                        targetDevices.add(devices.api27AospX64)
+                        targetDevices.add(devices.api28AospX64)
+                        targetDevices.add(devices.api29AospX64)
                         targetDevices.add(devices.api31AospX64)
                         targetDevices.add(devices.api32AospX64)
                         targetDevices.add(devices.api33AospX64)

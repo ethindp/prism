@@ -7,6 +7,8 @@ include(CheckLinkerFlag)
 include(CheckIPOSupported)
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
+include(CMakePackageConfigHelpers)
+include(ExternalProject)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
@@ -116,9 +118,6 @@ function(add_import_library target def_file dll_name)
                                              IMPORTED_LOCATION "${dll_name}")
   add_dependencies(${target} ${target}_gen)
 endfunction()
-add_library(prism_backend_iface INTERFACE)
-target_compile_features(prism_backend_iface INTERFACE cxx_std_23 c_std_17)
-set(_prism_backend_targets "")
 function(prism_add_backend src)
   get_filename_component(name "${src}" NAME_WE)
   set(tgt "prism_backend_${name}")
@@ -135,6 +134,21 @@ function(prism_add_backend src)
       "${_prism_backend_targets}"
       PARENT_SCOPE)
 endfunction()
+function(prism_target_external_include target visibility)
+  set(_wrapped "")
+  foreach(_dir IN LISTS ARGN)
+    list(APPEND _wrapped "$<BUILD_INTERFACE:${_dir}>")
+  endforeach()
+  target_include_directories(${target} ${visibility} ${_wrapped})
+  if(PRISM_ENABLE_LINTING AND MSVC)
+    foreach(_dir IN LISTS ARGN)
+      target_compile_options(${target} ${visibility} "/external:I ${_dir}")
+    endforeach()
+  endif()
+endfunction()
+add_library(prism_backend_iface INTERFACE)
+target_compile_features(prism_backend_iface INTERFACE cxx_std_23 c_std_17)
+set(_prism_backend_targets "")
 file(
   GLOB_RECURSE
   headers
@@ -143,9 +157,9 @@ file(
   "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/source/*.hpp")
 file(GLOB_RECURSE android_headers CONFIGURE_DEPENDS
-     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/java/*.hpp")
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/android/*.hpp")
 file(GLOB_RECURSE android_sources CONFIGURE_DEPENDS
-     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/java/*.cpp")
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/android/*.cpp")
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c")
@@ -158,6 +172,63 @@ list(REMOVE_ITEM sources ${backend_sources})
 foreach(src ${backend_sources})
   prism_add_backend("${src}")
 endforeach()
+add_library(prism_third_party_simdutf OBJECT third_party/simdutf/simdutf.cpp)
+prism_target_external_include(prism_third_party_simdutf PUBLIC
+                              "${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf")
+set_target_properties(prism_third_party_simdutf
+                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+  target_compile_options(prism_third_party_simdutf PRIVATE /analyze- /W0 /WX-)
+else()
+  target_compile_options(prism_third_party_simdutf PRIVATE -w)
+endif()
+add_library(prism_third_party_dr_wav OBJECT third_party/dr_wav/wav.c)
+prism_target_external_include(prism_third_party_dr_wav PUBLIC
+                              "${CMAKE_CURRENT_SOURCE_DIR}/third_party/dr_wav")
+set_target_properties(prism_third_party_dr_wav
+                      PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+  target_compile_options(prism_third_party_dr_wav PRIVATE /analyze- /W0 /WX-)
+else()
+  target_compile_options(prism_third_party_dr_wav PRIVATE -w)
+endif()
+if(ANDROID)
+  add_library(
+    prism_third_party_djinni OBJECT
+    third_party/djinni/support/cpp/DataRef.cpp
+    third_party/djinni/support/jni/djinni_support.cpp
+    third_party/djinni/support/jni/djinni_main.cpp
+    third_party/djinni/support/jni/DataRef_jni.cpp
+    third_party/djinni/support/jni/Future_jni.cpp)
+  prism_target_external_include(
+    prism_third_party_djinni
+    PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/djinni/support"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/djinni/support/cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/djinni/support/jni")
+  set_target_properties(prism_third_party_djinni
+                        PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  if(MSVC)
+    target_compile_options(prism_third_party_djinni PRIVATE /analyze- /W0 /WX-)
+  else()
+    target_compile_options(prism_third_party_djinni PRIVATE -w)
+  endif()
+endif()
+prism_target_external_include(
+  prism_backend_iface
+  INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf"
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/moderncom"
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/concurrentqueue"
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/dr_wav")
+if(ANDROID)
+  prism_target_external_include(
+    prism_backend_iface
+    INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/djinni/support"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/djinni/support/cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/djinni/support/jni")
+endif()
 if(NOT WIN32)
   list(REMOVE_ITEM sources
        "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
@@ -182,14 +253,19 @@ endforeach()
 target_link_libraries(${PROJECT_NAME} PRIVATE ${_prism_backend_link_items})
 target_link_libraries(${PROJECT_NAME}
                       PRIVATE "$<BUILD_INTERFACE:prism_backend_iface>")
+target_sources(
+  ${PROJECT_NAME} PRIVATE $<TARGET_OBJECTS:prism_third_party_simdutf>
+                          $<TARGET_OBJECTS:prism_third_party_dr_wav>)
+if(ANDROID)
+  target_sources(${PROJECT_NAME}
+                 PRIVATE $<TARGET_OBJECTS:prism_third_party_djinni>)
+endif()
 set_target_properties(
   ${PROJECT_NAME}
   PROPERTIES POSITION_INDEPENDENT_CODE ON
              CXX_VISIBILITY_PRESET hidden
              C_VISIBILITY_PRESET hidden
              VISIBILITY_INLINES_HIDDEN ON)
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp
-                            PROPERTIES COMPILE_OPTIONS "-w" SKIP_LINTING TRUE)
 if(APPLE)
   set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/avspeech.cpp" TARGET_DIRECTORY
@@ -220,8 +296,11 @@ target_include_directories(
             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/source>"
             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/source/backends>")
 if(ANDROID)
-  target_include_directories(${PROJECT_NAME}
-                             PRIVATE "${PROJECT_SOURCE_DIR}/source/backends")
+  target_include_directories(
+    ${PROJECT_NAME}
+    PRIVATE "${PROJECT_SOURCE_DIR}/source/backends"
+            "${PROJECT_SOURCE_DIR}/source/backends/android"
+            "${PROJECT_SOURCE_DIR}/source/backends/android/jni")
 endif()
 target_compile_definitions(
   ${PROJECT_NAME}
@@ -625,11 +704,6 @@ if(ANDROID)
 endif()
 if(PRISM_ENABLE_LINTING)
   set(SKIP_LINT_FILES
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.cpp"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/simdutf.h"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/dr_wav.h"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/wav.c"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/concurrentqueue.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
       "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sense_reader.h"
@@ -745,34 +819,31 @@ endif()
 if(PRISM_ENABLE_DEMOS)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/demos)
 endif()
-add_library(${PROJECT_NAME}_consume INTERFACE)
-get_target_property(_PRISM_LIB_TYPE_FOR_CONSUME ${PROJECT_NAME} TYPE)
-if(_PRISM_LIB_TYPE_FOR_CONSUME STREQUAL "STATIC_LIBRARY")
-  # From my tests, CMake does not rewrite target names inside the LINK_LIBRARY
-  # genex when exporting, so we need separate BUILD_INTERFACE /
-  # INSTALL_INTERFACE forms
+set_target_properties(${PROJECT_NAME} PROPERTIES EXPORT_NAME _prism_lib)
+add_library(${PROJECT_NAME}::_prism_lib ALIAS ${PROJECT_NAME})
+add_library(${PROJECT_NAME}_iface INTERFACE)
+get_target_property(_prism_type ${PROJECT_NAME} TYPE)
+if(_prism_type STREQUAL "STATIC_LIBRARY")
   target_link_libraries(
-    ${PROJECT_NAME}_consume
+    ${PROJECT_NAME}_iface
     INTERFACE
       "$<BUILD_INTERFACE:$<LINK_LIBRARY:WHOLE_ARCHIVE,${PROJECT_NAME}>>"
-      "$<INSTALL_INTERFACE:$<LINK_LIBRARY:WHOLE_ARCHIVE,${PROJECT_NAME}::${PROJECT_NAME}_impl>>"
+      "$<INSTALL_INTERFACE:$<LINK_LIBRARY:WHOLE_ARCHIVE,${PROJECT_NAME}::_prism_lib>>"
   )
 else()
   target_link_libraries(
-    ${PROJECT_NAME}_consume
+    ${PROJECT_NAME}_iface
     INTERFACE "$<BUILD_INTERFACE:${PROJECT_NAME}>"
-              "$<INSTALL_INTERFACE:${PROJECT_NAME}::${PROJECT_NAME}_impl>")
+              "$<INSTALL_INTERFACE:${PROJECT_NAME}::_prism_lib>")
 endif()
-set_target_properties(${PROJECT_NAME} PROPERTIES EXPORT_NAME
-                                                 ${PROJECT_NAME}_impl)
-set_target_properties(${PROJECT_NAME}_consume PROPERTIES EXPORT_NAME
-                                                         ${PROJECT_NAME})
-add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME}_consume)
-add_library(${PROJECT_NAME}::${PROJECT_NAME}_impl ALIAS ${PROJECT_NAME})
+unset(_prism_type)
+set_target_properties(${PROJECT_NAME}_iface PROPERTIES EXPORT_NAME
+                                                       ${PROJECT_NAME})
+add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME}_iface)
 if(DEFINED SKBUILD)
   set(PRISM_PY_NATIVE_DIR "${SKBUILD_PLATLIB_DIR}/prism/_native")
   install(
-    TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_consume
+    TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"
     LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
     ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
@@ -793,7 +864,7 @@ if(DEFINED SKBUILD)
   endif()
 else()
   install(
-    TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_consume
+    TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_iface
     EXPORT prismTargets
     RUNTIME DESTINATION "bin"
     LIBRARY DESTINATION "lib"
@@ -806,17 +877,21 @@ else()
   endif()
   install(
     EXPORT prismTargets
-    FILE prism-config.cmake
+    FILE prism-targets.cmake
     NAMESPACE prism::
     DESTINATION share/prism)
-  include(CMakePackageConfigHelpers)
   write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMajorVersion)
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
-          DESTINATION share/prism)
   install(DIRECTORY include/ DESTINATION include)
+  configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/prism-config.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/prism-config.cmake"
+    INSTALL_DESTINATION share/prism)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/prism-config.cmake"
+                "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
+          DESTINATION share/prism)
 endif()
 if(PRISM_ENABLE_GDEXTENSION)
   add_subdirectory(gdextension)
@@ -831,7 +906,6 @@ if(PRISM_BUILD_WINELIBS)
      OR EMSCRIPTEN)
     message(FATAL_ERROR "PRISM_BUILD_WINELIBS requires a Linux/BSD host build")
   endif()
-  include(ExternalProject)
   ExternalProject_Add(
     prism_winelibs
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/winelibs

@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+include("${CMAKE_CURRENT_LIST_DIR}/prism-targets.cmake")
+if(TARGET prism::_prism_lib)
+  set_property(
+    TARGET prism::_prism_lib
+    PROPERTY
+      DEPRECATION
+      "prism::_prism_lib is an internal implementation detail; link prism::prism instead"
+  )
+endif()
+check_required_components(prism)

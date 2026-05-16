@@ -166,11 +166,16 @@ int main(void) {
 else()
   find_package(Threads REQUIRED)
 endif()
-if(BUILD_SHARED_LIBS)
-  add_library(tolk SHARED tolk.c lock.c simdutf.cpp)
+add_library(tolk SHARED tolk.c lock.c)
+target_link_libraries(tolk PRIVATE prism::prism)
+get_target_property(_prism_type prism TYPE)
+if(NOT _prism_type STREQUAL "STATIC_LIBRARY")
+    target_link_libraries(tolk PRIVATE prism_third_party_simdutf)
 else()
-  add_library(tolk SHARED tolk.c lock.c)
+    target_include_directories(tolk PRIVATE
+        ${CMAKE_SOURCE_DIR}/third_party/simdutf)
 endif()
+unset(_prism_type)
 target_compile_definitions(tolk PRIVATE TOLK_BUILDING)
 if(NEEDS_C11_ATOMICS_FLAG)
   target_compile_options(tolk PRIVATE /experimental:c11atomics)
@@ -212,7 +217,7 @@ if(PRISM_ENABLE_LINTING)
       PRIVATE
         /external:anglebrackets
         /external:W0
-        "/external:I$<TARGET_PROPERTY:prism,INTERFACE_INCLUDE_DIRECTORIES>"
+        "/external:I ${CMAKE_SOURCE_DIR}/third_party/simdutf"
         /analyze
         /analyze:external-
         /analyze:log
@@ -224,7 +229,6 @@ if(PRISM_ENABLE_LINTING)
 endif()
 set_target_properties(tolk PROPERTIES VERSION ${PROJECT_VERSION}
                                       SOVERSION ${PROJECT_VERSION_MAJOR})
-target_link_libraries(tolk PRIVATE prism::prism)
 if(WIN32 OR MINGW)
   target_link_libraries(tolk PRIVATE synchronization)
 elseif(

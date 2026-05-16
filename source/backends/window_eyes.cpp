@@ -8,12 +8,12 @@
 #ifdef PRISM_ENABLE_WINDOW_EYES_LEGACY_BACKEND
 #include "backend.h"
 #include "backend_registry.h"
-#include "raw/wineyes.h"
 #include <algorithm>
 #include <atlbase.h>
 #include <atomic>
 #include <bitset>
 #include <ranges>
+#include <raw/wineyes.h>
 #include <simdutf/simdutf.h>
 #include <tchar.h>
 #include <windows.h>

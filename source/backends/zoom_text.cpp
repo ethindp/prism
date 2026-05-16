@@ -3,11 +3,11 @@
 #ifdef _WIN32
 #include "backend.h"
 #include "backend_registry.h"
-#include "raw/zt.h"
 #include <algorithm>
 #include <atlbase.h>
 #include <atomic>
 #include <ranges>
+#include <raw/zt.h>
 #include <simdutf/simdutf.h>
 #include <tchar.h>
 #include <windows.h>

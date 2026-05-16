@@ -87,6 +87,11 @@ typedef struct {
   uint8_t version;
 } PrismConfig;
 
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 26812)
+#endif
 typedef enum PrismError {
   PRISM_OK = 0,
   PRISM_ERROR_NOT_INITIALIZED,
@@ -111,6 +116,9 @@ typedef enum PrismError {
   PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE,
   PRISM_ERROR_COUNT
 } PrismError;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 typedef void(PRISM_CALL *PrismAudioCallback)(
     void *userdata, const float *PRISM_RESTRICT samples, size_t sample_count,
@@ -139,6 +147,10 @@ typedef void(PRISM_CALL *PrismAudioCallback)(
 #define PRISM_BACKEND_SPIEL UINT64_C(0x478B44F14AD3D89C)
 #define PRISM_CONFIG_VERSION 2
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 26812)
+#endif
 typedef enum PrismBackendFeature {
   PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME = (1ULL << 0),
   PRISM_BACKEND_SUPPORTS_SPEAK = (1ULL << 2),
@@ -170,6 +182,9 @@ typedef enum PrismBackendFeature {
   PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML = (1ULL << 28),
   PRISM_BACKEND_FEATURE_MAX_BIT = (1ULL << 63)
 } PrismBackendFeature;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 PRISM_STATIC_ASSERT(sizeof(PrismBackendId) == 8,
                     "PrismBackendId must be 64 bits");

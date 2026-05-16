@@ -219,8 +219,8 @@ public:
 REGISTER_BACKEND_WITH_ID(OrcaBackend, Backends::Orca, "Orca", 100);
 #endif
 #elifdef _WIN32
-#include "raw/prism_orca_bridge.h"
 #include <atomic>
+#include <raw/prism_orca_bridge.h>
 #include <tchar.h>
 #include <windows.h>
 

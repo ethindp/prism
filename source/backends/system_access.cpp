@@ -8,8 +8,8 @@
 #ifdef PRISM_ENABLE_SYSTEM_ACCESS_LEGACY_BACKEND
 #include "backend.h"
 #include "backend_registry.h"
-#include "raw/sa.h"
 #include <bitset>
+#include <raw/sa.h>
 #include <simdutf/simdutf.h>
 
 class SystemAccessBackend final : public TextToSpeechBackend {

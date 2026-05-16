@@ -248,11 +248,9 @@ if(NOT EMSCRIPTEN)
 else()
   add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
 endif()
-set(_prism_backend_link_items "")
 foreach(_tgt ${_prism_backend_targets})
-  list(APPEND _prism_backend_link_items "$<BUILD_INTERFACE:${_tgt}>")
+  target_sources(${PROJECT_NAME} PRIVATE $<TARGET_OBJECTS:${_tgt}>)
 endforeach()
-target_link_libraries(${PROJECT_NAME} PRIVATE ${_prism_backend_link_items})
 target_link_libraries(${PROJECT_NAME}
                       PRIVATE "$<BUILD_INTERFACE:prism_backend_iface>")
 target_sources(
@@ -398,7 +396,8 @@ if(WIN32)
        AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
       add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa32.def
                          SAAPI32.dll)
-      target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess)
+      target_link_libraries(${PROJECT_NAME}
+                            PRIVATE "$<BUILD_INTERFACE:SystemAccess>")
     endif()
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr32.def
                        ZDSRAPI.dll)
@@ -414,14 +413,19 @@ if(WIN32)
       ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge32.def
       prism_speech_dispatcher_bridge.dll)
     target_link_libraries(
-      ${PROJECT_NAME} PRIVATE ZDSR byctrl PCTalker PrismOrcaBridge
-                              PrismSpeechDispatcherBridge)
+      ${PROJECT_NAME}
+      PRIVATE "$<BUILD_INTERFACE:ZDSR>"
+              "$<BUILD_INTERFACE:byctrl>"
+              "$<BUILD_INTERFACE:PCTalker>"
+              "$<BUILD_INTERFACE:PrismOrcaBridge>"
+              "$<BUILD_INTERFACE:PrismSpeechDispatcherBridge>")
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     if(PRISM_ENABLE_LEGACY_BACKENDS
        AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
       add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
                          SAAPI64.dll)
-      target_link_libraries(${PROJECT_NAME} PRIVATE SystemAccess)
+      target_link_libraries(${PROJECT_NAME}
+                            PRIVATE "$<BUILD_INTERFACE:SystemAccess>")
     endif()
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
                        ZDSRAPI_x64.dll)
@@ -437,8 +441,12 @@ if(WIN32)
       ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge.def
       prism_speech_dispatcher_bridge.dll)
     target_link_libraries(
-      ${PROJECT_NAME} PRIVATE ZDSR byctrl PCTalker PrismOrcaBridge
-                              PrismSpeechDispatcherBridge)
+      ${PROJECT_NAME}
+      PRIVATE "$<BUILD_INTERFACE:ZDSR>"
+              "$<BUILD_INTERFACE:byctrl>"
+              "$<BUILD_INTERFACE:PCTalker>"
+              "$<BUILD_INTERFACE:PrismOrcaBridge>"
+              "$<BUILD_INTERFACE:PrismSpeechDispatcherBridge>")
   else()
     add_import_library(PCTalker ${CMAKE_CURRENT_SOURCE_DIR}/defs/pc_talker.def
                        PCTKUSR.dll)
@@ -449,8 +457,11 @@ if(WIN32)
       PrismSpeechDispatcherBridge
       ${CMAKE_CURRENT_SOURCE_DIR}/defs/prism_speech_dispatcher_bridge.def
       prism_speech_dispatcher_bridge.dll)
-    target_link_libraries(${PROJECT_NAME} PRIVATE PCTalker PrismOrcaBridge
-                                                  PrismSpeechDispatcherBridge)
+    target_link_libraries(
+      ${PROJECT_NAME}
+      PRIVATE "$<BUILD_INTERFACE:PCTalker>"
+              "$<BUILD_INTERFACE:PrismOrcaBridge>"
+              "$<BUILD_INTERFACE:PrismSpeechDispatcherBridge>")
   endif()
 endif()
 if(APPLE)
@@ -705,15 +716,18 @@ if(ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
 if(PRISM_ENABLE_LINTING)
-  set(SKIP_LINT_FILES
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.c"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/fsapi.h"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/sense_reader.h"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.c"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/wineyes.h"
-      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/zt.h")
+  file(
+    GLOB_RECURSE
+    SKIP_LINT_FILES
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/*.h")
   if(ANDROID)
     list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
+  endif()
+  if(WIN32)
+    list(APPEND SKIP_LINT_FILES "${GEN_DIR}/nvda_controller.c")
   endif()
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     find_program(CLANG_TIDY_EXE NAMES "clang-tidy-22" "clang-tidy-21"
@@ -796,9 +810,7 @@ if(PRISM_ENABLE_LINTING)
       set_property(
         SOURCE "${src}"
         APPEND
-        PROPERTY COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:MSVC>:/analyze->"
-                 "$<$<CXX_COMPILER_ID:MSVC>:/WX->"
-                 "$<$<CXX_COMPILER_ID:MSVC>:/W0>")
+        PROPERTY COMPILE_OPTIONS /analyze- /WX- /W0)
     endforeach()
   endif()
 endif()

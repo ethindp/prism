@@ -3,9 +3,9 @@
 #ifdef _WIN32
 #include "backend.h"
 #include "backend_registry.h"
-#include "nvda_controller.h"
 #include <cstdlib>
 #include <format>
+#include <nvda_controller.h>
 #include <shared_mutex>
 #include <simdutf/simdutf.h>
 #include <tchar.h>

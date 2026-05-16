@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
-#include "raw/pc_talker.h"
 #include "backend.h"
 #include "backend_registry.h"
 #include <atomic>
@@ -9,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <raw/pc_talker.h>
 #include <simdutf/simdutf.h>
 #include <windows.h>
 

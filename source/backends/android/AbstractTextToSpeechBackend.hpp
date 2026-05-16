@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "java/support/cpp/DataView.hpp"
-#include "java/support/cpp/expected.hpp"
+#include <djinni/support/cpp/DataView.hpp>
+#include <djinni/support/cpp/expected.hpp>
 #include <cstdint>
 #include <memory>
 #include <string>

@@ -174,7 +174,7 @@ foreach(src ${backend_sources})
 endforeach()
 add_library(prism_third_party_simdutf OBJECT third_party/simdutf/simdutf.cpp)
 prism_target_external_include(prism_third_party_simdutf PUBLIC
-                              "${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf")
+                              "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 set_target_properties(prism_third_party_simdutf
                       PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(MSVC)
@@ -203,6 +203,7 @@ if(ANDROID)
   prism_target_external_include(
     prism_third_party_djinni
     PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_party/djinni/support"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_party/djinni/support/cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_party/djinni/support/jni")

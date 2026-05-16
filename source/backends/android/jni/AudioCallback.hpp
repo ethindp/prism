@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "java/AudioCallback.hpp"
-#include "java/support/jni/djinni_support.hpp"
+#include "android/AudioCallback.hpp"
+#include <djinni/support/jni/djinni_support.hpp>
 
 namespace prism::jni {
 

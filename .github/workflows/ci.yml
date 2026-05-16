@@ -87,7 +87,7 @@ jobs:
               - 'source/backends/backend_registry.*'
               - 'source/backends/utils.*'
               - 'third_party/concurrentqueue/**'
-              - 'third_Party/dr_wav/**'
+              - 'third_party/dr_wav/**'
               - 'CMakeLists.txt'
               - 'cmake/**'
               - 'shims/**'

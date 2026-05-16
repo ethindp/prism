@@ -170,10 +170,9 @@ add_library(tolk SHARED tolk.c lock.c)
 target_link_libraries(tolk PRIVATE prism::prism)
 get_target_property(_prism_type prism TYPE)
 if(NOT _prism_type STREQUAL "STATIC_LIBRARY")
-    target_link_libraries(tolk PRIVATE prism_third_party_simdutf)
+  target_link_libraries(tolk PRIVATE prism_third_party_simdutf)
 else()
-    target_include_directories(tolk PRIVATE
-        ${CMAKE_SOURCE_DIR}/third_party/simdutf)
+  target_include_directories(tolk PRIVATE ${CMAKE_SOURCE_DIR}/third_party)
 endif()
 unset(_prism_type)
 target_compile_definitions(tolk PRIVATE TOLK_BUILDING)
@@ -214,17 +213,16 @@ if(PRISM_ENABLE_LINTING)
     set_property(TARGET tolk PROPERTY COMPILE_WARNING_LEVEL 4)
     target_compile_options(
       tolk
-      PRIVATE
-        /external:anglebrackets
-        /external:W0
-        "/external:I ${CMAKE_SOURCE_DIR}/third_party/simdutf"
-        /analyze
-        /analyze:external-
-        /analyze:log
-        "${CMAKE_BINARY_DIR}/nativecodeanalysis/tolk/"
-        /analyze:log:format:sarif
-        /analyze:ruleset
-        "${_MERGED_RULESET_PATH}")
+      PRIVATE /external:anglebrackets
+              /external:W0
+              "/external:I ${CMAKE_SOURCE_DIR}/third_party/simdutf"
+              /analyze
+              /analyze:external-
+              /analyze:log
+              "${CMAKE_BINARY_DIR}/nativecodeanalysis/tolk/"
+              /analyze:log:format:sarif
+              /analyze:ruleset
+              "${_MERGED_RULESET_PATH}")
   endif()
 endif()
 set_target_properties(tolk PROPERTIES VERSION ${PROJECT_VERSION}

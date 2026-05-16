@@ -69,9 +69,9 @@ sdist.include = [
   "demos",
   "dbus",
   "pytest.ini",
-  "third_party/**",
-  "shims/**",
-  "winelibs/**",
+  "third_party",
+  "shims",
+  "winelibs",
 ]
 sdist.exclude = [
   ".venv",

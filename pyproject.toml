@@ -125,7 +125,7 @@ before-all = [
     GLIB_SERIES="${GLIB_VERSION%.*}"
     curl -fL "https://download.gnome.org/sources/glib/${GLIB_SERIES}/glib-${GLIB_VERSION}.tar.xz" -o glib-${GLIB_VERSION}.tar.xz
     curl -fL "https://download.gnome.org/sources/glib/${GLIB_SERIES}/glib-${GLIB_VERSION}.sha256sum" -o glib.sha256sum
-    sha256sum -c glib.sha256sum
+    sha256sum --ignore-missing -c glib.sha256sum
     tar xJf glib-${GLIB_VERSION}.tar.xz
     cd "glib-${GLIB_VERSION}"
     meson setup build --prefix=/usr/local --buildtype=release -Dtests=false -Dintrospection=disabled -Ddocumentation=false -Dman-pages=disabled -Dnls=disabled
@@ -150,7 +150,7 @@ before-all = [
 SIGCPP_SERIES="${SIGCPP_VERSION%.*}"
 curl -fL "https://download.gnome.org/sources/libsigc++/${SIGCPP_SERIES}/libsigc++-${SIGCPP_VERSION}.tar.xz" -o libsigc++-${SIGCPP_VERSION}.tar.xz
 curl -fL "https://download.gnome.org/sources/libsigc++/${SIGCPP_SERIES}/libsigc++-${SIGCPP_VERSION}.sha256sum" -o sigcpp.sha256sum
-sha256sum -c sigcpp.sha256sum
+sha256sum --ignore-missing -c sigcpp.sha256sum
 tar xJf libsigc++-${SIGCPP_VERSION}.tar.xz
 cd "libsigc++-${SIGCPP_VERSION}"
 meson setup build --prefix=/usr/local --buildtype=release -Dbuild-documentation=false -Dbuild-examples=false -Dbuild-tests=false
@@ -163,7 +163,7 @@ GLIBMM_VERSION=2.88.0
 GLIBMM_SERIES="${GLIBMM_VERSION%.*}"
 curl -fL "https://download.gnome.org/sources/glibmm/${GLIBMM_SERIES}/glibmm-${GLIBMM_VERSION}.tar.xz" -o glibmm-${GLIBMM_VERSION}.tar.xz
 curl -fL "https://download.gnome.org/sources/glibmm/${GLIBMM_SERIES}/glibmm-${GLIBMM_VERSION}.sha256sum" -o glibmm.sha256sum
-sha256sum -c glibmm.sha256sum
+sha256sum --ignore-missing -c glibmm.sha256sum
 tar xJf glibmm-${GLIBMM_VERSION}.tar.xz
 cd "glibmm-${GLIBMM_VERSION}"
 meson setup build --prefix=/usr/local --buildtype=release -Dbuild-documentation=false -Dbuild-examples=false -Dmaintainer-mode=false

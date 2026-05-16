@@ -60,7 +60,7 @@ android {
     sourceSets {
         main {
             manifest.srcFile 'source/AndroidManifest.xml'
-            java.srcDirs = ['source/backends/android']
+            java.srcDirs = ['source/backends/android', 'third_party/djinni/support/java']
         }
     }
     externalNativeBuild {

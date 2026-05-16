@@ -665,8 +665,14 @@ if(PRISM_ENABLE_LINTING)
       message(FATAL_ERROR "VS ruleset dir not found at: ${_RULESET_DIR}")
     endif()
     set(_RULESET_FILES
-        "NativeRecommendedRules.ruleset" "ConcurrencyCheckRules.ruleset"
-        "ConcurrencyRules.ruleset")
+        "NativeRecommendedRules.ruleset"
+        "ConcurrencyCheckRules.ruleset"
+        "ConcurrencyRules.ruleset"
+        "CppCoreCheckRules.ruleset"
+        "ExtendedCorrectnessRules.ruleset"
+        "ExtendedDesignGuidelineRules.ruleset"
+        "GlobalizationRules.ruleset"
+        "SecurityRules.ruleset")
     set(_MERGED_RULESET_PATH "${CMAKE_BINARY_DIR}/PrismCombinedRuleset.ruleset")
     set(RULESET_IMPORTS "")
     foreach(_RULESET ${_RULESET_FILES})

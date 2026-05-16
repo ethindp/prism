@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
-#include "backend.h"
-#include "backend_registry.h"
-#include <bitset>
 #ifdef _WIN32
 #if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
     defined(__i386__)
 #ifdef PRISM_ENABLE_LEGACY_BACKENDS
 #ifdef PRISM_ENABLE_SYSTEM_ACCESS_LEGACY_BACKEND
+#include "backend.h"
+#include "backend_registry.h"
 #include "raw/sa.h"
+#include <bitset>
+#include <simdutf/simdutf.h>
 
 class SystemAccessBackend final : public TextToSpeechBackend {
 public:

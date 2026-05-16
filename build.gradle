@@ -60,7 +60,7 @@ android {
     sourceSets {
         main {
             manifest.srcFile 'source/AndroidManifest.xml'
-            java.srcDirs = ['source/backends/java']
+            java.srcDirs = ['source/backends/android']
         }
     }
     externalNativeBuild {
@@ -141,8 +141,7 @@ spotless {
         licenseHeader('// SPDX-License-Identifier: MPL-2.0\n', '^.')
     }
     java {
-        target 'source/**/*.java', 'tests/**.java'
-        targetExclude 'source/backends/java/support/**/*.java', 'source/backends/java/jni/**/*.java'
+        target 'source/**/*.java', 'tests/**/*.java'
         cleanthat()
         googleJavaFormat()
         leadingTabsToSpaces(4)

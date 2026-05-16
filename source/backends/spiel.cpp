@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
 #include "backend.h"
 #include "backend_registry.h"
-#include "concurrentqueue.h"
 #include "utils.h"
+#include <concurrentqueue/concurrentqueue.h>
+#include <simdutf/simdutf.h>
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
@@ -64,7 +64,7 @@ bool valid_normalized(float v) {
   return v >= 0.0F && v <= 1.0F &&
          (std::isnormal(v) || std::fpclassify(v) == FP_ZERO);
 }
-}
+} // namespace
 
 class SpielBackend final : public TextToSpeechBackend {
 private:

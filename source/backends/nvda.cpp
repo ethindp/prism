@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef _WIN32
 #include "backend.h"
 #include "backend_registry.h"
-#ifdef _WIN32
 #include "nvda_controller.h"
 #include <cstdlib>
 #include <format>
 #include <shared_mutex>
+#include <simdutf/simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 

@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef _WIN32
 #include "backend.h"
 #include "backend_registry.h"
-#ifdef _WIN32
+#include <simdutf/simdutf.h>
 #ifdef _MSC_VER
 #pragma warning(push, 0)
 #pragma warning(disable : 28182)
 #endif
-#include "concurrentqueue.h"
+#include <concurrentqueue/concurrentqueue.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
-#include "moderncom/com_ptr.h"
-#include "moderncom/interfaces.h"
 #include <UIAutomation.h>
 #include <UIAutomationCore.h>
 #include <UIAutomationCoreApi.h>
@@ -21,6 +19,8 @@
 #include <condition_variable>
 #include <cstdint>
 #include <format>
+#include <moderncom/com_ptr.h>
+#include <moderncom/interfaces.h>
 #include <optional>
 #include <stop_token>
 #include <string>

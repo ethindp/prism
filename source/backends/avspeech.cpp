@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef __OBJC__
+#ifdef __APPLE__
 #include "backend.h"
 #include "backend_registry.h"
 #include "utils.h"
-#ifdef __OBJC__
-#ifdef __APPLE__
 #import <AVFAudio/AVFAudio.h>
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>
@@ -15,6 +14,7 @@
 #include <cstddef>
 #include <mutex>
 #include <shared_mutex>
+#include <simdutf/simdutf.h>
 #include <string>
 #include <string_view>
 #include <vector>

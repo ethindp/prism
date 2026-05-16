@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef __EMSCRIPTEN__
 #include "backend.h"
 #include "backend_registry.h"
 #include "utils.h"
-#ifdef __EMSCRIPTEN__
 #include <atomic>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
+#include <simdutf/simdutf.h>
 #include <string>
 #include <vector>
 

@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef _WIN32
 #include "backend.h"
 #include "backend_registry.h"
-#include "dr_wav.h"
 #include "utils.h"
 #include <atomic>
 #include <cmath>
-#include <limits>
-#include <span>
-#ifdef _WIN32
 #include <concepts>
+#include <dr_wav/dr_wav.h>
 #include <exception>
+#include <limits>
 #include <objbase.h>
 #include <optional>
+#include <simdutf/simdutf.h>
+#include <span>
 #include <tchar.h>
 #include <type_traits>
 #include <utility>

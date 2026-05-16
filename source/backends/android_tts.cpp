@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
 
+#ifdef __ANDROID__
+#include "android/AudioCallback.hpp"
+#include "android/Unit.hpp"
+#include "android/jni/AbstractTextToSpeechBackend.hpp"
 #include "backend.h"
 #include "backend_registry.h"
 #include <atomic>
 #include <cmath>
+#include <jni.h>
 #include <limits>
 #include <memory>
-#ifdef __ANDROID__
-#include "java/AudioCallback.hpp"
-#include "java/Unit.hpp"
-#include "java/jni/AbstractTextToSpeechBackend.hpp"
-#include <jni.h>
 
 class AndroidTextToSpeechAudioCallbackAdapter
     : public prism::java::AudioCallback {

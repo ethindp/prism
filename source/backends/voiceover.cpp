@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
-#include "backend.h"
-#include "backend_registry.h"
 #ifdef __OBJC__
 #ifdef __APPLE__
+#include "backend.h"
+#include "backend_registry.h"
+#include <simdutf/simdutf.h>
 #if !TARGET_OS_WATCH
 #import <Foundation/Foundation.h>
 #include <TargetConditionals.h>

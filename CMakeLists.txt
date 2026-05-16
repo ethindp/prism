@@ -217,6 +217,7 @@ endif()
 prism_target_external_include(
   prism_backend_iface
   INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf"
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/moderncom"
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/concurrentqueue"

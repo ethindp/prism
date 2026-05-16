@@ -43,29 +43,3 @@ function(prism_add_winelib NAME)
       WORLD_READ
       WORLD_EXECUTE)
 endfunction()
-
-function(prism_gdbus_codegen STEM NAMESPACE OUT_SOURCES_VAR)
-  if(NOT GDBUS_CODEGEN)
-    message(FATAL_ERROR "prism_gdbus_codegen: GDBUS_CODEGEN not found")
-  endif()
-  if(NOT PRISM_DBUS_XML_DIR)
-    message(FATAL_ERROR "prism_gdbus_codegen: PRISM_DBUS_XML_DIR not set")
-  endif()
-  set(_xml ${PRISM_DBUS_XML_DIR}/${STEM}.xml)
-  set(_h ${CMAKE_CURRENT_BINARY_DIR}/gen/${STEM}.h)
-  set(_c ${CMAKE_CURRENT_BINARY_DIR}/gen/${STEM}.c)
-  add_custom_command(
-    OUTPUT ${_h} ${_c}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/gen
-    COMMAND
-      ${GDBUS_CODEGEN} --c-namespace ${NAMESPACE} --c-generate-object-manager
-      --c-generate-autocleanup all --pragma-once --header --output ${_h} ${_xml}
-    COMMAND
-      ${GDBUS_CODEGEN} --c-namespace ${NAMESPACE} --c-generate-object-manager
-      --c-generate-autocleanup all --pragma-once --body --output ${_c} ${_xml}
-    DEPENDS ${_xml}
-    VERBATIM)
-  set(${OUT_SOURCES_VAR}
-      ${_c} ${_h}
-      PARENT_SCOPE)
-endfunction()

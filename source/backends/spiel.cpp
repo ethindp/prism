@@ -24,6 +24,7 @@
 #include <variant>
 #include <vector>
 
+namespace {
 constexpr std::string_view PROVIDER_SUFFIX = ".Speech.Provider";
 
 template <class... Ts> struct overloaded : Ts... {
@@ -62,6 +63,7 @@ using Command =
 bool valid_normalized(float v) {
   return v >= 0.0F && v <= 1.0F &&
          (std::isnormal(v) || std::fpclassify(v) == FP_ZERO);
+}
 }
 
 class SpielBackend final : public TextToSpeechBackend {

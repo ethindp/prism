@@ -8,135 +8,172 @@
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
 #ifndef NO_ORCA
-#include "orca-module.h"
-#include "orca-service.h"
 #include <array>
-#include <gio/gio.h>
+#include <giomm/dbusconnection.h>
+#include <giomm/dbuserror.h>
+#include <glibmm/error.h>
+#include <glibmm/variant.h>
+#include <optional>
+#include <span>
+#include <vector>
 
 class OrcaBackend final : public TextToSpeechBackend {
 private:
-  GDBusConnection *conn{nullptr};
-  OrcaServiceOrgGnomeOrcaService *service_proxy{nullptr};
-  OrcaModuleOrgGnomeOrcaModule *module_proxy{nullptr};
-  static constexpr auto orca_speech_service_names =
-      std::to_array<std::string_view>(
-          {"/org/gnome/Orca/Service/SpeechAndVerbosityManager",
-           "/org/gnome/Orca/Service/SpeechManager"});
+  struct OrcaDialect {
+    const char *bus_name;
+    const char *service_path;
+    const char *service_iface;
+    std::span<const char *const> speech_path_candidates;
+    const char *speech_iface;
+    bool generic_dispatch;
+  };
+  struct ResolvedDialect {
+    const OrcaDialect *dialect;
+    const char *speech_path;
+  };
+  static constexpr auto LEGACY_SPEECH_PATHS = std::to_array<const char *>({
+      "/org/gnome/Orca/Service/SpeechAndVerbosityManager",
+      "/org/gnome/Orca/Service/SpeechManager",
+  });
+  static constexpr auto V1_SPEECH_PATHS = std::to_array<const char *>({
+      "/org/gnome/Orca1/Service/SpeechManager",
+  });
+  static constexpr auto ORCA_LEGACY_DIALECT = OrcaDialect{
+      .bus_name = "org.gnome.Orca.Service",
+      .service_path = "/org/gnome/Orca/Service",
+      .service_iface = "org.gnome.Orca.Service",
+      .speech_path_candidates = LEGACY_SPEECH_PATHS,
+      .speech_iface = "org.gnome.Orca.Module",
+      .generic_dispatch = true,
+  };
+  static constexpr auto ORCA_V1_DIALECT = OrcaDialect{
+      .bus_name = "org.gnome.Orca1.Service",
+      .service_path = "/org/gnome/Orca1/Service",
+      .service_iface = "org.gnome.Orca1.Service",
+      .speech_path_candidates = V1_SPEECH_PATHS,
+      .speech_iface = "org.gnome.Orca1.SpeechManager",
+      .generic_dispatch = false,
+  };
+  Glib::RefPtr<Gio::DBus::Connection> conn;
+  const OrcaDialect *dialect{nullptr};
+  const char *speech_path{nullptr};
 
-public:
-  ~OrcaBackend() override {
-    if (module_proxy != nullptr) {
-      g_object_unref(module_proxy);
-      module_proxy = nullptr;
-    }
-    if (service_proxy != nullptr) {
-      g_object_unref(service_proxy);
-      service_proxy = nullptr;
-    }
-    if (conn != nullptr) {
-      g_object_unref(conn);
-      conn = nullptr;
+  static bool name_has_owner(const Glib::RefPtr<Gio::DBus::Connection> &conn,
+                             const char *bus_name) {
+    try {
+      const auto params = Glib::VariantContainerBase::create_tuple(
+          Glib::Variant<Glib::ustring>::create(bus_name));
+      const auto reply =
+          conn->call_sync("/org/freedesktop/DBus", "org.freedesktop.DBus",
+                          "NameHasOwner", params, "org.freedesktop.DBus");
+      const auto child = Glib::VariantBase::cast_dynamic<Glib::Variant<bool>>(
+          reply.get_child(0));
+      return child.get();
+    } catch (const Glib::Error &) {
+      return false;
     }
   }
+
+  static bool probe_object_path(const Glib::RefPtr<Gio::DBus::Connection> &conn,
+                                const char *bus_name, const char *object_path) {
+    try {
+      conn->call_sync(object_path, "org.freedesktop.DBus.Introspectable",
+                      "Introspect",
+                      Glib::VariantContainerBase::create_tuple(
+                          std::vector<Glib::VariantBase>{}),
+                      bus_name);
+      return true;
+    } catch (const Glib::Error &) {
+      return false;
+    }
+  }
+
+  static std::optional<ResolvedDialect>
+  detect_orca_dialect(const Glib::RefPtr<Gio::DBus::Connection> &conn) {
+    for (const OrcaDialect *d : {&ORCA_LEGACY_DIALECT, &ORCA_V1_DIALECT}) {
+      if (!name_has_owner(conn, d->bus_name)) {
+        continue;
+      }
+      for (const char *candidate : d->speech_path_candidates) {
+        if (probe_object_path(conn, d->bus_name, candidate)) {
+          return ResolvedDialect{
+              .dialect = d,
+              .speech_path = candidate,
+          };
+        }
+      }
+    }
+    return std::nullopt;
+  }
+
+public:
+  ~OrcaBackend() override = default;
 
   [[nodiscard]] std::string_view get_name() const override { return "Orca"; }
 
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    GDBusConnection *temp_conn =
-        g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, nullptr);
-    if (temp_conn != nullptr) {
-      GError *error = nullptr;
-      GVariant *result = g_dbus_connection_call_sync(
-          temp_conn, "org.freedesktop.DBus", "/org/freedesktop/DBus",
-          "org.freedesktop.DBus", "NameHasOwner",
-          g_variant_new("(s)", "org.gnome.Orca.Service"), G_VARIANT_TYPE("(b)"),
-          G_DBUS_CALL_FLAGS_NONE, 100, nullptr, &error);
-      bool exists = false;
-      if (result != nullptr) {
-        g_variant_get(result, "(b)", &exists);
-        g_variant_unref(result);
-        if (exists) {
-          features |= IS_SUPPORTED_AT_RUNTIME;
-        }
-      }
-      if (error != nullptr)
-        g_error_free(error);
-      g_object_unref(temp_conn);
-    }
     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    try {
+      const auto probe_conn =
+          Gio::DBus::Connection::get_sync(Gio::DBus::BusType::SESSION);
+      if (probe_conn && detect_orca_dialect(probe_conn).has_value()) {
+        features |= IS_SUPPORTED_AT_RUNTIME;
+      }
+    } catch (const Glib::Error &) {
+      features &= IS_SUPPORTED_AT_RUNTIME;
+    }
     return features;
   }
 
   BackendResult<> initialize() override {
-    if (conn != nullptr && service_proxy != nullptr && module_proxy != nullptr)
+    if (conn && dialect != nullptr) {
       return std::unexpected(BackendError::AlreadyInitialized);
-    GError *error = nullptr;
-    conn = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);
-    if (error != nullptr) {
-      g_error_free(error);
+    }
+    try {
+      conn = Gio::DBus::Connection::get_sync(Gio::DBus::BusType::SESSION);
+    } catch (const Glib::Error &) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    service_proxy = orca_service_org_gnome_orca_service_proxy_new_sync(
-        conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service",
-        "/org/gnome/Orca/Service", nullptr, &error);
-    if (error != nullptr) {
-      g_error_free(error);
-      g_object_unref(conn);
-      conn = nullptr;
+    if (!conn) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    for (const auto &name : orca_speech_service_names) {
-      auto *candidate = orca_module_org_gnome_orca_module_proxy_new_sync(
-          conn, G_DBUS_PROXY_FLAGS_NONE, "org.gnome.Orca.Service", name.data(),
-          nullptr, &error);
-      if (error != nullptr)
-        g_error_free(error);
-      if (candidate == nullptr)
-        continue;
-      GVariant *result = nullptr;
-      const auto ok = orca_module_org_gnome_orca_module_call_list_commands_sync(
-          candidate, &result, nullptr, &error);
-      if (result != nullptr)
-        g_variant_unref(result);
-      if (ok != 0 && error == nullptr) {
-        module_proxy = candidate;
-        break;
-      }
-      if (error != nullptr) {
-        g_error_free(error);
-        error = nullptr;
-      }
-      g_object_unref(candidate);
-    }
-    if (module_proxy == nullptr) {
-      g_object_unref(service_proxy);
-      service_proxy = nullptr;
-      g_object_unref(conn);
-      conn = nullptr;
+    const auto resolved = detect_orca_dialect(conn);
+    if (!resolved) {
+      conn.reset();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
+    dialect = resolved->dialect;
+    speech_path = resolved->speech_path;
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (conn == nullptr || service_proxy == nullptr || module_proxy == nullptr)
+    if (!conn || dialect == nullptr) {
       return std::unexpected(BackendError::NotInitialized);
+    }
     if (!simdutf::validate_utf8(text.data(), text.size())) {
       return std::unexpected(BackendError::InvalidUtf8);
     }
-    if (interrupt)
-      if (const auto res = stop(); !res)
+    if (interrupt) {
+      if (const auto res = stop(); !res) {
         return res;
-    GError *error = nullptr;
-    gboolean success;
-    const auto ok =
-        orca_service_org_gnome_orca_service_call_present_message_sync(
-            service_proxy, text.data(), &success, nullptr, &error);
-    if (ok == 0 || success == 0 || error != nullptr) {
-      if (error != nullptr)
-        g_error_free(error);
+      }
+    }
+    try {
+      const auto params = Glib::VariantContainerBase::create_tuple(
+          Glib::Variant<Glib::ustring>::create(
+              Glib::ustring(text.data(), text.size())));
+      const auto reply =
+          conn->call_sync(dialect->service_path, dialect->service_iface,
+                          "PresentMessage", params, dialect->bus_name);
+      const auto ok = Glib::VariantBase::cast_dynamic<Glib::Variant<bool>>(
+          reply.get_child(0));
+      if (!ok.get()) {
+        return std::unexpected(BackendError::SpeakFailure);
+      }
+    } catch (const Glib::Error &) {
       return std::unexpected(BackendError::SpeakFailure);
     }
     return {};
@@ -147,15 +184,32 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (conn == nullptr || service_proxy == nullptr || module_proxy == nullptr)
+    if (!conn || dialect == nullptr) {
       return std::unexpected(BackendError::NotInitialized);
-    GError *error = nullptr;
-    gboolean success;
-    const auto ok = orca_module_org_gnome_orca_module_call_execute_command_sync(
-        module_proxy, "InterruptSpeech", 0, &success, nullptr, &error);
-    if (ok == 0 || success == 0 || error != nullptr) {
-      if (error != nullptr)
-        g_error_free(error);
+    }
+    try {
+      Glib::VariantContainerBase params;
+      const char *method_name = nullptr;
+      if (dialect->generic_dispatch) {
+        params = Glib::VariantContainerBase::create_tuple({
+            Glib::Variant<Glib::ustring>::create("InterruptSpeech"),
+            Glib::Variant<bool>::create(false),
+        });
+        method_name = "ExecuteCommand";
+      } else {
+        params = Glib::VariantContainerBase::create_tuple(
+            Glib::Variant<bool>::create(false));
+        method_name = "InterruptSpeech";
+      }
+      const auto reply =
+          conn->call_sync(speech_path, dialect->speech_iface, method_name,
+                          params, dialect->bus_name);
+      const auto ok = Glib::VariantBase::cast_dynamic<Glib::Variant<bool>>(
+          reply.get_child(0));
+      if (!ok.get()) {
+        return std::unexpected(BackendError::SpeakFailure);
+      }
+    } catch (const Glib::Error &) {
       return std::unexpected(BackendError::SpeakFailure);
     }
     return {};

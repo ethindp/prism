@@ -119,6 +119,7 @@ before-all = [
     /opt/python/cp311-cp311/bin/pip install --quiet --upgrade 'meson>=1.3.2'
     export PATH=/opt/python/cp311-cp311/bin:$PATH
     GLIB_VERSION=2.88.1
+    GLIB_SERIES="${GLIB_VERSION%.*}"
     curl -fL "https://download.gnome.org/sources/glib/${GLIB_SERIES}/glib-${GLIB_VERSION}.tar.xz" -o glib.tar.xz
     curl -fL "https://download.gnome.org/sources/glib/${GLIB_SERIES}/glib-${GLIB_VERSION}.sha256sum" -o glib.sha256sum
     sha256sum -c glib.sha256sum
@@ -142,6 +143,32 @@ before-all = [
     cd ..
     rm -rf libspiel
     ldconfig
+    SIGCPP_VERSION=3.6.0
+SIGCPP_SERIES="${SIGCPP_VERSION%.*}"
+curl -fL "https://download.gnome.org/sources/libsigc++/${SIGCPP_SERIES}/libsigc++-${SIGCPP_VERSION}.tar.xz" -o sigcpp.tar.xz
+curl -fL "https://download.gnome.org/sources/libsigc++/${SIGCPP_SERIES}/libsigc++-${SIGCPP_VERSION}.sha256sum" -o sigcpp.sha256sum
+sha256sum -c sigcpp.sha256sum
+tar xJf sigcpp.tar.xz
+cd "libsigc++-${SIGCPP_VERSION}"
+meson setup build --prefix=/usr/local --buildtype=release -Dbuild-documentation=false -Dbuild-examples=false -Dbuild-tests=false
+meson compile -C build
+meson install -C build
+cd ..
+rm -rf "libsigc++-${SIGCPP_VERSION}"
+ldconfig
+GLIBMM_VERSION=2.88.0
+GLIBMM_SERIES="${GLIBMM_VERSION%.*}"
+curl -fL "https://download.gnome.org/sources/glibmm/${GLIBMM_SERIES}/glibmm-${GLIBMM_VERSION}.tar.xz" -o glibmm.tar.xz
+curl -fL "https://download.gnome.org/sources/glibmm/${GLIBMM_SERIES}/glibmm-${GLIBMM_VERSION}.sha256sum" -o glibmm.sha256sum
+sha256sum -c glibmm.sha256sum
+tar xJf glibmm.tar.xz
+cd "glibmm-${GLIBMM_VERSION}"
+meson setup build --prefix=/usr/local --buildtype=release -Dbuild-documentation=false -Dbuild-examples=false -Dmaintainer-mode=false
+meson compile -C build
+meson install -C build
+cd ..
+rm -rf "glibmm-${GLIBMM_VERSION}"
+ldconfig
     """,
 ]
 environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4", PKG_CONFIG_PATH = "/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig", LD_LIBRARY_PATH = "/usr/local/lib64:/usr/local/lib" }

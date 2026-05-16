@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <vector>
 
+namespace {
 struct VoiceInfo {
   std::string module;
   std::string name;
@@ -39,6 +40,7 @@ struct ModulesGuard {
       free_spd_modules(m);
   }
 };
+} // namespace
 
 class SpeechDispatcherBackend final : public TextToSpeechBackend {
 private:

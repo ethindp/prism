@@ -37,6 +37,7 @@
 #include <windows.h>
 #include <xmllite.h>
 
+namespace {
 struct VoiceInfo {
   CComPtr<ISpObjectToken> token;
   std::string name;
@@ -115,6 +116,7 @@ struct GlobalLockGuard {
   GlobalLockGuard(const GlobalLockGuard &) = delete;
   GlobalLockGuard &operator=(const GlobalLockGuard &) = delete;
 };
+} // namespace
 
 class SapiBackend final : public TextToSpeechBackend {
 private:

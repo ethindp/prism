@@ -395,56 +395,17 @@ if(UNIX
   if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
     find_package(PkgConfig REQUIRED)
     if(PRISM_VCPKG_WANTS_ORCA_BACKEND)
-      pkg_check_modules(GIO gio-unix-2.0 REQUIRED)
-      find_program(GDBUS_CODEGEN_EXE gdbus-codegen REQUIRED)
-      set(XML_SERVICE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-service.xml")
-      set(XML_MODULE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-module.xml")
-      set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-      file(MAKE_DIRECTORY ${GEN_DIR})
-      add_custom_command(
-        OUTPUT "${GEN_DIR}/orca-service.h" "${GEN_DIR}/orca-service.c"
-        COMMAND
-          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
-          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
-          --header --output "${GEN_DIR}/orca-service.h" "${XML_SERVICE}"
-        COMMAND
-          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
-          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
-          --body --output "${GEN_DIR}/orca-service.c" "${XML_SERVICE}"
-        DEPENDS "${XML_SERVICE}"
-        COMMENT "Generating Orca Service DBus Code")
-      add_custom_command(
-        OUTPUT "${GEN_DIR}/orca-module.h" "${GEN_DIR}/orca-module.c"
-        COMMAND
-          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
-          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
-          --header --output "${GEN_DIR}/orca-module.h" "${XML_MODULE}"
-        COMMAND
-          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
-          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
-          --body --output "${GEN_DIR}/orca-module.c" "${XML_MODULE}"
-        DEPENDS "${XML_MODULE}"
-        COMMENT "Generating Orca Module DBus Code")
-      target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/orca-service.c"
-                                             "${GEN_DIR}/orca-module.c")
-      set_source_files_properties(
-        "${GEN_DIR}/orca-service.c" "${GEN_DIR}/orca-module.c"
-        PROPERTIES SKIP_LINTING TRUE)
-      add_custom_target(
-        prism_orca_codegen
-        DEPENDS "${GEN_DIR}/orca-service.h" "${GEN_DIR}/orca-service.c"
-                "${GEN_DIR}/orca-module.h" "${GEN_DIR}/orca-module.c")
-      if(TARGET prism_backend_orca)
-        add_dependencies(prism_backend_orca prism_orca_codegen)
-      endif()
-      target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
+      pkg_check_modules(GLIBMM glibmm-2.68>=2.68.0 REQUIRED)
+      pkg_check_modules(GIOMM giomm-2.68>=2.68.0 REQUIRED)
+      target_include_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_INCLUDE_DIRS}
+                                                         ${GIOMM_INCLUDE_DIRS})
       target_include_directories(
-        ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
-      target_include_directories(
-        prism_backend_iface INTERFACE "$<BUILD_INTERFACE:${GEN_DIR}>"
-                                      ${GIO_INCLUDE_DIRS})
-      target_link_directories(${PROJECT_NAME} PRIVATE ${GIO_LIBRARY_DIRS})
-      target_link_libraries(${PROJECT_NAME} PRIVATE ${GIO_LIBRARIES})
+        prism_backend_iface INTERFACE ${GLIBMM_INCLUDE_DIRS}
+                                      ${GIOMM_INCLUDE_DIRS})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARY_DIRS}
+                              ${GIOMM_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARIES}
+                                                    ${GIOMM_LIBRARIES})
     else()
       target_compile_definitions(${PROJECT_NAME} PRIVATE NO_ORCA)
       target_compile_definitions(prism_backend_iface INTERFACE NO_ORCA)
@@ -476,57 +437,18 @@ if(UNIX
     endif()
   else()
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(GIO gio-unix-2.0)
-    if(GIO_FOUND)
-      find_program(GDBUS_CODEGEN_EXE gdbus-codegen REQUIRED)
-      set(XML_SERVICE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-service.xml")
-      set(XML_MODULE "${CMAKE_CURRENT_SOURCE_DIR}/dbus/orca-module.xml")
-      set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-      file(MAKE_DIRECTORY ${GEN_DIR})
-      add_custom_command(
-        OUTPUT "${GEN_DIR}/orca-service.h" "${GEN_DIR}/orca-service.c"
-        COMMAND
-          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
-          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
-          --header --output "${GEN_DIR}/orca-service.h" "${XML_SERVICE}"
-        COMMAND
-          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaService
-          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
-          --body --output "${GEN_DIR}/orca-service.c" "${XML_SERVICE}"
-        DEPENDS "${XML_SERVICE}"
-        COMMENT "Generating Orca Service DBus Code")
-      add_custom_command(
-        OUTPUT "${GEN_DIR}/orca-module.h" "${GEN_DIR}/orca-module.c"
-        COMMAND
-          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
-          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
-          --header --output "${GEN_DIR}/orca-module.h" "${XML_MODULE}"
-        COMMAND
-          ${GDBUS_CODEGEN_EXE} --c-namespace OrcaModule
-          --c-generate-object-manager --c-generate-autocleanup all --pragma-once
-          --body --output "${GEN_DIR}/orca-module.c" "${XML_MODULE}"
-        DEPENDS "${XML_MODULE}"
-        COMMENT "Generating Orca Module DBus Code")
-      target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/orca-service.c"
-                                             "${GEN_DIR}/orca-module.c")
-      set_source_files_properties(
-        "${GEN_DIR}/orca-service.c" "${GEN_DIR}/orca-module.c"
-        PROPERTIES SKIP_LINTING TRUE)
-      add_custom_target(
-        prism_orca_codegen
-        DEPENDS "${GEN_DIR}/orca-service.h" "${GEN_DIR}/orca-service.c"
-                "${GEN_DIR}/orca-module.h" "${GEN_DIR}/orca-module.c")
-      if(TARGET prism_backend_orca)
-        add_dependencies(prism_backend_orca prism_orca_codegen)
-      endif()
-      target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
+    pkg_check_modules(GLIBMM glibmm-2.68>=2.68.0)
+    pkg_check_modules(GIOMM giomm-2.68>=2.68.0)
+    if(GLIBMM_FOUND AND GIOMM_FOUND)
+      target_include_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_INCLUDE_DIRS}
+                                                         ${GIOMM_INCLUDE_DIRS})
       target_include_directories(
-        ${PROJECT_NAME} PRIVATE ${GIO_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
-      target_include_directories(
-        prism_backend_iface INTERFACE "$<BUILD_INTERFACE:${GEN_DIR}>"
-                                      ${GIO_INCLUDE_DIRS})
-      target_link_directories(${PROJECT_NAME} PRIVATE ${GIO_LIBRARY_DIRS})
-      target_link_libraries(${PROJECT_NAME} PRIVATE ${GIO_LIBRARIES})
+        prism_backend_iface INTERFACE ${GLIBMM_INCLUDE_DIRS}
+                                      ${GIOMM_INCLUDE_DIRS})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARY_DIRS}
+                              ${GIOMM_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARIES}
+                                                    ${GIOMM_LIBRARIES})
     else()
       target_compile_definitions(${PROJECT_NAME} PRIVATE NO_ORCA)
       target_compile_definitions(prism_backend_iface INTERFACE NO_ORCA)
@@ -911,7 +833,7 @@ if(PRISM_BUILD_WINELIBS)
       -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/winelib-toolchain.cmake
       -DCMAKE_BUILD_TYPE=$<CONFIG>
       -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-      -DPRISM_DBUS_XML_DIR=${CMAKE_CURRENT_SOURCE_DIR}/dbus
+      -DPRISM_ENABLE_LINTING=${PRISM_ENABLE_LINTING}
     INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/winelibs_install
     BUILD_ALWAYS OFF)
   install(

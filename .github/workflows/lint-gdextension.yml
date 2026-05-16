@@ -54,7 +54,7 @@ jobs:
         if: matrix.target.platform == 'linux' && (matrix.target.arch == 'x86_64' || matrix.target.arch == 'arm64')
         run: |
           sudo apt-get update
-          sudo apt-get install -y libspeechd-dev libglib2.0-dev libdbus-1-dev clang-tidy ninja-build
+          sudo apt-get install -y libspeechd-dev libglib2.0-dev libglibmm-2.68-dev libdbus-1-dev clang-tidy ninja-build
       - name: install ninja-build
         if: matrix.target.platform == 'android' || matrix.target.platform == 'web'
         run: |

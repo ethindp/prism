@@ -1,0 +1,10 @@
+---
+Checks: '-*,
+         bugprone-*,
+         clang-analyzer-*,
+         concurrency-*,
+         performance-*,
+         readability-*,
+         cert-*'
+WarningsAsErrors: '*'
+FormatStyle: file

@@ -85,7 +85,7 @@ The Orca backend is registered in two variants:
 * The native variant is registered on Linux and BSD builds, links against GIO, and connects directly to an Orca service on the session bus.
 * The Wine bridge variant is registered on Win32 builds with `PRISM_BUILD_WINELIBS` set, and is runtime-supported only when the host process is running under Wine. It bridges from the Win32 host through a Winelib component into a Linux-side session bus reachable from the host process's WINE prefix.
 
-The native variant's runtime-supported probe issues a `NameHasOwner` query against the session bus for the well-known name `org.gnome.Orca.Service`. The probe requires that the session bus be available to the host process. Headless environments and minimal SSH sessions that do not provide a session bus do not satisfy this requirement. The remote-controller D-Bus interface was introduced in Orca version 49.0. Earlier versions of Orca do not provide it, and `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE` against those versions even when the well-known name is present.
+The native variant's runtime-supported probe issues a `NameHasOwner` query against the session bus for the well-known names `org.gnome.Orca1.Service` and `org.gnome.Orca.Service`, in that order. The probe requires that the session bus be available to the host process. Headless environments and minimal SSH sessions that do not provide a session bus do not satisfy this requirement. The remote-controller D-Bus interface was introduced in Orca version 49.0. Earlier versions of Orca do not provide it, and `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE` against those versions even when the well-known name is present.
 
 ### Spiel
 

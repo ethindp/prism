@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "java/BackendError.hpp"
-#include "java/support/jni/djinni_support.hpp"
+#include "android/BackendError.hpp"
+#include <djinni/support/jni/djinni_support.hpp>
 
 namespace prism::jni {
 

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef _WIN32
 #include "backend.h"
 #include "backend_registry.h"
-#ifdef _WIN32
-#include "raw/fsapi.h"
 #include <algorithm>
 #include <atlbase.h>
 #include <atomic>
 #include <ranges>
+#include <raw/fsapi.h>
+#include <simdutf/simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 

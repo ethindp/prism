@@ -31,7 +31,7 @@ target_sources(
   PRIVATE src/register_types.cpp src/register_types.h
           src/godot_prism_context.cpp src/godot_prism_context.h
           src/godot_prism_backend.cpp src/godot_prism_backend.h)
-target_link_libraries(${LIBNAME} PRIVATE godot-cpp prism)
+target_link_libraries(${LIBNAME} PRIVATE godot-cpp prism::prism)
 if(APPLE)
   set_target_properties(${LIBNAME} PROPERTIES LINKER_LANGUAGE CXX)
   target_link_directories(${LIBNAME} PRIVATE

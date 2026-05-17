@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
 #include "backend.h"
 #include "backend_registry.h"
-#include "concurrentqueue.h"
 #include "utils.h"
+#include <concurrentqueue/concurrentqueue.h>
+#include <simdutf/simdutf.h>
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
@@ -24,6 +24,7 @@
 #include <variant>
 #include <vector>
 
+namespace {
 constexpr std::string_view PROVIDER_SUFFIX = ".Speech.Provider";
 
 template <class... Ts> struct overloaded : Ts... {
@@ -63,6 +64,7 @@ bool valid_normalized(float v) {
   return v >= 0.0F && v <= 1.0F &&
          (std::isnormal(v) || std::fpclassify(v) == FP_ZERO);
 }
+} // namespace
 
 class SpielBackend final : public TextToSpeechBackend {
 private:
@@ -372,8 +374,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size()))
-      return std::unexpected(BackendError::InvalidUtf8);
     std::string voice_id;
     std::string language;
     const auto r = rate.load();

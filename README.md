@@ -71,10 +71,7 @@ We also encourage bindings to either follow the Prism API or the Python bindings
 
 This project is licensed under the Mozilla Public License version 2.0. Full details are available in the LICENSE file.
 
-This project uses code from other projects. Specifically:
-
-* The `simdutf` library is licensed under the Apache-2.0 license, and is used for Unicode validation and conversion.
-* On Windows, Prism includes NVDA controller client RPC definitions originally under LGPL-2.1 (and generated RPC stubs from those inputs). The Prism project has received permission to license the IDL files (and there generated outputs) under the MPL-2.0 regardless of the original license. Thus, you may assume that they are licensed under the MPL-2.0. The LGPL headers and license file in the LICENSES directory remain for providing attribution.
+This project uses code from other projects. The full listing can be found in the `NOTICE` file packaged with each release or at the repository root.
 
 ## Contributing
 

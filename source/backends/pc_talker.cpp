@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef _WIN32
 #include "backend.h"
 #include "backend_registry.h"
-#ifdef _WIN32
-#include "raw/pc_talker.h"
 #include <atomic>
 #include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <raw/pc_talker.h>
+#include <simdutf/simdutf.h>
 #include <windows.h>
 
 class BrailleMarshaller {

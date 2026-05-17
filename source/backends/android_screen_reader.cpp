@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 
+#ifdef __ANDROID__
+#include "android/AudioCallback.hpp"
+#include "android/Unit.hpp"
+#include "android/jni/AbstractTextToSpeechBackend.hpp"
 #include "backend.h"
 #include "backend_registry.h"
 #include <atomic>
 #include <bitset>
 #include <cmath>
+#include <djinni/support/jni/djinni_support.hpp>
+#include <jni.h>
 #include <limits>
 #include <memory>
-#ifdef __ANDROID__
-#include "java/AudioCallback.hpp"
-#include "java/Unit.hpp"
-#include "java/jni/AbstractTextToSpeechBackend.hpp"
-#include "java/support/jni/djinni_support.hpp"
-#include <jni.h>
 
 class AndroidScreenReaderAudioCallbackAdapter
     : public prism::java::AudioCallback {

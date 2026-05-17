@@ -1,4 +1,4 @@
-/* auto-generated on 2026-04-25 17:56:22 -0400. Do not edit! */
+/* auto-generated on 2026-05-07 06:54:06 +0200. Do not edit! */
 /* begin file include\simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -14108,7 +14108,12 @@ consteval auto base64_decode_literal(const char *str) {
   auto r = scalar::base64::base64_to_binary_details_impl(
       str, InputLen, result.buffer.data(), base64_default, loose);
   if (r.error != error_code::SUCCESS) {
+  #if __cpp_lib_unreachable >= 202202L
     std::unreachable(); // invalid base64 input in _base64 literal
+  #else
+    // workaround for older stdlib
+    throw "invalid base64 input in _base64 literal";
+  #endif
   }
   result.output_count = r.output_count;
   return result;

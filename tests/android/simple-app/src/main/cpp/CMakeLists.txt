@@ -12,4 +12,4 @@ set(PRISM_ENABLE_GDEXTENSION
 add_subdirectory("${PRISM_ROOT}" "${CMAKE_BINARY_DIR}/prism_build")
 add_library(prism_android_test SHARED prism_android_test_jni.cpp)
 target_include_directories(prism_android_test PRIVATE "${PRISM_ROOT}/include")
-target_link_libraries(prism_android_test PRIVATE prism android log)
+target_link_libraries(prism_android_test PRIVATE prism::prism android log)

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
 #include "backend.h"
 #include "backend_registry.h"
 #include "utils.h"
+#include <simdutf/simdutf.h>
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <vector>
 
+namespace {
 struct VoiceInfo {
   std::string module;
   std::string name;
@@ -39,6 +40,7 @@ struct ModulesGuard {
       free_spd_modules(m);
   }
 };
+} // namespace
 
 class SpeechDispatcherBackend final : public TextToSpeechBackend {
 private:
@@ -152,9 +154,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size())) {
-      return std::unexpected(BackendError::InvalidUtf8);
-    }
     std::shared_lock sl(state_lock);
     if (interrupt) {
       if (spd_stop(conn) != 0)
@@ -413,8 +412,8 @@ REGISTER_BACKEND_WITH_ID(SpeechDispatcherBackend, Backends::SpeechDispatcher,
                          "Speech Dispatcher", 97);
 #endif
 #elifdef _WIN32
-#include "raw/prism_speech_dispatcher_bridge.h"
 #include <atomic>
+#include <raw/prism_speech_dispatcher_bridge.h>
 #include <tchar.h>
 #include <windows.h>
 
@@ -483,9 +482,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (instance == nullptr) {
       return std::unexpected(BackendError::NotInitialized);
-    }
-    if (!simdutf::validate_utf8(text.data(), text.size())) {
-      return std::unexpected(BackendError::InvalidUtf8);
     }
     if (interrupt)
       if (const auto res = stop(); !res)

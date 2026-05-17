@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "java/Unit.hpp"
-#include "java/support/jni/djinni_support.hpp"
+#include "android/Unit.hpp"
+#include <djinni/support/jni/djinni_support.hpp>
 
 namespace prism::jni {
 

@@ -76,6 +76,10 @@ namespace boy_pc_reader {
 using BoyCtrlSpeakCompleteFunc = void(__stdcall *)(int reason);
 
 // NOLINTBEGIN(performance-enum-size)
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 26812)
+#endif
 enum BoyCtrlError {
   e_bcerr_success = 0,
   e_bcerr_fail = 1,
@@ -95,6 +99,9 @@ enum BoyCtrlInfoReportMode {
   e_bcirm_time,
   e_bcirm_date,
 };
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 // NOLINTEND(performance-enum-size)
 
 static BoyCtrlError __stdcall

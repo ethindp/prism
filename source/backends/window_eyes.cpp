@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
-#include "backend.h"
-#include "backend_registry.h"
-#include <bitset>
 #ifdef _WIN32
 #if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
     defined(__i386__)
 #ifdef PRISM_ENABLE_LEGACY_BACKENDS
 #ifdef PRISM_ENABLE_WINDOW_EYES_LEGACY_BACKEND
-#include "raw/wineyes.h"
+#include "backend.h"
+#include "backend_registry.h"
 #include <algorithm>
 #include <atlbase.h>
 #include <atomic>
+#include <bitset>
 #include <ranges>
+#include <raw/wineyes.h>
+#include <simdutf/simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 
@@ -34,7 +34,7 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    if (auto* const handle =
+    if (auto *const handle =
             FindWindow(_T("GWMExternalControl"), _T("External Control"));
         handle != INVALID_HANDLE_VALUE && handle != nullptr) {
       IClassFactory *factory = nullptr;

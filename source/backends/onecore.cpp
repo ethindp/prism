@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef _WIN32
 #include "backend.h"
 #include "backend_registry.h"
-#include "dr_wav.h"
 #include "utils.h"
 #include <atomic>
 #include <cmath>
-#include <limits>
-#include <span>
-#ifdef _WIN32
 #include <concepts>
+#include <dr_wav/dr_wav.h>
 #include <exception>
+#include <limits>
 #include <objbase.h>
 #include <optional>
+#include <simdutf/simdutf.h>
+#include <span>
 #include <tchar.h>
 #include <type_traits>
 #include <utility>
@@ -176,9 +176,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size())) {
-      return std::unexpected(BackendError::InvalidUtf8);
-    }
     try {
       if (interrupt)
         if (const auto res = stop(); !res)
@@ -201,8 +198,6 @@ public:
                                   void *userdata) override {
     if (!synth)
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size()))
-      return std::unexpected(BackendError::InvalidUtf8);
     try {
       const auto wtext = to_hstring(text);
       const auto stream = run_on_mta(
@@ -313,8 +308,6 @@ public:
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     try {
-      if (volume < 0.0F || volume > 1.0F)
-        return std::unexpected(BackendError::RangeOutOfBounds);
       synth.Options().AudioVolume(volume);
       return {};
     } catch (const winrt::hresult_error &) {
@@ -336,8 +329,6 @@ public:
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     try {
-      if (rate < 0.0 || rate > 1.0)
-        return std::unexpected(BackendError::RangeOutOfBounds);
       const auto val = exp_range_convert(rate, 0.5, 1.0, 6.0);
       synth.Options().SpeakingRate(val);
       return {};
@@ -352,6 +343,28 @@ public:
     try {
       return exp_range_convert_inv(synth.Options().SpeakingRate(), 0.5, 1.0,
                                    6.0);
+    } catch (const winrt::hresult_error &) {
+      return std::unexpected(BackendError::Unknown);
+    }
+  }
+
+  BackendResult<> set_pitch(float pitch) override {
+    if (!synth || !player)
+      return std::unexpected(BackendError::NotInitialized);
+    try {
+      const auto val = exp_range_convert(pitch, 0.0, 1.0, 2.0);
+      synth.Options().AudioPitch(val);
+      return {};
+    } catch (const winrt::hresult_error &) {
+      return std::unexpected(BackendError::Unknown);
+    }
+  }
+
+  BackendResult<float> get_pitch() override {
+    if (!synth || !player)
+      return std::unexpected(BackendError::NotInitialized);
+    try {
+      return exp_range_convert_inv(synth.Options().AudioPitch(), 0.0, 1.0, 2.0);
     } catch (const winrt::hresult_error &) {
       return std::unexpected(BackendError::Unknown);
     }

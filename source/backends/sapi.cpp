@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef _WIN32
 #include "backend.h"
 #include "backend_registry.h"
-#include "dr_wav.h"
 #include "utils.h"
 #include <algorithm>
 #include <array>
+#include <atlbase.h>
 #include <atomic>
 #include <bitset>
 #include <cassert>
@@ -18,25 +18,26 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <dr_wav/dr_wav.h>
 #include <format>
 #include <limits>
+#include <mmreg.h>
 #include <mutex>
 #include <optional>
 #include <ranges>
+#include <sapi.h>
 #include <shared_mutex>
+#include <shlwapi.h>
+#include <simdutf/simdutf.h>
 #include <span>
 #include <stop_token>
+#include <tchar.h>
 #include <thread>
 #include <vector>
-#ifdef _WIN32
-#include <atlbase.h>
-#include <mmreg.h>
-#include <sapi.h>
-#include <shlwapi.h>
-#include <tchar.h>
 #include <windows.h>
 #include <xmllite.h>
 
+namespace {
 struct VoiceInfo {
   CComPtr<ISpObjectToken> token;
   std::string name;
@@ -115,6 +116,7 @@ struct GlobalLockGuard {
   GlobalLockGuard(const GlobalLockGuard &) = delete;
   GlobalLockGuard &operator=(const GlobalLockGuard &) = delete;
 };
+} // namespace
 
 class SapiBackend final : public TextToSpeechBackend {
 private:
@@ -191,8 +193,6 @@ private:
 
   BackendResult<SapiSpeakParams> make_speak_args(std::string_view text,
                                                  DWORD base_flags = 0) const {
-    if (!simdutf::validate_utf8(text.data(), text.size()))
-      return std::unexpected(BackendError::InvalidUtf8);
     if (text.size() >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
     std::wstring wtext(

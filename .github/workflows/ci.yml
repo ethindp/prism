@@ -45,7 +45,7 @@ jobs:
               - 'source/backends/pc_talker.cpp'
               - 'source/backends/boy_pc_reader.cpp'
               - 'source/backends/sense_reader.cpp'
-              - 'source/backends/moderncom/**'
+              - 'third_party/moderncom/**'
               - 'source/delayimp.cpp'
               - 'source/backends/speech_dispatcher.cpp'
               - 'source/backends/orca.cpp'
@@ -53,7 +53,6 @@ jobs:
             linux:
               - 'source/backends/speech_dispatcher.cpp'
               - 'source/backends/orca.cpp'
-              - 'dbus/**'
               - 'winelibs/**'
             apple:
               - 'source/backends/voiceover.cpp'
@@ -61,7 +60,7 @@ jobs:
             android:
               - 'source/backends/android_tts.cpp'
               - 'source/backends/android_screen_reader.cpp'
-              - 'source/backends/java/**'
+              - 'source/backends/android/**'
               - 'source/AndroidManifest.xml'
               - 'android/**'
               - 'build.gradle'
@@ -70,6 +69,8 @@ jobs:
               - 'gradle/**'
               - 'gradlew'
               - 'gradlew.bat'
+              - 'third_party/djinni/**'
+              - 'tests/android/**'
             web:
               - 'source/backends/web_speech_synthesis_backend.cpp'
             python:
@@ -80,14 +81,13 @@ jobs:
             core:
               - 'include/**'
               - 'source/prism.cpp'
-              - 'source/simdutf.*'
+              - 'third_party/simdutf/**'
               - 'source/backend_check.cpp'
               - 'source/backends/backend.h'
               - 'source/backends/backend_registry.*'
               - 'source/backends/utils.*'
-              - 'source/backends/concurrentqueue.h'
-              - 'source/backends/dr_wav.h'
-              - 'source/backends/wav.c'
+              - 'third_party/concurrentqueue/**'
+              - 'third_party/dr_wav/**'
               - 'CMakeLists.txt'
               - 'cmake/**'
               - 'shims/**'

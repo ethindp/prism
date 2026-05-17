@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
-#include "backend.h"
-#include "backend_registry.h"
 #ifdef __OBJC__
 #ifdef __APPLE__
+#include "backend.h"
+#include "backend_registry.h"
+#include <simdutf/simdutf.h>
 #if !TARGET_OS_WATCH
 #import <Foundation/Foundation.h>
 #include <TargetConditionals.h>
@@ -246,8 +246,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size()))
-      return std::unexpected(BackendError::InvalidUtf8);
     NSString *ns_text = [[NSString alloc] initWithBytes:text.data()
                                                  length:text.size()
                                                encoding:NSUTF8StringEncoding];

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../simdutf.h"
+#ifdef __OBJC__
+#ifdef __APPLE__
 #include "backend.h"
 #include "backend_registry.h"
 #include "utils.h"
-#ifdef __OBJC__
-#ifdef __APPLE__
 #import <AVFAudio/AVFAudio.h>
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>
@@ -15,6 +14,7 @@
 #include <cstddef>
 #include <mutex>
 #include <shared_mutex>
+#include <simdutf/simdutf.h>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -58,11 +58,13 @@
 }
 @end
 
+namespace {
 struct VoiceInfo {
   std::string identifier;
   std::string name;
   std::string language;
 };
+} // namespace
 
 class AVSpeechBackend final : public TextToSpeechBackend {
 private:
@@ -211,9 +213,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size())) {
-      return std::unexpected(BackendError::InvalidUtf8);
-    }
     if (interrupt) {
       if (auto const res = stop(); !res)
         return res;
@@ -263,8 +262,6 @@ public:
                                   void *userdata) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size()))
-      return std::unexpected(BackendError::InvalidUtf8);
     if (!callback)
       return std::unexpected(BackendError::InvalidParam);
     if (@available(macOS 10.15, iOS 13.0, *)) {
@@ -350,8 +347,7 @@ public:
       }
       auto const tv = trim_silence_rms_gate_inplace(
           std::span<float>(audio_data), channels, sample_rate);
-      callback(userdata, tv.view.data(), tv.view.size(), channels,
-               sample_rate);
+      callback(userdata, tv.view.data(), tv.view.size(), channels, sample_rate);
     } else {
       return std::unexpected(BackendError::NotImplemented);
     }
@@ -418,8 +414,6 @@ public:
   BackendResult<> set_volume(float vol) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (vol < 0.0F || vol > 1.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
     volume.store(vol, std::memory_order_release);
     return {};
   }
@@ -433,8 +427,6 @@ public:
   BackendResult<> set_rate(float r) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (r < 0.0F || r > 1.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
     rate.store(r, std::memory_order_release);
     return {};
   }
@@ -448,8 +440,6 @@ public:
   BackendResult<> set_pitch(float p) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (p < 0.0F || p > 1.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
     pitch.store(p, std::memory_order_release);
     return {};
   }

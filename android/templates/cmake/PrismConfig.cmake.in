@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-if(TARGET Prism::prism)
+if(TARGET prism::prism)
     return()
 endif()
 set(Prism_VERSION "@VERSION@")
@@ -26,7 +26,7 @@ if(NOT EXISTS "${_prism_lib}")
     return()
 endif()
 set(Prism_LIBRARIES "${_prism_lib}")
-add_library(Prism::prism SHARED IMPORTED)
-set_target_properties(Prism::prism PROPERTIES
+add_library(prism::prism SHARED IMPORTED)
+set_target_properties(prism::prism PROPERTIES
     IMPORTED_LOCATION "${_prism_lib}"
     INTERFACE_INCLUDE_DIRECTORIES "${Prism_INCLUDE_DIRS}")

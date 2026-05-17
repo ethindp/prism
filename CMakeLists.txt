@@ -64,6 +64,8 @@ endif()
 option(PRISM_BUILD_WINELIBS
        "Build Winelib bridges so Wine-hosted Prism can reach Linux TTS hosts"
        OFF)
+option(PRISM_DIAGNOSE_VECTORIZATION
+       "Emit vectorization reports for optimized builds" OFF)
 if(WIN32)
   if(PRISM_ENABLE_GDEXTENSION)
     set(CMAKE_MSVC_RUNTIME_LIBRARY
@@ -715,6 +717,26 @@ endif()
 if(ANDROID)
   target_link_options(${PROJECT_NAME} PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
+if(PRISM_DIAGNOSE_VECTORIZATION)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(
+      ${PROJECT_NAME} PRIVATE $<$<NOT:$<CONFIG:Debug>>:-fopt-info-vec-missed=2>)
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(
+      ${PROJECT_NAME}
+      PRIVATE $<$<NOT:$<CONFIG:Debug>>:-Rpass=loop-unroll
+              -Rpass-missed=loop-unroll
+              -Rpass=loop-vectorize
+              -Rpass-missed=loop-vectorize
+              -Rpass-analysis=loop-vectorize
+              -Rpass-missed=slp-vectorize
+              -Rpass-analysis=slp-vectorize
+              -Rpass=slp-vectorize>)
+  elseif(MSVC)
+    target_compile_options(${PROJECT_NAME}
+                           PRIVATE $<$<NOT:$<CONFIG:Debug>>:/Qvec-report:2>)
+  endif()
+endif()
 if(PRISM_ENABLE_LINTING)
   file(
     GLOB_RECURSE
@@ -816,7 +838,7 @@ if(PRISM_ENABLE_LINTING)
 endif()
 if(NOT ANDROID)
   check_ipo_supported(RESULT IPO_SUPPORTED)
-  if(IPO_SUPPORTED)
+  if(IPO_SUPPORTED AND NOT PRISM_DIAGNOSE_VECTORIZATION)
     set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION
                                                  TRUE)
     foreach(_tgt ${_prism_backend_targets})

@@ -132,6 +132,21 @@ struct TrimWorkspace {
   std::vector<float> scratch;
 };
 
+[[nodiscard]] static inline std::span<const float>
+hann_window(std::size_t fade_frames) {
+  static thread_local std::vector<float> cache;
+  if (cache.size() != fade_frames) {
+    cache.resize(fade_frames);
+    const auto denom = static_cast<double>(fade_frames - 1);
+    for (std::size_t i = 0; i < fade_frames; ++i) {
+      const double t = static_cast<double>(i) / denom;
+      cache[i] =
+          static_cast<float>(0.5 - (0.5 * std::cos(std::numbers::pi * t)));
+    }
+  }
+  return {cache.data(), cache.size()};
+}
+
 static inline std::size_t ms_to_frames(float ms, std::size_t sample_rate) {
   const auto f =
       (static_cast<double>(ms) * static_cast<double>(sample_rate)) / 1000.0;
@@ -214,42 +229,27 @@ static inline void apply_fade_in(std::span<float> interleaved,
     return;
   const auto total_frames = interleaved.size() / channels;
   fade_frames = std::min(fade_frames, total_frames);
-  if (fade_frames == 0)
+  if (fade_frames <= 1)
     return;
-  const float pi = std::numbers::pi_v<float>;
+  const auto window = hann_window(fade_frames);
+  const float *__restrict w = window.data();
   if (channels == 1) {
-    for (std::size_t i = 0; i < fade_frames; ++i) {
-      float g = 1.0F;
-      if (fade_frames > 1) {
-        const float t =
-            static_cast<float>(i) / static_cast<float>(fade_frames - 1);
-        g = 0.5F - (0.5F * std::cos(pi * t));
-      }
-      interleaved[i] *= g;
-    }
+    float *__restrict p = interleaved.data();
+    for (std::size_t i = 0; i < fade_frames; ++i)
+      p[i] *= w[i];
     return;
   }
   if (channels == 2) {
+    float *__restrict p = interleaved.data();
     for (std::size_t i = 0; i < fade_frames; ++i) {
-      float g = 1.0F;
-      if (fade_frames > 1) {
-        const float t =
-            static_cast<float>(i) / static_cast<float>(fade_frames - 1);
-        g = 0.5F - (0.5F * std::cos(pi * t));
-      }
-      const auto base = i * 2;
-      interleaved[base + 0] *= g;
-      interleaved[base + 1] *= g;
+      const float g = w[i];
+      p[(2 * i) + 0] *= g;
+      p[(2 * i) + 1] *= g;
     }
     return;
   }
   for (std::size_t i = 0; i < fade_frames; ++i) {
-    float g = 1.0F;
-    if (fade_frames > 1) {
-      const float t =
-          static_cast<float>(i) / static_cast<float>(fade_frames - 1);
-      g = 0.5F - (0.5F * std::cos(pi * t));
-    }
+    const float g = w[i];
     const auto base = i * channels;
     for (std::size_t ch = 0; ch < channels; ++ch)
       interleaved[base + ch] *= g;
@@ -266,42 +266,32 @@ static inline void apply_fade_out(std::span<float> interleaved,
   if (fade_frames == 0)
     return;
   const auto start = total_frames - fade_frames;
-  const float pi = std::numbers::pi_v<float>;
+  if (fade_frames == 1) {
+    const auto base = start * channels;
+    for (std::size_t ch = 0; ch < channels; ++ch)
+      interleaved[base + ch] = 0.0F;
+    return;
+  }
+  const auto window = hann_window(fade_frames);
+  const float *__restrict w = window.data();
+  const std::size_t last = fade_frames - 1;
   if (channels == 1) {
-    for (std::size_t i = 0; i < fade_frames; ++i) {
-      float g =
-          (fade_frames > 1)
-              ? (0.5F +
-                 (0.5F * std::cos(pi * (static_cast<float>(i) /
-                                        static_cast<float>(fade_frames - 1)))))
-              : 0.0F;
-      interleaved[start + i] *= g;
-    }
+    float *__restrict p = interleaved.data() + start;
+    for (std::size_t i = 0; i < fade_frames; ++i)
+      p[i] *= w[last - i];
     return;
   }
   if (channels == 2) {
+    float *__restrict p = interleaved.data() + (start * 2);
     for (std::size_t i = 0; i < fade_frames; ++i) {
-      float g =
-          (fade_frames > 1)
-              ? (0.5F +
-                 (0.5F * std::cos(pi * (static_cast<float>(i) /
-                                        static_cast<float>(fade_frames - 1)))))
-              : 0.0F;
-      const auto base = (start + i) * 2;
-      interleaved[base + 0] *= g;
-      interleaved[base + 1] *= g;
+      const float g = w[last - i];
+      p[(2 * i) + 0] *= g;
+      p[(2 * i) + 1] *= g;
     }
     return;
   }
   for (std::size_t i = 0; i < fade_frames; ++i) {
-    float g = 1.0F;
-    if (fade_frames > 1) {
-      const float t =
-          static_cast<float>(i) / static_cast<float>(fade_frames - 1);
-      g = 0.5F + (0.5F * std::cos(pi * t));
-    } else {
-      g = 0.0F;
-    }
+    const float g = w[last - i];
     const auto base = (start + i) * channels;
     for (std::size_t ch = 0; ch < channels; ++ch)
       interleaved[base + ch] *= g;
@@ -311,6 +301,13 @@ static inline void apply_fade_out(std::span<float> interleaved,
 static inline double frame_abs_sum(std::span<const float> interleaved,
                                    std::size_t frame, std::size_t channels) {
   const auto base = frame * channels;
+  if (channels == 1) {
+    return std::abs(interleaved[base]);
+  }
+  if (channels == 2) {
+    return static_cast<double>(std::abs(interleaved[base])) +
+           static_cast<double>(std::abs(interleaved[base + 1]));
+  }
   double s = 0.0;
   for (std::size_t ch = 0; ch < channels; ++ch)
     s += std::abs(interleaved[base + ch]);

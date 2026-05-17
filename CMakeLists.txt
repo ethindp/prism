@@ -744,7 +744,8 @@ if(PRISM_ENABLE_LINTING)
     CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/*.h")
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/raw/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/**")
   if(ANDROID)
     list(APPEND SKIP_LINT_FILES ${android_sources} ${android_headers})
   endif()

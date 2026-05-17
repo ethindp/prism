@@ -143,6 +143,7 @@ static inline float mean_square_to_db(double mean_square) {
   return static_cast<float>(10.0 * std::log10(mean_square + eps));
 }
 
+[[gnu::hot]]
 static inline float frame_db(std::span<const float> interleaved,
                              std::size_t start_frame, std::size_t frame_len,
                              std::size_t total_frames, std::size_t channels) {
@@ -151,11 +152,39 @@ static inline float frame_db(std::span<const float> interleaved,
     return -160.0F;
   const std::size_t nframes = end_frame - start_frame;
   const std::size_t nsamples = nframes * channels;
-  const float *p = interleaved.data() + (start_frame * channels);
-  const float *e = p + nsamples;
-  double sumsq = 0.0;
-  for (; p != e; ++p) {
-    const auto v = static_cast<double>(*p);
+  const float *__restrict p = interleaved.data() + (start_frame * channels);
+  double s0 = 0;
+  double s1 = 0;
+  double s2 = 0;
+  double s3 = 0;
+  double s4 = 0;
+  double s5 = 0;
+  double s6 = 0;
+  double s7 = 0;
+  std::size_t i = 0;
+  const std::size_t lim = nsamples & ~static_cast<std::size_t>(7);
+  for (; i < lim; i += 8) {
+    const double v0 = p[i + 0];
+    const double v1 = p[i + 1];
+    const double v2 = p[i + 2];
+    const double v3 = p[i + 3];
+    const double v4 = p[i + 4];
+    const double v5 = p[i + 5];
+    const double v6 = p[i + 6];
+    const double v7 = p[i + 7];
+    s0 += v0 * v0;
+    s1 += v1 * v1;
+    s2 += v2 * v2;
+    s3 += v3 * v3;
+    s4 += v4 * v4;
+    s5 += v5 * v5;
+    s6 += v6 * v6;
+    s7 += v7 * v7;
+  }
+  // Pairwise tree reduction
+  double sumsq = ((s0 + s1) + (s2 + s3)) + ((s4 + s5) + (s6 + s7));
+  for (; i < nsamples; ++i) {
+    const double v = p[i];
     sumsq += v * v;
   }
   return mean_square_to_db(sumsq / static_cast<double>(nsamples));

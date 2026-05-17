@@ -123,14 +123,16 @@ TOLK_API void TOLK_CALL Tolk_Load(void) {
   }
   backend = prism_registry_create_best(ctx);
   if (backend != NULL_CONSTANT) {
-    if (prism_backend_initialize(backend) != PRISM_OK) {
+    PrismError res = prism_backend_initialize(backend);
+    if (res != PRISM_OK && res != PRISM_ERROR_ALREADY_INITIALIZED) {
       prism_backend_free(backend);
       backend = NULL_CONSTANT;
     }
   }
   sapi_backend = prism_registry_create(ctx, default_tts_backend);
   if (sapi_backend != NULL_CONSTANT) {
-    if (prism_backend_initialize(sapi_backend) != PRISM_OK) {
+    PrismError res = prism_backend_initialize(sapi_backend);
+    if (res != PRISM_OK && res != PRISM_ERROR_ALREADY_INITIALIZED) {
       prism_backend_free(sapi_backend);
       sapi_backend = NULL_CONSTANT;
     }
@@ -139,7 +141,8 @@ TOLK_API void TOLK_CALL Tolk_Load(void) {
     backend_name = utf8_to_wchar(prism_backend_name(backend));
   if (sapi_backend != NULL_CONSTANT)
     sapi_backend_name = utf8_to_wchar(prism_backend_name(sapi_backend));
-  atomic_store(&loaded, true);
+  if (backend != NULL_CONSTANT || sapi_backend != NULL_CONSTANT)
+    atomic_store(&loaded, true);
   fast_lock_release(&lock);
 }
 
@@ -151,7 +154,6 @@ TOLK_API void TOLK_CALL Tolk_Unload(void) {
     fast_lock_release(&lock);
     return;
   }
-  atomic_store(&loaded, false);
   if (backend != NULL_CONSTANT) {
     prism_backend_free(backend);
     backend = NULL_CONSTANT;
@@ -166,6 +168,7 @@ TOLK_API void TOLK_CALL Tolk_Unload(void) {
   backend_name = NULL_CONSTANT;
   free(sapi_backend_name);
   sapi_backend_name = NULL_CONSTANT;
+  atomic_store(&loaded, false);
   fast_lock_release(&lock);
 }
 

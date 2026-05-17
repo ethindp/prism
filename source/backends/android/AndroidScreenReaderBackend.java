@@ -67,18 +67,14 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
     if (serviceInfoList.isEmpty()) return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
     var bb = text.asReadOnlyBuffer();
     decoder.reset();
-    var out =
-        CharBuffer.allocate(bb.capacity() * Float.valueOf(decoder.maxCharsPerByte()).intValue());
-    while (true) {
-      var cr = decoder.decode(bb, out, true);
-      if (cr.isUnderflow()) break;
-      if (cr.isOverflow() || cr.isError() || cr.isMalformed() || cr.isUnmappable())
-        return Outcome.fromError(BackendError.INVALID_UTF8);
+    var out = CharBuffer.allocate((int) Math.ceil(bb.capacity() * decoder.maxCharsPerByte()));
+    var cr = decoder.decode(bb, out, true);
+    if (cr.isOverflow()) {
+      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     }
-    {
-      var cr = decoder.flush(out);
-      if (cr.isOverflow() || cr.isError() || cr.isMalformed() || cr.isUnmappable())
-        return Outcome.fromError(BackendError.INVALID_UTF8);
+    cr = decoder.flush(out);
+    if (cr.isOverflow()) {
+      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     }
     out.flip();
     if (interrupt) {

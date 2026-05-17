@@ -213,9 +213,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size())) {
-      return std::unexpected(BackendError::InvalidUtf8);
-    }
     if (interrupt) {
       if (auto const res = stop(); !res)
         return res;
@@ -265,8 +262,6 @@ public:
                                   void *userdata) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size()))
-      return std::unexpected(BackendError::InvalidUtf8);
     if (!callback)
       return std::unexpected(BackendError::InvalidParam);
     if (@available(macOS 10.15, iOS 13.0, *)) {
@@ -419,8 +414,6 @@ public:
   BackendResult<> set_volume(float vol) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (vol < 0.0F || vol > 1.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
     volume.store(vol, std::memory_order_release);
     return {};
   }
@@ -434,8 +427,6 @@ public:
   BackendResult<> set_rate(float r) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (r < 0.0F || r > 1.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
     rate.store(r, std::memory_order_release);
     return {};
   }
@@ -449,8 +440,6 @@ public:
   BackendResult<> set_pitch(float p) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (p < 0.0F || p > 1.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
     pitch.store(p, std::memory_order_release);
     return {};
   }

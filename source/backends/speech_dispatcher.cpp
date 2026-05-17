@@ -154,9 +154,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size())) {
-      return std::unexpected(BackendError::InvalidUtf8);
-    }
     std::shared_lock sl(state_lock);
     if (interrupt) {
       if (spd_stop(conn) != 0)
@@ -485,9 +482,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (instance == nullptr) {
       return std::unexpected(BackendError::NotInitialized);
-    }
-    if (!simdutf::validate_utf8(text.data(), text.size())) {
-      return std::unexpected(BackendError::InvalidUtf8);
     }
     if (interrupt)
       if (const auto res = stop(); !res)

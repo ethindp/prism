@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <limits>
 #include <new>
+#include <simdutf/simdutf.h>
 #include <string>
 #ifdef __ANDROID__
 #include <jni.h>
@@ -200,6 +201,8 @@ prism_backend_initialize(PrismBackend *backend) {
 
 PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_speak(
     PrismBackend *backend, const char *PRISM_RESTRICT text, bool interrupt) {
+  if (!simdutf::validate_utf8(text, std::string_view{text}.size()))
+    return PRISM_ERROR_INVALID_UTF8;
   const auto r = backend->impl->speak(text, interrupt);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
@@ -207,6 +210,8 @@ PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_speak(
 PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_speak_to_memory(
     PrismBackend *backend, const char *PRISM_RESTRICT text,
     PrismAudioCallback callback, void *userdata) {
+  if (!simdutf::validate_utf8(text, std::string_view{text}.size()))
+    return PRISM_ERROR_INVALID_UTF8;
   const auto r = backend->impl->speak_to_memory(
       text,
       [callback, userdata](void *, const float *samples, size_t count,
@@ -219,12 +224,16 @@ PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_speak_to_memory(
 
 PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_braille(PrismBackend *backend, const char *PRISM_RESTRICT text) {
+  if (!simdutf::validate_utf8(text, std::string_view{text}.size()))
+    return PRISM_ERROR_INVALID_UTF8;
   const auto r = backend->impl->braille(text);
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 
 PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_output(
     PrismBackend *backend, const char *PRISM_RESTRICT text, bool interrupt) {
+  if (!simdutf::validate_utf8(text, std::string_view{text}.size()))
+    return PRISM_ERROR_INVALID_UTF8;
   const auto r = backend->impl->output(text, interrupt);
   return r ? PRISM_OK : to_prism_error(r.error());
 }

@@ -153,9 +153,6 @@ public:
     if (!conn || dialect == nullptr) {
       return std::unexpected(BackendError::NotInitialized);
     }
-    if (!simdutf::validate_utf8(text.data(), text.size())) {
-      return std::unexpected(BackendError::InvalidUtf8);
-    }
     if (interrupt) {
       if (const auto res = stop(); !res) {
         return res;
@@ -287,9 +284,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (instance == nullptr) {
       return std::unexpected(BackendError::NotInitialized);
-    }
-    if (!simdutf::validate_utf8(text.data(), text.size())) {
-      return std::unexpected(BackendError::InvalidUtf8);
     }
     if (interrupt)
       if (const auto res = stop(); !res)

@@ -451,8 +451,6 @@ public:
     const auto *p = provider.load(std::memory_order_acquire);
     if (w == nullptr || p == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size()))
-      return std::unexpected(BackendError::InvalidUtf8);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);

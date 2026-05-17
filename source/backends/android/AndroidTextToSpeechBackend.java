@@ -120,18 +120,14 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
     var bb = text.asReadOnlyBuffer();
     decoder.reset();
-    var out =
-        CharBuffer.allocate(bb.capacity() * Float.valueOf(decoder.maxCharsPerByte()).intValue());
-    while (true) {
-      var cr = decoder.decode(bb, out, true);
-      if (cr.isUnderflow()) break;
-      if (cr.isOverflow() || cr.isError() || cr.isMalformed() || cr.isUnmappable())
-        return Outcome.fromError(BackendError.INVALID_UTF8);
+    var out = CharBuffer.allocate((int) Math.ceil(bb.capacity() * decoder.maxCharsPerByte()));
+    var cr = decoder.decode(bb, out, true);
+    if (cr.isOverflow()) {
+      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     }
-    {
-      var cr = decoder.flush(out);
-      if (cr.isOverflow() || cr.isError() || cr.isMalformed() || cr.isUnmappable())
-        return Outcome.fromError(BackendError.INVALID_UTF8);
+    cr = decoder.flush(out);
+    if (cr.isOverflow()) {
+      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     }
     out.flip();
     Bundle params = new Bundle();
@@ -170,18 +166,14 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
     var bb = text.asReadOnlyBuffer();
     decoder.reset();
-    var out =
-        CharBuffer.allocate(bb.capacity() * Float.valueOf(decoder.maxCharsPerByte()).intValue());
-    while (true) {
-      var cr = decoder.decode(bb, out, true);
-      if (cr.isUnderflow()) break;
-      if (cr.isOverflow() || cr.isError() || cr.isMalformed() || cr.isUnmappable())
-        return Outcome.fromError(BackendError.INVALID_UTF8);
+    var out = CharBuffer.allocate((int) Math.ceil(bb.capacity() * decoder.maxCharsPerByte()));
+    var cr = decoder.decode(bb, out, true);
+    if (cr.isOverflow()) {
+      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     }
-    {
-      var cr = decoder.flush(out);
-      if (cr.isOverflow() || cr.isError() || cr.isMalformed() || cr.isUnmappable())
-        return Outcome.fromError(BackendError.INVALID_UTF8);
+    cr = decoder.flush(out);
+    if (cr.isOverflow()) {
+      return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
     }
     out.flip();
     String textString = out.toString();
@@ -312,7 +304,6 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
   @Override
   public Outcome<Unit, BackendError> setRate(float rate) {
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
-    if (rate < 0.0f || rate > 1.0f) return Outcome.fromError(BackendError.RANGE_OUT_OF_BOUNDS);
     ttsRate = Utils.expRangeConvert(rate, 0.1f, 3.05f, 6.0f);
     if (tts.setSpeechRate(ttsRate) == TextToSpeech.ERROR) {
       return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
@@ -329,7 +320,6 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
   @Override
   public Outcome<Unit, BackendError> setPitch(float pitch) {
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
-    if (pitch < 0.0f || pitch > 1.0f) return Outcome.fromError(BackendError.RANGE_OUT_OF_BOUNDS);
     ttsPitch = Utils.expRangeConvert(pitch, 0.25f, 2.125f, 4.0f);
     if (tts.setPitch(ttsPitch) == TextToSpeech.ERROR) {
       return Outcome.fromError(BackendError.INTERNAL_BACKEND_ERROR);
@@ -346,7 +336,6 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
   @Override
   public Outcome<Unit, BackendError> setVolume(float volume) {
     if (!isTTSInitialized) return Outcome.fromError(BackendError.NOT_INITIALIZED);
-    if (volume < 0.0f || volume > 1.0f) return Outcome.fromError(BackendError.RANGE_OUT_OF_BOUNDS);
     ttsVolume = volume;
     return Outcome.fromResult(new Unit());
   }

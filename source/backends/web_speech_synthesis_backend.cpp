@@ -77,8 +77,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (synth.isNull())
       return std::unexpected(BackendError::NotInitialized);
-    if (!simdutf::validate_utf8(text.data(), text.size()))
-      return std::unexpected(BackendError::InvalidUtf8);
     if (interrupt) {
       if (const auto r = stop(); !r)
         return std::unexpected(r.error());

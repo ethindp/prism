@@ -193,8 +193,6 @@ private:
 
   BackendResult<SapiSpeakParams> make_speak_args(std::string_view text,
                                                  DWORD base_flags = 0) const {
-    if (!simdutf::validate_utf8(text.data(), text.size()))
-      return std::unexpected(BackendError::InvalidUtf8);
     if (text.size() >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
     std::wstring wtext(

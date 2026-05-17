@@ -67,7 +67,6 @@ sdist.include = [
   "NOTICE",
   "idl",
   "demos",
-  "dbus",
   "pytest.ini",
   "third_party",
   "shims",

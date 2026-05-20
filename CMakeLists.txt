@@ -394,13 +394,6 @@ if(WIN32)
   endif()
   target_link_libraries(${PROJECT_NAME} PRIVATE rpcrt4)
   if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
-    if(PRISM_ENABLE_LEGACY_BACKENDS
-       AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
-      add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa32.def
-                         SAAPI32.dll)
-      target_link_libraries(${PROJECT_NAME}
-                            PRIVATE "$<BUILD_INTERFACE:SystemAccess>")
-    endif()
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr32.def
                        ZDSRAPI.dll)
     add_import_library(
@@ -422,13 +415,6 @@ if(WIN32)
               "$<BUILD_INTERFACE:PrismOrcaBridge>"
               "$<BUILD_INTERFACE:PrismSpeechDispatcherBridge>")
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
-    if(PRISM_ENABLE_LEGACY_BACKENDS
-       AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
-      add_import_library(SystemAccess ${CMAKE_CURRENT_SOURCE_DIR}/defs/sa.def
-                         SAAPI64.dll)
-      target_link_libraries(${PROJECT_NAME}
-                            PRIVATE "$<BUILD_INTERFACE:SystemAccess>")
-    endif()
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr.def
                        ZDSRAPI_x64.dll)
     add_import_library(
@@ -597,11 +583,6 @@ if(MSVC)
       /delayload:PCTKUSR.dll
       /delayload:prism_orca_bridge.dll
       /delayload:prism_speech_dispatcher_bridge.dll)
-    if(PRISM_ENABLE_LEGACY_BACKENDS
-       AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
-      target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
-                          /delayload:SAAPI32.dll)
-    endif()
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     target_link_options(
       ${PROJECT_NAME}
@@ -611,11 +592,6 @@ if(MSVC)
       /delayload:PCTKUSR.dll
       /delayload:prism_orca_bridge.dll
       /delayload:prism_speech_dispatcher_bridge.dll)
-    if(PRISM_ENABLE_LEGACY_BACKENDS
-       AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
-      target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
-                          /delayload:SAAPI64.dll)
-    endif()
   else()
     target_link_options(
       ${PROJECT_NAME} ${_PRISM_LINK_VIS} /delayload:PCTKUSR.dll
@@ -651,11 +627,6 @@ elseif(
       "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
       "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
-    if(PRISM_ENABLE_LEGACY_BACKENDS
-       AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
-      target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
-                          "LINKER:/delayload:SAAPI32.dll")
-    endif()
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
@@ -666,11 +637,6 @@ elseif(
       "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
       "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
-    if(PRISM_ENABLE_LEGACY_BACKENDS
-       AND PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND)
-      target_link_options(${PROJECT_NAME} ${_PRISM_LINK_VIS}
-                          "LINKER:/delayload:SAAPI64.dll")
-    endif()
   else()
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
@@ -889,21 +855,6 @@ if(DEFINED SKBUILD)
     RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"
     LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
     ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
-  if(WIN32)
-    if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
-      install(
-        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI.dll"
-              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI32.dll"
-        DESTINATION "${PRISM_PY_NATIVE_DIR}"
-        OPTIONAL)
-    elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
-      install(
-        FILES "${CMAKE_CURRENT_SOURCE_DIR}/ZDSRAPI_x64.dll"
-              "${CMAKE_CURRENT_SOURCE_DIR}/SAAPI64.dll"
-        DESTINATION "${PRISM_PY_NATIVE_DIR}"
-        OPTIONAL)
-    endif()
-  endif()
 else()
   install(
     TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_iface

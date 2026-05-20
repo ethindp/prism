@@ -177,7 +177,7 @@ jobs:
             *)          ext="so" ;;
           esac
           expected="prismatoid.${platform}.${target}.${arch}.${ext}"
-          actual=$(find build gdextension -type f -name "*prismatoid*.$ext" 2>/dev/null | head -1)
+          actual=$(find . -type f -name "*prismatoid*.$ext" 2>/dev/null | head -1)
           if [ -z "$actual" ]; then
             echo "No binary found in ${outdir}"
             exit 1

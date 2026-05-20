@@ -78,7 +78,7 @@ jobs:
             build/android/gradle/reports/lint-results-*.sarif
       - name: Upload SARIF to code scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@v4.35.3
+        uses: github/codeql-action/upload-sarif@v4.35.4
         with:
           sarif_file: build/android/gradle/reports/lint-results-debug.sarif
           wait-for-processing: true

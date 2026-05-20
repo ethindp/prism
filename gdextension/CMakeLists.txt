@@ -18,6 +18,11 @@ set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${godot-cpp_SOURCE_DIR}/cmake")
 include(GodotCPPModule)
 get_target_property(GODOTCPP_SUFFIX godot::cpp GODOTCPP_SUFFIX)
 get_target_property(GODOTCPP_PLATFORM godot::cpp GODOTCPP_PLATFORM)
+project(
+  prismatoid
+  VERSION ${PROJECT_VERSION}
+  DESCRIPTION "Prism bindings for Godot"
+  LANGUAGES C CXX)
 add_library(${LIBNAME} SHARED)
 target_sources(
   ${LIBNAME}

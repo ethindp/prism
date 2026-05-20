@@ -169,15 +169,14 @@ jobs:
           platform="${{ matrix.target.platform }}"
           arch="${{ matrix.target.arch }}"
           target="${{ matrix.target-type }}"
-          final_dir="gdextension/project/bin/${platform}"
-          mkdir -p "$final_dir"
+          outdir="gdextension/project/bin/${platform}"
           case "$platform" in
             windows)    ext="dll" ;;
             macos|ios)  ext="dylib" ;;
             *)          ext="so" ;;
           esac
           expected="prismatoid.${platform}.${target}.${arch}.${ext}"
-          actual=$(find . -type f -name "*prismatoid*.$ext" 2>/dev/null | head -1)
+          actual=$(find "$outdir" -type f 2>/dev/null | head -1)
           if [ -z "$actual" ]; then
             echo "No binary found in ${outdir}"
             exit 1

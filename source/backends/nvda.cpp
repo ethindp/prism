@@ -46,17 +46,35 @@ error_status_t __stdcall nvdaController_setOnSsmlMarkReachedCallback(
 class NvdaBackend final : public TextToSpeechBackend {
 private:
   handle_t controller_handle;
-  handle_t controller2_handle;
+
+  static bool server_supports_interface(handle_t binding,
+                                        RPC_IF_HANDLE ifspec) {
+    RPC_IF_ID_VECTOR *vec = nullptr;
+    if (RpcMgmtInqIfIds(binding, &vec) != RPC_S_OK)
+      return false;
+    const auto *iface = static_cast<const RPC_CLIENT_INTERFACE *>(ifspec);
+    const UUID &wanted = iface->InterfaceId.SyntaxGUID;
+    const auto wanted_mj = iface->InterfaceId.SyntaxVersion.MajorVersion;
+    const auto wanted_mn = iface->InterfaceId.SyntaxVersion.MinorVersion;
+    bool found = false;
+    for (unsigned i = 0; i < vec->Count && !found; ++i) {
+      const RPC_IF_ID *id = vec->IfId[i];
+      RPC_STATUS st = RPC_S_OK;
+      if (UuidEqual(const_cast<UUID *>(&wanted), const_cast<UUID *>(&id->Uuid),
+                    &st) != FALSE &&
+          id->VersMajor == wanted_mj && id->VersMinor == wanted_mn) {
+        found = true;
+      }
+    }
+    RpcIfIdVectorFree(&vec);
+    return found;
+  }
 
 public:
   ~NvdaBackend() override {
     if (controller_handle != nullptr) {
       RpcBindingFree(&controller_handle);
       controller_handle = nullptr;
-    }
-    if (controller2_handle != nullptr) {
-      RpcBindingFree(&controller2_handle);
-      controller2_handle = nullptr;
     }
   }
 
@@ -94,14 +112,18 @@ public:
       return features;
     }
     RpcStringFree(&string_binding);
-    if (nvdaController_testIfRunning(handle) == ERROR_SUCCESS)
+    if (server_supports_interface(handle,
+                                  nvdaController_NvdaController_v1_0_c_ifspec))
       features |= IS_SUPPORTED_AT_RUNTIME;
+    if (server_supports_interface(handle,
+                                  nvdaController_NvdaController3_v1_0_c_ifspec))
+      features |= SUPPORTS_IS_SPEAKING;
     RpcBindingFree(&handle);
     return features;
   }
 
   BackendResult<> initialize() override {
-    if (controller_handle != nullptr || controller2_handle != nullptr)
+    if (controller_handle != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
     DWORD sid = 0;
     if (const auto res = ProcessIdToSessionId(GetCurrentProcessId(), &sid);
@@ -127,22 +149,20 @@ public:
     if (status != RPC_S_OK)
       return std::unexpected(BackendError::BackendNotAvailable);
     status = RpcBindingFromStringBinding(string_binding, &controller_handle);
+    RpcStringFree(&string_binding);
     if (status != RPC_S_OK) {
       RpcStringFree(&string_binding);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    status = RpcBindingFromStringBinding(string_binding, &controller2_handle);
-    RpcStringFree(&string_binding);
-    if (status != RPC_S_OK) {
-      return std::unexpected(BackendError::BackendNotAvailable);
-    }
-    if (nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
+    if (server_supports_interface(
+            controller_handle, nvdaController_NvdaController_v1_0_c_ifspec) &&
+        nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (controller_handle == nullptr || controller2_handle == nullptr ||
+    if (controller_handle == nullptr ||
         nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (interrupt) {
@@ -164,7 +184,7 @@ public:
   }
 
   BackendResult<> braille(std::string_view text) override {
-    if (controller_handle == nullptr || controller2_handle == nullptr ||
+    if (controller_handle == nullptr ||
         nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
@@ -190,12 +210,26 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (controller_handle == nullptr || controller2_handle == nullptr ||
+    if (controller_handle == nullptr ||
         nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (nvdaController_cancelSpeech(controller_handle) != ERROR_SUCCESS)
       return std::unexpected(BackendError::InternalBackendError);
     return {};
+  }
+
+  BackendResult<bool> is_speaking() override {
+    if (controller_handle == nullptr ||
+        nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
+      return std::unexpected(BackendError::BackendNotAvailable);
+    if (!server_supports_interface(
+            controller_handle, nvdaController_NvdaController3_v1_0_c_ifspec))
+      return std::unexpected(BackendError::NotImplemented);
+    BOOLEAN speaking = FALSE;
+    if (nvdaController_isSpeaking(controller_handle, &speaking) !=
+        ERROR_SUCCESS)
+      return std::unexpected(BackendError::InternalBackendError);
+    return static_cast<bool>(speaking);
   }
 };
 

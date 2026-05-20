@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: MPL-2.0
 
-cmake_minimum_required(VERSION 3.24)
-
 include(CheckCCompilerFlag)
 include(CheckIPOSupported)
 include(CheckCSourceCompiles)
@@ -15,12 +13,6 @@ set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-project(
-  tolk
-  VERSION 0.16.1
-  DESCRIPTION "Tolk shim for Prism"
-  LANGUAGES C CXX)
 
 check_include_file(stdatomic.h HAS_STD_ATOMICS)
 if(NOT HAS_STD_ATOMICS)

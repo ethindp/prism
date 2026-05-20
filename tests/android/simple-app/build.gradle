@@ -1,13 +1,18 @@
 plugins {
     id 'com.android.application'
 }
-dependencies {
-    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
-}
-
+def  osArch = System.getProperty("os.arch").toLowerCase()
+def  isArm64 = (osArch == "aarch64" || osArch == "arm64")
+def  deviceNames = isArm64 ?
+        (30..36).collect {
+            "api${it}AospArm64"
+        } :
+        (31..36).collect {
+            "api${it}AospX64"
+        }
 android {
-    namespace "com.github.ethindp.prism.tests.android.simpleapp"
-    compileSdk 36
+    namespace = "com.github.ethindp.prism.tests.android.simpleapp"
+    compileSdk = 36
     ndkVersion = '30.0.14904198'
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -15,161 +20,71 @@ android {
         coreLibraryDesugaringEnabled = true
     }
     defaultConfig {
-        applicationId "com.github.ethindp.prism.tests.android.simpleapp"
-        minSdk 30
-        targetSdk 35
-        versionCode 1
-        versionName "1.0"
+        applicationId = "com.github.ethindp.prism.tests.android.simpleapp"
+        minSdk = 30
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                cppFlags "-std=c++23 -fexceptions -frtti"
+                cppFlags "-std=c++23", "-fexceptions", "-frtti"
             }
         }
         ndk {
             abiFilters "arm64-v8a", "x86_64"
         }
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            minifyEnabled = false
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = '4.1.2'
+        }
     }
     testOptions {
         managedDevices {
             localDevices {
-                def  osArch = System.getProperty("os.arch").toLowerCase()
-                def  isArm64 = (osArch == "aarch64" || osArch == "arm64")
                 if (isArm64) {
-                    api30AospArm64 {
-                        device = "Pixel 6"
-                        apiLevel = 30
-                        systemImageSource = "google_apis"
-                        require64Bit = true
-                        testedAbi = "arm64-v8a"
-                    }
-                    api31AospArm64 {
-                        device = "Pixel 6"
-                        apiLevel = 31
-                        systemImageSource = "google_apis"
-                        require64Bit = true
-                        testedAbi = "arm64-v8a"
-                    }
-                    api32AospArm64 {
-                        device = "Pixel 6"
-                        apiLevel = 32
-                        systemImageSource = "google_apis"
-                        require64Bit = true
-                        testedAbi = "arm64-v8a"
-                    }
-                    api33AospArm64 {
-                        device = "Pixel 6"
-                        apiLevel = 33
-                        systemImageSource = "google_apis"
-                        require64Bit = true
-                        testedAbi = "arm64-v8a"
-                    }
-                    api34AospArm64 {
-                        device = "Pixel 6"
-                        apiLevel = 34
-                        systemImageSource = "google_apis"
-                        require64Bit = true
-                        testedAbi = "arm64-v8a"
-                    }
-                    api35AospArm64 {
-                        device = "Pixel 6"
-                        apiLevel = 35
-                        systemImageSource = "google_apis"
-                        require64Bit = true
-                        testedAbi = "arm64-v8a"
-                    }
-                    api36AospArm64 {
-                        device = "Pixel 6"
-                        apiLevel = 36
-                        systemImageSource = "google_apis"
-                        require64Bit = true
-                        testedAbi = "arm64-v8a"
+                    (30..36).each {api ->
+                        register("api${api}AospArm64") {
+                            device = "Pixel 6"
+                            apiLevel = api
+                            systemImageSource = "google_apis"
+                            require64Bit = true
+                            testedAbi = "arm64-v8a"
+                        }
                     }
                 } else {
-                    api31AospX64 {
-                        device = "Pixel 2"
-                        apiLevel = 31
-                        systemImageSource = "google_apis"
-                        testedAbi = "x86_64"
-                        require64Bit = true
-                    }
-                    api32AospX64 {
-                        device = "Pixel 2"
-                        apiLevel = 32
-                        systemImageSource = "google_apis"
-                        testedAbi = "x86_64"
-                        require64Bit = true
-                    }
-                    api33AospX64 {
-                        device = "Pixel 2"
-                        apiLevel = 33
-                        systemImageSource = "google_apis"
-                        testedAbi = "x86_64"
-                        require64Bit = true
-                    }
-                    api34AospX64 {
-                        device = "Pixel 2"
-                        apiLevel = 34
-                        systemImageSource = "google_apis"
-                        testedAbi = "x86_64"
-                        require64Bit = true
-                    }
-                    api35AospX64 {
-                        device = "Pixel 2"
-                        apiLevel = 35
-                        systemImageSource = "google_apis"
-                        testedAbi = "x86_64"
-                        require64Bit = true
-                    }
-                    api36AospX64 {
-                        device = "Pixel 2"
-                        apiLevel = 36
-                        systemImageSource = "google_apis"
-                        testedAbi = "x86_64"
-                        require64Bit = true
+                    (31..36).each {api ->
+                        register("api${api}AospX64") {
+                            device = "Pixel 2"
+                            apiLevel = api
+                            systemImageSource = "google_apis"
+                            require64Bit = true
+                            testedAbi = "x86_64"
+                        }
                     }
                 }
             }
             groups {
                 allDevices {
-                    def  osArch = System.getProperty("os.arch").toLowerCase()
-                    def  isArm64 = (osArch == "aarch64" || osArch == "arm64")
-                    if (isArm64) {
-                        targetDevices.add(devices.api30AospArm64)
-                        targetDevices.add(devices.api31AospArm64)
-                        targetDevices.add(devices.api32AospArm64)
-                        targetDevices.add(devices.api33AospArm64)
-                        targetDevices.add(devices.api34AospArm64)
-                        targetDevices.add(devices.api35AospArm64)
-                        targetDevices.add(devices.api36AospArm64)
-                    } else {
-                        targetDevices.add(devices.api31AospX64)
-                        targetDevices.add(devices.api32AospX64)
-                        targetDevices.add(devices.api33AospX64)
-                        targetDevices.add(devices.api34AospX64)
-                        targetDevices.add(devices.api35AospX64)
-                        targetDevices.add(devices.api36AospX64)
+                    deviceNames.each {name ->
+                        targetDevices.add(android.testOptions.managedDevices.localDevices.getByName(name))
                     }
                 }
             }
         }
     }
-    buildTypes {
-        release {
-            minifyEnabled false
-        }
-    }
-    externalNativeBuild {
-        cmake {
-            path "src/main/cpp/CMakeLists.txt"
-            version = '4.1.2'
-        }
-    }
 }
-
 dependencies {
     androidTestImplementation 'androidx.test:runner:1.7.0'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
     implementation rootProject
     implementation "androidx.appcompat:appcompat:1.7.1"
     implementation "com.google.android.material:material:1.14.0"

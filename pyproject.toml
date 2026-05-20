@@ -1,6 +1,6 @@
 [project]
 name = "prismatoid"
-version = "0.16.1"
+dynamic = ["version"]
 description = "The Platform-Agnostic Reader Interface for Speech and Messages"
 readme = "README.md"
 authors = [
@@ -199,3 +199,8 @@ environment = { CMAKE_SYSTEM_PROCESSOR = "ARM64", CMAKE_BUILD_PARALLEL_LEVEL = "
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux_aarch64"
 environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
+
+   [tool.scikit-build.metadata.version]
+   provider = "scikit_build_core.metadata.regex"
+   input = "CMakeLists.txt"
+   regex = '''project\(\s*prism\s+VERSION\s+(?P<value>[0-9.]+)'''

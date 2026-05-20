@@ -32,3 +32,10 @@ interface NvdaController2 {
 	[fault_status,comm_status] speakSsml();
 	[fault_status,comm_status] onSsmlMarkReached();
 }
+
+[
+	explicit_handle
+]
+interface NvdaController3 {
+	[fault_status,comm_status] isSpeaking();
+}

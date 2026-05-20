@@ -1,7 +1,9 @@
+import com.android.build.api.artifact.SingleArtifact
 plugins {
     id "com.android.library" version "9.2.1"
     id "com.diffplug.spotless" version "8.4.0"
 }
+layout.buildDirectory.set(layout.projectDirectory.dir("build/android/gradle"))
 dependencies {
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
     implementation "com.ibm.icu:icu4j:78.3"
@@ -25,7 +27,7 @@ def  cmakeVersion = providers.fileContents(layout.projectDirectory.file('CMakeLi
     def  match = text =~ /project\s*\(\s*\w+\s+VERSION\s+(\d+\.\d+\.\d+)/
     match.find() ? (match.group = 1) : null
 }
-def  prismVersion = gitVersion.orElse(cmakeVersion).orElse('0.0.0').get()
+def  prismVersion = gitVersion.orElse(cmakeVersion).orElse('0.0.0')
 android {
     lint {
         textReport = true
@@ -70,21 +72,31 @@ android {
             version = '4.1.2'
         }
     }
-    libraryVariants.configureEach {variant ->
+}
+def  bundleTaskProviders = []
+androidComponents {
+    onVariants(selector().all()) {variant ->
         def  variantName = variant.name.capitalize()
-        def  buildType = variant.buildType.name
-        def  abis = defaultConfig.ndk.abiFilters.toList()
+        def  buildType = variant.buildType
+        def  abis = android.defaultConfig.ndk.abiFilters.toList()
         def  templateDir = file('android/templates')
-        tasks.register("bundleNativeSDK${variantName}", Zip) {
+        def  aarProvider = variant.artifacts.get(SingleArtifact.AAR.INSTANCE)
+        def  bundleTask = tasks.register("bundleNativeSDK${variantName}", Zip) {
             dependsOn "assemble${variantName}"
             def  sdkDir = layout.buildDirectory.dir("outputs/sdk/${buildType}")
             def  genDir = layout.buildDirectory.dir("generated/sdk/${buildType}")
-            archiveFileName = "prism-android-sdk-${prismVersion}-${buildType}.zip"
+            archiveFileName = prismVersion.map {v ->
+                "prism-android-sdk-${v}-${buildType}.zip"
+            }
             destinationDirectory = sdkDir
+            inputs.dir(templateDir).withPropertyName("templateDir")
+            inputs.property("version", prismVersion)
+            inputs.property("buildType", buildType)
+            inputs.property("abis", abis)
             doFirst {
                 def  gen = genDir.get().asFile
                 def  vars = [
-                        '@VERSION@': prismVersion,
+                        '@VERSION@': prismVersion.get(),
                         '@BUILD_TYPE@': buildType,
                         '@ABIS@': abis.inspect()
                         ]
@@ -105,8 +117,7 @@ android {
             from("include") {
                 into "include"
             }
-            def  aarPath = layout.buildDirectory.file("outputs/aar/prism-${buildType}.aar")
-            from(zipTree(aarPath)) {
+            from(zipTree(aarProvider)) {
                 include "jni/**/*.so"
                 eachFile {
                     it.path = it.path.replaceFirst("jni/", "lib/")
@@ -117,19 +128,17 @@ android {
                 into "."
             }
         }
-    }
-}
-afterEvaluate {
-    android.libraryVariants.configureEach {variant ->
-        def  variantName = variant.name.capitalize()
-        tasks.named("assemble${variantName}").configure {
-            finalizedBy "bundleNativeSDK${variantName}"
+        bundleTaskProviders << bundleTask
+        tasks.matching {
+            it.name == "assemble${variantName}"
+        }.configureEach {
+            finalizedBy bundleTask
         }
     }
-    tasks.register("bundleAllNativeSDKs") {
-        dependsOn "bundleNativeSDKDebug", "bundleNativeSDKRelease"
-        group = "build"
-    }
+}
+tasks.register("bundleAllNativeSDKs") {
+    dependsOn bundleTaskProviders
+    group = "build"
 }
 spotless {
     groovyGradle {
@@ -152,4 +161,3 @@ spotless {
         formatAnnotations()
     }
 }
-buildDir = file('build/android/gradle')

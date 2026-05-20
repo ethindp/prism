@@ -49,7 +49,8 @@ void GodotPrismBackend::_init_raw(PrismBackend *raw) {
 GodotPrismBackend::~GodotPrismBackend() {
   if (backend != nullptr) {
     if (features & PRISM_BACKEND_SUPPORTS_STOP) {
-      prism_backend_stop(backend);
+      (void)prism_backend_stop(
+          backend); // Deliberately ignored: we cannot throw here
     }
     prism_backend_free(backend);
     backend = nullptr;

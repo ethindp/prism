@@ -1,4 +1,4 @@
-/* auto-generated on 2026-05-07 06:54:06 +0200. Do not edit! */
+/* auto-generated on 2026-05-19 11:29:43 -0400. Do not edit! */
 /* begin file include\simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -1016,8 +1016,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <cstdlib>
 #if defined(_MSC_VER)
   #include <intrin.h>
-#elif defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)
+#elif (defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)) ||           \
+    defined(__FILC__)
   #include <cpuid.h>
+#endif
+
+#ifdef __FILC__
+  #include <stdfil.h>
 #endif
 
 
@@ -1167,7 +1172,8 @@ static inline void cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
   *ebx = cpu_info[1];
   *ecx = cpu_info[2];
   *edx = cpu_info[3];
-  #elif defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)
+  #elif (defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)) ||         \
+      defined(__FILC__)
   uint32_t level = *eax;
   __get_cpuid(level, eax, ebx, ecx, edx);
   #else
@@ -1183,6 +1189,8 @@ static inline void cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
 static inline uint64_t xgetbv() {
   #if defined(_MSC_VER)
   return _xgetbv(0);
+  #elif defined(__FILC__)
+  return zxgetbv();
   #else
   uint32_t xcr0_lo, xcr0_hi;
   asm volatile("xgetbv\n\t" : "=a"(xcr0_lo), "=d"(xcr0_hi) : "c"(0));
@@ -3625,7 +3633,7 @@ simdutf_constexpr23 simdutf_warn_unused bool validate(BytePtr data,
       }
       // range check
       code_point = (byte & 0b00011111) << 6 | (data[pos + 1] & 0b00111111);
-      if ((code_point < 0x80) || (0x7ff < code_point)) {
+      if (code_point < 0x80) {
         return false;
       }
     } else if ((byte & 0b11110000) == 0b11100000) {
@@ -3643,7 +3651,7 @@ simdutf_constexpr23 simdutf_warn_unused bool validate(BytePtr data,
       code_point = (byte & 0b00001111) << 12 |
                    (data[pos + 1] & 0b00111111) << 6 |
                    (data[pos + 2] & 0b00111111);
-      if ((code_point < 0x800) || (0xffff < code_point) ||
+      if ((code_point < 0x800) ||
           (0xd7ff < code_point && code_point < 0xe000)) {
         return false;
       }
@@ -3724,7 +3732,7 @@ validate_with_errors(BytePtr data, size_t len) noexcept {
       }
       // range check
       code_point = (byte & 0b00011111) << 6 | (data[pos + 1] & 0b00111111);
-      if ((code_point < 0x80) || (0x7ff < code_point)) {
+      if (code_point < 0x80) {
         return result(error_code::OVERLONG, pos);
       }
     } else if ((byte & 0b11110000) == 0b11100000) {
@@ -3742,7 +3750,7 @@ validate_with_errors(BytePtr data, size_t len) noexcept {
       code_point = (byte & 0b00001111) << 12 |
                    (data[pos + 1] & 0b00111111) << 6 |
                    (data[pos + 2] & 0b00111111);
-      if ((code_point < 0x800) || (0xffff < code_point)) {
+      if (code_point < 0x800) {
         return result(error_code::OVERLONG, pos);
       }
       if (0xd7ff < code_point && code_point < 0xe000) {
@@ -3794,7 +3802,8 @@ validate_with_errors(const char *buf, size_t len) noexcept {
 // errors from there Used to pinpoint the location of an error when an invalid
 // chunk is detected We assume that the stream starts with a leading byte, and
 // to check that it is the case, we ask that you pass a pointer to the start of
-// the stream (start).
+// the stream (start). Note that the resulting count is underflowed if an error
+// is encountered in the rewinded segment.
 inline simdutf_warn_unused result rewind_and_validate_with_errors(
     const char *start, const char *buf, size_t len) noexcept {
   // First check that we start with a leading byte
@@ -3814,7 +3823,7 @@ inline simdutf_warn_unused result rewind_and_validate_with_errors(
   }
 
   result res = validate_with_errors(buf, len + extra_len);
-  res.count -= extra_len;
+  res.count -= extra_len; // Might underflow
   return res;
 }
 
@@ -4273,7 +4282,7 @@ simdutf_constexpr23 size_t convert(InputPtr data, size_t len,
       // range check
       uint32_t code_point =
           (leading_byte & 0b00011111) << 6 | (data[pos + 1] & 0b00111111);
-      if (code_point < 0x80 || 0x7ff < code_point) {
+      if (code_point < 0x80) {
         return 0;
       }
       if constexpr (!match_system(big_endian)) {
@@ -4298,8 +4307,7 @@ simdutf_constexpr23 size_t convert(InputPtr data, size_t len,
       uint32_t code_point = (leading_byte & 0b00001111) << 12 |
                             (data[pos + 1] & 0b00111111) << 6 |
                             (data[pos + 2] & 0b00111111);
-      if (code_point < 0x800 || 0xffff < code_point ||
-          (0xd7ff < code_point && code_point < 0xe000)) {
+      if (code_point < 0x800 || (0xd7ff < code_point && code_point < 0xe000)) {
         return 0;
       }
       if constexpr (!match_system(big_endian)) {
@@ -4400,7 +4408,7 @@ simdutf_constexpr23 result convert_with_errors(InputPtr data, size_t len,
       // range check
       uint32_t code_point = (leading_byte & 0b00011111) << 6 |
                             (uint8_t(data[pos + 1]) & 0b00111111);
-      if (code_point < 0x80 || 0x7ff < code_point) {
+      if (code_point < 0x80) {
         return result(error_code::OVERLONG, pos);
       }
       if constexpr (!match_system(big_endian)) {
@@ -4425,7 +4433,7 @@ simdutf_constexpr23 result convert_with_errors(InputPtr data, size_t len,
       uint32_t code_point = (leading_byte & 0b00001111) << 12 |
                             (uint8_t(data[pos + 1]) & 0b00111111) << 6 |
                             (uint8_t(data[pos + 2]) & 0b00111111);
-      if ((code_point < 0x800) || (0xffff < code_point)) {
+      if (code_point < 0x800) {
         return result(error_code::OVERLONG, pos);
       }
       if (0xd7ff < code_point && code_point < 0xe000) {
@@ -4719,7 +4727,7 @@ simdutf_constexpr23 size_t convert(InputPtr data, size_t len,
       // range check
       uint32_t code_point = (leading_byte & 0b00011111) << 6 |
                             (uint8_t(data[pos + 1]) & 0b00111111);
-      if (code_point < 0x80 || 0x7ff < code_point) {
+      if (code_point < 0x80) {
         return 0;
       }
       *utf32_output++ = char32_t(code_point);
@@ -4740,8 +4748,7 @@ simdutf_constexpr23 size_t convert(InputPtr data, size_t len,
       uint32_t code_point = (leading_byte & 0b00001111) << 12 |
                             (uint8_t(data[pos + 1]) & 0b00111111) << 6 |
                             (uint8_t(data[pos + 2]) & 0b00111111);
-      if (code_point < 0x800 || 0xffff < code_point ||
-          (0xd7ff < code_point && code_point < 0xe000)) {
+      if (code_point < 0x800 || (0xd7ff < code_point && code_point < 0xe000)) {
         return 0;
       }
       *utf32_output++ = char32_t(code_point);
@@ -4825,7 +4832,7 @@ simdutf_constexpr23 result convert_with_errors(InputPtr data, size_t len,
       // range check
       uint32_t code_point = (leading_byte & 0b00011111) << 6 |
                             (uint8_t(data[pos + 1]) & 0b00111111);
-      if (code_point < 0x80 || 0x7ff < code_point) {
+      if (code_point < 0x80) {
         return result(error_code::OVERLONG, pos);
       }
       *utf32_output++ = char32_t(code_point);
@@ -4846,7 +4853,7 @@ simdutf_constexpr23 result convert_with_errors(InputPtr data, size_t len,
       uint32_t code_point = (leading_byte & 0b00001111) << 12 |
                             (uint8_t(data[pos + 1]) & 0b00111111) << 6 |
                             (uint8_t(data[pos + 2]) & 0b00111111);
-      if (code_point < 0x800 || 0xffff < code_point) {
+      if (code_point < 0x800) {
         return result(error_code::OVERLONG, pos);
       }
       if (0xd7ff < code_point && code_point < 0xe000) {

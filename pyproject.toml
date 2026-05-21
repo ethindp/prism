@@ -30,6 +30,7 @@ dev = [
     "numpy>=2.2.6",
     "packaging>=26.0",
     "pytest>=9.0.2",
+    "silero-vad>=6.2.1",
 ]
 
 [tool.scikit-build]

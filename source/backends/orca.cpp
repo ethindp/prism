@@ -122,7 +122,7 @@ public:
         features |= IS_SUPPORTED_AT_RUNTIME;
       }
     } catch (const Glib::Error &) {
-      features &= IS_SUPPORTED_AT_RUNTIME;
+      features &= ~IS_SUPPORTED_AT_RUNTIME;
     }
     return features;
   }

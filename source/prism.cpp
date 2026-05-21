@@ -11,6 +11,13 @@
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
+#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
+     defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
+    !defined(__ANDROID__)
+#ifndef NO_ORCA
+#include <giomm/init.h>
+#endif
+#endif
 
 struct PrismContext {
   BackendRegistry &registry;
@@ -72,6 +79,13 @@ prism_init(PrismConfig *cfg) {
     owns_com = true;
     break;
   }
+#endif
+#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
+     defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
+    !defined(__ANDROID__)
+#ifndef NO_ORCA
+  Gio::init();
+#endif
 #endif
   if (cfg != nullptr) {
     if (cfg->version != PRISM_CONFIG_VERSION) {

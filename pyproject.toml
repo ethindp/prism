@@ -27,12 +27,9 @@ build-backend = "scikit_build_core.build"
 
 [dependency-groups]
 dev = [
-    "hypothesis>=6.151.4",
     "numpy>=2.2.6",
     "packaging>=26.0",
     "pytest>=9.0.2",
-    "torch>=2.10.0",
-    "torchaudio>=2.10.0",
 ]
 
 [tool.scikit-build]

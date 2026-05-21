@@ -5,14 +5,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
+typedef struct OrcaDialect OrcaDialect;
+static gboolean probe_legacy_module(GDBusConnection *conn, const OrcaDialect *d,
+                                    const char *path);
+static gboolean probe_v1_speech_manager(GDBusConnection *conn,
+                                        const OrcaDialect *d, const char *path);
+typedef gboolean (*OrcaProbeFunc)(GDBusConnection *conn, const OrcaDialect *d,
+                                  const char *path);
+
+struct OrcaDialect {
   const char *bus_name;
   const char *service_path;
   const char *service_iface;
   const char *const *speech_path_candidates;
   const char *speech_iface;
   gboolean generic_dispatch;
-} OrcaDialect;
+  OrcaProbeFunc probe_speech_path;
+};
 static const char *const LEGACY_SPEECH_PATHS[] = {
     "/org/gnome/Orca/Service/SpeechAndVerbosityManager",
     "/org/gnome/Orca/Service/SpeechManager",
@@ -29,6 +38,7 @@ static const OrcaDialect ORCA_LEGACY_DIALECT = {
     .speech_path_candidates = LEGACY_SPEECH_PATHS,
     .speech_iface = "org.gnome.Orca.Module",
     .generic_dispatch = TRUE,
+    .probe_speech_path = probe_legacy_module,
 };
 static const OrcaDialect ORCA_V1_DIALECT = {
     .bus_name = "org.gnome.Orca1.Service",
@@ -37,6 +47,7 @@ static const OrcaDialect ORCA_V1_DIALECT = {
     .speech_path_candidates = V1_SPEECH_PATHS,
     .speech_iface = "org.gnome.Orca1.SpeechManager",
     .generic_dispatch = FALSE,
+    .probe_speech_path = probe_v1_speech_manager,
 };
 static const OrcaDialect *const DIALECTS[] = {
     &ORCA_V1_DIALECT,
@@ -70,13 +81,30 @@ static gboolean name_has_owner(GDBusConnection *conn, const char *bus_name) {
   return owned;
 }
 
-static gboolean probe_object_path(GDBusConnection *conn, const char *bus_name,
-                                  const char *object_path) {
+static gboolean probe_legacy_module(GDBusConnection *conn, const OrcaDialect *d,
+                                    const char *path) {
   GError *err = NULL;
   GVariant *reply = g_dbus_connection_call_sync(
-      conn, bus_name, object_path, "org.freedesktop.DBus.Introspectable",
-      "Introspect", NULL, G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NONE,
-      DBUS_TIMEOUT_MS, NULL, &err);
+      conn, d->bus_name, path, d->speech_iface, "ListCommands", NULL, NULL,
+      G_DBUS_CALL_FLAGS_NONE, DBUS_TIMEOUT_MS, NULL, &err);
+  if (err) {
+    g_error_free(err);
+  }
+  if (!reply) {
+    return FALSE;
+  }
+  g_variant_unref(reply);
+  return TRUE;
+}
+
+static gboolean probe_v1_speech_manager(GDBusConnection *conn,
+                                        const OrcaDialect *d,
+                                        const char *path) {
+  GError *err = NULL;
+  GVariant *reply = g_dbus_connection_call_sync(
+      conn, d->bus_name, path, "org.freedesktop.DBus.Properties", "Get",
+      g_variant_new("(ss)", d->speech_iface, "Rate"), NULL,
+      G_DBUS_CALL_FLAGS_NONE, DBUS_TIMEOUT_MS, NULL, &err);
   if (err) {
     g_error_free(err);
   }
@@ -123,8 +151,8 @@ bool prism_orca_available(void) {
   for (int i = 0; DIALECTS[i] != NULL; i++) {
     if (name_has_owner(c, DIALECTS[i]->bus_name)) {
       for (int j = 0; DIALECTS[i]->speech_path_candidates[j] != NULL; j++) {
-        if (probe_object_path(c, DIALECTS[i]->bus_name,
-                              DIALECTS[i]->speech_path_candidates[j])) {
+        if (DIALECTS[i]->probe_speech_path(
+                c, DIALECTS[i], DIALECTS[i]->speech_path_candidates[j])) {
           result = true;
           break;
         }
@@ -158,8 +186,7 @@ bool prism_orca_create(PrismOrcaDBusInstance **out) {
       continue;
     }
     for (int j = 0; d->speech_path_candidates[j] != NULL; j++) {
-      if (probe_object_path(inst->conn, d->bus_name,
-                            d->speech_path_candidates[j])) {
+      if (d->probe_speech_path(inst->conn, d, d->speech_path_candidates[j])) {
         inst->dialect = d;
         inst->speech_path = d->speech_path_candidates[j];
         break;

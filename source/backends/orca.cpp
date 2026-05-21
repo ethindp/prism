@@ -9,6 +9,7 @@
     !defined(__ANDROID__)
 #ifndef NO_ORCA
 #include <array>
+#include <functional>
 #include <giomm/dbusconnection.h>
 #include <giomm/dbuserror.h>
 #include <glibmm/error.h>
@@ -17,20 +18,70 @@
 #include <span>
 #include <vector>
 
+namespace {
+struct OrcaDialect {
+  const char *bus_name;
+  const char *service_path;
+  const char *service_iface;
+  std::span<const char *const> speech_path_candidates;
+  const char *speech_iface;
+  bool generic_dispatch;
+  bool (*probe_speech_path)(const Glib::RefPtr<Gio::DBus::Connection> &,
+                            const OrcaDialect &, const char *path);
+};
+
+struct ResolvedDialect {
+  const OrcaDialect *dialect;
+  const char *speech_path;
+};
+
+bool probe_legacy_module(const Glib::RefPtr<Gio::DBus::Connection> &conn,
+                         const OrcaDialect &d, const char *path) {
+  try {
+    conn->call_sync(path, d.speech_iface, "ListCommands",
+                    Glib::VariantContainerBase::create_tuple(
+                        std::vector<Glib::VariantBase>{}),
+                    d.bus_name);
+    return true;
+  } catch (const Glib::Error &) {
+    return false;
+  }
+}
+
+bool probe_v1_speech_manager(const Glib::RefPtr<Gio::DBus::Connection> &conn,
+                             const OrcaDialect &d, const char *path) {
+  try {
+    const auto params = Glib::VariantContainerBase::create_tuple({
+        Glib::Variant<Glib::ustring>::create(d.speech_iface),
+        Glib::Variant<Glib::ustring>::create("Rate"),
+    });
+    conn->call_sync(path, "org.freedesktop.DBus.Properties", "Get", params,
+                    d.bus_name);
+    return true;
+  } catch (const Glib::Error &) {
+    return false;
+  }
+}
+
+bool name_has_owner(const Glib::RefPtr<Gio::DBus::Connection> &conn,
+                    const char *bus_name) {
+  try {
+    const auto params = Glib::VariantContainerBase::create_tuple(
+        Glib::Variant<Glib::ustring>::create(bus_name));
+    const auto reply =
+        conn->call_sync("/org/freedesktop/DBus", "org.freedesktop.DBus",
+                        "NameHasOwner", params, "org.freedesktop.DBus");
+    const auto child = Glib::VariantBase::cast_dynamic<Glib::Variant<bool>>(
+        reply.get_child(0));
+    return child.get();
+  } catch (const Glib::Error &) {
+    return false;
+  }
+}
+} // namespace
+
 class OrcaBackend final : public TextToSpeechBackend {
 private:
-  struct OrcaDialect {
-    const char *bus_name;
-    const char *service_path;
-    const char *service_iface;
-    std::span<const char *const> speech_path_candidates;
-    const char *speech_iface;
-    bool generic_dispatch;
-  };
-  struct ResolvedDialect {
-    const OrcaDialect *dialect;
-    const char *speech_path;
-  };
   static constexpr auto LEGACY_SPEECH_PATHS = std::to_array<const char *>({
       "/org/gnome/Orca/Service/SpeechAndVerbosityManager",
       "/org/gnome/Orca/Service/SpeechManager",
@@ -45,6 +96,7 @@ private:
       .speech_path_candidates = LEGACY_SPEECH_PATHS,
       .speech_iface = "org.gnome.Orca.Module",
       .generic_dispatch = true,
+      .probe_speech_path = &probe_legacy_module,
   };
   static constexpr auto ORCA_V1_DIALECT = OrcaDialect{
       .bus_name = "org.gnome.Orca1.Service",
@@ -53,49 +105,20 @@ private:
       .speech_path_candidates = V1_SPEECH_PATHS,
       .speech_iface = "org.gnome.Orca1.SpeechManager",
       .generic_dispatch = false,
+      .probe_speech_path = &probe_v1_speech_manager,
   };
   Glib::RefPtr<Gio::DBus::Connection> conn;
   const OrcaDialect *dialect{nullptr};
   const char *speech_path{nullptr};
 
-  static bool name_has_owner(const Glib::RefPtr<Gio::DBus::Connection> &conn,
-                             const char *bus_name) {
-    try {
-      const auto params = Glib::VariantContainerBase::create_tuple(
-          Glib::Variant<Glib::ustring>::create(bus_name));
-      const auto reply =
-          conn->call_sync("/org/freedesktop/DBus", "org.freedesktop.DBus",
-                          "NameHasOwner", params, "org.freedesktop.DBus");
-      const auto child = Glib::VariantBase::cast_dynamic<Glib::Variant<bool>>(
-          reply.get_child(0));
-      return child.get();
-    } catch (const Glib::Error &) {
-      return false;
-    }
-  }
-
-  static bool probe_object_path(const Glib::RefPtr<Gio::DBus::Connection> &conn,
-                                const char *bus_name, const char *object_path) {
-    try {
-      conn->call_sync(object_path, "org.freedesktop.DBus.Introspectable",
-                      "Introspect",
-                      Glib::VariantContainerBase::create_tuple(
-                          std::vector<Glib::VariantBase>{}),
-                      bus_name);
-      return true;
-    } catch (const Glib::Error &) {
-      return false;
-    }
-  }
-
   static std::optional<ResolvedDialect>
   detect_orca_dialect(const Glib::RefPtr<Gio::DBus::Connection> &conn) {
-    for (const OrcaDialect *d : {&ORCA_LEGACY_DIALECT, &ORCA_V1_DIALECT}) {
+    for (const OrcaDialect *d : {&ORCA_V1_DIALECT, &ORCA_LEGACY_DIALECT}) {
       if (!name_has_owner(conn, d->bus_name)) {
         continue;
       }
       for (const char *candidate : d->speech_path_candidates) {
-        if (probe_object_path(conn, d->bus_name, candidate)) {
+        if (d->probe_speech_path(conn, *d, candidate)) {
           return ResolvedDialect{
               .dialect = d,
               .speech_path = candidate,
@@ -161,7 +184,7 @@ public:
     try {
       const auto params = Glib::VariantContainerBase::create_tuple(
           Glib::Variant<Glib::ustring>::create(
-              Glib::ustring(text.data(), text.size())));
+              Glib::ustring(std::string(text.data(), text.size()))));
       const auto reply =
           conn->call_sync(dialect->service_path, dialect->service_iface,
                           "PresentMessage", params, dialect->bus_name);
@@ -186,7 +209,7 @@ public:
     }
     try {
       Glib::VariantContainerBase params;
-      const char *method_name = nullptr;
+      std::string method_name;
       if (dialect->generic_dispatch) {
         params = Glib::VariantContainerBase::create_tuple({
             Glib::Variant<Glib::ustring>::create("InterruptSpeech"),

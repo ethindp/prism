@@ -28,15 +28,6 @@ jobs:
         uses: lukka/get-cmake@v4.3.2
         with:
           cmakeVersion: latest
-      - name: Install libspiel
-        run: |
-          git clone https://github.com/project-spiel/libspiel.git
-          cd libspiel
-          meson setup build --prefix=/usr/local -Dtests=false -Ddocs=false
-          meson compile -C build
-          sudo meson install -C build
-          cd ..
-          rm -rf libspiel
       - name: Build all configurations
         run: |
           for shared in ON OFF; do

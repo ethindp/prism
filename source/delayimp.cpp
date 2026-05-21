@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
-#include <windows.h>
 #include <array>
 #include <cstring>
 #include <cwchar>
-#include <delayimp.h>
 #include <filesystem>
 #include <tchar.h>
 #include <utility>
+#include <windows.h>
+#include <delayimp.h>
 
 template <typename T> static constexpr FARPROC stub_cast(T func) {
   // NOLINTNEXTLINE(bugprone-casting-through-void)
@@ -26,11 +26,9 @@ using StubEntry = struct {
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
     defined(__i386__)
 #if defined(_M_X64) || defined(__x86_64__)
-static constexpr const char *SA_DLL = "SAAPI64.dll";
 static constexpr const char *ZDSR_DLL = "ZDSRAPI_x64.dll";
 static constexpr const char *BOY_PC_READER_DLL = "byctrl-x64.dll";
 #elif defined(_M_IX86) || defined(__i386__)
-static constexpr const char *SA_DLL = "SAAPI32.dll";
 static constexpr const char *ZDSR_DLL = "ZDSRAPI.dll";
 static constexpr const char *BOY_PC_READER_DLL = "byctrl.dll";
 #endif
@@ -39,21 +37,6 @@ static constexpr const char *PCTK_DLL = "PCTKUSR.dll";
 static constexpr const char *PRISM_ORCA_BRIDGE_DLL = "prism_orca_bridge.dll";
 static constexpr const char *PRISM_SPEECH_DISPATCHER_BRIDGE_DLL =
     "prism_speech_dispatcher_bridge.dll";
-
-namespace system_access {
-static BOOL __stdcall stub_SA_SayW([[maybe_unused]] const wchar_t *text) {
-  return FALSE;
-}
-
-static BOOL __stdcall
-stub_SA_BrlShowTextW([[maybe_unused]] const wchar_t *msg) {
-  return FALSE;
-}
-
-static BOOL __stdcall stub_SA_StopAudio() { return FALSE; }
-
-static BOOL __stdcall stub_SA_IsRunning() { return FALSE; }
-} // namespace system_access
 
 namespace zdsr {
 static int WINAPI stub_zdsr_InitTTS([[maybe_unused]] int type,
@@ -78,7 +61,7 @@ using BoyCtrlSpeakCompleteFunc = void(__stdcall *)(int reason);
 // NOLINTBEGIN(performance-enum-size)
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable: 26812)
+#pragma warning(disable : 26812)
 #endif
 enum BoyCtrlError {
   e_bcerr_success = 0,
@@ -121,8 +104,8 @@ stub_BoyCtrlInitializeU8([[maybe_unused]] const char *logPath) {
 
 static BoyCtrlError __stdcall
 stub_BoyCtrlSpeak([[maybe_unused]] const wchar_t *text,
-  [[maybe_unused]] bool append,
-[[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
+                  [[maybe_unused]] bool append,
+                  [[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
   return e_bcerr_unavailable;
 }
 
@@ -133,22 +116,21 @@ stub_BoyCtrlSpeakEx([[maybe_unused]] const wchar_t *text,
   return e_bcerr_unavailable;
 }
 
-static BoyCtrlError __stdcall stub_BoyCtrlSpeakAnsi(
-    [[maybe_unused]] const char *text,
-    [[maybe_unused]] bool append,
-    [[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
-  return e_bcerr_unavailable;
-}
-
-static BoyCtrlError __stdcall stub_BoyCtrlSpeakU8(
-    [[maybe_unused]] const char *text,
-    [[maybe_unused]] bool append,
-    [[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
+static BoyCtrlError __stdcall
+stub_BoyCtrlSpeakAnsi([[maybe_unused]] const char *text,
+                      [[maybe_unused]] bool append,
+                      [[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
   return e_bcerr_unavailable;
 }
 
 static BoyCtrlError __stdcall
-stub_BoyCtrlStopSpeaking() {
+stub_BoyCtrlSpeakU8([[maybe_unused]] const char *text,
+                    [[maybe_unused]] bool append,
+                    [[maybe_unused]] BoyCtrlSpeakCompleteFunc onCompletion) {
+  return e_bcerr_unavailable;
+}
+
+static BoyCtrlError __stdcall stub_BoyCtrlStopSpeaking() {
   return e_bcerr_unavailable;
 }
 
@@ -453,18 +435,6 @@ static const
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
     defined(__i386__)
     auto stubs = std::to_array<StubEntry>({
-        {.dll = SA_DLL,
-         .func = "SA_SayW",
-         .stub = stub_cast(system_access::stub_SA_SayW)},
-        {.dll = SA_DLL,
-         .func = "SA_BrlShowTextW",
-         .stub = stub_cast(system_access::stub_SA_BrlShowTextW)},
-        {.dll = SA_DLL,
-         .func = "SA_StopAudio",
-         .stub = stub_cast(system_access::stub_SA_StopAudio)},
-        {.dll = SA_DLL,
-         .func = "SA_IsRunning",
-         .stub = stub_cast(system_access::stub_SA_IsRunning)},
         {.dll = ZDSR_DLL,
          .func = "InitTTS",
          .stub = stub_cast(zdsr::stub_zdsr_InitTTS)},

@@ -63,7 +63,7 @@ The endpoint binding established at initialization is fixed for the lifetime of 
 
 ### SystemAccess
 
-The System Access backend is a legacy backend. In addition to `PRISM_ENABLE_LEGACY_BACKENDS`, source builds that wish to include it MUST set `PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND`. The backend depends on a vendor-supplied dynamic library: `saapi32.dll` on x86 builds, `saapi64.dll` on x64 builds. The library MUST be placed alongside the Prism library or otherwise reachable on the loader path of the host process. Calls into the backend fail if the library cannot be loaded. The backend is available only on x86 and x64 Windows.
+The System Access backend is a legacy backend. In addition to `PRISM_ENABLE_LEGACY_BACKENDS`, source builds that wish to include it MUST set `PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND`. No other requirements are imposed.
 
 ### WindowEyes
 

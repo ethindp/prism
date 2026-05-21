@@ -1,6 +1,0 @@
-LIBRARY "SAAPI32.dll"
-EXPORTS
-    SA_SayW@4
-    SA_BrlShowTextW@4
-    SA_StopAudio@0
-    SA_IsRunning@0

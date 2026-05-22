@@ -127,4 +127,4 @@ elif sys.platform == "darwin":
     lib_path = (dll_home / "libprism.dylib").resolve()
 else:
     lib_path = (dll_home / "libprism.so").resolve()
-lib = ffi.dlopen(str(lib_path), ffi.RTLD_NOW | ffi.RTLD_DEEPBIND)
+lib = ffi.dlopen(str(lib_path), ffi.RTLD_NOW | ffi.RTLD_DEEPBIND if sys.platform == "linux" else 0)

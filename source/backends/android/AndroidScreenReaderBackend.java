@@ -3,6 +3,7 @@ package com.github.ethindp.prism;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Context;
+import android.os.Build;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import com.snapchat.djinni.Outcome;
@@ -83,7 +84,12 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
         return res;
       }
     }
-    AccessibilityEvent e = new AccessibilityEvent();
+    AccessibilityEvent e;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      e = new AccessibilityEvent();
+    } else {
+      e = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT);
+    }
     e.setEventType(AccessibilityEvent.TYPE_ANNOUNCEMENT);
     e.setPackageName(ctx.getPackageName());
     e.getText().add(out.toString() + AvoidDuplicateSpeechHack);

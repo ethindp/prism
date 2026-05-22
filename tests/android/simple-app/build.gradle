@@ -4,10 +4,10 @@ plugins {
 def  osArch = System.getProperty("os.arch").toLowerCase()
 def  isArm64 = (osArch == "aarch64" || osArch == "arm64")
 def  deviceNames = isArm64 ?
-        (30..36).collect {
+        (26..36).collect {
             "api${it}AospArm64"
         } :
-        (31..36).collect {
+        ((26..29) + (31..36)).collect {
             "api${it}AospX64"
         }
 android {
@@ -21,7 +21,7 @@ android {
     }
     defaultConfig {
         applicationId = "com.github.ethindp.prism.tests.android.simpleapp"
-        minSdk = 30
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -50,7 +50,7 @@ android {
         managedDevices {
             localDevices {
                 if (isArm64) {
-                    (30..36).each {api ->
+                    (26..36).each {api ->
                         register("api${api}AospArm64") {
                             device = "Pixel 6"
                             apiLevel = api
@@ -60,11 +60,12 @@ android {
                         }
                     }
                 } else {
-                    (31..36).each {api ->
+                    ((26..29) + (31..36)).each {api ->
                         register("api${api}AospX64") {
                             device = "Pixel 2"
                             apiLevel = api
-                            systemImageSource = "google_apis"
+                            // API 27 x86_64 has no google_apis image; only the default (AOSP) one
+                            systemImageSource = (api == 27) ? "default" : "google_apis"
                             require64Bit = true
                             testedAbi = "x86_64"
                         }

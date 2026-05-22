@@ -1,14 +1,19 @@
 from typing import override
 
 import prism
-from win32more.Microsoft.UI.Xaml import RoutedEventArgs, Window
+from win32more.Microsoft.UI.Xaml import (
+    LaunchActivatedEventArgs,
+    RoutedEventArgs,
+    Window,
+)
 from win32more.Microsoft.UI.Xaml.Controls import Button, StackPanel, TextBox
+from win32more.Windows.Foundation import IInspectable
 from win32more.winui3 import XamlApplication
 
 
 class App(XamlApplication):
     @override
-    def OnLaunched(self, args):
+    def OnLaunched(self, args: LaunchActivatedEventArgs) -> None:
         self.win = Window()
         self.win.Title = "Prism UIA test"
         panel = StackPanel()
@@ -26,7 +31,7 @@ class App(XamlApplication):
         self.backend = self.ctx.create(prism.BackendId.UIA)
 
     @override
-    def on_button_click(self, sender, e: RoutedEventArgs):
+    def on_button_click(self, sender: IInspectable, e: RoutedEventArgs) -> None:
         text = self.text_input.Text
         self.backend.output(text)
 

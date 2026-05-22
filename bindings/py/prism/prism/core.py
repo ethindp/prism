@@ -1,9 +1,11 @@
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field, fields
 from enum import IntEnum
 
 from .lib import ffi, lib
 
+AudioCallback = Callable[[list[float], int, int], None]
 
 class BackendId(IntEnum):
     INVALID = 0
@@ -21,7 +23,7 @@ class BackendId(IntEnum):
     UIA = 0x6238F019DB678F8E
     ZDSR = 0x3D93C56C9E7F2A2E
     ZOOM_TEXT = 0xAE439D62DC7B1479
-    BOY_PC_READER = 0x285aba1c16f3300f
+    BOY_PC_READER = 0x285ABA1C16F3300F
     PC_TALKER = 0x344B951962E3B835
     SENSE_READER = 0xED4760890B55C2F2
     SYSTEM_ACCESS = 0x8380F2A37B2C3EB6
@@ -116,6 +118,7 @@ class PrismInternalBackendLimitExceededError(PrismError, RuntimeError):
 
 class PrismBackendEnteredUndefinedStateError(PrismError, RuntimeError):
     """PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE"""
+
 
 _ERROR_MAP = {
     lib.PRISM_ERROR_NOT_INITIALIZED: PrismNotInitializedError,
@@ -227,7 +230,7 @@ class Backend:
             lib.prism_backend_speak(self._raw, text.encode("utf-8"), interrupt),
         )
 
-    def speak_to_memory(self, text: str, on_audio_data) -> None:
+    def speak_to_memory(self, text: str, on_audio_data: AudioCallback) -> None:
         if len(text) == 0:
             raise PrismInvalidParamError(
                 lib.PRISM_ERROR_INVALID_PARAM,
@@ -236,11 +239,11 @@ class Backend:
 
         @ffi.callback("void(void *, const float *, size_t, size_t, size_t)")
         def audio_callback_shim(
-            _userdata,
-            samples_ptr: int,
-            count,
-            channels,
-            rate,
+            _userdata: ffi.CData,
+            samples_ptr: ffi.CData,
+            count: int,
+            channels: int,
+            rate: int,
         ) -> None:
             pcm_data = ffi.unpack(samples_ptr, count)
             on_audio_data(pcm_data, channels, rate)
@@ -379,7 +382,7 @@ class Context:
         if self._ctx == ffi.NULL:
             raise RuntimeError("Prism could not be initialized")
 
-    def __del__(self):
+    def __del__(self) -> None:
         if sys.is_finalizing():
             return
         if hasattr(self, "_ctx") and self._ctx:

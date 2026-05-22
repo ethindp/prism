@@ -116,9 +116,73 @@ before-all = [
         apt-get update
         apt-get install -y libspeechd-dev libdbus-1-dev wine64-tools build-essential ninja-build pkg-config git curl xz-utils libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev dbus-daemon python3 libffi-dev libpcre2-dev zlib1g-dev gettext
     fi
+    /opt/python/cp311-cp311/bin/pip install --quiet --upgrade 'meson>=1.3.2'
+    export PATH=/opt/python/cp311-cp311/bin:$PATH
+    GLIB_VERSION=2.88.1
+    GLIB_SERIES="${GLIB_VERSION%.*}"
+    curl -fL "https://download.gnome.org/sources/glib/${GLIB_SERIES}/glib-${GLIB_VERSION}.tar.xz" -o glib-${GLIB_VERSION}.tar.xz
+    curl -fL "https://download.gnome.org/sources/glib/${GLIB_SERIES}/glib-${GLIB_VERSION}.sha256sum" -o glib.sha256sum
+    sha256sum --ignore-missing -c glib.sha256sum
+    tar xJf glib-${GLIB_VERSION}.tar.xz
+    cd "glib-${GLIB_VERSION}"
+    meson setup build --prefix=/opt/prism --buildtype=release -Dtests=false -Dintrospection=disabled -Ddocumentation=false -Dman-pages=disabled
+    meson compile -C build
+    meson install -C build
+    cd ..
+    rm -rf "glib-${GLIB_VERSION}"
+    export PKG_CONFIG_PATH=/opt/prism/lib64/pkgconfig:/opt/prism/lib/pkgconfig:${PKG_CONFIG_PATH:-}
+    echo /opt/prism/lib64 >  /etc/ld.so.conf.d/usr-local.conf
+    echo /opt/prism/lib   >> /etc/ld.so.conf.d/usr-local.conf
+    ldconfig
+    SIGCPP_VERSION=3.6.0
+SIGCPP_SERIES="${SIGCPP_VERSION%.*}"
+curl -fL "https://download.gnome.org/sources/libsigc++/${SIGCPP_SERIES}/libsigc++-${SIGCPP_VERSION}.tar.xz" -o libsigc++-${SIGCPP_VERSION}.tar.xz
+curl -fL "https://download.gnome.org/sources/libsigc++/${SIGCPP_SERIES}/libsigc++-${SIGCPP_VERSION}.sha256sum" -o sigcpp.sha256sum
+sha256sum --ignore-missing -c sigcpp.sha256sum
+tar xJf libsigc++-${SIGCPP_VERSION}.tar.xz
+cd "libsigc++-${SIGCPP_VERSION}"
+meson setup build --prefix=/opt/prism --buildtype=release -Dbuild-documentation=false -Dbuild-examples=false -Dbuild-tests=false
+meson compile -C build
+meson install -C build
+cd ..
+rm -rf "libsigc++-${SIGCPP_VERSION}"
+ldconfig
+GLIBMM_VERSION=2.88.0
+GLIBMM_SERIES="${GLIBMM_VERSION%.*}"
+curl -fL "https://download.gnome.org/sources/glibmm/${GLIBMM_SERIES}/glibmm-${GLIBMM_VERSION}.tar.xz" -o glibmm-${GLIBMM_VERSION}.tar.xz
+curl -fL "https://download.gnome.org/sources/glibmm/${GLIBMM_SERIES}/glibmm-${GLIBMM_VERSION}.sha256sum" -o glibmm.sha256sum
+sha256sum --ignore-missing -c glibmm.sha256sum
+tar xJf glibmm-${GLIBMM_VERSION}.tar.xz
+cd "glibmm-${GLIBMM_VERSION}"
+meson setup build --prefix=/opt/prism --buildtype=release -Dbuild-documentation=false -Dbuild-examples=false -Dmaintainer-mode=false
+meson compile -C build
+meson install -C build
+cd ..
+rm -rf "glibmm-${GLIBMM_VERSION}"
+ldconfig
     """,
 ]
-environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4", PKG_CONFIG_PATH = "/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig", LD_LIBRARY_PATH = "/usr/local/lib64:/usr/local/lib" }
+environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4", PKG_CONFIG_PATH = "/opt/prism/lib64/pkgconfig:/opt/prism/lib/pkgconfig", LD_LIBRARY_PATH = "/opt/prism/lib64:/opt/prism/lib" }
+repair-wheel-command = [
+    """
+    POLICY=$(find /opt/_internal -name manylinux-policy.json 2>/dev/null | head -1)
+    if [ -z "$POLICY" ]; then
+        POLICY=$(find / -name manylinux-policy.json 2>/dev/null | head -1)
+    fi
+    echo "Patching policy at: $POLICY"
+    python3 -c "
+import json, sys
+p = sys.argv[1]
+data = json.load(open(p))
+strip = ('libglib-2.0', 'libgobject-2.0', 'libgthread-2.0', 'libgmodule-2.0', 'libgio-2.0')
+for entry in data:
+    if 'lib_whitelist' in entry:
+        entry['lib_whitelist'] = [x for x in entry['lib_whitelist'] if not x.startswith(strip)]
+json.dump(data, open(p, 'w'))
+" "$POLICY"
+    auditwheel repair -w {dest_dir} {wheel}
+    """
+]
 
 [tool.cibuildwheel.macos]
 archs = ["arm64", "x86_64"]
@@ -149,3 +213,12 @@ environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
    provider = "scikit_build_core.metadata.regex"
    input = "CMakeLists.txt"
    regex = '''project\(\s*prism\s+VERSION\s+(?P<value>[0-9.]+)'''
+
+[tool.ruff]
+extend-exclude = [
+    "third_party",
+    "gdextension/godot-cpp",
+]
+
+[tool.ruff.lint]
+extend-select = ["ERA", "YTT", "ANN", "ASYNC", "S", "BLE", "B", "A", "COM", "C4", "DTZ", "T10", "EXE", "FIX", "FA", "ISC", "ICN", "LOG", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SIM", "SLOT", "TID", "TD", "TC", "ARG", "PTH", "FLY", "I", "C90", "NPY", "PD", "N", "PERF", "W", "F", "PGH", "PL", "UP", "FURB", "RUF"]

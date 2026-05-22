@@ -168,8 +168,13 @@ template <typename T> struct BackendRegistrar {
   }
 };
 
+#if defined(__GNUC__) || defined(__clang__)
+  #define PRISM_KEEP __attribute__((used, retain))
+#else
+  #define PRISM_KEEP
+#endif
 #define REGISTER_BACKEND(cls, name, priority)                                  \
-  static ::BackendRegistrar<cls> registrar_##cls##_(name, priority)
+  PRISM_KEEP static ::BackendRegistrar<cls> registrar_##cls##_(name, priority)
 
 #define REGISTER_BACKEND_WITH_ID(cls, id, name, priority)                      \
-  static ::BackendRegistrar<cls> registrar_##cls##_(id, name, priority)
+  PRISM_KEEP static ::BackendRegistrar<cls> registrar_##cls##_(id, name, priority)

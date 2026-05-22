@@ -95,7 +95,7 @@ The runtime-supported probe requires that the session bus be available to the ho
 
 A single Spiel voice that declares support for multiple languages appears in the backend's voice list as one entry per language, sharing the same name but with distinct language strings. The voice index selected through `prism_backend_set_voice` therefore identifies a `(voice, language)` pair, not a voice alone.
 
-Note: the Spiel backend is not currently enabled in release packages, except the Python wheells, because it is not in any distribution package repositories at this time. As such, enabling it would break loading of the library for apps. Once this situation is resolved, it will be re-enabled. If you wish to have access to the backend on your machine, you will need to build Prism and Spiel from source.
+Note: the Spiel backend is not currently enabled in release packages or the Python wheels because it is not in any distribution package repositories at this time. As such, enabling it would break loading of the library for apps. Once this situation is resolved, it will be re-enabled. If you wish to have access to the backend on your machine, you will need to build Prism and Spiel from source by hand or using a tool such as [vcpkg](https://github.com/microsoft/vcpkg).
 
 ### Android Text to Speech
 

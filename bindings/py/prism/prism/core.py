@@ -7,6 +7,7 @@ from .lib import ffi, lib
 
 AudioCallback = Callable[[list[float], int, int], None]
 
+
 class BackendId(IntEnum):
     INVALID = 0
     SAPI = 0x1D6DF72422CEEE66

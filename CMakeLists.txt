@@ -365,7 +365,22 @@ if(WIN32)
   message(
     STATUS
       "Configuring NVDA Controller MIDL for architecture: ${MIDL_ENV_TARGET}")
-  find_program(MIDL_COMPILER midl)
+  if(NOT DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
+    get_filename_component(
+      WIN_SDK_ROOT
+      "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;KitsRoot10]"
+      ABSOLUTE
+      CACHE)
+  else()
+    set(WIN_SDK_ROOT "$ENV{ProgramFiles\(x86\)}/Windows Kits/10")
+    set(WIN_SDK_VERSION "${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
+  endif()
+  find_program(
+    MIDL_COMPILER
+    NAMES midl.exe
+    PATHS "${WIN_SDK_ROOT}/bin/${WIN_SDK_VERSION}/${_comp_arch_id_lc}"
+          "${WIN_SDK_ROOT}/bin/${_sdk_arch}"
+    DOC "Microsoft IDL Compiler" REQUIRED)
   if(NOT MIDL_COMPILER)
     message(FATAL_ERROR "midl.exe not found. Ensure Windows SDK is installed.")
   endif()

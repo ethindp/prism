@@ -155,9 +155,11 @@ public:
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (server_supports_interface(
-            controller_handle, nvdaController_NvdaController_v1_0_c_ifspec) &&
-        nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
-      return std::unexpected(BackendError::BackendNotAvailable);
+            controller_handle, nvdaController_NvdaController_v1_0_c_ifspec)) {
+      if (nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS) {
+        return std::unexpected(BackendError::BackendNotAvailable);
+      }
+    }
     return {};
   }
 

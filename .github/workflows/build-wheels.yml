@@ -44,10 +44,7 @@ jobs:
         env:
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
           CIBW_ARCHS: ${{ matrix.archs || 'auto' }}
-          ANDROID_API_LEVEL: 30
-          CIBW_BEFORE_ALL_LINUX: pip install "cmake>=4.2" "ninja"
-          CIBW_BEFORE_ALL_WINDOWS: pip install "cmake>=4.2" "ninja"
-          CIBW_BEFORE_ALL_MACOS: pip install "cmake>=4.2" "ninja"
+          ANDROID_API_LEVEL: 26
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}

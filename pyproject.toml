@@ -189,20 +189,8 @@ archs = ["AMD64", "ARM64", "X86"]
 environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
 
 [[tool.cibuildwheel.overrides]]
-select = "*-macosx_arm64"
-environment = { MACOSX_DEPLOYMENT_TARGET = "15.0", CMAKE_OSX_ARCHITECTURES = "arm64", CMAKE_Swift_COMPILER_TARGET = "arm64-apple-macosx15.0"}
-
-[[tool.cibuildwheel.overrides]]
-select = "*-macosx_x86_64"
-environment = {MACOSX_DEPLOYMENT_TARGET = "15.0", CMAKE_OSX_ARCHITECTURES = "x86_64", CMAKE_Swift_COMPILER_TARGET = "x86_64-apple-macosx15.0"}
-
-[[tool.cibuildwheel.overrides]]
 select = "*-win_arm64"
 environment = { CMAKE_SYSTEM_PROCESSOR = "ARM64", CMAKE_BUILD_PARALLEL_LEVEL = "4"}
-
-[[tool.cibuildwheel.overrides]]
-select = "*-manylinux_aarch64"
-environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
 
    [tool.scikit-build.metadata.version]
    provider = "scikit_build_core.metadata.regex"

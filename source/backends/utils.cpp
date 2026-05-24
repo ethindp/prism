@@ -81,52 +81,6 @@ struct TrimBounds {
   float close_thr_db = -160.0F;
 };
 
-struct counting_it {
-  using value_type = std::size_t;
-  using difference_type = std::ptrdiff_t;
-  using iterator_category = std::random_access_iterator_tag;
-  std::size_t v{};
-  value_type operator*() const noexcept { return v; }
-  counting_it &operator++() noexcept {
-    ++v;
-    return *this;
-  }
-  counting_it operator++(int) noexcept {
-    auto t = *this;
-    ++*this;
-    return t;
-  }
-  counting_it &operator--() noexcept {
-    --v;
-    return *this;
-  }
-  counting_it &operator+=(difference_type n) noexcept {
-    v += static_cast<std::size_t>(n);
-    return *this;
-  }
-  counting_it &operator-=(difference_type n) noexcept {
-    v -= static_cast<std::size_t>(n);
-    return *this;
-  }
-  friend counting_it operator+(counting_it it, difference_type n) noexcept {
-    it += n;
-    return it;
-  }
-  friend counting_it operator-(counting_it it, difference_type n) noexcept {
-    it -= n;
-    return it;
-  }
-  friend difference_type operator-(counting_it a, counting_it b) noexcept {
-    return static_cast<difference_type>(a.v - b.v);
-  }
-  friend bool operator==(counting_it a, counting_it b) noexcept {
-    return a.v == b.v;
-  }
-  friend bool operator<(counting_it a, counting_it b) noexcept {
-    return a.v < b.v;
-  }
-};
-
 struct TrimWorkspace {
   std::vector<float> db;
   std::vector<float> scratch;
@@ -382,14 +336,11 @@ compute_trim_bounds_rms_gate(std::span<const float> samples_interleaved,
   static thread_local TrimWorkspace W;
   W.db.resize(n);
   auto &db = W.db;
-  auto fill_one = [&](std::size_t i) {
+  for (std::size_t i = 0; i < n; ++i) {
     const auto start_frame = i * hop;
     db[i] = frame_db(samples_interleaved, start_frame, frame_len, total_frames,
                      channels);
-  };
-  // todo: instrument this to get actual statistics.
-  // For now, we guess
-  std::for_each(counting_it{0}, counting_it{n}, fill_one);
+  }
   const auto head_frames = std::min<std::size_t>(
       n, std::max<std::size_t>(std::size_t{1},
                                ms_to_frames(P.head_ms, sample_rate) / hop));

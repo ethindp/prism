@@ -131,9 +131,6 @@ before-all = [
     cd ..
     rm -rf "glib-${GLIB_VERSION}"
     export PKG_CONFIG_PATH=/opt/prism/lib64/pkgconfig:/opt/prism/lib/pkgconfig:${PKG_CONFIG_PATH:-}
-    echo /opt/prism/lib64 >  /etc/ld.so.conf.d/usr-local.conf
-    echo /opt/prism/lib   >> /etc/ld.so.conf.d/usr-local.conf
-    ldconfig
     SIGCPP_VERSION=3.6.0
 SIGCPP_SERIES="${SIGCPP_VERSION%.*}"
 curl -fL "https://download.gnome.org/sources/libsigc++/${SIGCPP_SERIES}/libsigc++-${SIGCPP_VERSION}.tar.xz" -o libsigc++-${SIGCPP_VERSION}.tar.xz
@@ -146,7 +143,6 @@ meson compile -C build
 meson install -C build
 cd ..
 rm -rf "libsigc++-${SIGCPP_VERSION}"
-ldconfig
 GLIBMM_VERSION=2.88.0
 GLIBMM_SERIES="${GLIBMM_VERSION%.*}"
 curl -fL "https://download.gnome.org/sources/glibmm/${GLIBMM_SERIES}/glibmm-${GLIBMM_VERSION}.tar.xz" -o glibmm-${GLIBMM_VERSION}.tar.xz
@@ -159,7 +155,6 @@ meson compile -C build
 meson install -C build
 cd ..
 rm -rf "glibmm-${GLIBMM_VERSION}"
-ldconfig
     """,
 ]
 environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4", PKG_CONFIG_PATH = "/opt/prism/lib64/pkgconfig:/opt/prism/lib/pkgconfig", LD_LIBRARY_PATH = "/opt/prism/lib64:/opt/prism/lib" }

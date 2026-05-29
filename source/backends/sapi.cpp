@@ -21,6 +21,7 @@
 #include <dr_wav/dr_wav.h>
 #include <format>
 #include <limits>
+#include <memory>
 #include <mmreg.h>
 #include <mutex>
 #include <optional>
@@ -509,17 +510,19 @@ public:
         drwav_u8_to_f32(samples.data(), data, total_samples);
         break;
       case 16:
-        drwav_s16_to_f32(samples.data(),
-                         reinterpret_cast<const drwav_int16 *>(data),
-                         total_samples);
+        drwav_s16_to_f32(
+            samples.data(),
+            std::start_lifetime_as_array<drwav_int16>(data, total_samples),
+            total_samples);
         break;
       case 24:
         drwav_s24_to_f32(samples.data(), data, total_samples);
         break;
       case 32:
-        drwav_s32_to_f32(samples.data(),
-                         reinterpret_cast<const drwav_int32 *>(data),
-                         total_samples);
+        drwav_s32_to_f32(
+            samples.data(),
+            std::start_lifetime_as_array<drwav_int32>(data, total_samples),
+            total_samples);
         break;
       default:
         return std::unexpected(BackendError::InvalidAudioFormat);
@@ -531,8 +534,10 @@ public:
         std::memcpy(samples.data(), data, total_samples * sizeof(float));
         break;
       case 64:
-        drwav_f64_to_f32(samples.data(), reinterpret_cast<const double *>(data),
-                         total_samples);
+        drwav_f64_to_f32(
+            samples.data(),
+            std::start_lifetime_as_array<double>(data, total_samples),
+            total_samples);
         break;
       default:
         return std::unexpected(BackendError::InvalidAudioFormat);

@@ -151,14 +151,12 @@ public:
     status = RpcBindingFromStringBinding(string_binding, &controller_handle);
     RpcStringFree(&string_binding);
     if (status != RPC_S_OK) {
-      RpcStringFree(&string_binding);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    if (server_supports_interface(
+    if (nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS ||
+        !server_supports_interface(
             controller_handle, nvdaController_NvdaController_v1_0_c_ifspec)) {
-      if (nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS) {
-        return std::unexpected(BackendError::BackendNotAvailable);
-      }
+      return std::unexpected(BackendError::BackendNotAvailable);
     }
     return {};
   }

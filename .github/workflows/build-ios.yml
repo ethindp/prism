@@ -15,9 +15,9 @@ jobs:
   ios:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.3.2
+        uses: lukka/get-cmake@v4.3.3
         with:
           cmakeVersion: latest
       - name: Build all configurations
@@ -71,9 +71,9 @@ jobs:
   ios-simulator:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.3.2
+        uses: lukka/get-cmake@v4.3.3
         with:
           cmakeVersion: latest
       - name: Build all configurations

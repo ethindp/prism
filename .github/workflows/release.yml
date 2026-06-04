@@ -17,7 +17,7 @@ jobs:
       version: ${{ steps.extract.outputs.version }}
       tag: ${{ steps.extract.outputs.tag }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - name: Extract version
         id: extract
         run: |
@@ -68,7 +68,7 @@ jobs:
     needs: [version, build-docs, build-windows, build-linux, build-macos, build-ios, build-android, build-emscripten, build-gdextension, build-wheels, build-sdist]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: actions/download-artifact@v8
         with:
           path: artifacts

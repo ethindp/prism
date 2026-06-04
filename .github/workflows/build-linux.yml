@@ -21,11 +21,11 @@ jobs:
           - { name: arm64, os: ubuntu-24.04-arm }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y libspeechd-dev libglib2.0-dev libglibmm-2.68-dev wine64-tools libdbus-1-dev build-essential meson ninja-build pkg-config git libglib2.0-bin libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgirepository1.0-dev gobject-introspection gi-docgen dbus-daemon python3 python3-tap python3-dbusmock
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.3.2
+        uses: lukka/get-cmake@v4.3.3
         with:
           cmakeVersion: latest
       - name: Build all configurations

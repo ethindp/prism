@@ -36,7 +36,7 @@ jobs:
           - { platform: web,     arch: wasm32, os: ubuntu-latest }
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
         with:
           submodules: true
       - name: install multilib

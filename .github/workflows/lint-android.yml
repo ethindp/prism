@@ -24,7 +24,7 @@ jobs:
         build_type: [Release, Debug]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - name: Install host tools
         run: |
           sudo apt-get update
@@ -58,7 +58,7 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
@@ -78,7 +78,7 @@ jobs:
             build/android/gradle/reports/lint-results-*.sarif
       - name: Upload SARIF to code scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@v4.35.4
+        uses: github/codeql-action/upload-sarif@v4.36.0
         with:
           sarif_file: build/android/gradle/reports/lint-results-debug.sarif
           wait-for-processing: true

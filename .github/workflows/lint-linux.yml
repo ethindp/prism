@@ -22,7 +22,7 @@ jobs:
           - { name: arm64, os: ubuntu-24.04-arm }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.2
       - name: Install deps
         run: |
           wget https://apt.llvm.org/llvm.sh

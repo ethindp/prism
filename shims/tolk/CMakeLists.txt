@@ -240,6 +240,10 @@ set_target_properties(
   PROPERTIES CXX_VISIBILITY_PRESET hidden
              C_VISIBILITY_PRESET hidden
              VISIBILITY_INLINES_HIDDEN ON)
+if(EMSCRIPTEN)
+  target_compile_options(tolk PRIVATE -pthread)
+  target_link_options(tolk PRIVATE -pthread)
+endif()
 install(
   TARGETS tolk
   EXPORT tolkTargets

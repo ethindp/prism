@@ -18,7 +18,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 project(
   prism
-  VERSION 0.16.5
+  VERSION 0.16.6
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 
@@ -268,6 +268,17 @@ set_target_properties(
              CXX_VISIBILITY_PRESET hidden
              C_VISIBILITY_PRESET hidden
              VISIBILITY_INLINES_HIDDEN ON)
+if(EMSCRIPTEN)
+  add_library(prism_emscripten_threads INTERFACE)
+  target_compile_options(prism_emscripten_threads INTERFACE -pthread)
+  target_link_options(prism_emscripten_threads INTERFACE -pthread)
+  foreach(_t prism_third_party_simdutf prism_third_party_dr_wav
+             ${_prism_backend_targets})
+    target_link_libraries(${_t} PRIVATE prism_emscripten_threads)
+  endforeach()
+  target_link_libraries(${PROJECT_NAME}
+                        PRIVATE "$<BUILD_INTERFACE:prism_emscripten_threads>")
+endif()
 if(APPLE)
   set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/avspeech.cpp" TARGET_DIRECTORY

@@ -15,7 +15,7 @@ jobs:
   tvos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
       - name: Install current CMake
         uses: lukka/get-cmake@v4.3.3
         with:
@@ -71,7 +71,7 @@ jobs:
   tvos-simulator:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
       - name: Install current CMake
         uses: lukka/get-cmake@v4.3.3
         with:

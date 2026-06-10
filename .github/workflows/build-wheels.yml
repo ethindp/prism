@@ -31,7 +31,7 @@ jobs:
             archs: arm64_v8a
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
       - name: Activate MSVC
         uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'

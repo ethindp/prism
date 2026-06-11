@@ -160,7 +160,7 @@ public:
         return std::unexpected(BackendError::InternalBackendError);
       paused.clear();
     }
-    if (const auto res = spd_say(conn, SPD_TEXT, text.data()); res < 0) {
+    if (const auto res = spd_say(conn, SPD_MESSAGE, text.data()); res < 0) {
       return std::unexpected(BackendError::SpeakFailure);
     }
     return {};

@@ -82,7 +82,7 @@ sdist.exclude = [
 ]
 
 [tool.cibuildwheel]
-build = "cp310-* cp311-* cp312-* cp313-* cp314-* cp313t-* cp314t-*"
+build = "cp310-* cp311-* cp312-* cp313-* cp314-* cp314t-*"
 build-verbosity = 1
 container-engine = "podman"
 manylinux-x86_64-image = "manylinux_2_34"

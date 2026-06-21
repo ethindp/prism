@@ -52,7 +52,7 @@ __declspec(dllimport) bool __stdcall BoyCtrlIsReaderRunning();
 __declspec(dllimport) int __stdcall BoyCtrlGetReaderState();
 __declspec(dllimport) bool __stdcall BoyCtrlVerify(const char *key);
 __declspec(dllimport) bool __stdcall
-BoyCtrlSetAnyKeyStopSpeaking(bool withSlave);
+BoyCtrlSetAnyKeyBreak(bool withSlave);
 __declspec(dllimport) bool __stdcall BoyCtrlReportInfo(int mode);
 __declspec(dllimport) bool __stdcall BoyCtrlStartTextToAudio(
     int taskId, const wchar_t *inputFilePath, const wchar_t *outputFilePath,

@@ -155,7 +155,7 @@ static bool __stdcall stub_BoyCtrlVerify([[maybe_unused]] const char *key) {
 }
 
 static bool __stdcall
-stub_BoyCtrlSetAnyKeyStopSpeaking([[maybe_unused]] bool withSlave) {
+stub_BoyCtrlSetAnyKeyBreak([[maybe_unused]] bool withSlave) {
   return false;
 }
 
@@ -490,8 +490,8 @@ static const
          .func = "BoyCtrlVerify",
          .stub = stub_cast(boy_pc_reader::stub_BoyCtrlVerify)},
         {.dll = BOY_PC_READER_DLL,
-         .func = "BoyCtrlSetAnyKeyStopSpeaking",
-         .stub = stub_cast(boy_pc_reader::stub_BoyCtrlSetAnyKeyStopSpeaking)},
+         .func = "BoyCtrlSetAnyKeyBreak",
+         .stub = stub_cast(boy_pc_reader::stub_BoyCtrlSetAnyKeyBreak)},
         {.dll = BOY_PC_READER_DLL,
          .func = "BoyCtrlReportInfo",
          .stub = stub_cast(boy_pc_reader::stub_BoyCtrlReportInfo)},

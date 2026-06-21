@@ -103,7 +103,7 @@ private:
       BoyCtrlUninitialize();
       return false;
     }
-    if (!BoyCtrlSetAnyKeyStopSpeaking(false)) {
+    if (!BoyCtrlSetAnyKeyBreak(false)) {
       BoyCtrlUninitialize();
       return false;
     }
@@ -140,16 +140,15 @@ private:
     constexpr std::uint16_t max_burst = 6;
     constexpr auto backoff_interval = std::chrono::seconds(5);
     std::uint16_t consecutive_failures = 0;
-    while (watchdog_running.test(std::memory_order_acquire)) {
+    while (watchdog_running.test()) {
       std::chrono::milliseconds interval = healthy_interval;
       if (consecutive_failures > 0)
         interval = consecutive_failures < max_burst ? retry_interval
                                                     : backoff_interval;
       {
         std::unique_lock lock(watchdog_wake_mtx);
-        watchdog_wake.wait_for(lock, interval, [this] {
-          return !watchdog_running.test(std::memory_order_acquire);
-        });
+        watchdog_wake.wait_for(lock, interval,
+                               [this] { return !watchdog_running.test(); });
       }
       if (!watchdog_running.test(std::memory_order_acquire))
         break;
@@ -245,12 +244,12 @@ public:
       BoyCtrlUninitialize();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    if (const auto res = BoyCtrlSetAnyKeyStopSpeaking(false); !res) {
+    if (const auto res = BoyCtrlSetAnyKeyBreak(false); !res) {
       BoyCtrlUninitialize();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     initialized.test_and_set();
-    watchdog_running.test_and_set(std::memory_order_release);
+    watchdog_running.test_and_set();
     watchdog_thread = std::thread(&BoyPCReaderBackend::watchdog_loop, this);
     return {};
   }

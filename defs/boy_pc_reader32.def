@@ -9,7 +9,7 @@ BoyCtrlInitializeU8@4
 BoyCtrlIsReaderRunning@0
 BoyCtrlPauseScreenReader@4
 BoyCtrlReportInfo@4
-BoyCtrlSetAnyKeyStopSpeaking@4
+BoyCtrlSetAnyKeyBreak@4
 BoyCtrlSpeak@12
 BoyCtrlSpeakAnsi@12
 BoyCtrlSpeakEx@12

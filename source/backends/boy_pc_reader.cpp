@@ -103,10 +103,6 @@ private:
       BoyCtrlUninitialize();
       return false;
     }
-    if (!BoyCtrlSetAnyKeyBreak(false)) {
-      BoyCtrlUninitialize();
-      return false;
-    }
     initialized.test_and_set();
     return true;
   }
@@ -241,10 +237,6 @@ public:
     if (const auto res = BoyCtrlInitializeU8(nullptr); res != e_bcerr_success)
       return std::unexpected(map_error(res));
     if (!BoyCtrlIsReaderRunning()) {
-      BoyCtrlUninitialize();
-      return std::unexpected(BackendError::BackendNotAvailable);
-    }
-    if (const auto res = BoyCtrlSetAnyKeyBreak(false); !res) {
       BoyCtrlUninitialize();
       return std::unexpected(BackendError::BackendNotAvailable);
     }

@@ -4,3 +4,4 @@ EXPORTS
     Speak@8
     StopSpeak@0
     GetSpeakState@0
+    Braille@8

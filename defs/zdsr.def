@@ -4,3 +4,4 @@ EXPORTS
     Speak
     GetSpeakState
     StopSpeak
+    Braille

@@ -43,8 +43,8 @@ public:
       }
       CloseHandle(snapshot);
     }
-    features |=
-        SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING | SUPPORTS_STOP;
+    features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING |
+                SUPPORTS_STOP | SUPPORTS_BRAILLE;
     return features;
   }
 
@@ -73,8 +73,28 @@ public:
     return {};
   }
 
+  BackendResult<> braille(std::string_view text) override {
+    if (const auto res = GetSpeakState(); res == 1 || res == 2)
+      return std::unexpected(BackendError::BackendNotAvailable);
+    const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
+    std::wstring wstr;
+    wstr.resize(len);
+    if (const auto res = simdutf::convert_utf8_to_utf16le(
+            text.data(), text.size(),
+            reinterpret_cast<char16_t *>(wstr.data()));
+        res == 0)
+      return std::unexpected(BackendError::InvalidUtf8);
+    if (const auto res = Braille(wstr.c_str(), FALSE); res > 0)
+      return std::unexpected(BackendError::InternalBackendError);
+    return {};
+  }
+
   BackendResult<> output(std::string_view text, bool interrupt) override {
-    return speak(text, interrupt);
+    if (const auto res = speak(text, interrupt); !res)
+      return res;
+    if (const auto res = braille(text); !res)
+      return res;
+    return {};
   }
 
   BackendResult<> stop() override {

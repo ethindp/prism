@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
+#include <windows.h>
 #include <array>
 #include <cstring>
 #include <cwchar>
+#include <delayimp.h>
 #include <filesystem>
 #include <tchar.h>
 #include <utility>
-#include <windows.h>
-#include <delayimp.h>
 
 template <typename T> static constexpr FARPROC stub_cast(T func) {
   // NOLINTNEXTLINE(bugprone-casting-through-void)
@@ -53,6 +53,11 @@ static int WINAPI stub_zdsr_Speak([[maybe_unused]] const WCHAR *text,
 static int WINAPI stub_zdsr_GetSpeakState() { return 2; }
 
 static void WINAPI stub_zdsr_StopSpeak() {}
+
+static int WINAPI stub_zdsr_Braille([[maybe_unused]] const WCHAR *text,
+                                    [[maybe_unused]] BOOL bFlashMessage) {
+  return 8; // Command not successfully delivered
+}
 } // namespace zdsr
 
 namespace boy_pc_reader {
@@ -447,6 +452,9 @@ static const
         {.dll = ZDSR_DLL,
          .func = "StopSpeak",
          .stub = stub_cast(zdsr::stub_zdsr_StopSpeak)},
+        {.dll = ZDSR_DLL,
+         .func = "Braille",
+         .stub = stub_cast(zdsr::stub_zdsr_Braille)},
         {.dll = BOY_PC_READER_DLL,
          .func = "BoyCtrlInitialize",
          .stub = stub_cast(boy_pc_reader::stub_BoyCtrlInitialize)},

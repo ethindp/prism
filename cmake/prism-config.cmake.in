@@ -1,5 +1,22 @@
 @PACKAGE_INIT@
 include("${CMAKE_CURRENT_LIST_DIR}/prism-targets.cmake")
+set(_prism_win_import_libs "@PRISM_WIN_STATIC_IMPORT_LIBS@")
+if(_prism_win_import_libs)
+  get_filename_component(_prism_imp_prefix "${CMAKE_CURRENT_LIST_FILE}" PATH)
+  get_filename_component(_prism_imp_prefix "${_prism_imp_prefix}" PATH)
+  get_filename_component(_prism_imp_prefix "${_prism_imp_prefix}" PATH)
+  foreach(_imp IN LISTS _prism_win_import_libs)
+    if(NOT TARGET prism_import::${_imp})
+      add_library(prism_import::${_imp} UNKNOWN IMPORTED)
+      set_target_properties(prism_import::${_imp} PROPERTIES
+        IMPORTED_LOCATION "${_prism_imp_prefix}/lib/${_imp}.lib")
+      set_property(TARGET prism::prism APPEND PROPERTY
+        INTERFACE_LINK_LIBRARIES "prism_import::${_imp}")
+    endif()
+  endforeach()
+  unset(_prism_imp_prefix)
+endif()
+unset(_prism_win_import_libs)
 if(TARGET prism::_prism_lib)
   set_property(
     TARGET prism::_prism_lib

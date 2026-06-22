@@ -119,6 +119,8 @@ function(add_import_library target def_file dll_name)
   set_target_properties(${target} PROPERTIES IMPORTED_IMPLIB "${lib_file}"
                                              IMPORTED_LOCATION "${dll_name}")
   add_dependencies(${target} ${target}_gen)
+  list(APPEND _PRISM_WIN_IMPORT_LIBS "${target}")
+  set(_PRISM_WIN_IMPORT_LIBS "${_PRISM_WIN_IMPORT_LIBS}" PARENT_SCOPE)
 endfunction()
 function(prism_add_backend src)
   get_filename_component(name "${src}" NAME_WE)
@@ -354,6 +356,7 @@ if(_PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
 else()
   set(_PRISM_LINK_VIS PRIVATE)
 endif()
+set(_PRISM_WIN_IMPORT_LIBS "")
 if(WIN32)
   target_link_libraries(${PROJECT_NAME} PRIVATE delayimp.lib onecore.lib
                                                 uiautomationcore.lib)
@@ -904,6 +907,14 @@ else()
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMajorVersion)
   install(DIRECTORY include/ DESTINATION include)
+  if(WIN32 AND _PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
+    foreach(_imp IN LISTS _PRISM_WIN_IMPORT_LIBS)
+      install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${_imp}.lib" DESTINATION lib)
+    endforeach()
+    set(PRISM_WIN_STATIC_IMPORT_LIBS "${_PRISM_WIN_IMPORT_LIBS}")
+  else()
+    set(PRISM_WIN_STATIC_IMPORT_LIBS "")
+  endif()
   configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/prism-config.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/prism-config.cmake"

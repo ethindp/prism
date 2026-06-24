@@ -31,7 +31,7 @@ jobs:
             archs: arm64_v8a
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - name: Activate MSVC
         uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
@@ -40,7 +40,7 @@ jobs:
         with:
           cmakeVersion: latest
       - name: Build wheels
-        uses: pypa/cibuildwheel@v4.0.0
+        uses: pypa/cibuildwheel@v4.1.0
         env:
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
           CIBW_ARCHS: ${{ matrix.archs || 'auto' }}

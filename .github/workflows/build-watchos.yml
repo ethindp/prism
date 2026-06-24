@@ -15,7 +15,7 @@ jobs:
   watchos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - name: Install current CMake
         uses: lukka/get-cmake@v4.3.3
         with:
@@ -71,7 +71,7 @@ jobs:
   watchos-simulator:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - name: Install current CMake
         uses: lukka/get-cmake@v4.3.3
         with:

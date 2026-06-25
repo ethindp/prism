@@ -120,7 +120,9 @@ function(add_import_library target def_file dll_name)
                                              IMPORTED_LOCATION "${dll_name}")
   add_dependencies(${target} ${target}_gen)
   list(APPEND _PRISM_WIN_IMPORT_LIBS "${target}")
-  set(_PRISM_WIN_IMPORT_LIBS "${_PRISM_WIN_IMPORT_LIBS}" PARENT_SCOPE)
+  set(_PRISM_WIN_IMPORT_LIBS
+      "${_PRISM_WIN_IMPORT_LIBS}"
+      PARENT_SCOPE)
 endfunction()
 function(prism_add_backend src)
   get_filename_component(name "${src}" NAME_WE)
@@ -631,16 +633,22 @@ if(MSVC)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
   check_cxx_compiler_flag(/Zc:enumTypes MSVC_HAS_ZC_ENUM_TYPES)
   if(MSVC_HAS_UTF8_OPTION)
-    target_compile_options(${PROJECT_NAME} PUBLIC /utf-8)
-    target_compile_options(prism_backend_iface INTERFACE /utf-8)
+    target_compile_options(${PROJECT_NAME}
+                           PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>)
+    target_compile_options(prism_backend_iface
+                           INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>)
   endif()
   if(MSVC_HAS_BIGOBJ)
-    target_compile_options(${PROJECT_NAME} PUBLIC /bigobj)
-    target_compile_options(prism_backend_iface INTERFACE /bigobj)
+    target_compile_options(${PROJECT_NAME}
+                           PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/bigobj>)
+    target_compile_options(prism_backend_iface
+                           INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:/bigobj>)
   endif()
   if(MSVC_HAS_ZC_ENUM_TYPES)
-    target_compile_options(${PROJECT_NAME} PUBLIC /Zc:enumTypes)
-    target_compile_options(prism_backend_iface INTERFACE /Zc:enumTypes)
+    target_compile_options(${PROJECT_NAME}
+                           PUBLIC $<$<COMPILE_LANGUAGE:C,CXX>:/Zc:enumTypes>)
+    target_compile_options(prism_backend_iface
+                           INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:/Zc:enumTypes>)
   endif()
 elseif(
   CMAKE_CXX_COMPILER_ID MATCHES "Clang"

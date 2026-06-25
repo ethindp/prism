@@ -60,13 +60,17 @@ extern "C" {
 #endif
 #if defined(__cplusplus)
 #define PRISM_RESTRICT
-#define PRISM_STATIC_ASSERT static_assert
 #elif defined(_MSC_VER)
 #define PRISM_RESTRICT __restrict
-#define PRISM_STATIC_ASSERT _Static_assert
 #else
 #define PRISM_RESTRICT restrict
+#endif
+#if defined(__cplusplus)
+#define PRISM_STATIC_ASSERT static_assert
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 #define PRISM_STATIC_ASSERT _Static_assert
+#else
+#define PRISM_STATIC_ASSERT(cond, msg)
 #endif
 #if defined(__cplusplus) && __cplusplus >= 201402L
 #define PRISM_DEPRECATED(msg) [[deprecated(msg)]]
@@ -87,10 +91,9 @@ typedef struct {
   uint8_t version;
 } PrismConfig;
 
-
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable: 26812)
+#pragma warning(disable : 26812)
 #endif
 typedef enum PrismError {
   PRISM_OK = 0,
@@ -149,7 +152,7 @@ typedef void(PRISM_CALL *PrismAudioCallback)(
 
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable: 26812)
+#pragma warning(disable : 26812)
 #endif
 typedef enum PrismBackendFeature {
   PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME = (1ULL << 0),

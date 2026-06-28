@@ -150,14 +150,14 @@ public:
   }
 
   BackendResult<> initialize() override {
-    if (!ApiInformation::IsTypePresent(
-            _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||
-        !ApiInformation::IsTypePresent(
-            _T("Windows.Media.Playback.MediaPlayer")))
-      return std::unexpected(BackendError::BackendNotAvailable);
-    if (synth || player)
-      return std::unexpected(BackendError::AlreadyInitialized);
     try {
+      if (!ApiInformation::IsTypePresent(
+              _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||
+          !ApiInformation::IsTypePresent(
+              _T("Windows.Media.Playback.MediaPlayer")))
+        return std::unexpected(BackendError::BackendNotAvailable);
+      if (synth || player)
+        return std::unexpected(BackendError::AlreadyInitialized);
       synth = SpeechSynthesizer();
       synth.Options().AppendedSilence(SpeechAppendedSilence::Min);
       synth.Options().PunctuationSilence(SpeechPunctuationSilence::Min);

@@ -16,6 +16,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#include <string>
 
 enum class BackendId : std::uint64_t {};
 
@@ -60,9 +61,18 @@ inline constexpr auto WindowEyes = "WindowEyes"_bid;
 inline constexpr auto Spiel = "Spiel"_bid;
 } // namespace Backends
 
+using BackendFactory = std::function<std::shared_ptr<TextToSpeechBackend>()>;
+
+struct Registration {
+  BackendId id;
+  std::string name;
+  int priority;
+  BackendFactory factory;
+};
+
 class BackendRegistry {
 public:
-  using Factory = std::function<std::shared_ptr<TextToSpeechBackend>()>;
+  using Factory = BackendFactory;
 
   static BackendRegistry &instance();
   void register_backend(BackendId id, std::string_view name, int priority,
@@ -84,12 +94,7 @@ public:
   acquire(std::string_view name);
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend> acquire_best();
   void clear_cache();
-#ifdef __ANDROID__
-  void set_java_vm(JavaVM *vm);
-#endif
-#ifdef _WIN32
-  void set_hwnd(HWND hwnd);
-#endif
+
 private:
   template <typename Pred>
   std::shared_ptr<TextToSpeechBackend> acquire(Pred pred) {
@@ -101,7 +106,7 @@ private:
         return nullptr;
       if (auto cached = it->cached.lock(); cached != nullptr)
         return cached;
-      factory = it->factory;
+      factory = it->reg.factory;
     }
     auto backend = factory != nullptr ? factory() : nullptr;
     if (backend == nullptr)
@@ -126,17 +131,16 @@ private:
       auto it = std::ranges::find_if(entries, pred);
       if (it == entries.end())
         return nullptr;
-      factory = it->factory;
+      factory = it->reg.factory;
     }
     return factory != nullptr ? factory() : nullptr;
   }
+
   struct Entry {
-    BackendId id;
-    std::string_view name;
-    int priority;
-    Factory factory;
+    Registration reg;
     std::weak_ptr<TextToSpeechBackend> cached;
   };
+
   BackendRegistry() = default;
   mutable std::shared_mutex mutex;
 #ifdef __ANDROID__

@@ -16,7 +16,7 @@ jobs:
   lint:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - name: Install LLVM (clang-tidy)
         run: |
           brew install llvm
@@ -42,7 +42,7 @@ jobs:
   lint-simulator:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - name: Install LLVM (clang-tidy)
         run: |
           brew install llvm

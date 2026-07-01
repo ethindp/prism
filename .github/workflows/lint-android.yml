@@ -24,7 +24,7 @@ jobs:
         build_type: [Release, Debug]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - name: Install host tools
         run: |
           sudo apt-get update
@@ -58,7 +58,7 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:

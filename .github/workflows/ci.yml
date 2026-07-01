@@ -24,7 +24,7 @@ jobs:
       wheels:      ${{ steps.compute.outputs.wheels }}
       sdist:       ${{ steps.compute.outputs.sdist }}
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: dorny/paths-filter@v4
         id: filter
         with:

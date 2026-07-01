@@ -37,8 +37,9 @@ struct PrismBackend {
 
 // This below function definition is defined in the custom backend adapter
 BackendFactory make_custom_factory(const PrismBackendVTable *vtable,
-                                   void *userdata, std::uint64_t features,
-                                   std::string name);
+                                   void *userdata,
+                                   void (*userdata_free)(void *),
+                                   std::uint64_t features, std::string name);
 
 static inline PrismError to_prism_error(BackendError e) {
   return static_cast<PrismError>(static_cast<uint8_t>(e));
@@ -201,15 +202,20 @@ prism_registry_builder_add_backend(PrismRegistryBuilder *builder,
                                    const char *PRISM_RESTRICT name,
                                    int priority, uint64_t features,
                                    const PrismBackendVTable *vtable,
-                                   void *userdata, PrismBackendId *out_id) {
+                                   void *userdata,
+                                   void(PRISM_CALL *userdata_free)(void *),
+                                   PrismBackendId *out_id) {
   if (builder == nullptr || name == nullptr || vtable == nullptr ||
-      vtable->size == 0)
+      vtable->size == 0) {
+    if (userdata_free != nullptr)
+      userdata_free(userdata);
     return PRISM_ERROR_INVALID_PARAM;
-  auto factory =
-      make_custom_factory(vtable, userdata, features, std::string{name});
+  }
+  auto factory = make_custom_factory(vtable, userdata, userdata_free, features,
+                                     std::string{name});
   if (!factory) {
-    if (vtable->userdata_free != nullptr)
-      vtable->userdata_free(userdata);
+    if (userdata_free != nullptr)
+      userdata_free(userdata);
     return PRISM_ERROR_INVALID_PARAM;
   }
   BackendId id{};

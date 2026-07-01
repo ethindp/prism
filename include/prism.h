@@ -134,7 +134,6 @@ typedef struct PrismBackendVTable {
   size_t size;
   void *(PRISM_CALL *create)(void *userdata);
   void(PRISM_CALL *destroy)(void *instance);
-  void(PRISM_CALL *userdata_free)(void *userdata);
   bool(PRISM_CALL *is_supported)(void *instance);
   PrismError(PRISM_CALL *initialize)(void *instance);
   PrismError(PRISM_CALL *speak)(void *instance, const char *text,
@@ -387,14 +386,13 @@ prism_registry_builder_new(void);
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2, 5)
     PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
-    prism_registry_builder_add_backend(PrismRegistryBuilder *builder,
-                                       const char *name, int priority,
-                                       uint64_t features,
-                                       const PrismBackendVTable *vtable,
-                                       void *userdata, PrismBackendId *out_id);
+    prism_registry_builder_add_backend(
+        PrismRegistryBuilder *builder, const char *name, int priority,
+        uint64_t features, const PrismBackendVTable *vtable, void *userdata,
+        void(PRISM_CALL *userdata_free)(void *), PrismBackendId *out_id);
 
 PRISM_API
-    PRISM_NODISCARD PRISM_MALLOC PRISM_NONNULL(1) PrismRegistry *PRISM_CALL
+PRISM_NODISCARD PRISM_MALLOC PRISM_NONNULL(1) PrismRegistry *PRISM_CALL
     prism_registry_freeze(PrismRegistryBuilder *builder);
 
 PRISM_API void PRISM_CALL

@@ -76,16 +76,17 @@ bool vtable_consistent(std::uint64_t features,
 struct CustomRegistration {
   PrismBackendVTable vtable;
   void *userdata;
+  void (*userdata_free)(void *);
   std::bitset<64> features;
   std::string name;
-
   CustomRegistration(const PrismBackendVTable &vtable, void *userdata,
-                     std::uint64_t features, std::string name)
-      : vtable(vtable), userdata(userdata), features(features),
-        name(std::move(name)) {}
+                     void (*userdata_free)(void *), std::uint64_t features,
+                     std::string name)
+      : vtable(vtable), userdata(userdata), userdata_free(userdata_free),
+        features(features), name(std::move(name)) {}
   ~CustomRegistration() {
-    if (vtable.userdata_free != nullptr)
-      vtable.userdata_free(userdata);
+    if (userdata_free != nullptr)
+      userdata_free(userdata);
   }
   CustomRegistration(const CustomRegistration &) = delete;
   CustomRegistration &operator=(const CustomRegistration &) = delete;
@@ -348,8 +349,9 @@ public:
 };
 
 BackendFactory make_custom_factory(const PrismBackendVTable *vtable,
-                                   void *userdata, std::uint64_t features,
-                                   std::string name) {
+                                   void *userdata,
+                                   void (*userdata_free)(void *),
+                                   std::uint64_t features, std::string name) {
   if (vtable == nullptr || vtable->size == 0)
     return {};
   PrismBackendVTable normalized{};
@@ -359,7 +361,7 @@ BackendFactory make_custom_factory(const PrismBackendVTable *vtable,
   if (!vtable_consistent(features, normalized))
     return {};
   auto registration = std::make_shared<CustomRegistration>(
-      normalized, userdata, features, std::move(name));
+      normalized, userdata, userdata_free, features, std::move(name));
   return [registration]() -> std::shared_ptr<TextToSpeechBackend> {
     void *instance = registration->vtable.create != nullptr
                          ? registration->vtable.create(registration->userdata)

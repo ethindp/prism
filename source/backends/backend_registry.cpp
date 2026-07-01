@@ -4,6 +4,27 @@
 #include <algorithm>
 #include <ranges>
 
+BackendCatalog &BackendCatalog::instance() {
+  static BackendCatalog catalog;
+  return catalog;
+}
+
+void BackendCatalog::add(Registration registration) {
+  std::lock_guard lock(mutex);
+  registrations.push_back(std::move(registration));
+}
+
+std::vector<Registration> BackendCatalog::snapshot() const {
+  std::lock_guard lock(mutex);
+  return registrations;
+}
+
+BackendRegistry::BackendRegistry() {
+  for (const auto &reg : BackendCatalog::instance().snapshot()) {
+    register_backend(reg.id, reg.name, reg.priority, reg.factory);
+  }
+}
+
 BackendRegistry &BackendRegistry::instance() {
   static BackendRegistry registry;
   return registry;

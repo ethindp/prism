@@ -70,6 +70,18 @@ struct Registration {
   BackendFactory factory;
 };
 
+class BackendCatalog {
+public:
+  static BackendCatalog &instance();
+  void add(Registration registration);
+  [[nodiscard]] std::vector<Registration> snapshot() const;
+
+private:
+  BackendCatalog() = default;
+  mutable std::mutex mutex;
+  std::vector<Registration> registrations;
+};
+
 class BackendRegistry {
 public:
   using Factory = BackendFactory;
@@ -141,7 +153,7 @@ private:
     std::weak_ptr<TextToSpeechBackend> cached;
   };
 
-  BackendRegistry() = default;
+  BackendRegistry();
   mutable std::shared_mutex mutex;
 #ifdef __ANDROID__
   JavaVM *java_vm;
@@ -155,18 +167,23 @@ private:
 template <typename T> struct BackendRegistrar {
   BackendRegistrar(BackendId id, const char *name, int priority) noexcept {
     try {
-      BackendRegistry::instance().register_backend(
-          id, std::string_view{name}, priority,
-          []() { return std::make_shared<T>(); });
+      BackendCatalog::instance().add(
+          Registration{.id = id,
+                       .name = std::string{name},
+                       .priority = priority,
+                       .factory = []() { return std::make_shared<T>(); }});
     } catch (...) {
     }
   }
   BackendRegistrar(const char *name, int priority) noexcept {
     try {
-      const std::string_view name_sv{name};
-      BackendRegistry::instance().register_backend(
-          make_backend_id(name_sv), name_sv, priority,
-          []() { return std::make_shared<T>(); });
+      std::string owned{name};
+      const auto id = make_backend_id(owned);
+      BackendCatalog::instance().add(
+          Registration{.id = id,
+                       .name = std::move(owned),
+                       .priority = priority,
+                       .factory = []() { return std::make_shared<T>(); }});
     } catch (...) {
     }
   }

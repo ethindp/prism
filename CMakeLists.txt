@@ -171,9 +171,13 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c")
 file(GLOB backend_sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/*.cpp")
-list(REMOVE_ITEM backend_sources
-     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/backend_registry.cpp"
-     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/utils.cpp")
+list(
+  REMOVE_ITEM
+  backend_sources
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/backend_registry.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/utils.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/frozen_registry.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/custom_backend.cpp")
 list(REMOVE_ITEM sources ${backend_sources})
 foreach(src ${backend_sources})
   prism_add_backend("${src}")
@@ -595,8 +599,8 @@ if(WIN32 OR WINDOWS_STORE)
   target_compile_definitions(
     ${PROJECT_NAME}
     PRIVATE _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
-           _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
-           BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
+            _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
+            BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
   target_compile_definitions(
     prism_backend_iface
     INTERFACE _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
@@ -689,8 +693,6 @@ if(NOT MSVC)
   check_cxx_compiler_flag(-Wall COMP_HAS_WALL_OPTION)
   check_cxx_compiler_flag(-Wextra COMP_HAS_WEXTRA_OPTION)
   check_cxx_compiler_flag(-Wthread-safety COMP_HAS_WTHREAD_SAFETY_OPTION)
-  check_cxx_compiler_flag(-Wthread-safety-negative
-                          COMP_HAS_WTHREAD_SAFETY_NEGATIVE_OPTION)
   if(COMP_HAS_WALL_OPTION AND COMP_HAS_WEXTRA_OPTION)
     target_compile_options(${PROJECT_NAME}
                            PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
@@ -706,16 +708,6 @@ if(NOT MSVC)
       prism_backend_iface
       INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety>
                 $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety>)
-  endif()
-  if(COMP_HAS_WTHREAD_SAFETY_NEGATIVE_OPTION)
-    target_compile_options(
-      ${PROJECT_NAME}
-      PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety-negative>
-              $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety-negative>)
-    target_compile_options(
-      prism_backend_iface
-      INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety-negative>
-                $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety-negative>)
   endif()
 endif()
 if(APPLE)

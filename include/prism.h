@@ -87,8 +87,11 @@ extern "C" {
 typedef struct PrismContext PrismContext;
 typedef struct PrismBackend PrismBackend;
 typedef uint64_t PrismBackendId;
+typedef struct PrismRegistry PrismRegistry;
+typedef struct PrismRegistryBuilder PrismRegistryBuilder;
 typedef struct {
   uint8_t version;
+  PrismRegistry *registry;
 } PrismConfig;
 
 #ifdef _MSC_VER
@@ -127,6 +130,45 @@ typedef void(PRISM_CALL *PrismAudioCallback)(
     void *userdata, const float *PRISM_RESTRICT samples, size_t sample_count,
     size_t channels, size_t sample_rate);
 
+typedef struct PrismBackendVTable {
+  size_t size;
+  void *(PRISM_CALL *create)(void *userdata);
+  void(PRISM_CALL *destroy)(void *instance);
+  void(PRISM_CALL *userdata_free)(void *userdata);
+  bool(PRISM_CALL *is_supported)(void *instance);
+  PrismError(PRISM_CALL *initialize)(void *instance);
+  PrismError(PRISM_CALL *speak)(void *instance, const char *text,
+                                bool interrupt);
+  PrismError(PRISM_CALL *speak_to_memory)(void *instance, const char *text,
+                                          PrismAudioCallback callback,
+                                          void *callback_userdata);
+  PrismError(PRISM_CALL *braille)(void *instance, const char *text);
+  PrismError(PRISM_CALL *output)(void *instance, const char *text,
+                                 bool interrupt);
+  PrismError(PRISM_CALL *stop)(void *instance);
+  PrismError(PRISM_CALL *pause)(void *instance);
+  PrismError(PRISM_CALL *resume)(void *instance);
+  PrismError(PRISM_CALL *is_speaking)(void *instance, bool *out_speaking);
+  PrismError(PRISM_CALL *set_volume)(void *instance, float volume);
+  PrismError(PRISM_CALL *get_volume)(void *instance, float *out_volume);
+  PrismError(PRISM_CALL *set_rate)(void *instance, float rate);
+  PrismError(PRISM_CALL *get_rate)(void *instance, float *out_rate);
+  PrismError(PRISM_CALL *set_pitch)(void *instance, float pitch);
+  PrismError(PRISM_CALL *get_pitch)(void *instance, float *out_pitch);
+  PrismError(PRISM_CALL *refresh_voices)(void *instance);
+  PrismError(PRISM_CALL *count_voices)(void *instance, size_t *out_count);
+  PrismError(PRISM_CALL *get_voice_name)(void *instance, size_t voice_id,
+                                         const char **out_name);
+  PrismError(PRISM_CALL *get_voice_language)(void *instance, size_t voice_id,
+                                             const char **out_language);
+  PrismError(PRISM_CALL *set_voice)(void *instance, size_t voice_id);
+  PrismError(PRISM_CALL *get_voice)(void *instance, size_t *out_voice_id);
+  PrismError(PRISM_CALL *get_channels)(void *instance, size_t *out_channels);
+  PrismError(PRISM_CALL *get_sample_rate)(void *instance,
+                                          size_t *out_sample_rate);
+  PrismError(PRISM_CALL *get_bit_depth)(void *instance, size_t *out_bit_depth);
+} PrismBackendVTable;
+
 #define PRISM_BACKEND_INVALID UINT64_C(0)
 #define PRISM_BACKEND_SAPI UINT64_C(0x1D6DF72422CEEE66)
 #define PRISM_BACKEND_AV_SPEECH UINT64_C(0x28E3429577805C24)
@@ -148,7 +190,7 @@ typedef void(PRISM_CALL *PrismAudioCallback)(
 #define PRISM_BACKEND_SYSTEM_ACCESS UINT64_C(0x8380F2A37B2C3EB6)
 #define PRISM_BACKEND_WINDOW_EYES UINT64_C(0x9120D89908785C13)
 #define PRISM_BACKEND_SPIEL UINT64_C(0x478B44F14AD3D89C)
-#define PRISM_CONFIG_VERSION 2
+#define PRISM_CONFIG_VERSION 3
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -339,6 +381,29 @@ PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
 
 PRISM_API PRISM_NODISCARD const char *PRISM_CALL
 prism_error_string(PrismError error);
+
+PRISM_API PRISM_NODISCARD PRISM_MALLOC PrismRegistryBuilder *PRISM_CALL
+prism_registry_builder_new(void);
+
+PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2, 5)
+    PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
+    prism_registry_builder_add_backend(PrismRegistryBuilder *builder,
+                                       const char *name, int priority,
+                                       uint64_t features,
+                                       const PrismBackendVTable *vtable,
+                                       void *userdata, PrismBackendId *out_id);
+
+PRISM_API
+    PRISM_NODISCARD PRISM_MALLOC PRISM_NONNULL(1) PrismRegistry *PRISM_CALL
+    prism_registry_freeze(PrismRegistryBuilder *builder);
+
+PRISM_API void PRISM_CALL
+prism_registry_builder_free(PrismRegistryBuilder *builder);
+
+PRISM_API PrismRegistry *PRISM_CALL
+prism_registry_retain(PrismRegistry *registry);
+
+PRISM_API void PRISM_CALL prism_registry_release(PrismRegistry *registry);
 
 #if defined(__cplusplus)
 }

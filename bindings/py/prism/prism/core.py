@@ -2,8 +2,12 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field, fields
 from enum import IntEnum
+from typing import TYPE_CHECKING
 
 from .lib import ffi, lib
+
+if TYPE_CHECKING:
+    from .custom import Registry
 
 AudioCallback = Callable[[list[float], int, int], None]
 
@@ -377,9 +381,13 @@ class Backend:
 class Context:
     _ctx: ffi.CData = None
 
-    def __init__(self) -> None:
+    def __init__(self, registry: "Registry | None" = None) -> None:
         config = lib.prism_config_init()
-        self._ctx = lib.prism_init(ffi.new("PrismConfig *", config))
+        cfg = ffi.new("PrismConfig *", config)
+        if registry is not None:
+            cfg.registry = registry._ptr
+            self._registry = registry
+        self._ctx = lib.prism_init(cfg)
         if self._ctx == ffi.NULL:
             raise RuntimeError("Prism could not be initialized")
 

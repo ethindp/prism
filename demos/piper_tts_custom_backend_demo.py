@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 # Note: this code is (NOT) production-quality! If you use it in your applications, you have been warned!
 
-from __future__ import annotations
-
 import argparse
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import numpy as np
@@ -12,8 +11,6 @@ import sounddevice
 from piper import PiperVoice
 from prism.core import Context
 from prism.custom import CustomBackend, RegistryBuilder
-
-MODEL_PATH: str = ""
 
 _VOICE_CACHE: dict[str, object] = {}
 
@@ -24,7 +21,7 @@ def _load_voice(path: str) -> object:
     return _VOICE_CACHE[path]
 
 
-def _synthesize(voice: object, text: str):
+def _synthesize(voice: object, text: str) -> Iterator[tuple[np.ndarray, int]]:
     if hasattr(voice, "synthesize"):
         for chunk in voice.synthesize(text):
             arr = getattr(chunk, "audio_float_array", None)
@@ -44,22 +41,25 @@ def _synthesize(voice: object, text: str):
 
 
 class PiperBackend(CustomBackend):
+    model_path: str = ""
+
     def __init__(self) -> None:
         self.voice: object = None
 
     def initialize(self) -> None:
-        self.voice = _load_voice(MODEL_PATH)
+        self.voice = _load_voice(self.model_path)
 
     def is_supported(self) -> bool:
-        return bool(MODEL_PATH) and Path(MODEL_PATH).exists()
+        return bool(self.model_path) and Path(self.model_path).exists()
 
     def speak(self, text: str, interrupt: bool) -> None:
         if interrupt:
             sounddevice.stop()
         chunks = []
         rate = 22050
-        for arr, rate in _synthesize(self.voice, text):
+        for arr, chunks_rate in _synthesize(self.voice, text):
             chunks.append(arr)
+            rate = chunks_rate
         if not chunks:
             return
         sounddevice.play(np.concatenate(chunks), samplerate=rate, blocking=True)
@@ -77,8 +77,7 @@ def main() -> int:
         "running a neural text to speech model in Python.",
     )
     args = parser.parse_args()
-    global MODEL_PATH
-    MODEL_PATH = args.model
+    PiperBackend.model_path = args.model
     with RegistryBuilder() as builder:
         backend_id = builder.add_backend("Piper", PiperBackend, priority=1000)
         registry = builder.freeze()

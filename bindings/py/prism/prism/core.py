@@ -2,7 +2,7 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field, fields
 from enum import IntEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from .lib import ffi, lib
 
@@ -36,7 +36,7 @@ class BackendId(IntEnum):
     SPIEL = 0x478B44F14AD3D89C
 
     @classmethod
-    def _missing_(cls, value: object) -> self | None:
+    def _missing_(cls, value: object) -> Self | None:
         if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
             return None
         member = int.__new__(cls, value)

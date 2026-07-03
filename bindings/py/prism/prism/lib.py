@@ -5,6 +5,13 @@ from pathlib import Path
 
 from cffi import FFI
 
+if sys.platform == "win32":
+    _NATIVE_NAME = "prism.dll"
+elif sys.platform == "darwin":
+    _NATIVE_NAME = "libprism.dylib"
+else:
+    _NATIVE_NAME = "libprism.so"
+
 
 def _find_native_dir() -> str:
     local_path = Path(__file__).parent / "_native"
@@ -15,7 +22,7 @@ def _find_native_dir() -> str:
         if not path:
             continue
         candidate = Path(path) / relative_path
-        if (candidate / "prism.dll").exists():
+        if (candidate / _NATIVE_NAME).exists():
             return candidate.resolve()
 
     return local_path
@@ -166,12 +173,7 @@ PrismError prism_backend_get_sample_rate(PrismBackend *backend, size_t *out_samp
 PrismError prism_backend_get_bit_depth(PrismBackend *backend, size_t *out_bit_depth);
 const char *prism_error_string(PrismError error);
 """)
-if sys.platform == "win32":
-    lib_path = (dll_home / "prism.dll").resolve()
-elif sys.platform == "darwin":
-    lib_path = (dll_home / "libprism.dylib").resolve()
-else:
-    lib_path = (dll_home / "libprism.so").resolve()
+lib_path = (dll_home / _NATIVE_NAME).resolve()
 lib = ffi.dlopen(
     str(lib_path), ffi.RTLD_NOW | ffi.RTLD_DEEPBIND if sys.platform == "linux" else 0
 )

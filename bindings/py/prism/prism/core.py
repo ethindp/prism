@@ -35,6 +35,15 @@ class BackendId(IntEnum):
     WINDOW_EYES = 0x9120D89908785C13
     SPIEL = 0x478B44F14AD3D89C
 
+    @classmethod
+    def _missing_(cls, value: object) -> self | None:
+        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+            return None
+        member = int.__new__(cls, value)
+        member._name_ = f"CUSTOM_{value:#018x}"
+        member._value_ = value
+        return cls._value2member_map_.setdefault(value, member)
+
 
 class PrismError(Exception):
     """Base class for all Prism-related errors."""
@@ -409,15 +418,14 @@ class Context:
             res = lib.prism_registry_id(self._ctx, index_or_name.encode("utf-8"))
         else:
             raise TypeError("Expected int or string")
-        try:
-            return BackendId(res)
-        except ValueError as e:
-            raise ValueError(f"Prism returned unknown backend ID: {res:#x}") from e
+        if res == 0:
+            raise KeyError(f"No backend matching {index_or_name!r}")
+        return BackendId(res)
 
     def name_of(self, backend_id: BackendId) -> str:
         c_ptr = lib.prism_registry_name(self._ctx, backend_id)
         if c_ptr == ffi.NULL:
-            raise ValueError("Backend ID not found")
+            raise KeyError("Backend ID not found")
         return ffi.string(c_ptr).decode("utf-8")
 
     def priority_of(self, backend_id: BackendId) -> int:

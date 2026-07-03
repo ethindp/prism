@@ -141,11 +141,10 @@ def _key(handle: ffi.CData) -> int:
 
 
 class _InstanceState:
-    __slots__ = ("handle", "obj", "str_anchor")
+    __slots__ = ("obj", "str_anchor")
 
     def __init__(self, obj: CustomBackend) -> None:
         self.obj = obj
-        self.handle: ffi.CData | None = None
         self.str_anchor: ffi.CData | None = None
 
 
@@ -240,7 +239,7 @@ class _Registration:
     def __init__(self, backend_cls: type[CustomBackend]) -> None:
         self._cls = backend_cls
         self._callbacks: list[ffi.CData] = []
-        self._instances: dict[int, _InstanceState] = {}
+        self._instances: dict[int, ffi.CData] = {}
         self._lock = threading.Lock()
         self.features = 0
         self.vtable = ffi.new("PrismBackendVTable*")
@@ -287,10 +286,10 @@ class _Registration:
     def _build(self) -> None:
         def create(_userdata: ffi.CData) -> ffi.CData:
             state = _InstanceState(self._cls())
-            state.handle = ffi.new_handle(state)
+            handle = ffi.new_handle(state)
             with self._lock:
-                self._instances[_key(state.handle)] = state
-            return state.handle
+                self._instances[_key(handle)] = handle
+            return handle
 
         def destroy(instance_ptr: ffi.CData) -> None:
             with self._lock:

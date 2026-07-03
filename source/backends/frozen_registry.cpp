@@ -20,7 +20,7 @@ FrozenRegistry::FrozenRegistry(std::vector<Registration> registrations)
 
 FrozenRegistry *
 FrozenRegistry::create(std::vector<Registration> registrations) {
-  return new FrozenRegistry(std::move(registrations));
+  return new(std::nothrow) FrozenRegistry(std::move(registrations));
 }
 
 FrozenRegistry *FrozenRegistry::global() {

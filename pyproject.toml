@@ -29,8 +29,10 @@ build-backend = "scikit_build_core.build"
 dev = [
     "numpy>=2.2.6",
     "packaging>=26.0",
+    "piper-tts>=1.4.2",
     "pytest>=9.0.2",
     "silero-vad>=6.2.1",
+    "sounddevice>=0.5.5",
 ]
 
 [tool.scikit-build]

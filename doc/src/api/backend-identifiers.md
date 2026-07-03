@@ -27,3 +27,5 @@ Prism defines constants for all known backend identifiers. These constants are 6
 | `PRISM_BACKEND_SPIEL` | Spiel (Linux and BSDs only) |
 
 The availability of any given backend depends on the platform Prism is running on and how Prism was compiled. The presence of a constant does not guarantee that the corresponding backend is available at runtime. Use `prism_registry_exists` to check availability.
+
+Custom backend identifiers are computed from the backend's name with the same hash function, so an identifier obtained from `prism_registry_builder_add_backend` is stable across runs for the same name.

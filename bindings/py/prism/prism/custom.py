@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import threading
 import traceback
-from collections.abc import Callable
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from .core import AudioCallback, _check_error
 from .lib import ffi, lib
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Self
 
 _FEATURE_BIT: Final[dict[str, int]] = {
     "speak": 1 << 2,
@@ -42,12 +45,10 @@ _MAP: Final = object()
 class CustomBackend:
     """Base class for a Python-implemented Prism backend.
 
-    Override only the operations you support. All non-overridden methods will raise NotImplementedError.
+    Override only the operations you actually support.
     """
 
-    def initialize(self) -> None:
-        raise NotImplementedError
-
+    def initialize(self) -> None: ...
     def is_supported(self) -> bool:
         return True
 
@@ -131,11 +132,11 @@ def _error_for(exc: BaseException) -> int:
     return lib.PRISM_ERROR_INTERNAL
 
 
-def _text(ptr) -> str:
+def _text(ptr: ffi.CData) -> str:
     return ffi.string(ptr).decode("utf-8")
 
 
-def _key(handle) -> int:
+def _key(handle: ffi.CData) -> int:
     return int(ffi.cast("uintptr_t", handle))
 
 
@@ -144,21 +145,23 @@ class _InstanceState:
 
     def __init__(self, obj: CustomBackend) -> None:
         self.obj = obj
-        self.handle = None
-        self.str_anchor = None
+        self.handle: ffi.CData | None = None
+        self.str_anchor: ffi.CData | None = None
 
 
-def _action(method: str, *readers: Callable):
-    def fn(instance_ptr, *c_args):
+def _action(method: str, *readers: Callable[[object], object]) -> Callable[..., int]:
+    def fn(instance_ptr: ffi.CData, *c_args: object) -> int:
         obj = ffi.from_handle(instance_ptr).obj
-        getattr(obj, method)(*(read(a) for read, a in zip(readers, c_args)))
+        getattr(obj, method)(
+            *(read(a) for read, a in zip(readers, c_args, strict=True)),
+        )
         return lib.PRISM_OK
 
     return fn
 
 
-def _value_out(method: str, convert: Callable):
-    def fn(instance_ptr, out_ptr):
+def _value_out(method: str, convert: Callable[[object], object]) -> Callable[..., int]:
+    def fn(instance_ptr: ffi.CData, out_ptr: ffi.CData) -> int:
         obj = ffi.from_handle(instance_ptr).obj
         out_ptr[0] = convert(getattr(obj, method)())
         return lib.PRISM_OK
@@ -166,11 +169,12 @@ def _value_out(method: str, convert: Callable):
     return fn
 
 
-def _string_out(method: str):
-    def fn(instance_ptr, voice_id, out_ptr):
+def _string_out(method: str) -> Callable[..., int]:
+    def fn(instance_ptr: ffi.CData, voice_id: int, out_ptr: ffi.CData) -> int:
         state = ffi.from_handle(instance_ptr)
         buf = ffi.new(
-            "char[]", getattr(state.obj, method)(int(voice_id)).encode("utf-8")
+            "char[]",
+            getattr(state.obj, method)(int(voice_id)).encode("utf-8"),
         )
         state.str_anchor = buf
         out_ptr[0] = buf
@@ -179,10 +183,15 @@ def _string_out(method: str):
     return fn
 
 
-def _speak_to_memory(instance_ptr, text_ptr, c_callback, c_userdata):
+def _speak_to_memory(
+    instance_ptr: ffi.CData,
+    text_ptr: ffi.CData,
+    c_callback: ffi.CData,
+    c_userdata: ffi.CData,
+) -> int:
     obj = ffi.from_handle(instance_ptr).obj
 
-    def emit(samples, channels: int, sample_rate: int) -> None:
+    def emit(samples: list[float], channels: int, sample_rate: int) -> None:
         buf = ffi.new("float[]", list(samples))
         c_callback(c_userdata, buf, len(buf), int(channels), int(sample_rate))
 
@@ -228,23 +237,29 @@ _LIVE_LOCK: Final = threading.Lock()
 
 
 class _Registration:
-    def __init__(self, backend_cls: type[CustomBackend], name: str) -> None:
+    def __init__(self, backend_cls: type[CustomBackend]) -> None:
         self._cls = backend_cls
-        self._callbacks: list = []
+        self._callbacks: list[ffi.CData] = []
         self._instances: dict[int, _InstanceState] = {}
         self._lock = threading.Lock()
         self.features = 0
         self.vtable = ffi.new("PrismBackendVTable*")
         self.vtable.size = ffi.sizeof("PrismBackendVTable")
         self.userdata = ffi.new_handle(self)
-        self.userdata_free = None
+        self.userdata_free: ffi.CData | None = None
         self._build()
 
-    def _make_cb(self, ctype, fn, *, on_error):
-        def guarded(*args):
+    def _make_cb(
+        self,
+        ctype: ffi.CType,
+        fn: Callable[..., object],
+        *,
+        on_error: object,
+    ) -> ffi.CData:
+        def guarded(*args: object) -> object:
             try:
                 return fn(*args)
-            except BaseException as exc:
+            except BaseException as exc:  # noqa: BLE001
                 traceback.print_exc()
                 return _error_for(exc) if on_error is _MAP else on_error
 
@@ -252,43 +267,53 @@ class _Registration:
         self._callbacks.append(cb)
         return cb
 
-    def _install(self, field, fn, *, on_error):
+    def _install(
+        self,
+        field: str,
+        fn: Callable[..., object],
+        *,
+        on_error: object,
+    ) -> None:
         setattr(
             self.vtable,
             field,
             self._make_cb(
-                ffi.typeof(getattr(self.vtable, field)), fn, on_error=on_error
+                ffi.typeof(getattr(self.vtable, field)),
+                fn,
+                on_error=on_error,
             ),
         )
 
     def _build(self) -> None:
-        def create(_userdata):
+        def create(_userdata: ffi.CData) -> ffi.CData:
             state = _InstanceState(self._cls())
             state.handle = ffi.new_handle(state)
             with self._lock:
                 self._instances[_key(state.handle)] = state
             return state.handle
 
-        def destroy(instance_ptr):
+        def destroy(instance_ptr: ffi.CData) -> None:
             with self._lock:
                 self._instances.pop(_key(instance_ptr), None)
 
-        def userdata_free(_userdata):
+        def userdata_free(_userdata: ffi.CData) -> None:
             with _LIVE_LOCK:
                 _LIVE.discard(self)
 
-        def is_supported(instance_ptr):
+        def is_supported(instance_ptr: ffi.CData) -> bool:
             return ffi.from_handle(instance_ptr).obj.is_supported()
 
         self._install("create", create, on_error=ffi.NULL)
         self._install("destroy", destroy, on_error=None)
         self._install("is_supported", is_supported, on_error=False)
+
         for field, (trampoline, bit) in _SLOTS.items():
             if getattr(self._cls, field) is getattr(CustomBackend, field):
                 continue
             self._install(field, trampoline, on_error=_MAP)
             if bit is not None:
                 self.features |= bit
+
         self.userdata_free = self._make_cb("void(void *)", userdata_free, on_error=None)
 
 
@@ -296,17 +321,25 @@ class RegistryBuilder:
     def __init__(self) -> None:
         self._ptr = lib.prism_registry_builder_new()
         if self._ptr == ffi.NULL:
-            raise MemoryError("prism_registry_builder_new failed")
+            msg = "prism_registry_builder_new failed"
+            raise MemoryError(msg)
         self._frozen = False
 
     def add_backend(
-        self, name: str, backend: type[CustomBackend], *, priority: int = 100
+        self,
+        name: str,
+        backend: type[CustomBackend],
+        *,
+        priority: int = 100,
     ) -> int:
         if not (isinstance(backend, type) and issubclass(backend, CustomBackend)):
-            raise TypeError("backend must be a CustomBackend subclass")
+            msg = "backend must be a CustomBackend subclass"
+            raise TypeError(msg)
         if self._frozen or self._ptr == ffi.NULL:
-            raise RuntimeError("builder is spent")
-        registration = _Registration(backend, name)
+            msg = "builder is spent"
+            raise RuntimeError(msg)
+
+        registration = _Registration(backend)
         with _LIVE_LOCK:
             _LIVE.add(registration)
         out_id = ffi.new("PrismBackendId*")
@@ -325,29 +358,31 @@ class RegistryBuilder:
 
     def freeze(self) -> Registry:
         if self._frozen or self._ptr == ffi.NULL:
-            raise RuntimeError("builder is spent")
+            msg = "builder is spent"
+            raise RuntimeError(msg)
         ptr = lib.prism_registry_freeze(self._ptr)
         self._frozen = True
         if ptr == ffi.NULL:
-            raise RuntimeError("prism_registry_freeze failed")
+            msg = "prism_registry_freeze failed"
+            raise RuntimeError(msg)
         return Registry(ptr)
 
     def close(self) -> None:
         if getattr(self, "_ptr", ffi.NULL) != ffi.NULL:
-            lib.prism_registry_builder_free(self._ptr)  # required even after freeze
+            lib.prism_registry_builder_free(self._ptr)
             self._ptr = ffi.NULL
 
     __del__ = close
 
-    def __enter__(self) -> RegistryBuilder:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_exc) -> None:
+    def __exit__(self, *_exc: object) -> None:
         self.close()
 
 
 class Registry:
-    def __init__(self, ptr) -> None:
+    def __init__(self, ptr: ffi.CData) -> None:
         self._ptr = ptr
 
     def close(self) -> None:
@@ -357,8 +392,8 @@ class Registry:
 
     __del__ = close
 
-    def __enter__(self) -> Registry:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_exc) -> None:
+    def __exit__(self, *_exc: object) -> None:
         self.close()

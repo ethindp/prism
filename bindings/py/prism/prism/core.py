@@ -385,7 +385,7 @@ class Context:
         config = lib.prism_config_init()
         cfg = ffi.new("PrismConfig *", config)
         if registry is not None:
-            cfg.registry = registry._ptr
+            cfg.registry = registry._ptr  # noqa: SLF001
             self._registry = registry
         self._ctx = lib.prism_init(cfg)
         if self._ctx == ffi.NULL:

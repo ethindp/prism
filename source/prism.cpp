@@ -205,8 +205,7 @@ prism_registry_builder_add_backend(PrismRegistryBuilder *builder,
                                    void *userdata,
                                    void(PRISM_CALL *userdata_free)(void *),
                                    PrismBackendId *out_id) {
-  if (builder == nullptr || name == nullptr || vtable == nullptr ||
-      vtable->size == 0) {
+  if (vtable->size == 0) {
     if (userdata_free != nullptr)
       userdata_free(userdata);
     return PRISM_ERROR_INVALID_PARAM;
@@ -241,8 +240,6 @@ prism_registry_builder_add_backend(PrismRegistryBuilder *builder,
 
 PRISM_API PRISM_NODISCARD PrismRegistry *PRISM_CALL
 prism_registry_freeze(PrismRegistryBuilder *builder) {
-  if (builder == nullptr)
-    return nullptr;
   return reinterpret_cast<PrismRegistry *>(
       reinterpret_cast<RegistryBuilder *>(builder)->freeze());
 }

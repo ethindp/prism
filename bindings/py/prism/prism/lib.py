@@ -34,37 +34,7 @@ typedef struct PrismBackend PrismBackend;
 typedef uint64_t PrismBackendId;
 typedef struct PrismRegistry PrismRegistry;
 typedef struct PrismRegistryBuilder PrismRegistryBuilder;
-typedef struct PrismBackendVTable {
-  size_t size;
-  void *(*create)(void *instance);
-  void (*destroy)(void *instance);
-  bool (*is_supported)(void *instance);
-  PrismError (*initialize)(void *instance);
-  PrismError (*speak)(void *instance, const char *text, bool interrupt);
-  PrismError (*speak_to_memory)(void *instance, const char *text,
-                                PrismAudioCallback *callback, void *callback_userdata);
-  PrismError (*braille)(void *instance, const char *text);
-  PrismError (*output)(void *instance, const char *text, bool interrupt);
-  PrismError (*stop)(void *instance);
-  PrismError (*pause)(void *instance);
-  PrismError (*resume)(void *instance);
-  PrismError (*is_speaking)(void *instance, bool *out_speaking);
-  PrismError (*set_volume)(void *instance, float volume);
-  PrismError (*get_volume)(void *instance, float *out_volume);
-  PrismError (*set_rate)(void *instance, float rate);
-  PrismError (*get_rate)(void *instance, float *out_rate);
-  PrismError (*set_pitch)(void *instance, float pitch);
-  PrismError (*get_pitch)(void *instance, float *out_pitch);
-  PrismError (*refresh_voices)(void *instance);
-  PrismError (*count_voices)(void *instance, size_t *out_count);
-  PrismError (*get_voice_name)(void *instance, size_t voice_id, const char **out_name);
-  PrismError (*get_voice_language)(void *instance, size_t voice_id, const char **out_language);
-  PrismError (*set_voice)(void *instance, size_t voice_id);
-  PrismError (*get_voice)(void *instance, size_t *out_voice_id);
-  PrismError (*get_channels)(void *instance, size_t *out_channels);
-  PrismError (*get_sample_rate)(void *instance, size_t *out_sample_rate);
-  PrismError (*get_bit_depth)(void *instance, size_t *out_bit_depth);
-} PrismBackendVTable;
+
 typedef struct {
   uint8_t version;
   PrismRegistry *registry;
@@ -98,6 +68,38 @@ typedef enum PrismError {
 typedef void(PrismAudioCallback)(
     void *userdata, const float *samples, size_t sample_count,
     size_t channels, size_t sample_rate);
+
+typedef struct PrismBackendVTable {
+  size_t size;
+  void *(*create)(void *instance);
+  void (*destroy)(void *instance);
+  bool (*is_supported)(void *instance);
+  PrismError (*initialize)(void *instance);
+  PrismError (*speak)(void *instance, const char *text, bool interrupt);
+  PrismError (*speak_to_memory)(void *instance, const char *text,
+                                PrismAudioCallback *callback, void *callback_userdata);
+  PrismError (*braille)(void *instance, const char *text);
+  PrismError (*output)(void *instance, const char *text, bool interrupt);
+  PrismError (*stop)(void *instance);
+  PrismError (*pause)(void *instance);
+  PrismError (*resume)(void *instance);
+  PrismError (*is_speaking)(void *instance, bool *out_speaking);
+  PrismError (*set_volume)(void *instance, float volume);
+  PrismError (*get_volume)(void *instance, float *out_volume);
+  PrismError (*set_rate)(void *instance, float rate);
+  PrismError (*get_rate)(void *instance, float *out_rate);
+  PrismError (*set_pitch)(void *instance, float pitch);
+  PrismError (*get_pitch)(void *instance, float *out_pitch);
+  PrismError (*refresh_voices)(void *instance);
+  PrismError (*count_voices)(void *instance, size_t *out_count);
+  PrismError (*get_voice_name)(void *instance, size_t voice_id, const char **out_name);
+  PrismError (*get_voice_language)(void *instance, size_t voice_id, const char **out_language);
+  PrismError (*set_voice)(void *instance, size_t voice_id);
+  PrismError (*get_voice)(void *instance, size_t *out_voice_id);
+  PrismError (*get_channels)(void *instance, size_t *out_channels);
+  PrismError (*get_sample_rate)(void *instance, size_t *out_sample_rate);
+  PrismError (*get_bit_depth)(void *instance, size_t *out_bit_depth);
+} PrismBackendVTable;
 
 PrismConfig prism_config_init(void);
 PrismContext *prism_init(PrismConfig* cfg);

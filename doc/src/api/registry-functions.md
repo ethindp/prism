@@ -1,6 +1,6 @@
 ## Backend Registry Functions
 
-The backend registry maintains the list of available backends and provides facilities for creating and managing backend instances. Backends are registered at library load time; the registry contents cannot be modified at runtime by application code.
+The backend registry maintains the list of available backends and provides facilities for creating and managing backend instances. The functions in this chapter operate on whichever registry the supplied context is bound to. A registry's contents are fixed when it is created: compiled-in backends register themselves at library load time and appear in every registry, and custom backends are added while a registry is under construction, as described in the chapter on custom backends. There is no way to add or remove a backend from a registry that already exists.
 
 ### prism_registry_count
 
@@ -24,7 +24,7 @@ Returns the number of registered backends.
 
 #### Remarks
 
-The return value represents the number of backends that were compiled into the Prism library and registered themselves at load time. This count is constant for the lifetime of the process; backends cannot be registered or unregistered at runtime.
+The return value represents the number of backends in the registry the context is bound to. For a context using the global registry, this is the number of backends that were compiled into the Prism library and registered themselves at load time, and for a context bound to an application-constructed registry, it additionally includes any custom backends. The count is constant for the lifetime of the registry.
 
 A return value of zero indicates that no backends are available, which typically means Prism was compiled without any backend support or is running on a platform for which no backends were configured. Applications SHOULD check for this condition and report an appropriate error to the user.
 

@@ -33,16 +33,13 @@ Logger::Logger() : drain([this] { run(); }) {}
 Logger::~Logger() { shutdown(); }
 
 PrismLogHandler Logger::set_handler(PrismLogHandler next) noexcept {
-// NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks)
+  // NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks)
   const Handler *fresh =
       next.fn != nullptr ? new (std::nothrow)
                                Handler{.fn = next.fn, .userdata = next.userdata}
                          : nullptr;
-  const Handler *old = this->current.exchange(
-      fresh,
-      std::
-          memory_order_acq_rel);
-// NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
+  const Handler *old = this->current.exchange(fresh, std::memory_order_acq_rel);
+  // NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
   PrismLogHandler previous{};
   if (old != nullptr)
     previous = PrismLogHandler{.fn = old->fn, .userdata = old->userdata};

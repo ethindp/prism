@@ -89,9 +89,21 @@ typedef struct PrismBackend PrismBackend;
 typedef uint64_t PrismBackendId;
 typedef struct PrismRegistry PrismRegistry;
 typedef struct PrismRegistryBuilder PrismRegistryBuilder;
+
+typedef void(PRISM_CALL *PrismAvailabilityCallback)(void *userdata,
+                                                    PrismBackendId backend,
+                                                    const char *name,
+                                                    bool available);
+
 typedef struct {
   uint8_t version;
   PrismRegistry *registry;
+  PrismAvailabilityCallback availability_callback;
+  void *availability_userdata;
+  uint32_t availability_poll_interval_ms;
+  uint32_t availability_debounce_samples;
+  uint32_t availability_backoff_max_ms;
+  bool availability_auto_power_manage;
 } PrismConfig;
 
 #ifdef _MSC_VER
@@ -260,6 +272,13 @@ prism_init(PrismConfig *cfg);
 
 PRISM_API
 void PRISM_CALL prism_shutdown(PrismContext *ctx);
+
+PRISM_API void PRISM_CALL prism_availability_poll_pause(PrismContext *ctx);
+
+PRISM_API void PRISM_CALL prism_availability_poll_resume(PrismContext *ctx);
+
+PRISM_API PRISM_NODISCARD bool PRISM_CALL
+prism_availability_auto_power_supported(void);
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) size_t PRISM_CALL
     prism_registry_count(PrismContext *ctx);

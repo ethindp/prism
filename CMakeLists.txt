@@ -21,7 +21,6 @@ project(
   VERSION 0.16.7
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
-
 option(PRISM_ENABLE_TESTS "Enable tests" OFF)
 option(PRISM_ENABLE_DEMOS "Enable demo applications" OFF)
 option(
@@ -45,6 +44,8 @@ if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
     OFF)
 endif()
 option(PRISM_ENABLE_GDEXTENSION "Enable building of the Godot GDExtension" ON)
+option(PRISM_ENABLE_POWER_MANAGEMENT
+       "Enable OS power-state-aware availability polling where supported." ON)
 option(PRISM_ENABLE_LEGACY_BACKENDS
        "Enable building of legacy backends which are dead or rarely used" OFF)
 if(PRISM_ENABLE_LEGACY_BACKENDS)
@@ -423,6 +424,11 @@ if(WIN32)
     add_dependencies(prism_backend_nvda prism_nvda_codegen)
   endif()
   target_link_libraries(${PROJECT_NAME} PRIVATE rpcrt4)
+  if(PRISM_ENABLEPOWER_MANAGEMENT)
+    target_compile_definitions(${PROJECT_NAME}
+                               PRIVATE PRISM_ENABLE_POWER_MANAGEMENT)
+    target_link_libraries(${PROJECT_NAME} PRIVATE PowrProf)
+  endif()
   if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr32.def
                        ZDSRAPI.dll)
@@ -497,11 +503,34 @@ if(APPLE)
     find_library(UIKIT_FRAMEWORK UIKit REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${UIKIT_FRAMEWORK})
   endif()
+  if(PRISM_ENABLE_POWER_MANAGEMENT AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
+    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+    target_compile_definitions(${PROJECT_NAME}
+                               PRIVATE PRISM_ENABLE_POWER_MANAGEMENT)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${IOKIT_FRAMEWORK}
+                                                  ${COREFOUNDATION_FRAMEWORK})
+  endif()
 endif()
 if(UNIX
    AND NOT APPLE
    AND NOT ANDROID
    AND NOT EMSCRIPTEN)
+  if(PRISM_ENABLE_POWER_MANAGEMENT)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GIOMM_PM giomm-2.68>=2.68.0)
+    if(GIOMM_PM_FOUND)
+      target_compile_definitions(${PROJECT_NAME}
+                                 PRIVATE PRISM_ENABLE_POWER_MANAGEMENT)
+      target_include_directories(${PROJECT_NAME}
+                                 PRIVATE ${GIOMM_PM_INCLUDE_DIRS})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${GIOMM_PM_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${GIOMM_PM_LIBRARIES})
+    else()
+      message(
+        STATUS "Prism: giomm not found; availability power management disabled")
+    endif()
+  endif()
   if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
     find_package(PkgConfig REQUIRED)
     if(PRISM_VCPKG_WANTS_ORCA_BACKEND)

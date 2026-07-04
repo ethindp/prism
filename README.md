@@ -25,6 +25,7 @@ To build Prism, all you need do is create a build directory and run cmake as you
 | `PRISM_ENABLE_LINTING` | Enable linting of source code with clang-tidy and other static analysis tools. |
 | `PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS` | DO NOT USE. Enables options primarily used by the vcpkg package manager. |
 | `PRISM_ENABLE_GDEXTENSION` | Build the GDExtension and Prism together (on by default). |
+| `PRISM_ENABLE_POWER_MANAGEMENT` | Enable Prism to automatically manage the backend availability enumeration thread on OS-generated power-management events, if supported by the target platform. |
 | `PRISM_ENABLE_LEGACY_BACKENDS` | Enable all legacy backends supported by Prism. For the purposes of this option and the `LEGACY_*` options which follow, a "legacy" backend is a backend which is supported but which has a very limited number of users, or is only available for compatibility reasons. |
 | `PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND` | Enable the system access backend. |
 | `PRISM_ENABLE_LEGACY_WINDOW_EYES_BACKEND` | Enable the window eyes backend. |

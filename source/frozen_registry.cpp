@@ -21,7 +21,7 @@ FrozenRegistry::FrozenRegistry(std::vector<Registration> registrations)
 
 FrozenRegistry *
 FrozenRegistry::create(std::vector<Registration> registrations) {
-  return new(std::nothrow) FrozenRegistry(std::move(registrations));
+  return new (std::nothrow) FrozenRegistry(std::move(registrations));
 }
 
 FrozenRegistry *FrozenRegistry::global() {
@@ -81,6 +81,18 @@ BackendId FrozenRegistry::id(std::string_view name) const noexcept {
 
 BackendId FrozenRegistry::id_at(std::size_t index) const noexcept {
   return index < entries.size() ? entries[index].reg.id : BackendId{0};
+}
+
+std::shared_ptr<TextToSpeechBackend>
+FrozenRegistry::create_at(std::size_t index) {
+  if (index >= entries.size())
+    return nullptr;
+  auto &e = entries[index];
+  return e.reg.factory ? e.reg.factory() : nullptr;
+}
+
+const char *FrozenRegistry::name_at(std::size_t index) const noexcept {
+  return index < entries.size() ? entries[index].reg.name.c_str() : nullptr;
 }
 
 int FrozenRegistry::priority(BackendId id) const noexcept {

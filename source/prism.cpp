@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "prism.h"
+#include "backend_enumerator.h"
 #include "frozen_registry.h"
 #include "logging.h"
+#include "power_notifier.h"
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <new>
 #include <simdutf/simdutf.h>
 #include <string>
@@ -22,12 +25,16 @@
 
 struct PrismContext {
   FrozenRegistry *registry;
+  std::unique_ptr<BackendEnumerator> enumerator;
   bool com_initialized = false;
 
   explicit PrismContext(FrozenRegistry *registry) : registry(registry) {
     registry->retain();
   }
-  ~PrismContext() { registry->release(); }
+  ~PrismContext() {
+    enumerator.reset();
+    registry->release();
+  }
 };
 
 struct PrismBackend {
@@ -121,6 +128,19 @@ prism_init(PrismConfig *cfg) {
 #ifdef _WIN32
   ctx->com_initialized = owns_com;
 #endif
+  if (cfg != nullptr && cfg->version >= 3 &&
+      cfg->availability_callback != nullptr) {
+    try {
+      ctx->enumerator = std::make_unique<BackendEnumerator>(
+          registry, cfg->availability_callback, cfg->availability_userdata,
+          cfg->availability_poll_interval_ms,
+          cfg->availability_debounce_samples, cfg->availability_backoff_max_ms,
+          cfg->availability_auto_power_manage);
+    } catch (...) {
+      prism_log(PRISM_LOG_LEVEL_ERROR, "prism",
+                "failed to start backend enumerator");
+    }
+  }
   return ctx;
 }
 
@@ -132,6 +152,21 @@ PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) {
     CoUninitialize();
 #endif
   delete ctx;
+}
+
+PRISM_API void PRISM_CALL prism_availability_poll_pause(PrismContext *ctx) {
+  if (ctx != nullptr && ctx->enumerator)
+    ctx->enumerator->pause();
+}
+
+PRISM_API void PRISM_CALL prism_availability_poll_resume(PrismContext *ctx) {
+  if (ctx != nullptr && ctx->enumerator)
+    ctx->enumerator->resume();
+}
+
+PRISM_API PRISM_NODISCARD bool PRISM_CALL
+prism_availability_auto_power_supported(void) {
+  return PowerNotifier::supported();
 }
 
 PRISM_API PRISM_NODISCARD size_t PRISM_CALL

@@ -22,6 +22,9 @@ public:
   [[nodiscard]] std::string_view name(BackendId id) const noexcept;
   [[nodiscard]] BackendId id(std::string_view name) const noexcept;
   [[nodiscard]] BackendId id_at(std::size_t index) const noexcept;
+  [[nodiscard]] std::shared_ptr<TextToSpeechBackend>
+  create_at(std::size_t index);
+  [[nodiscard]] const char *name_at(std::size_t index) const noexcept;
   [[nodiscard]] int priority(BackendId id) const noexcept;
   [[nodiscard]] std::vector<BackendId> list() const;
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend> get(BackendId id);
@@ -41,16 +44,13 @@ private:
     Registration reg;
     std::weak_ptr<TextToSpeechBackend> cached;
   };
-
   explicit FrozenRegistry(std::vector<Registration> registrations);
   ~FrozenRegistry() = default;
   FrozenRegistry(const FrozenRegistry &) = delete;
   FrozenRegistry &operator=(const FrozenRegistry &) = delete;
-
   [[nodiscard]] Entry *find(BackendId id) noexcept;
   [[nodiscard]] Entry *find(std::string_view name) noexcept;
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend> acquire_entry(Entry *e);
-
   std::atomic_unsigned_lock_free refcount;
   std::vector<Entry> entries;
   mutable std::shared_mutex cache_mutex;

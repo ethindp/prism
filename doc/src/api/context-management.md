@@ -10,6 +10,12 @@ A struct containing configuration parameters for Prism or it's back-ends to use.
 typedef struct {
   uint8_t version;
   PrismRegistry *registry;
+  PrismAvailabilityCallback availability_callback;
+  void *availability_userdata;
+  uint32_t availability_poll_interval_ms;
+  uint32_t availability_debounce_samples;
+  uint32_t availability_backoff_max_ms;
+  bool availability_auto_power_manage;
 } PrismConfig;
 ```
 
@@ -22,6 +28,30 @@ The version of this structure. This field MUST NOT be modified.
 `registry`
 
 The registry the created context will be bound to. This MAY be `NULL`, in which case the context uses the global registry. If non-null, it MUST be a registry obtained from `prism_registry_freeze`. This field was added in version 3 of this structure.
+
+`availability_callback`
+
+A function invoked when a backend's runtime availability changes, or `NULL`. When this field is `NULL`, the context performs no background availability polling and creates no poll thread. When it is non-null, the context runs an internal thread that samples backend availability and invokes this callback on each confirmed transition. The behavior of this callback and the polling model are described in the chapter on background availability enumeration. This field was added in version 3 of this structure.
+
+`availability_userdata`
+
+An opaque pointer passed unmodified to `availability_callback` on each invocation. Prism does not interpret or take ownership of this value. It is ignored when `availability_callback` is `NULL`. This field was added in version 3 of this structure.
+
+`availability_poll_interval_ms`
+
+The base interval, in milliseconds, between availability scans. A value of `0` selects the default of 1000 milliseconds. It is ignored when `availability_callback` is `NULL`. This field was added in version 3 of this structure.
+
+`availability_debounce_samples`
+
+The number of consecutive agreeing samples required before a change in a backend's availability is confirmed and reported. A value of `0` selects the default of 2. A value of `1` confirms every observed change immediately, without debouncing. It is ignored when `availability_callback` is `NULL`. This field was added in version 3 of this structure.
+
+`availability_backoff_max_ms`
+
+The upper bound, in milliseconds, for adaptive backoff of the sampling interval. While availability is unchanging, the interval doubles from `availability_poll_interval_ms` toward this bound, and returns to the base interval as soon as any change is observed. A value of `0`, or any value not greater than the base interval, disables backoff and holds the interval constant. It is ignored when `availability_callback` is `NULL`. This field was added in version 3 of this structure.
+
+`availability_auto_power_manage`
+
+When `true`, and when the library was built with power-management support, the poll thread is paused automatically when the operating system suspends and resumed when it wakes. When `false`, or on builds and platforms without power-management support, this field has no effect and the application MAY drive pausing itself. Use `prism_availability_auto_power_supported` to determine whether this field is honored. It is ignored when `availability_callback` is `NULL`. This field was added in version 3 of this structure.
 
 #### Remarks
 
@@ -82,10 +112,6 @@ Each call to `prism_init` creates an independent context. Multiple contexts MAY 
 Configurations from older versions of this library are accepted; fields that a caller's version of the structure does not contain are treated as absent. A configuration whose `version` is newer than the library itself is rejected, since the library cannot know what the unknown fields mean.
 
 The returned context is owned by the caller. When the context is no longer needed, it MUST be passed to `prism_shutdown` to release resources. Failure to call `prism_shutdown` results in a memory leak.
-
-Because `prism_init` only allocates a small control structure and obtains a reference to the global backend registry, it is a lightweight operation that is unlikely to fail except under severe memory pressure.
-
-Applications typically call `prism_init` once at startup and `prism_shutdown` once at exit. However, there is no prohibition against creating and destroying contexts multiple times throughout the application's lifetime. However, note that doing so (or having multiple contexts) provides no actual benefit.
 
 #### Example
 

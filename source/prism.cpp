@@ -2,6 +2,7 @@
 
 #include "prism.h"
 #include "backends/frozen_registry.h"
+#include "logging.h"
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -73,6 +74,7 @@ PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void) {
 
 PRISM_API PRISM_NODISCARD PrismContext *PRISM_CALL
 prism_init(PrismConfig *cfg) {
+  init_logging_from_env();
 #ifdef _WIN32
   bool owns_com = false;
   switch (CoInitializeEx(nullptr,
@@ -508,4 +510,25 @@ prism_error_string(PrismError error) {
     return "Unknown error";
   return strings[error];
 }
+
+PRISM_API PrismLogHandler PRISM_CALL
+prism_set_log_handler(PrismLogHandler handler) {
+  return logger().set_handler(handler);
+}
+
+PRISM_API PrismLogLevel PRISM_CALL prism_set_log_level(PrismLogLevel level) {
+  return logger().set_level(level);
+}
+
+PRISM_API void PRISM_CALL prism_log(PrismLogLevel level, const char *source,
+                                    const char *message) {
+  Logger &lg = logger();
+  if (!lg.wants(level))
+    return;
+  lg.submit(level, source, message);
+}
+
+PRISM_API void PRISM_CALL prism_log_flush(void) { logger().flush(); }
+
+PRISM_API void PRISM_CALL prism_log_shutdown(void) { logger().shutdown(); }
 }

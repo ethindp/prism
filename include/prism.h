@@ -168,6 +168,24 @@ typedef struct PrismBackendVTable {
   PrismError(PRISM_CALL *get_bit_depth)(void *instance, size_t *out_bit_depth);
 } PrismBackendVTable;
 
+typedef enum PrismLogLevel {
+  PRISM_LOG_LEVEL_TRACE,
+  PRISM_LOG_LEVEL_DEBUG,
+  PRISM_LOG_LEVEL_INFO,
+  PRISM_LOG_LEVEL_WARN,
+  PRISM_LOG_LEVEL_ERROR,
+  PRISM_LOG_LEVEL_NONE
+} PrismLogLevel;
+
+typedef void(PRISM_CALL *PrismLogCallback)(void *userdata, PrismLogLevel level,
+                                           const char *source,
+                                           const char *message);
+
+typedef struct PrismLogHandler {
+  PrismLogCallback fn;
+  void *userdata;
+} PrismLogHandler;
+
 #define PRISM_BACKEND_INVALID UINT64_C(0)
 #define PRISM_BACKEND_SAPI UINT64_C(0x1D6DF72422CEEE66)
 #define PRISM_BACKEND_AV_SPEECH UINT64_C(0x28E3429577805C24)
@@ -402,6 +420,19 @@ PRISM_API PrismRegistry *PRISM_CALL
 prism_registry_retain(PrismRegistry *registry);
 
 PRISM_API void PRISM_CALL prism_registry_release(PrismRegistry *registry);
+
+PRISM_API PrismLogHandler PRISM_CALL
+prism_set_log_handler(PrismLogHandler handler);
+
+PRISM_API PrismLogLevel PRISM_CALL prism_set_log_level(PrismLogLevel level);
+
+PRISM_API PRISM_NONNULL(2, 3) PRISM_NULL_TERMINATED_STRING_ARG(2)
+    PRISM_NULL_TERMINATED_STRING_ARG(3) void PRISM_CALL
+    prism_log(PrismLogLevel level, const char *source, const char *message);
+
+PRISM_API void PRISM_CALL prism_log_flush(void);
+
+PRISM_API void PRISM_CALL prism_log_shutdown(void);
 
 #if defined(__cplusplus)
 }

@@ -81,7 +81,6 @@ private:
   BackendCatalog() = default;
   mutable std::mutex mutex;
   std::vector<Registration> registrations;
-  LogSource logger("backend_catalog");
 };
 
 template <typename T> struct BackendRegistrar {

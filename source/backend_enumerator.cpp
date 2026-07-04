@@ -31,94 +31,65 @@ BackendEnumerator::BackendEnumerator(FrozenRegistry *registry,
       interval_ms(poll_interval_ms == 0 ? default_interval : poll_interval_ms),
       debounce(debounce_samples == 0 ? default_debounce : debounce_samples),
       backoff_max_ms(backoff_max_ms), auto_power_manage(auto_power_manage) {
-      logger.info("Initializing");
-      logger.debug("Retaining registry");
   registry->retain();
   const std::size_t n = registry->count();
-  logger.debug("Found {} backends to scan", n);
-  logger.trace("Reallocing instance vector");
   instances.resize(n);
-  logger.trace("Reallocing confirmed list");
   confirmed.assign(n, 0);
-  logger.trace("Reallocing streak list");
   streak.assign(n, 0);
-  logger.trace("Creating poll waiter");
   waiter = PollWaiter::create();
-  logger.trace("Launching scanner thread");
   thread = std::jthread([this](const std::stop_token &stop) { run(stop); });
 #if defined(PRISM_ENABLE_POWER_MANAGEMENT)
   if (auto_power_manage) {
-  logger.trace("Creating power notifier");
     power_notifier =
         PowerNotifier::create([this] { pause(); }, [this] { resume(); });
-#endif
   }
+#endif
 }
 
 BackendEnumerator::~BackendEnumerator() {
-logger.info("Uninitializing");
 #if defined(PRISM_ENABLE_POWER_MANAGEMENT)
-logger.trace("Destroying power notifier");
   power_notifier.reset();
 #endif
-logger.trace("Requesting scan thread to stop");
   thread.request_stop();
   if (waiter) {
-  logger.trace("Waking waiter");
     waiter->wake();
-    }
+  }
   if (thread.joinable()) {
-  logger.trace("Joining to scan thread");
     thread.join();
-    }
-    logger.trace("Releasing registry");
+  }
   registry->release();
-  logger.info("Uninitialization complete");
 }
 
 void BackendEnumerator::pause() {
-logger.info("Pause requested");
-logger.trace("Acquiring mutex");
   {
     std::lock_guard lock(mtx);
     paused = true;
-    logger.trace("Releasing mutex");
   }
   if (waiter) {
-  logger.trace("Waking waiter");
     waiter->wake();
-    }
+  }
 }
 
 void BackendEnumerator::resume() {
-logger.info("Resume requested");
-logger.trace("Acquiring mutex");
   {
     std::lock_guard lock(mtx);
     paused = false;
-    logger.trace("Releasing mutex");
   }
   if (waiter) {
-  logger.trace("Waking waiter");
     waiter->wake();
-    }
+  }
 }
 
 void BackendEnumerator::run(const std::stop_token &stop) {
-logger.debug("Beginning scan thread execution");
 #ifdef _WIN32
-logger.debug("Initializing COM with flags {}", COINIT_APARTMENTTHREADED | COINIT_SPEED_OVER_MEMORY);
-  const bool com_ok = SUCCEEDED(CoInitializeEx(
-      nullptr, COINIT_APARTMENTTHREADED | COINIT_SPEED_OVER_MEMORY));
+  const bool com_ok = SUCCEEDED(
+      CoInitializeEx(nullptr, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
 #endif
   std::stop_callback on_stop(stop, [this] {
-  logger.info("Scan stop requested");
     if (waiter) {
-    logger.trace("Waking waiter");
       waiter->wake();
-      }
+    }
   });
-  logger.debug("Beginning priming scan");
   poll_once(SweepMode::Prime);
   const std::uint32_t base = interval_ms;
   const std::uint32_t cap = backoff_max_ms > base ? backoff_max_ms : base;

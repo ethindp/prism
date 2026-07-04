@@ -176,7 +176,7 @@ prism_registry_count(PrismContext *ctx) {
 
 PRISM_API PRISM_NODISCARD PrismBackendId PRISM_CALL
 prism_registry_id_at(PrismContext *ctx, size_t index) {
-return to_prism_id(ctx->registry->id_at(index));
+  return to_prism_id(ctx->registry->id_at(index));
 }
 
 PRISM_API PRISM_NODISCARD PrismBackendId PRISM_CALL

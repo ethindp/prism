@@ -11,13 +11,11 @@ BackendCatalog &BackendCatalog::instance() {
 }
 
 void BackendCatalog::add(Registration registration) {
-logger.debug("Adding backend {} (name = {}, priority = {}, factory = {})", registration.id, registration.name, registration.priority, registration.factory
   std::lock_guard lock(mutex);
   registrations.push_back(std::move(registration));
 }
 
 std::vector<Registration> BackendCatalog::snapshot() const {
-logger.trace("Snapshotting current catalog");
   std::lock_guard lock(mutex);
   return registrations;
 }

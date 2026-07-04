@@ -91,10 +91,12 @@ private:
             "org.freedesktop.login1", "org.freedesktop.login1.Manager",
             "PrepareForSleep", "/org/freedesktop/login1");
     } catch (const Glib::Error &) {
+      context->pop_thread_default();
+      return;
     }
     loop->run();
     if (connection && sub_id != 0)
-      connection->signal_unsubscribe(sub_id_);
+      connection->signal_unsubscribe(sub_id);
     context->pop_thread_default();
   }
 
@@ -139,8 +141,7 @@ std::unique_ptr<PowerNotifier>
 PowerNotifier::create(const std::function<void()> &on_suspend,
                       const std::function<void()> &on_resume) {
   Gio::init();
-  return std::make_unique<LinuxPowerNotifier>(std::move(on_suspend),
-                                              std::move(on_resume));
+  return std::make_unique<LinuxPowerNotifier>(on_suspend, on_resume);
 }
 
 bool PowerNotifier::supported() noexcept { return true; }

@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#if defined(_WIN32)
+#ifdef _WIN32
 #include <windows.h>
 
 namespace {
@@ -22,6 +22,7 @@ public:
       timer = CreateWaitableTimer(nullptr, FALSE, nullptr);
     event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
   }
+
   ~WindowsWaiter() override {
     if (timer != nullptr)
       CloseHandle(timer);
@@ -55,7 +56,7 @@ std::unique_ptr<PollWaiter> PollWaiter::create() {
   return std::make_unique<WindowsWaiter>();
 }
 
-#elif defined(__linux__)
+#elifdef __linux__
 #include <poll.h>
 #include <sys/eventfd.h>
 #include <sys/prctl.h>
@@ -67,7 +68,7 @@ private:
   int efd = -1;
 
 public:
-  LinuxWaiter() { efd = eventfd(0, efd_CLOEXEC); }
+  LinuxWaiter() { efd = eventfd(0, EFD_CLOEXEC); }
 
   ~LinuxWaiter() override {
     if (efd >= 0)
@@ -117,7 +118,7 @@ std::unique_ptr<PollWaiter> PollWaiter::create() {
   return std::make_unique<LinuxWaiter>();
 }
 
-#elif defined(__APPLE__)
+#elifdef __APPLE__
 #include <sys/event.h>
 #include <sys/types.h>
 #include <unistd.h>

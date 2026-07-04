@@ -38,7 +38,7 @@ BackendEnumerator::BackendEnumerator(FrozenRegistry *registry,
   streak.assign(n, 0);
   waiter = PollWaiter::create();
   thread = std::jthread([this](const std::stop_token &stop) { run(stop); });
-#if defined(PRISM_ENABLE_POWER_MANAGEMENT)
+#ifdef PRISM_ENABLE_POWER_MANAGEMENT
   if (auto_power_manage) {
     power_notifier =
         PowerNotifier::create([this] { pause(); }, [this] { resume(); });
@@ -47,7 +47,7 @@ BackendEnumerator::BackendEnumerator(FrozenRegistry *registry,
 }
 
 BackendEnumerator::~BackendEnumerator() {
-#if defined(PRISM_ENABLE_POWER_MANAGEMENT)
+#ifdef PRISM_ENABLE_POWER_MANAGEMENT
   power_notifier.reset();
 #endif
   thread.request_stop();
@@ -62,7 +62,7 @@ BackendEnumerator::~BackendEnumerator() {
 
 void BackendEnumerator::pause() {
   {
-    std::lock_guard lock(mtx);
+    std::scoped_lock lock(mtx);
     paused = true;
   }
   if (waiter) {
@@ -72,7 +72,7 @@ void BackendEnumerator::pause() {
 
 void BackendEnumerator::resume() {
   {
-    std::lock_guard lock(mtx);
+    std::scoped_lock lock(mtx);
     paused = false;
   }
   if (waiter) {
@@ -97,7 +97,7 @@ void BackendEnumerator::run(const std::stop_token &stop) {
   while (!stop.stop_requested()) {
     bool paused_snapshot;
     {
-      std::lock_guard lock(mtx);
+      std::scoped_lock lock(mtx);
       paused_snapshot = paused;
     }
     if (paused_snapshot) {
@@ -106,7 +106,7 @@ void BackendEnumerator::run(const std::stop_token &stop) {
         break;
       bool still_paused;
       {
-        std::lock_guard lock(mtx);
+        std::scoped_lock lock(mtx);
         still_paused = paused;
       }
       if (still_paused)
@@ -120,7 +120,7 @@ void BackendEnumerator::run(const std::stop_token &stop) {
     if (stop.stop_requested())
       break;
     {
-      std::lock_guard lock(mtx);
+      std::scoped_lock lock(mtx);
       if (paused)
         continue;
     }

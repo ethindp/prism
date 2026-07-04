@@ -67,7 +67,7 @@ void Logger::deliver(Record &record, const Handler *pair) noexcept {
   if (record.flush_signal != nullptr) {
     auto *signal = static_cast<FlushSignal *>(record.flush_signal);
     {
-      std::lock_guard lock(signal->m);
+      std::scoped_lock lock(signal->m);
       signal->done = true;
     }
     signal->cv.notify_all();
@@ -151,6 +151,8 @@ void init_logging_from_env() noexcept {
     return;
   const std::string_view value{env.get()};
 #else
+  // There is sadly no alternative I can find for doing this in an MT-safe way,
+  // so... NOLINTNEXTLINE(concurrency-mt-unsafe)
   const char *env = std::getenv("PRISM_LOG");
   if (env == nullptr || *env == '\0')
     return;
@@ -170,6 +172,6 @@ void init_logging_from_env() noexcept {
   else if (value == "none")
     level = PRISM_LOG_LEVEL_NONE;
   Logger &lg = logger();
-  lg.set_handler(PrismLogHandler{&stderr_sink, nullptr});
+  lg.set_handler(PrismLogHandler{.fn = &stderr_sink, .userdata = nullptr});
   lg.set_level(level);
 }

@@ -11,11 +11,11 @@ BackendCatalog &BackendCatalog::instance() {
 }
 
 void BackendCatalog::add(Registration registration) {
-  std::lock_guard lock(mutex);
+  std::scoped_lock lock(mutex);
   registrations.push_back(std::move(registration));
 }
 
 std::vector<Registration> BackendCatalog::snapshot() const {
-  std::lock_guard lock(mutex);
+  std::scoped_lock lock(mutex);
   return registrations;
 }

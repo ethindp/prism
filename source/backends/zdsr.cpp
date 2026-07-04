@@ -4,8 +4,8 @@
 #if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
     defined(__i386__)
-#include "backend.h"
-#include "backend_registry.h"
+#include "../backend.h"
+#include "../backend_catalog.h"
 #include <array>
 #include <raw/zdsr.h>
 #include <simdutf/simdutf.h>

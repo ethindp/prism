@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
-#include "backend.h"
-#include "backend_registry.h"
+#include "../backend.h"
+#include "../backend_catalog.h"
 #include <simdutf/simdutf.h>
 #ifdef _MSC_VER
 #pragma warning(push, 0)

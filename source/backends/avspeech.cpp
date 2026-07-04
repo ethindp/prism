@@ -2,9 +2,9 @@
 
 #ifdef __OBJC__
 #ifdef __APPLE__
-#include "backend.h"
-#include "backend_registry.h"
-#include "utils.h"
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../utils.h"
 #import <AVFAudio/AVFAudio.h>
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>

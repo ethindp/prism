@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "backend_registry.h"
+#include "backend_catalog.h"
 #include <algorithm>
 #include <ranges>
 

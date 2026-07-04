@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "prism.h"
-#include "backends/frozen_registry.h"
+#include "frozen_registry.h"
 #include "logging.h"
 #include <cmath>
 #include <cstdint>

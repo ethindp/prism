@@ -6,8 +6,8 @@
     defined(__i386__)
 #ifdef PRISM_ENABLE_LEGACY_BACKENDS
 #ifdef PRISM_ENABLE_WINDOW_EYES_LEGACY_BACKEND
-#include "backend.h"
-#include "backend_registry.h"
+#include "../backend.h"
+#include "../backend_catalog.h"
 #include <algorithm>
 #include <atlbase.h>
 #include <atomic>

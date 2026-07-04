@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+
 #include "frozen_registry.h"
 #include <algorithm>
 #include <ranges>

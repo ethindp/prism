@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "backend.h"
-#include "backend_registry.h"
-#include "utils.h"
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../utils.h"
 #include <simdutf/simdutf.h>
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \

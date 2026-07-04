@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
-#pragma once
 
-#include "backend_registry.h"
+#pragma once
+#include "backend_catalog.h"
 #include <atomic>
 #include <cstddef>
 #include <memory>

@@ -171,13 +171,8 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c")
 file(GLOB backend_sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/*.cpp")
-list(
-  REMOVE_ITEM
-  backend_sources
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/backend_registry.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/utils.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/frozen_registry.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/custom_backend.cpp")
+list(REMOVE_ITEM backend_sources
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/custom_backend.cpp")
 list(REMOVE_ITEM sources ${backend_sources})
 foreach(src ${backend_sources})
   prism_add_backend("${src}")

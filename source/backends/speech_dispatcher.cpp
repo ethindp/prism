@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "backend.h"
-#include "backend_registry.h"
-#include "utils.h"
-#include <simdutf/simdutf.h>
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
 #ifndef NO_LIBSPEECHD
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../utils.h"
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
@@ -21,6 +20,7 @@
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
+#include <simdutf/simdutf.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -412,8 +412,12 @@ REGISTER_BACKEND_WITH_ID(SpeechDispatcherBackend, Backends::SpeechDispatcher,
                          "Speech Dispatcher", 97);
 #endif
 #elifdef _WIN32
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../utils.h"
 #include <atomic>
 #include <raw/prism_speech_dispatcher_bridge.h>
+#include <simdutf/simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 

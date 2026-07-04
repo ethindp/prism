@@ -39,6 +39,8 @@ public:
       : on_suspend(std::move(on_suspend)), on_resume(std::move(on_resume)) {
     params.Callback = &WindowsPowerNotifier::callback;
     params.Context = this;
+    // We deliberately ignore the return value of this function: if it fails,
+    // this entire class just does nothing.
     PowerRegisterSuspendResumeNotification(DEVICE_NOTIFY_CALLBACK, &params,
                                            &handle);
   }
@@ -97,40 +99,41 @@ private:
   }
 
   void on_signal(
-      [[maybe_unused]] const Glib::RefPtr<Gio::DBus::Connection> &connection,
+      [[maybe_unused]] const Glib::RefPtr<Gio::DBus::Connection> &_connection,
       [[maybe_unused]] const Glib::ustring &sender_name,
       [[maybe_unused]] const Glib::ustring &object_path,
       [[maybe_unused]] const Glib::ustring &interface_name,
       [[maybe_unused]] const Glib::ustring &signal_name,
-      const Glib::VariantContainerBase &params) if (params.get_n_children() <
-                                                    1) return;
-  Glib::Variant<bool> arg;
-  params.get_child(arg, 0);
-  if (arg.get()) {
-    if (on_suspend)
-      on_suspend();
-  } else {
-    if (on_resume)
-      on_resume();
+      const Glib::VariantContainerBase &params) {
+    if (params.get_n_children() < 1)
+      return;
+    Glib::Variant<bool> arg;
+    params.get_child(arg, 0);
+    if (arg.get()) {
+      if (on_suspend)
+        on_suspend();
+    } else {
+      if (on_resume)
+        on_resume();
+    }
   }
-}
 
-public : LinuxPowerNotifier(std::function<void()> on_suspend,
-                            std::function<void()> on_resume)
-    : on_suspend(std::move(on_suspend)),
-      on_resume(std::move(on_resume)),
-      context(Glib::MainContext::create()),
-      loop(Glib::MainLoop::create(context, false)) {
-  thread = std::thread([this] { thread_main(); });
-}
+public:
+  LinuxPowerNotifier(std::function<void()> on_suspend,
+                     std::function<void()> on_resume)
+      : on_suspend(std::move(on_suspend)), on_resume(std::move(on_resume)),
+        context(Glib::MainContext::create()),
+        loop(Glib::MainLoop::create(context, false)) {
+    thread = std::thread([this] { thread_main(); });
+  }
 
-~LinuxPowerNotifier() override {
-  loop->quit();
-  if (thread.joinable())
-    thread.join();
-}
+  ~LinuxPowerNotifier() override {
+    loop->quit();
+    if (thread.joinable())
+      thread.join();
+  }
 };
-}
+} // namespace
 
 std::unique_ptr<PowerNotifier>
 PowerNotifier::create(const std::function<void()> &on_suspend,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "backend.h"
+#include "logging.h"
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -80,6 +81,7 @@ private:
   BackendCatalog() = default;
   mutable std::mutex mutex;
   std::vector<Registration> registrations;
+  LogSource logger("backend_catalog");
 };
 
 template <typename T> struct BackendRegistrar {

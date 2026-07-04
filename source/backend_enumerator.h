@@ -5,6 +5,7 @@
 #include "frozen_registry.h"
 #include "poll_waiter.h"
 #include "prism.h"
+#include "logging.h"
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -39,6 +40,7 @@ private:
   std::unique_ptr<PowerNotifier> power_notifier;
 #endif
   std::jthread thread;
+  LogSource logger("backend_enumerator");
 
   void run(const std::stop_token &stop);
   bool poll_once(const SweepMode mode);

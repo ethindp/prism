@@ -8,15 +8,21 @@
 
 FrozenRegistry::FrozenRegistry(std::vector<Registration> registrations)
     : refcount(1) {
+    logger.info("Initializing");
+    logger.debug("Constructed with {} registrations", registrations.size());
   std::unordered_set<std::uint64_t> seen;
   entries.reserve(registrations.size());
   for (auto &reg : registrations) {
-    if (!seen.insert(static_cast<std::uint64_t>(reg.id)).second)
+    if (!seen.insert(static_cast<std::uint64_t>(reg.id)).second) {
+    logger.warn("Registration {} is already present; skipping", reg.id);
       continue;
+      }
     entries.push_back(Entry{.reg = std::move(reg), .cached = {}});
   }
+  logger.debug("Stable-sorting entries on priority order");
   std::ranges::stable_sort(entries, std::ranges::greater{},
                            [](const Entry &e) { return e.reg.priority; });
+                           logger.info("Initialization complete");
 }
 
 FrozenRegistry *
@@ -27,6 +33,9 @@ FrozenRegistry::create(std::vector<Registration> registrations) {
 FrozenRegistry *FrozenRegistry::global() {
   static FrozenRegistry *g =
       FrozenRegistry::create(BackendCatalog::instance().snapshot());
+      if (g == nullptr) {
+      logger.error("Frozen registry memory allocation failure!");
+      }
   return g;
 }
 
@@ -214,7 +223,11 @@ BuilderResult RegistryBuilder::add(std::string name, int priority,
     return BuilderResult::EmptyName;
   if (!simdutf::validate_utf8(name.data(), name.size()))
     return BuilderResult::InvalidUtf8;
+  if (priority < 0)
+    return BuilderResult::NegativePriority;
   const auto new_id = make_backend_id(name);
+  if (new_id == BackendId{0})                         // <-- add (#4)
+    return BuilderResult::ReservedId;
   for (const auto &r : registrations) {
     if (r.name == name)
       return BuilderResult::DuplicateName;

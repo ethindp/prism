@@ -168,7 +168,7 @@ The backend's name, as a null-terminated UTF-8 string. This parameter MUST NOT b
 
 `priority`
 
-The backend's priority. Higher values indicate higher priority, exactly as for compiled-in backends.
+The backend's priority. Higher values indicate higher priority, exactly as for compiled-in backends. This value MUST be non-negative.
 
 `features`
 
@@ -195,7 +195,7 @@ An optional pointer receiving the identifier assigned to the backend. This param
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | The backend was added to the builder. |
-| `PRISM_ERROR_INVALID_PARAM` | The vtable's `size` member was zero or the declared feature set was inconsistent with the vtable. |
+| `PRISM_ERROR_INVALID_PARAM` | The vtable's `size` member was zero, the declared feature set was inconsistent with the vtable, or the priority value was negative. |
 | `PRISM_ERROR_INVALID_UTF8` | `name` contains invalid UTF-8 sequences. |
 | `PRISM_ERROR_INVALID_OPERATION` | The builder is spent, or a backend with the same name or the same identifier is already present in the builder. |
 | `PRISM_ERROR_MEMORY_FAILURE` | Memory allocation failed. |

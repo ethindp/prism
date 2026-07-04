@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
-#pragma once
 
+#pragma once
 #include "prism.h"
 #include <atomic>
 #include <blockingconcurrentqueue.h>
@@ -114,6 +114,11 @@ public:
   template <typename... Args>
   void debug(std::format_string<Args...> fmt, Args &&...args) const noexcept {
     write(PRISM_LOG_LEVEL_DEBUG, fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  void trace(std::format_string<Args...> fmt, Args &&...args) const noexcept {
+    write(PRISM_LOG_LEVEL_TRACE, fmt, std::forward<Args>(args)...);
   }
 };
 

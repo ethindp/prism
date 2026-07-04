@@ -176,10 +176,7 @@ prism_registry_count(PrismContext *ctx) {
 
 PRISM_API PRISM_NODISCARD PrismBackendId PRISM_CALL
 prism_registry_id_at(PrismContext *ctx, size_t index) {
-  const auto list = ctx->registry->list();
-  if (index >= list.size())
-    return PRISM_BACKEND_INVALID;
-  return to_prism_id(list[index]);
+return to_prism_id(ctx->registry->id_at(index));
 }
 
 PRISM_API PRISM_NODISCARD PrismBackendId PRISM_CALL
@@ -200,7 +197,7 @@ prism_registry_priority(PrismContext *ctx, PrismBackendId id) {
 
 PRISM_API PRISM_NODISCARD bool PRISM_CALL
 prism_registry_exists(PrismContext *ctx, PrismBackendId id) {
-  return ctx->registry->has(to_backend_id(id));
+  return id != PRISM_BACKEND_INVALID && ctx->registry->has(to_backend_id(id));
 }
 
 PRISM_API PRISM_NODISCARD PrismBackend *PRISM_CALL
@@ -266,6 +263,8 @@ prism_registry_builder_add_backend(PrismRegistryBuilder *builder,
   case BuilderResult::InvalidUtf8:
     return PRISM_ERROR_INVALID_UTF8;
   case BuilderResult::EmptyName:
+  case BuilderResult::NegativePriority:
+  case BuilderResult::ReservedId:
     return PRISM_ERROR_INVALID_PARAM;
   case BuilderResult::Spent:
   case BuilderResult::DuplicateName:

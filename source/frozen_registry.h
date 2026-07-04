@@ -2,6 +2,7 @@
 
 #pragma once
 #include "backend_catalog.h"
+#include "logging.h"
 #include <atomic>
 #include <cstddef>
 #include <memory>
@@ -54,6 +55,7 @@ private:
   std::atomic_unsigned_lock_free refcount;
   std::vector<Entry> entries;
   mutable std::shared_mutex cache_mutex;
+  LogSource logger("prism_registry");
 };
 
 enum class BuilderResult {
@@ -61,6 +63,8 @@ enum class BuilderResult {
   Spent,
   EmptyName,
   InvalidUtf8,
+  NegativePriority,
+  ReservedId,
   DuplicateName,
   DuplicateId,
 };

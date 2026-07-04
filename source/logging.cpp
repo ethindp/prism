@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+
 #include "logging.h"
 #include <algorithm>
 #include <array>
@@ -32,6 +33,7 @@ Logger::Logger() : drain([this] { run(); }) {}
 Logger::~Logger() { shutdown(); }
 
 PrismLogHandler Logger::set_handler(PrismLogHandler next) noexcept {
+// NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks)
   const Handler *fresh =
       next.fn != nullptr ? new (std::nothrow)
                                Handler{.fn = next.fn, .userdata = next.userdata}
@@ -39,7 +41,8 @@ PrismLogHandler Logger::set_handler(PrismLogHandler next) noexcept {
   const Handler *old = this->current.exchange(
       fresh,
       std::
-          memory_order_acq_rel); // NOLINT(clang-analyzer-cplusplus.NewDeleteLeaks)
+          memory_order_acq_rel);
+// NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
   PrismLogHandler previous{};
   if (old != nullptr)
     previous = PrismLogHandler{.fn = old->fn, .userdata = old->userdata};
@@ -84,11 +87,13 @@ void Logger::report_drops(const Handler *pair) noexcept {
     return;
   // The following absorbs exceptions because reporting them would potentially
   // cause infinite recursion
+  // NOLINTBEGIN(bugprone-empty-catch)
   try {
     const auto line = std::format("{} log message(s) dropped", count);
     pair->fn(pair->userdata, PRISM_LOG_LEVEL_WARN, "prism", line.c_str());
   } catch (...) {
-  } // NOLINT(bugprone-empty-catch)
+  }
+  // NOLINTEND(bugprone-empty-catch)
 }
 
 void Logger::run() noexcept {

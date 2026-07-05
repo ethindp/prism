@@ -57,6 +57,10 @@ std::unique_ptr<PollWaiter> PollWaiter::create() {
 }
 
 #elifdef __linux__
+#include <atomic>
+#include <cerrno>
+#include <ctime>
+#include <limits>
 #include <poll.h>
 #include <sys/eventfd.h>
 #include <sys/prctl.h>
@@ -66,6 +70,57 @@ namespace {
 class LinuxWaiter final : public PollWaiter {
 private:
   int efd = -1;
+  unsigned long last_slack = 0;
+  bool slack_set = false;
+  std::atomic_flag woken;
+
+  static timespec to_timespec(std::chrono::nanoseconds ns) {
+    if (ns < std::chrono::nanoseconds{0})
+      ns = std::chrono::nanoseconds{0};
+    timespec ts;
+    ts.tv_sec = static_cast<time_t>(ns.count() / 1000000000);
+    ts.tv_nsec = static_cast<long>(ns.count() % 1000000000);
+    return ts;
+  }
+
+  void apply_slack(std::chrono::milliseconds leeway) {
+    const unsigned long slack_ns =
+        leeway.count() > 0
+            ? static_cast<unsigned long>(std::min<std::uint64_t>(
+                  static_cast<std::uint64_t>(leeway.count()) * 1000000,
+                  static_cast<std::uint64_t>(
+                      std::numeric_limits<unsigned long>::max())))
+            : 1;
+    if (!slack_set || slack_ns != last_slack) {
+      prctl(PR_SET_TIMERSLACK, slack_ns, 0, 0, 0);
+      last_slack = slack_ns;
+      slack_set = true;
+    }
+  }
+
+  Wake fallback_wait(std::optional<std::chrono::milliseconds> timeout) {
+    constexpr auto slice =
+        std::chrono::nanoseconds{std::chrono::milliseconds{20}};
+    const auto deadline =
+        timeout ? std::optional{std::chrono::steady_clock::now() + *timeout}
+                : std::nullopt;
+    for (;;) {
+      if (woken.test()) {
+        woken.clear();
+        return Wake::Signal;
+      }
+      auto nap = slice;
+      if (deadline) {
+        const auto rem = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            *deadline - std::chrono::steady_clock::now());
+        if (rem <= std::chrono::nanoseconds{0})
+          return Wake::Timer;
+        nap = std::min(nap, rem);
+      }
+      const timespec ts = to_timespec(nap);
+      nanosleep(&ts, nullptr);
+    }
+  }
 
 public:
   LinuxWaiter() { efd = eventfd(0, EFD_CLOEXEC); }
@@ -78,38 +133,59 @@ public:
   Wake wait(std::optional<std::chrono::milliseconds> timeout,
             std::chrono::milliseconds leeway) override {
     if (efd < 0)
+      return fallback_wait(timeout);
+    apply_slack(leeway);
+    const auto deadline =
+        timeout ? std::optional{std::chrono::steady_clock::now() + *timeout}
+                : std::nullopt;
+    for (;;) {
+      timespec ts;
+      timespec *pts = nullptr;
+      if (deadline) {
+        const auto rem = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            *deadline - std::chrono::steady_clock::now());
+        if (rem <= std::chrono::nanoseconds{0})
+          return Wake::Timer;
+        ts = to_timespec(rem);
+        pts = &ts;
+      }
+      pollfd pfd{};
+      pfd.fd = efd;
+      pfd.events = POLLIN;
+      const int r = ppoll(&pfd, 1, pts, nullptr);
+      if (r < 0) {
+        if (errno == EINTR)
+          continue;
+        auto nap = std::chrono::nanoseconds{std::chrono::milliseconds{20}};
+        if (deadline) {
+          const auto rem = std::chrono::duration_cast<std::chrono::nanoseconds>(
+              *deadline - std::chrono::steady_clock::now());
+          if (rem <= std::chrono::nanoseconds{0})
+            return Wake::Timer;
+          nap = std::min(nap, rem);
+        }
+        const timespec nts = to_timespec(nap);
+        nanosleep(&nts, nullptr);
+        continue;
+      }
+      if (r == 0)
+        return Wake::Timer;
+      if ((pfd.revents & POLLIN) != 0) {
+        std::uint64_t v = 0;
+        [[maybe_unused]] ssize_t n = read(efd, &v, sizeof(v));
+        return Wake::Signal;
+      }
       return Wake::Timer;
-    const unsigned long slack_ns =
-        leeway.count() > 0
-            ? static_cast<unsigned long>(leeway.count()) * 1000000
-            : 1;
-    prctl(PR_SET_TIMERSLACK, slack_ns, 0, 0, 0);
-    pollfd pfd{};
-    pfd.fd = efd;
-    pfd.events = POLLIN;
-    timespec ts;
-    timespec *pts = nullptr;
-    if (timeout) {
-      ts.tv_sec = static_cast<time_t>(timeout->count() / 1000);
-      ts.tv_nsec = static_cast<long>((timeout->count() % 1000) * 1000000);
-      pts = &ts;
     }
-    const int r = ppoll(&pfd, 1, pts, nullptr);
-    if (r < 0)
-      return Wake::Signal;
-    if (r > 0 && (pfd.revents & POLLIN) != 0) {
-      std::uint64_t v = 0;
-      [[maybe_unused]] ssize_t n = read(efd, &v, sizeof(v));
-      return Wake::Signal;
-    }
-    return Wake::Timer;
   }
 
   void wake() override {
-    if (efd < 0)
-      return;
-    std::uint64_t one = 1;
-    [[maybe_unused]] ssize_t n = write(efd, &one, sizeof(one));
+    if (efd >= 0) {
+      std::uint64_t one = 1;
+      [[maybe_unused]] ssize_t n = write(efd, &one, sizeof(one));
+    } else {
+      woken.test_and_set();
+    }
   }
 };
 } // namespace

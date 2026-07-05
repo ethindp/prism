@@ -158,18 +158,6 @@ bool BackendEnumerator::poll_once(const SweepMode mode) {
     } catch (...) {
       continue;
     }
-    try {
-      if (raw) {
-        if (const auto res = instances[slot]->initialize();
-            !res && res.error() != BackendError::Ok &&
-            res.error() != BackendError::AlreadyInitialized) {
-          instances[slot] = nullptr;
-          raw = false;
-        }
-      }
-    } catch (...) {
-      continue;
-    }
     const std::uint8_t sample = raw ? 1 : 0;
     if (sample != confirmed[slot])
       disagreement = true;

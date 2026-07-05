@@ -83,54 +83,62 @@ private:
 
   void thread_main() {
     context->push_thread_default();
+    // NOLINTBEGIN(bugprone-empty-catch)
     try {
-      connection = Gio::DBus::Connection::get_sync(Gio::DBus::BusType::SYSTEM);
-      if (connection)
-        sub_id = connection->signal_subscribe(
-            sigc::mem_fun(*this, &LinuxPowerNotifier::on_signal),
-            "org.freedesktop.login1", "org.freedesktop.login1.Manager",
-            "PrepareForSleep", "/org/freedesktop/login1");
-    } catch (const Glib::Error &) {
-      context->pop_thread_default();
-      return;
+      sub_id = connection->signal_subscribe(
+          sigc::mem_fun(*this, &LinuxPowerNotifier::on_signal),
+          "org.freedesktop.login1", "org.freedesktop.login1.Manager",
+          "PrepareForSleep", "/org/freedesktop/login1");
+      loop->run();
+    } catch (...) {
     }
-    loop->run();
-    if (connection && sub_id != 0)
+    // NOLINTEND(bugprone-empty-catch)
+    if (sub_id != 0)
       connection->signal_unsubscribe(sub_id);
     context->pop_thread_default();
   }
 
-  void on_signal(
-      [[maybe_unused]] const Glib::RefPtr<Gio::DBus::Connection> &_connection,
-      [[maybe_unused]] const Glib::ustring &sender_name,
-      [[maybe_unused]] const Glib::ustring &object_path,
-      [[maybe_unused]] const Glib::ustring &interface_name,
-      [[maybe_unused]] const Glib::ustring &signal_name,
-      const Glib::VariantContainerBase &params) {
+  void on_signal([[maybe_unused]] const Glib::RefPtr<Gio::DBus::Connection>
+                     &connection_unused,
+                 [[maybe_unused]] const Glib::ustring &sender_name,
+                 [[maybe_unused]] const Glib::ustring &object_path,
+                 [[maybe_unused]] const Glib::ustring &interface_name,
+                 [[maybe_unused]] const Glib::ustring &signal_name,
+                 const Glib::VariantContainerBase &params) {
     if (params.get_n_children() < 1)
       return;
     Glib::Variant<bool> arg;
     params.get_child(arg, 0);
-    if (arg.get()) {
-      if (on_suspend)
-        on_suspend();
-    } else {
-      if (on_resume)
-        on_resume();
+    // NOLINTBEGIN(bugprone-empty-catch)
+    try {
+      if (arg.get()) {
+        if (on_suspend)
+          on_suspend();
+      } else {
+        if (on_resume)
+          on_resume();
+      }
+    } catch (...) {
     }
+    // NOLINTEND(bugprone-empty-catch)
   }
 
 public:
   LinuxPowerNotifier(std::function<void()> on_suspend,
-                     std::function<void()> on_resume)
+                     std::function<void()> on_resume,
+                     Glib::RefPtr<Gio::DBus::Connection> conn)
       : on_suspend(std::move(on_suspend)), on_resume(std::move(on_resume)),
         context(Glib::MainContext::create()),
-        loop(Glib::MainLoop::create(context, false)) {
+        loop(Glib::MainLoop::create(context, false)),
+        connection(std::move(conn)) {
     thread = std::thread([this] { thread_main(); });
   }
 
   ~LinuxPowerNotifier() override {
-    loop->quit();
+    context->invoke([this] {
+      loop->quit();
+      return false;
+    });
     if (thread.joinable())
       thread.join();
   }
@@ -141,7 +149,15 @@ std::unique_ptr<PowerNotifier>
 PowerNotifier::create(const std::function<void()> &on_suspend,
                       const std::function<void()> &on_resume) {
   Gio::init();
-  return std::make_unique<LinuxPowerNotifier>(on_suspend, on_resume);
+  try {
+    auto conn = Gio::DBus::Connection::get_sync(Gio::DBus::BusType::SYSTEM);
+    if (!conn)
+      return nullptr;
+    return std::make_unique<LinuxPowerNotifier>(on_suspend, on_resume,
+                                                std::move(conn));
+  } catch (const Glib::Error &) {
+    return nullptr;
+  }
 }
 
 bool PowerNotifier::supported() noexcept { return true; }

@@ -231,7 +231,7 @@ private:
       CFRunLoopAddSource(runloop, stop_source, kCFRunLoopCommonModes);
     }
     {
-      std::lock_guard lock(mtx);
+      std::scoped_lock lock(mtx);
       ready = true;
     }
     ready_cv.notify_one();
@@ -275,8 +275,7 @@ public:
 std::unique_ptr<PowerNotifier>
 PowerNotifier::create(const std::function<void()> &on_suspend,
                       const std::function<void()> &on_resume) {
-  return std::make_unique<MacPowerNotifier>(std::move(on_suspend),
-                                            std::move(on_resume));
+  return std::make_unique<MacPowerNotifier>(on_suspend, on_resume);
 }
 
 bool PowerNotifier::supported() noexcept { return true; }

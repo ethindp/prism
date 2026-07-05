@@ -14,7 +14,7 @@ env:
 
 jobs:
   lint:
-    runs-on: macos-26-xlarge
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6.0.3
       - name: Install LLVM (clang-tidy)
@@ -40,7 +40,7 @@ jobs:
             done
           done
   lint-simulator:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6.0.3
       - name: Install LLVM (clang-tidy)

@@ -307,6 +307,9 @@ if(APPLE)
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/voiceover.cpp" TARGET_DIRECTORY
     prism_backend_voiceover PROPERTIES COMPILE_OPTIONS
                                        "-x;objective-c++;-fobjc-arc")
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/power_notifier.cpp" TARGET_DIRECTORY
+    ${PROJECT_NAME} PROPERTIES COMPILE_OPTIONS "-x;objective-c++;-fobjc-arc")
 endif()
 set(_comp_arch_id "")
 if(DEFINED MSVC_CXX_ARCHITECTURE_ID)

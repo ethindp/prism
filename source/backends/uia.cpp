@@ -18,7 +18,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
-#include <format>
+#include <fmt/xchar.h>
 #include <moderncom/com_ptr.h>
 #include <moderncom/interfaces.h>
 #include <optional>
@@ -261,7 +261,7 @@ private:
         return;
       }
       const HINSTANCE hinst = GetModuleHandle(nullptr);
-      window_class_name = std::format(L"PrismUIANotificationWindow_{}",
+      window_class_name = fmt::format(L"PrismUIANotificationWindow_{}",
                                       reinterpret_cast<uintptr_t>(this));
       WNDCLASSEX wc{};
       wc.cbSize = sizeof(wc);

@@ -146,7 +146,7 @@ function(prism_target_external_include target visibility)
   foreach(_dir IN LISTS ARGN)
     list(APPEND _wrapped "$<BUILD_INTERFACE:${_dir}>")
   endforeach()
-  target_include_directories(${target} ${visibility} ${_wrapped})
+  target_include_directories(${target} SYSTEM ${visibility} ${_wrapped})
   if(PRISM_ENABLE_LINTING AND MSVC)
     foreach(_dir IN LISTS ARGN)
       target_compile_options(${target} ${visibility} "/external:I ${_dir}")
@@ -198,6 +198,18 @@ if(MSVC)
 else()
   target_compile_options(prism_third_party_dr_wav PRIVATE -w)
 endif()
+add_library(prism_third_party_fmt OBJECT third_party/fmt/src/format.cc
+                                         third_party/fmt/src/os.cc)
+prism_target_external_include(
+  prism_third_party_fmt PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/fmt/include")
+set_target_properties(prism_third_party_fmt PROPERTIES POSITION_INDEPENDENT_CODE
+                                                       ON)
+if(MSVC)
+  target_compile_options(prism_third_party_fmt PRIVATE /analyze- /W0 /WX-)
+else()
+  target_compile_options(prism_third_party_fmt PRIVATE -w)
+endif()
 if(ANDROID)
   add_library(
     prism_third_party_djinni OBJECT
@@ -228,7 +240,8 @@ prism_target_external_include(
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf"
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/moderncom"
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/concurrentqueue"
-  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/dr_wav")
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/dr_wav"
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/fmt/include")
 if(ANDROID)
   prism_target_external_include(
     prism_backend_iface
@@ -260,8 +273,10 @@ endforeach()
 target_link_libraries(${PROJECT_NAME}
                       PRIVATE "$<BUILD_INTERFACE:prism_backend_iface>")
 target_sources(
-  ${PROJECT_NAME} PRIVATE $<TARGET_OBJECTS:prism_third_party_simdutf>
-                          $<TARGET_OBJECTS:prism_third_party_dr_wav>)
+  ${PROJECT_NAME}
+  PRIVATE $<TARGET_OBJECTS:prism_third_party_simdutf>
+          $<TARGET_OBJECTS:prism_third_party_dr_wav>
+          $<TARGET_OBJECTS:prism_third_party_fmt>)
 if(ANDROID)
   target_sources(${PROJECT_NAME}
                  PRIVATE $<TARGET_OBJECTS:prism_third_party_djinni>)
@@ -277,7 +292,7 @@ if(EMSCRIPTEN)
   target_compile_options(prism_emscripten_threads INTERFACE -pthread)
   target_link_options(prism_emscripten_threads INTERFACE -pthread)
   foreach(_t prism_third_party_simdutf prism_third_party_dr_wav
-             ${_prism_backend_targets})
+             prism_third_party_fmt ${_prism_backend_targets})
     target_link_libraries(${_t} PRIVATE prism_emscripten_threads)
   endforeach()
   target_link_libraries(${PROJECT_NAME}
@@ -415,8 +430,8 @@ if(WIN32)
     COMMENT "Generating NVDA controller client stub for ${MIDL_ENV_TARGET}"
     VERBATIM)
   target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/nvda_controller.c")
-  target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
-  target_include_directories(prism_backend_iface
+  target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${GEN_DIR})
+  target_include_directories(prism_backend_iface SYSTEM
                              INTERFACE "$<BUILD_INTERFACE:${GEN_DIR}>")
   add_custom_target(prism_nvda_codegen DEPENDS "${GEN_DIR}/nvda_controller.h"
                                                "${GEN_DIR}/nvda_controller.c")
@@ -522,7 +537,7 @@ if(UNIX
     if(GIOMM_PM_FOUND)
       target_compile_definitions(${PROJECT_NAME}
                                  PRIVATE PRISM_ENABLE_POWER_MANAGEMENT)
-      target_include_directories(${PROJECT_NAME}
+      target_include_directories(${PROJECT_NAME} SYSTEM
                                  PRIVATE ${GIOMM_PM_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${GIOMM_PM_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${GIOMM_PM_LIBRARIES})
@@ -536,11 +551,12 @@ if(UNIX
     if(PRISM_VCPKG_WANTS_ORCA_BACKEND)
       pkg_check_modules(GLIBMM glibmm-2.68>=2.68.0 REQUIRED)
       pkg_check_modules(GIOMM giomm-2.68>=2.68.0 REQUIRED)
-      target_include_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_INCLUDE_DIRS}
-                                                         ${GIOMM_INCLUDE_DIRS})
       target_include_directories(
-        prism_backend_iface INTERFACE ${GLIBMM_INCLUDE_DIRS}
-                                      ${GIOMM_INCLUDE_DIRS})
+        ${PROJECT_NAME} SYSTEM PRIVATE ${GLIBMM_INCLUDE_DIRS}
+                                       ${GIOMM_INCLUDE_DIRS})
+      target_include_directories(
+        prism_backend_iface SYSTEM INTERFACE ${GLIBMM_INCLUDE_DIRS}
+                                             ${GIOMM_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARY_DIRS}
                               ${GIOMM_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARIES}
@@ -552,9 +568,9 @@ if(UNIX
     if(PRISM_VCPKG_WANTS_SPEECH_DISPATCHER_BACKEND)
       pkg_check_modules(LIBSPEECHD speech-dispatcher REQUIRED)
       target_include_directories(
-        ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
-                                ${CMAKE_CURRENT_BINARY_DIR})
-      target_include_directories(prism_backend_iface
+        ${PROJECT_NAME} SYSTEM PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
+                                       ${CMAKE_CURRENT_BINARY_DIR})
+      target_include_directories(prism_backend_iface SYSTEM
                                  INTERFACE ${LIBSPEECHD_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE
                               ${LIBSPEECHD_LIBRARY_DIRS})
@@ -565,8 +581,9 @@ if(UNIX
     endif()
     if(PRISM_VCPKG_WANTS_SPIEL_BACKEND)
       pkg_check_modules(SPIEL spiel-1.0 REQUIRED)
-      target_include_directories(${PROJECT_NAME} PRIVATE ${SPIEL_INCLUDE_DIRS})
-      target_include_directories(prism_backend_iface
+      target_include_directories(${PROJECT_NAME} SYSTEM
+                                 PRIVATE ${SPIEL_INCLUDE_DIRS})
+      target_include_directories(prism_backend_iface SYSTEM
                                  INTERFACE ${SPIEL_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARIES})
@@ -579,11 +596,12 @@ if(UNIX
     pkg_check_modules(GLIBMM glibmm-2.68>=2.68.0)
     pkg_check_modules(GIOMM giomm-2.68>=2.68.0)
     if(GLIBMM_FOUND AND GIOMM_FOUND)
-      target_include_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_INCLUDE_DIRS}
-                                                         ${GIOMM_INCLUDE_DIRS})
       target_include_directories(
-        prism_backend_iface INTERFACE ${GLIBMM_INCLUDE_DIRS}
-                                      ${GIOMM_INCLUDE_DIRS})
+        ${PROJECT_NAME} SYSTEM PRIVATE ${GLIBMM_INCLUDE_DIRS}
+                                       ${GIOMM_INCLUDE_DIRS})
+      target_include_directories(
+        prism_backend_iface SYSTEM INTERFACE ${GLIBMM_INCLUDE_DIRS}
+                                             ${GIOMM_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARY_DIRS}
                               ${GIOMM_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARIES}
@@ -595,9 +613,9 @@ if(UNIX
     pkg_check_modules(LIBSPEECHD speech-dispatcher)
     if(LIBSPEECHD_FOUND)
       target_include_directories(
-        ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
-                                ${CMAKE_CURRENT_BINARY_DIR})
-      target_include_directories(prism_backend_iface
+        ${PROJECT_NAME} SYSTEM PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
+                                       ${CMAKE_CURRENT_BINARY_DIR})
+      target_include_directories(prism_backend_iface SYSTEM
                                  INTERFACE ${LIBSPEECHD_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE
                               ${LIBSPEECHD_LIBRARY_DIRS})
@@ -608,8 +626,9 @@ if(UNIX
     endif()
     pkg_check_modules(SPIEL spiel-1.0)
     if(SPIEL_FOUND)
-      target_include_directories(${PROJECT_NAME} PRIVATE ${SPIEL_INCLUDE_DIRS})
-      target_include_directories(prism_backend_iface
+      target_include_directories(${PROJECT_NAME} SYSTEM
+                                 PRIVATE ${SPIEL_INCLUDE_DIRS})
+      target_include_directories(prism_backend_iface SYSTEM
                                  INTERFACE ${SPIEL_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARIES})

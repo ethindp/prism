@@ -19,7 +19,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <dr_wav/dr_wav.h>
-#include <format>
 #include <limits>
 #include <memory>
 #include <mmreg.h>

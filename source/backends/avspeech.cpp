@@ -159,7 +159,7 @@ public:
     }
     if (@available(macOS 14.0, iOS 17.0, *)) {
       dispatch_semaphore_t auth_sema = dispatch_semaphore_create(0);
-      __block auto auth_status =
+      [[maybe_unused]] __block auto auth_status =
           AVSpeechSynthesisPersonalVoiceAuthorizationStatusNotDetermined;
       [AVSpeechSynthesizer
           requestPersonalVoiceAuthorizationWithCompletionHandler:^(

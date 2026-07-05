@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <memory>
 #include <mutex>
-#include <print>
+#include <fmt/format.h>
 
 namespace {
 struct FlushSignal {
@@ -23,7 +23,7 @@ void PRISM_CALL stderr_sink([[maybe_unused]] void *ud, PrismLogLevel level,
   constexpr auto names = std::to_array<std::string_view>(
       {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "UNKNOWN"});
   const auto i = std::min<unsigned>(static_cast<unsigned>(level), 5U);
-  std::println(stderr, "[prism {}] {}: {}", names[i], source, message);
+  fmt::println(stderr, "[prism {}] {}: {}", names[i], source, message);
 }
 
 } // namespace
@@ -86,7 +86,7 @@ void Logger::report_drops(const Handler *pair) noexcept {
   // cause infinite recursion
   // NOLINTBEGIN(bugprone-empty-catch)
   try {
-    const auto line = std::format("{} log message(s) dropped", count);
+    const auto line = fmt::format("{} log message(s) dropped", count);
     pair->fn(pair->userdata, PRISM_LOG_LEVEL_WARN, "prism", line.c_str());
   } catch (...) {
   }

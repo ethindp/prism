@@ -12,7 +12,7 @@
 #include <cerrno>
 #include <cmath>
 #include <cstdlib>
-#include <format>
+#include <fmt/format.h>
 #include <libspeechd.h>
 #include <memory>
 #include <netdb.h>
@@ -362,7 +362,7 @@ public:
     std::shared_lock sl(state_lock);
     if (id >= voices.size())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    return std::format("{} ({})", voices[id].name, voices[id].module);
+    return fmt::format("{} ({})", voices[id].name, voices[id].module);
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override {

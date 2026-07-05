@@ -6,7 +6,7 @@
 #include <blockingconcurrentqueue.h>
 #include <cstddef>
 #include <cstdint>
-#include <format>
+#include <fmt/format.h>
 #include <new>
 #include <string>
 #include <string_view>
@@ -80,13 +80,13 @@ private:
   std::string name;
 
   template <typename... Args>
-  void write(PrismLogLevel level, std::format_string<Args...> fmt,
+  void write(PrismLogLevel level, fmt::format_string<Args...> fmt,
              Args &&...args) const noexcept {
     Logger &lg = logger();
     if (!lg.wants(level))
       return;
     try {
-      lg.submit(level, name, std::format(fmt, std::forward<Args>(args)...));
+      lg.submit(level, name, fmt::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
       // We swallow all exceptions here; they cannot be allowed to escape into a
       // backends path.
@@ -97,27 +97,27 @@ public:
   explicit LogSource(std::string name) : name(std::move(name)) {}
 
   template <typename... Args>
-  void error(std::format_string<Args...> fmt, Args &&...args) const noexcept {
+  void error(fmt::format_string<Args...> fmt, Args &&...args) const noexcept {
     write(PRISM_LOG_LEVEL_ERROR, fmt, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  void warn(std::format_string<Args...> fmt, Args &&...args) const noexcept {
+  void warn(fmt::format_string<Args...> fmt, Args &&...args) const noexcept {
     write(PRISM_LOG_LEVEL_WARN, fmt, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  void info(std::format_string<Args...> fmt, Args &&...args) const noexcept {
+  void info(fmt::format_string<Args...> fmt, Args &&...args) const noexcept {
     write(PRISM_LOG_LEVEL_INFO, fmt, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  void debug(std::format_string<Args...> fmt, Args &&...args) const noexcept {
+  void debug(fmt::format_string<Args...> fmt, Args &&...args) const noexcept {
     write(PRISM_LOG_LEVEL_DEBUG, fmt, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  void trace(std::format_string<Args...> fmt, Args &&...args) const noexcept {
+  void trace(fmt::format_string<Args...> fmt, Args &&...args) const noexcept {
     write(PRISM_LOG_LEVEL_TRACE, fmt, std::forward<Args>(args)...);
   }
 };

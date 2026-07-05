@@ -7,9 +7,9 @@
 #include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
+#include <fmt/format.h>
 #include <memory>
 #include <mutex>
-#include <fmt/format.h>
 
 namespace {
 struct FlushSignal {

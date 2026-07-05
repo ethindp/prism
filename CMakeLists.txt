@@ -206,7 +206,7 @@ prism_target_external_include(
 set_target_properties(prism_third_party_fmt PROPERTIES POSITION_INDEPENDENT_CODE
                                                        ON)
 if(MSVC)
-  target_compile_options(prism_third_party_fmt PRIVATE /analyze- /W0 /WX-)
+  target_compile_options(prism_third_party_fmt PRIVATE /analyze- /W0 /WX- /utf-8)
 else()
   target_compile_options(prism_third_party_fmt PRIVATE -w)
 endif()

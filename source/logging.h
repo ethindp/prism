@@ -13,6 +13,15 @@
 #include <string_view>
 #include <thread>
 #include <utility>
+#include <version>
+
+#ifdef __cpp_lib_hardware_interference_size
+static_assert(__cpp_lib_hardware_interference_size >= 201703L,
+              "__cpp_lib_hardware_interference_size must be >= 201703L");
+using std::hardware_destructive_interference_size;
+#else
+constexpr std::size_t hardware_destructive_interference_size = 64;
+#endif
 
 class Logger {
 private:
@@ -30,10 +39,9 @@ private:
 
   static constexpr std::size_t capacity = 4096;
   static constexpr std::size_t drain_bulk = 32;
-  alignas(std::hardware_destructive_interference_size)
-      std::atomic_uint32_t threshold;
   alignas(
-      std::hardware_destructive_interference_size) std::atomic_uint64_t dropped;
+      hardware_destructive_interference_size) std::atomic_uint32_t threshold;
+  alignas(hardware_destructive_interference_size) std::atomic_uint64_t dropped;
   std::atomic<const Handler *> current{nullptr};
   std::atomic_flag stop;
   moodycamel::BlockingConcurrentQueue<Record> queue{capacity};

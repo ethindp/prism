@@ -33,7 +33,7 @@ jobs:
                 -DCMAKE_BUILD_TYPE="$bt" \
                 -DCMAKE_SYSTEM_NAME=iOS \
                 -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}" --target prism
@@ -60,7 +60,7 @@ jobs:
                 -DCMAKE_SYSTEM_NAME=iOS \
                 -DCMAKE_OSX_SYSROOT=iphonesimulator \
                 -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}" --target prism

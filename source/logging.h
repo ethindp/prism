@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fmt/format.h>
+#include <fmt/xchar.h>
 #include <new>
 #include <string>
 #include <string_view>
@@ -93,6 +94,22 @@ private:
     }
   }
 
+  template <typename... Args>
+  void write(PrismLogLevel level, fmt::wformat_string<Args...> fmt,
+             Args &&...args) const noexcept {
+    Logger &lg = logger();
+    if (!lg.wants(level))
+      return;
+    try {
+      lg.submit(level, name,
+                to_utf8(fmt::format(fmt, std::forward<Args>(args)...)));
+    } catch (...) {
+      // Diddo for this overload as above
+    }
+  }
+
+  static std::string to_utf8(std::wstring_view w);
+
 public:
   explicit LogSource(std::string name) : name(std::move(name)) {}
 
@@ -102,7 +119,17 @@ public:
   }
 
   template <typename... Args>
+  void error(fmt::wformat_string<Args...> fmt, Args &&...args) const noexcept {
+    write(PRISM_LOG_LEVEL_ERROR, fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   void warn(fmt::format_string<Args...> fmt, Args &&...args) const noexcept {
+    write(PRISM_LOG_LEVEL_WARN, fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  void warn(fmt::wformat_string<Args...> fmt, Args &&...args) const noexcept {
     write(PRISM_LOG_LEVEL_WARN, fmt, std::forward<Args>(args)...);
   }
 
@@ -112,12 +139,27 @@ public:
   }
 
   template <typename... Args>
+  void info(fmt::wformat_string<Args...> fmt, Args &&...args) const noexcept {
+    write(PRISM_LOG_LEVEL_INFO, fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   void debug(fmt::format_string<Args...> fmt, Args &&...args) const noexcept {
     write(PRISM_LOG_LEVEL_DEBUG, fmt, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
+  void debug(fmt::wformat_string<Args...> fmt, Args &&...args) const noexcept {
+    write(PRISM_LOG_LEVEL_DEBUG, fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
   void trace(fmt::format_string<Args...> fmt, Args &&...args) const noexcept {
+    write(PRISM_LOG_LEVEL_TRACE, fmt, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  void trace(fmt::wformat_string<Args...> fmt, Args &&...args) const noexcept {
     write(PRISM_LOG_LEVEL_TRACE, fmt, std::forward<Args>(args)...);
   }
 };

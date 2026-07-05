@@ -10,6 +10,7 @@
 #include <fmt/format.h>
 #include <memory>
 #include <mutex>
+#include <simdutf/simdutf.h>
 
 namespace {
 struct FlushSignal {
@@ -138,6 +139,15 @@ void Logger::shutdown() noexcept {
 Logger &logger() noexcept {
   static auto *instance = new (std::nothrow) Logger;
   return *instance;
+}
+
+std::string LogSource::to_utf8(std::wstring_view w) {
+  std::string out(simdutf::utf8_length_from_utf16le(
+                      reinterpret_cast<const char16_t *>(w.data()), w.size()),
+                  '\0');
+  simdutf::convert_utf16le_to_utf8(reinterpret_cast<const char16_t *>(w.data()),
+                                   w.size(), out.data());
+  return out;
 }
 
 void init_logging_from_env() noexcept {

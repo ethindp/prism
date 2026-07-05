@@ -145,7 +145,7 @@ std::string LogSource::to_utf8(std::wstring_view w) {
   std::string out(simdutf::utf8_length_from_utf16le(
                       reinterpret_cast<const char16_t *>(w.data()), w.size()),
                   '\0');
-  simdutf::convert_utf16le_to_utf8(reinterpret_cast<const char16_t *>(w.data()),
+  (void)simdutf::convert_utf16le_to_utf8(reinterpret_cast<const char16_t *>(w.data()),
                                    w.size(), out.data());
   return out;
 }

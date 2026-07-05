@@ -195,6 +195,9 @@ std::unique_ptr<PollWaiter> PollWaiter::create() {
 }
 
 #elifdef __APPLE__
+#include <atomic>
+#include <cerrno>
+#include <ctime>
 #include <sys/event.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -206,6 +209,40 @@ constexpr std::uintptr_t user_id = 2;
 class MacWaiter final : public PollWaiter {
 private:
   int kq = -1;
+  std::atomic_flag woken;
+
+  static timespec to_timespec(std::chrono::nanoseconds ns) {
+    if (ns < std::chrono::nanoseconds{0})
+      ns = std::chrono::nanoseconds{0};
+    timespec ts;
+    ts.tv_sec = static_cast<time_t>(ns.count() / 1000000000);
+    ts.tv_nsec = static_cast<long>(ns.count() % 1000000000);
+    return ts;
+  }
+
+  Wake fallback_wait(std::optional<std::chrono::milliseconds> timeout) {
+    constexpr auto slice =
+        std::chrono::nanoseconds{std::chrono::milliseconds{20}};
+    const auto deadline =
+        timeout ? std::optional{std::chrono::steady_clock::now() + *timeout}
+                : std::nullopt;
+    while (true) {
+      if (woken.test()) {
+        woken.clear();
+        return Wake::Signal;
+      }
+      auto nap = slice;
+      if (deadline) {
+        const auto rem = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            *deadline - std::chrono::steady_clock::now());
+        if (rem <= std::chrono::nanoseconds{0})
+          return Wake::Timer;
+        nap = std::min(nap, rem);
+      }
+      const timespec ts = to_timespec(nap);
+      nanosleep(&ts, nullptr);
+    }
+  }
 
 public:
   MacWaiter() {
@@ -225,16 +262,21 @@ public:
   Wake wait(std::optional<std::chrono::milliseconds> timeout,
             std::chrono::milliseconds leeway) override {
     if (kq < 0)
-      return Wake::Timer;
+      return fallback_wait(timeout);
     if (timeout) {
-      struct kevent tev{};
-      EV_SET(&tev, timer_id, EVFILT_TIMER, EV_ADD | EV_ONESHOT, NOTE_LEEWAY,
-             static_cast<std::intptr_t>(timeout->count()), nullptr);
-      tev.ext[1] = static_cast<std::uint64_t>(std::max(leeway.count(), 0));
-      kevent(kq, &tev, 1, nullptr, 0, nullptr);
+      struct kevent64_s tev{};
+      EV_SET64(
+          &tev, timer_id, EVFILT_TIMER, EV_ADD | EV_ONESHOT, NOTE_LEEWAY,
+          static_cast<std::int64_t>(timeout->count()), 0, 0,
+          static_cast<std::uint64_t>(
+              std::max<std::chrono::milliseconds::rep>(leeway.count(), 0)));
+      kevent64(kq, &tev, 1, nullptr, 0, 0, nullptr);
     }
     struct kevent out{};
-    const int r = kevent(kq, nullptr, 0, &out, 1, nullptr);
+    int r;
+    do {
+      r = kevent(kq, nullptr, 0, &out, 1, nullptr);
+    } while (r < 0 && errno == EINTR);
     struct kevent del{};
     EV_SET(&del, timer_id, EVFILT_TIMER, EV_DELETE, 0, 0, nullptr);
     kevent(kq, &del, 1, nullptr, 0, nullptr);
@@ -244,8 +286,10 @@ public:
   }
 
   void wake() override {
-    if (kq < 0)
+    if (kq < 0) {
+      woken.test_and_set();
       return;
+    }
     struct kevent ev{};
     EV_SET(&ev, user_id, EVFILT_USER, 0, NOTE_TRIGGER, 0, nullptr);
     kevent(kq, &ev, 1, nullptr, 0, nullptr);

@@ -33,7 +33,7 @@ public:
   Wake wait(std::optional<std::chrono::milliseconds> timeout,
             std::chrono::milliseconds leeway) override {
     if (!timeout) {
-      WaitForSingleObject(event, INFINITE);
+      WaitForSingleObjectEx(event, INFINITE, TRUE);
       return Wake::Signal;
     }
     LARGE_INTEGER due;
@@ -42,8 +42,8 @@ public:
         static_cast<ULONG>(std::max<ULONG>(leeway.count(), 0));
     SetWaitableTimerEx(timer, &due, 0, nullptr, nullptr, nullptr, tolerable);
     const auto handles = std::to_array<HANDLE>({timer, event});
-    const auto r =
-        WaitForMultipleObjects(handles.size(), handles.data(), FALSE, INFINITE);
+    const auto r = WaitForMultipleObjectsEx(handles.size(), handles.data(),
+                                            FALSE, INFINITE, TRUE);
     CancelWaitableTimer(timer);
     return (r == WAIT_OBJECT_0) ? Wake::Timer : Wake::Signal;
   }

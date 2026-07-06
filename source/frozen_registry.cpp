@@ -2,16 +2,16 @@
 
 #include "frozen_registry.h"
 #include <algorithm>
+#include <flat_set>
 #include <ranges>
 #include <simdutf/simdutf.h>
-#include <unordered_set>
 
 FrozenRegistry::FrozenRegistry(std::vector<Registration> registrations)
     : refcount(1) {
-  std::unordered_set<std::uint64_t> seen;
+  std::flat_set<std::uint64_t> seen;
   entries.reserve(registrations.size());
   for (auto &reg : registrations) {
-    if (!seen.insert(static_cast<std::uint64_t>(reg.id)).second) {
+    if (!seen.emplace(static_cast<std::uint64_t>(reg.id)).second) {
       continue;
     }
     entries.push_back(Entry{.reg = std::move(reg), .cached = {}});
@@ -138,11 +138,12 @@ FrozenRegistry::create(std::string_view name) {
 }
 
 std::shared_ptr<TextToSpeechBackend> FrozenRegistry::create_best() {
-  for (const auto &e : entries) {
+  for (auto &e : entries) {
     if (!e.reg.factory)
       continue;
-    if (auto b = e.reg.factory(); b && b->initialize())
+    if (auto b = e.reg.factory(); b && b->initialize()) {
       return b;
+    }
   }
   return nullptr;
 }
@@ -164,6 +165,7 @@ std::shared_ptr<TextToSpeechBackend> FrozenRegistry::acquire_entry(Entry *e) {
   if (auto cached = e->cached.lock(); cached != nullptr)
     return cached;
   e->cached = backend;
+  e->initialized = false;
   return backend;
 }
 
@@ -179,9 +181,11 @@ FrozenRegistry::acquire(std::string_view name) {
 std::shared_ptr<TextToSpeechBackend> FrozenRegistry::acquire_best() {
   {
     std::shared_lock lock(cache_mutex);
-    for (const auto &e : entries)
-      if (auto cached = e.cached.lock(); cached != nullptr)
+    for (const auto &e : entries) {
+      if (auto cached = e.cached.lock(); cached != nullptr && e.initialized) {
         return cached;
+      }
+    }
   }
   for (auto &e : entries) {
     if (!e.reg.factory)
@@ -190,9 +194,11 @@ std::shared_ptr<TextToSpeechBackend> FrozenRegistry::acquire_best() {
     if (backend == nullptr || !backend->initialize())
       continue;
     std::unique_lock lock(cache_mutex);
-    if (auto cached = e.cached.lock(); cached != nullptr)
+    if (auto cached = e.cached.lock(); cached != nullptr && e.initialized) {
       return cached;
+    }
     e.cached = backend;
+    e.initialized = true;
     return backend;
   }
   return nullptr;
@@ -200,8 +206,10 @@ std::shared_ptr<TextToSpeechBackend> FrozenRegistry::acquire_best() {
 
 void FrozenRegistry::clear_cache() {
   std::unique_lock lock(cache_mutex);
-  for (auto &e : entries)
+  for (auto &e : entries) {
     e.cached.reset();
+    e.initialized = false;
+  }
 }
 
 RegistryBuilder::RegistryBuilder()
@@ -218,7 +226,7 @@ BuilderResult RegistryBuilder::add(std::string name, int priority,
   if (priority < 0)
     return BuilderResult::NegativePriority;
   const auto new_id = make_backend_id(name);
-  if (new_id == BackendId{0}) // <-- add (#4)
+  if (new_id == BackendId{0})
     return BuilderResult::ReservedId;
   for (const auto &r : registrations) {
     if (r.name == name)

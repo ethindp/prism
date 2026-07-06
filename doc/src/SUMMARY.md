@@ -13,7 +13,7 @@
 - [Context Management](./api/context-management.md)
 - [Backend Registry Functions](./api/registry-functions.md)
 - [Backend Functions](./api/backend-functions.md)
-- [Background Availability Enumeration](./api/background-enumeration.md)
+- [Backend Availability Enumeration](./api/backend-enumeration.md)
 - [Custom Backends](./api/custom-backends.md)
 - [Voice Parameters](./api/voice-parameters.md)
 - [Voice Selection](./api/voice-selection.md)

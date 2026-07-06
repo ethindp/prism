@@ -39,9 +39,10 @@ private:
 
   static constexpr std::size_t capacity = 4096;
   static constexpr std::size_t drain_bulk = 32;
-  alignas(
-      hardware_destructive_interference_size) std::atomic_uint32_t threshold;
-  alignas(hardware_destructive_interference_size) std::atomic_uint64_t dropped;
+  alignas(hardware_destructive_interference_size)
+      std::atomic_uint32_t threshold{PRISM_LOG_LEVEL_NONE};
+  alignas(hardware_destructive_interference_size) std::atomic_uint64_t dropped{
+      0};
   std::atomic<const Handler *> current{nullptr};
   std::atomic_flag stop;
   moodycamel::BlockingConcurrentQueue<Record> queue{capacity};

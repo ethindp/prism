@@ -28,6 +28,7 @@ void PRISM_CALL stderr_sink([[maybe_unused]] void *ud, PrismLogLevel level,
   fmt::println(stderr, "[prism {}] {}: {}", names[i], source, message);
 }
 
+std::once_flag logging_initializer;
 } // namespace
 
 Logger::Logger() : drain([this] { run(); }) {}
@@ -157,15 +158,16 @@ std::string LogSource::to_utf8(std::wstring_view w) {
 }
 
 void init_logging_from_env() noexcept {
+  std::call_once(logging_initializer, [] {
 #ifdef _WIN32
-  char *env_raw = nullptr;
-  size_t len = 0;
-  if (_dupenv_s(&env_raw, &len, "PRISM_LOG") != 0)
-    return;
-  std::unique_ptr<char, decltype(&std::free)> env{env_raw, &std::free};
-  if (!env || *env == '\0')
-    return;
-  const std::string_view value{env.get()};
+    char *env_raw = nullptr;
+    size_t len = 0;
+    if (_dupenv_s(&env_raw, &len, "PRISM_LOG") != 0)
+      return;
+    std::unique_ptr<char, decltype(&std::free)> env{env_raw, &std::free};
+    if (!env || *env == '\0')
+      return;
+    const std::string_view value{env.get()};
 #else
   // There is sadly no alternative I can find for doing this in an MT-safe way,
   // so... NOLINTNEXTLINE(concurrency-mt-unsafe)
@@ -174,20 +176,21 @@ void init_logging_from_env() noexcept {
     return;
   const std::string_view value{env};
 #endif
-  PrismLogLevel level = PRISM_LOG_LEVEL_NONE;
-  if (value == "trace")
-    level = PRISM_LOG_LEVEL_TRACE;
-  else if (value == "debug")
-    level = PRISM_LOG_LEVEL_DEBUG;
-  else if (value == "warn")
-    level = PRISM_LOG_LEVEL_WARN;
-  else if (value == "error")
-    level = PRISM_LOG_LEVEL_ERROR;
-  else if (value == "info")
-    level = PRISM_LOG_LEVEL_INFO;
-  else if (value == "none")
-    level = PRISM_LOG_LEVEL_NONE;
-  Logger &lg = logger();
-  lg.set_handler(PrismLogHandler{.fn = &stderr_sink, .userdata = nullptr});
-  lg.set_level(level);
+    PrismLogLevel level = PRISM_LOG_LEVEL_NONE;
+    if (value == "trace")
+      level = PRISM_LOG_LEVEL_TRACE;
+    else if (value == "debug")
+      level = PRISM_LOG_LEVEL_DEBUG;
+    else if (value == "warn")
+      level = PRISM_LOG_LEVEL_WARN;
+    else if (value == "error")
+      level = PRISM_LOG_LEVEL_ERROR;
+    else if (value == "info")
+      level = PRISM_LOG_LEVEL_INFO;
+    else if (value == "none")
+      level = PRISM_LOG_LEVEL_NONE;
+    Logger &lg = logger();
+    lg.set_handler(PrismLogHandler{.fn = &stderr_sink, .userdata = nullptr});
+    lg.set_level(level);
+  });
 }

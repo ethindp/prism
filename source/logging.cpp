@@ -36,8 +36,7 @@ Logger::~Logger() { shutdown(); }
 PrismLogHandler Logger::set_handler(PrismLogHandler next) noexcept {
   // NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks)
   const Handler *fresh =
-      next.fn != nullptr ? new (std::nothrow)
-                               Handler{.fn = next.fn, .userdata = next.userdata}
+      next.fn != nullptr ? new Handler{.fn = next.fn, .userdata = next.userdata}
                          : nullptr;
   const Handler *old = this->current.exchange(fresh, std::memory_order_acq_rel);
   // NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
@@ -145,8 +144,8 @@ std::string LogSource::to_utf8(std::wstring_view w) {
   std::string out(simdutf::utf8_length_from_utf16le(
                       reinterpret_cast<const char16_t *>(w.data()), w.size()),
                   '\0');
-  (void)simdutf::convert_utf16le_to_utf8(reinterpret_cast<const char16_t *>(w.data()),
-                                   w.size(), out.data());
+  (void)simdutf::convert_utf16le_to_utf8(
+      reinterpret_cast<const char16_t *>(w.data()), w.size(), out.data());
   return out;
 }
 

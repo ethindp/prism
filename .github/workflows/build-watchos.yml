@@ -13,7 +13,7 @@ env:
 
 jobs:
   watchos:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6.0.3
       - name: Install current CMake
@@ -30,7 +30,7 @@ jobs:
                 -DCMAKE_BUILD_TYPE="$bt" \
                 -DCMAKE_SYSTEM_NAME=watchOS \
                 -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=6.0 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=7.0 \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}"
@@ -69,7 +69,7 @@ jobs:
           name: watchos-arm64
           path: prism-watchos-arm64.zip
   watchos-simulator:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6.0.3
       - name: Install current CMake
@@ -87,7 +87,7 @@ jobs:
                 -DCMAKE_SYSTEM_NAME=watchOS \
                 -DCMAKE_OSX_SYSROOT=watchsimulator \
                 -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=6.0 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=7.0 \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}"

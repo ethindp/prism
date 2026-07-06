@@ -14,7 +14,7 @@ env:
 
 jobs:
   lint:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6.0.3
       - name: Install LLVM (clang-tidy)
@@ -33,14 +33,14 @@ jobs:
                 -DCMAKE_BUILD_TYPE="$bt" \
                 -DCMAKE_SYSTEM_NAME=iOS \
                 -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}" --target prism
             done
           done
   lint-simulator:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v6.0.3
       - name: Install LLVM (clang-tidy)
@@ -60,7 +60,7 @@ jobs:
                 -DCMAKE_SYSTEM_NAME=iOS \
                 -DCMAKE_OSX_SYSROOT=iphonesimulator \
                 -DCMAKE_OSX_ARCHITECTURES=arm64 \
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
                 -DBUILD_SHARED_LIBS="$shared" \
                 -DPRISM_ENABLE_GDEXTENSION=OFF
               cmake --build "build-${linkage}-${config}" --target prism

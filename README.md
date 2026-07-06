@@ -9,7 +9,7 @@ Prism aims to unify the various screen reader abstraction libraries like SpeechC
 Prism requires the following to be met to function properly. If your system does not meet these minimums, Prism MAY malfunction or fail to load at all. If you attempt to load Prism and the load fails, or if Prism malfunctions, please verify that you meet the requirements in this section before opening an issue.
 
 * For windows, Windows 10 or later is required. Older versions of windows are NOT supported.
-* Apple platforms require either MacOS 11, iOS 11, tvOS 11, WatchOS 6, or VisionOS 1.
+* Apple platforms require either MacOS 11, iOS 13, tvOS 13, WatchOS 7, or VisionOS 1.
 * Linux requires Glib 2.80.0 or later and Orca 49 or later for the Orca backend to function. Speech-dispatcher will work with any version of speech dispatcher that supports ABI version 2 (which means that versions 0.11.1 and on will definitely work).
 * Android requires version 8/API level 26 or later.
 * Web requires that the browser implement the [WebSpeech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API) to be implemented.
@@ -25,6 +25,7 @@ To build Prism, all you need do is create a build directory and run cmake as you
 | `PRISM_ENABLE_LINTING` | Enable linting of source code with clang-tidy and other static analysis tools. |
 | `PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS` | DO NOT USE. Enables options primarily used by the vcpkg package manager. |
 | `PRISM_ENABLE_GDEXTENSION` | Build the GDExtension and Prism together (on by default). |
+| `PRISM_ENABLE_POWER_MANAGEMENT` | Enable Prism to automatically manage the backend availability enumeration thread on OS-generated power-management events, if supported by the target platform. |
 | `PRISM_ENABLE_LEGACY_BACKENDS` | Enable all legacy backends supported by Prism. For the purposes of this option and the `LEGACY_*` options which follow, a "legacy" backend is a backend which is supported but which has a very limited number of users, or is only available for compatibility reasons. |
 | `PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND` | Enable the system access backend. |
 | `PRISM_ENABLE_LEGACY_WINDOW_EYES_BACKEND` | Enable the window eyes backend. |

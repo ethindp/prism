@@ -3,8 +3,8 @@
 #ifdef _WIN32
 #ifdef PRISM_ENABLE_LEGACY_BACKENDS
 #ifdef PRISM_ENABLE_SYSTEM_ACCESS_LEGACY_BACKEND
-#include "backend.h"
-#include "backend_registry.h"
+#include "../backend.h"
+#include "../backend_catalog.h"
 #include <atomic>
 #include <bitset>
 #include <cstddef>

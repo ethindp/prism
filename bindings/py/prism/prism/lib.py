@@ -5,8 +5,15 @@ from pathlib import Path
 
 from cffi import FFI
 
+if sys.platform == "win32":
+    _NATIVE_NAME = "prism.dll"
+elif sys.platform == "darwin":
+    _NATIVE_NAME = "libprism.dylib"
+else:
+    _NATIVE_NAME = "libprism.so"
 
-def _find_native_dir() -> str:
+
+def _find_native_dir() -> Path:
     local_path = Path(__file__).parent / "_native"
     if local_path.exists() and any(local_path.iterdir()):
         return local_path
@@ -15,7 +22,7 @@ def _find_native_dir() -> str:
         if not path:
             continue
         candidate = Path(path) / relative_path
-        if (candidate / "prism.dll").exists():
+        if (candidate / _NATIVE_NAME).exists():
             return candidate.resolve()
 
     return local_path
@@ -32,9 +39,8 @@ ffi.cdef(r"""// SPDX-License-Identifier: MPL-2.0
 typedef struct PrismContext PrismContext;
 typedef struct PrismBackend PrismBackend;
 typedef uint64_t PrismBackendId;
-typedef struct {
-  uint8_t version;
-} PrismConfig;
+typedef struct PrismRegistry PrismRegistry;
+typedef struct PrismRegistryBuilder PrismRegistryBuilder;
 
 typedef enum PrismError {
   PRISM_OK = 0,
@@ -61,9 +67,74 @@ typedef enum PrismError {
   PRISM_ERROR_COUNT
 } PrismError;
 
-typedef void(PrismAudioCallback)(
+typedef void(*PrismAudioCallback)(
     void *userdata, const float *samples, size_t sample_count,
     size_t channels, size_t sample_rate);
+
+typedef struct PrismBackendVTable {
+  size_t size;
+  void *(*create)(void *instance);
+  void (*destroy)(void *instance);
+  bool (*is_supported)(void *instance);
+  PrismError (*initialize)(void *instance);
+  PrismError (*speak)(void *instance, const char *text, bool interrupt);
+  PrismError (*speak_to_memory)(void *instance, const char *text,
+                                PrismAudioCallback *callback, void *callback_userdata);
+  PrismError (*braille)(void *instance, const char *text);
+  PrismError (*output)(void *instance, const char *text, bool interrupt);
+  PrismError (*stop)(void *instance);
+  PrismError (*pause)(void *instance);
+  PrismError (*resume)(void *instance);
+  PrismError (*is_speaking)(void *instance, bool *out_speaking);
+  PrismError (*set_volume)(void *instance, float volume);
+  PrismError (*get_volume)(void *instance, float *out_volume);
+  PrismError (*set_rate)(void *instance, float rate);
+  PrismError (*get_rate)(void *instance, float *out_rate);
+  PrismError (*set_pitch)(void *instance, float pitch);
+  PrismError (*get_pitch)(void *instance, float *out_pitch);
+  PrismError (*refresh_voices)(void *instance);
+  PrismError (*count_voices)(void *instance, size_t *out_count);
+  PrismError (*get_voice_name)(void *instance, size_t voice_id, const char **out_name);
+  PrismError (*get_voice_language)(void *instance, size_t voice_id, const char **out_language);
+  PrismError (*set_voice)(void *instance, size_t voice_id);
+  PrismError (*get_voice)(void *instance, size_t *out_voice_id);
+  PrismError (*get_channels)(void *instance, size_t *out_channels);
+  PrismError (*get_sample_rate)(void *instance, size_t *out_sample_rate);
+  PrismError (*get_bit_depth)(void *instance, size_t *out_bit_depth);
+} PrismBackendVTable;
+
+typedef enum PrismLogLevel {
+  PRISM_LOG_LEVEL_TRACE,
+  PRISM_LOG_LEVEL_DEBUG,
+  PRISM_LOG_LEVEL_INFO,
+  PRISM_LOG_LEVEL_WARN,
+  PRISM_LOG_LEVEL_ERROR,
+  PRISM_LOG_LEVEL_NONE
+} PrismLogLevel;
+
+typedef void (*PrismLogCallback)(void *userdata, PrismLogLevel level,
+                                 const char *source, const char *message);
+
+typedef struct PrismLogHandler {
+  PrismLogCallback fn;
+  void *userdata;
+} PrismLogHandler;
+
+typedef void (*PrismAvailabilityCallback)(void *userdata,
+                                          PrismBackendId backend,
+                                          const char *name,
+                                          bool available);
+
+typedef struct {
+  uint8_t version;
+  PrismRegistry *registry;
+  PrismAvailabilityCallback availability_callback;
+  void *availability_userdata;
+  uint32_t availability_poll_interval_ms;
+  uint32_t availability_debounce_samples;
+  uint32_t availability_backoff_max_ms;
+  bool availability_auto_power_manage;
+} PrismConfig;
 
 PrismConfig prism_config_init(void);
 PrismContext *prism_init(PrismConfig* cfg);
@@ -79,6 +150,15 @@ PrismBackend *prism_registry_create(PrismContext *ctx, PrismBackendId id);
 PrismBackend *prism_registry_create_best(PrismContext *ctx);
 PrismBackend *prism_registry_acquire(PrismContext *ctx, PrismBackendId id);
 PrismBackend *prism_registry_acquire_best(PrismContext *ctx);
+PrismRegistryBuilder *prism_registry_builder_new(void);
+PrismError prism_registry_builder_add_backend(
+    PrismRegistryBuilder *builder, const char *name, int priority,
+    uint64_t features, const PrismBackendVTable *vtable, void *userdata,
+    void (*userdata_free)(void *), PrismBackendId *out_id);
+PrismRegistry *prism_registry_freeze(PrismRegistryBuilder *builder);
+void prism_registry_builder_free(PrismRegistryBuilder *builder);
+PrismRegistry *prism_registry_retain(PrismRegistry *registry);
+void prism_registry_release(PrismRegistry *registry);
 void prism_backend_free(PrismBackend *backend);
 uint64_t prism_backend_get_features(PrismBackend *backend);
 const char *prism_backend_name(PrismBackend *backend);
@@ -120,13 +200,16 @@ PrismError prism_backend_get_channels(PrismBackend *backend, size_t *out_channel
 PrismError prism_backend_get_sample_rate(PrismBackend *backend, size_t *out_sample_rate);
 PrismError prism_backend_get_bit_depth(PrismBackend *backend, size_t *out_bit_depth);
 const char *prism_error_string(PrismError error);
+void prism_availability_poll_pause(PrismContext *ctx);
+void prism_availability_poll_resume(PrismContext *ctx);
+bool prism_availability_auto_power_supported(void);
+PrismLogHandler prism_set_log_handler(PrismLogHandler handler);
+PrismLogLevel prism_set_log_level(PrismLogLevel level);
+void prism_log(PrismLogLevel level, const char *source, const char *message);
+void prism_log_flush(void);
+void prism_log_shutdown(void);
 """)
-if sys.platform == "win32":
-    lib_path = (dll_home / "prism.dll").resolve()
-elif sys.platform == "darwin":
-    lib_path = (dll_home / "libprism.dylib").resolve()
-else:
-    lib_path = (dll_home / "libprism.so").resolve()
+lib_path = (dll_home / _NATIVE_NAME).resolve()
 lib = ffi.dlopen(
     str(lib_path), ffi.RTLD_NOW | ffi.RTLD_DEEPBIND if sys.platform == "linux" else 0
 )

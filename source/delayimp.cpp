@@ -2,6 +2,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include "logging.h"
 #include <array>
 #include <cstring>
 #include <cwchar>
@@ -790,8 +791,11 @@ static int dummy_count = 0;
 
 static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
                                            PDelayLoadInfo pdli) {
+  static const LogSource log{"prism/delayimp"};
   switch (dliNotify) {
   case dliFailLoadLib: {
+    log.trace("delay-load of '{}' failed (LastError={}); attempting recovery",
+              pdli->szDll, pdli->dwLastError);
     namespace fs = std::filesystem;
     static const int anchor = 0;
     HMODULE hModule = nullptr;
@@ -806,15 +810,21 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
         path_buffer.resize(len);
         const auto dll_path =
             fs::path(path_buffer).replace_filename(pdli->szDll);
+        log.trace("trying side-by-side load of '{}' from module directory",
+                  pdli->szDll);
         if (auto *const h = LoadLibrary(dll_path.c_str()); h != nullptr) {
+          log.info("recovered '{}' from module directory", pdli->szDll);
           return reinterpret_cast<FARPROC>(h);
         }
+        log.trace("side-by-side load of '{}' failed (LastError={})",
+                  pdli->szDll, GetLastError());
       }
     }
 #if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
     defined(__i386__)
     if (_stricmp(pdli->szDll, ZDSR_DLL) == 0) {
+      log.trace("attempting ZDSR registry lookup for '{}'", pdli->szDll);
       HKEY zdsr_key;
 #if defined(_M_X64) || defined(__x86_64__)
       if (const auto res = RegOpenKeyEx(
@@ -827,6 +837,23 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
                            KEY_QUERY_VALUE | KEY_READ, &zdsr_key);
           res == ERROR_SUCCESS) {
 #endif
+        std::wstring cls(4096, _T('\0'));
+        DWORD cls_size = cls.size();
+        DWORD subkeys_count = 0;
+        DWORD values_count = 0;
+        if (const auto res2 =
+                RegQueryInfoKey(zdsr_key, cls.data(), &cls_size, nullptr,
+                                &subkeys_count, nullptr, nullptr, &values_count,
+                                nullptr, nullptr, nullptr, nullptr);
+            res2 == ERROR_SUCCESS) {
+          log.trace(_T("Opened ZDSR registry key at {} with {} subkeys and {} ")
+                    _T("values"),
+                    cls, subkeys_count, values_count);
+        } else {
+          log.trace(
+              "Could not read key info for ZDSR registry key, code = {:X}",
+              res2);
+        }
         std::wstring path;
         path.resize(MAX_PATH);
         DWORD size = MAX_PATH * sizeof(wchar_t);
@@ -839,14 +866,21 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
             path += _T('\\');
           }
           path += fs::path(ZDSR_DLL).wstring();
+          log.trace(_T("Trying to load ZDSR dll from {}"), path);
           auto *const h = LoadLibrary(path.c_str());
           RegCloseKey(zdsr_key);
           if (h != nullptr) {
+            log.info("recovered '{}' via ZDSR registry path", pdli->szDll);
             return reinterpret_cast<FARPROC>(h);
           }
+          log.trace("ZDSR registry path load of '{}' failed (LastError={})",
+                    pdli->szDll, GetLastError());
         } else {
           RegCloseKey(zdsr_key);
+          log.trace("ZDSR registry 'path' value missing for '{}'", pdli->szDll);
         }
+      } else {
+        log.trace("ZDSR registry key not present for '{}'", pdli->szDll);
       }
     }
 #endif
@@ -854,6 +888,8 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
     defined(__i386__)
     if (_stricmp(pdli->szDll, BOY_PC_READER_DLL) == 0) {
+      log.trace("attempting Boy PC Reader registry lookup for '{}'",
+                pdli->szDll);
       HKEY boy_pc_reader_key;
 #if defined(_M_X64) || defined(__x86_64__)
       if (const auto res = RegOpenKeyEx(
@@ -870,6 +906,24 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
               0, KEY_QUERY_VALUE | KEY_READ, &boy_pc_reader_key);
           res == ERROR_SUCCESS) {
 #endif
+        std::wstring cls(4096, _T('\0'));
+        DWORD cls_size = cls.size();
+        DWORD subkeys_count = 0;
+        DWORD values_count = 0;
+        if (const auto res2 = RegQueryInfoKey(
+                boy_pc_reader_key, cls.data(), &cls_size, nullptr,
+                &subkeys_count, nullptr, nullptr, &values_count, nullptr,
+                nullptr, nullptr, nullptr);
+            res2 == ERROR_SUCCESS) {
+          log.trace(
+              _T("Opened BoyPCReader registry key at {} with {} subkeys and "
+                 "{} values"),
+              cls, subkeys_count, values_count);
+        } else {
+          log.trace("Could not read key info for BoyPCReader registry key, "
+                    "code = {:X}",
+                    res2);
+        }
         std::wstring path;
         path.resize(MAX_PATH);
         DWORD size = MAX_PATH * sizeof(wchar_t);
@@ -882,33 +936,57 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
             path += _T('\\');
           }
           path += fs::path(BOY_PC_READER_DLL).wstring();
+          log.trace(_T("Trying to load BoyPCReader dll from {}"), path);
           auto *const h = LoadLibrary(path.c_str());
           RegCloseKey(boy_pc_reader_key);
           if (h != nullptr) {
+            log.info(
+                "recovered '{}' via Boy PC Reader registry InstallLocation",
+                pdli->szDll);
             return reinterpret_cast<FARPROC>(h);
           }
+          log.trace("Boy PC Reader registry load of '{}' failed (LastError={})",
+                    pdli->szDll, GetLastError());
         } else {
           RegCloseKey(boy_pc_reader_key);
+          log.trace("Boy PC Reader 'InstallLocation' value missing for '{}'",
+                    pdli->szDll);
         }
+      } else {
+        log.trace("Boy PC Reader registry key not present for '{}'",
+                  pdli->szDll);
       }
     }
 #endif
     if (dummy_count < 512) {
+      log.debug("no installation of '{}' found; substituting stubs",
+                pdli->szDll);
       // NOLINTNEXTLINE(performance-no-int-to-ptr)
       auto *dummy = reinterpret_cast<HMODULE>(
           static_cast<uintptr_t>(0xDEAD0000 + dummy_count));
       dummy_count++;
       return reinterpret_cast<FARPROC>(dummy);
     }
+    log.warn("delay-load dummy handle pool exhausted after 512 modules; '{}' "
+             "left unresolved",
+             pdli->szDll);
     return reinterpret_cast<FARPROC>(reinterpret_cast<HMODULE>(1));
   } break;
   case dliFailGetProc: {
     for (const auto &e : stubs) {
       if (_stricmp(pdli->szDll, e.dll) == 0 &&
           strcmp(pdli->dlp.szProcName, e.func) == 0) {
+        log.trace("substituting stub for '{}!{}'", pdli->szDll, e.func);
         return e.stub;
       }
     }
+    if (pdli->dlp.fImportByName != 0)
+      log.error("no stub for '{}!{}'; delay-load will fail", pdli->szDll,
+                pdli->dlp.szProcName);
+    else
+      log.error("no stub for '{}!#{}' (imported by ordinal); delay-load will "
+                "fail",
+                pdli->szDll, pdli->dlp.dwOrdinal);
     return nullptr;
   } break;
   default:

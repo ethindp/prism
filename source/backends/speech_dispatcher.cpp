@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "backend.h"
-#include "backend_registry.h"
-#include "utils.h"
-#include <simdutf/simdutf.h>
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
 #ifndef NO_LIBSPEECHD
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../utils.h"
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
 #include <cmath>
 #include <cstdlib>
-#include <format>
+#include <fmt/format.h>
 #include <libspeechd.h>
 #include <memory>
 #include <netdb.h>
@@ -21,6 +20,7 @@
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
+#include <simdutf/simdutf.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -362,7 +362,7 @@ public:
     std::shared_lock sl(state_lock);
     if (id >= voices.size())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    return std::format("{} ({})", voices[id].name, voices[id].module);
+    return fmt::format("{} ({})", voices[id].name, voices[id].module);
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override {
@@ -412,8 +412,12 @@ REGISTER_BACKEND_WITH_ID(SpeechDispatcherBackend, Backends::SpeechDispatcher,
                          "Speech Dispatcher", 97);
 #endif
 #elifdef _WIN32
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../utils.h"
 #include <atomic>
 #include <raw/prism_speech_dispatcher_bridge.h>
+#include <simdutf/simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 

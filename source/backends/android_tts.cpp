@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef __ANDROID__
+#include "../backend.h"
+#include "../backend_catalog.h"
 #include "android/AudioCallback.hpp"
 #include "android/Unit.hpp"
 #include "android/jni/AbstractTextToSpeechBackend.hpp"
-#include "backend.h"
-#include "backend_registry.h"
 #include <atomic>
 #include <cmath>
 #include <jni.h>

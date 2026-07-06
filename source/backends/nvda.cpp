@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
-#include "backend.h"
-#include "backend_registry.h"
+#include "../backend.h"
+#include "../backend_catalog.h"
 #include <cstdlib>
-#include <format>
+#include <fmt/xchar.h>
 #include <nvda_controller.h>
 #include <shared_mutex>
 #include <simdutf/simdutf.h>
@@ -100,7 +100,7 @@ public:
       return features;
     desktop_name.resize((bytes_written / sizeof(wchar_t)) - 1);
     const auto endpoint =
-        std::format(_T("NvdaCtlr.{}.{}"), session_id, desktop_name);
+        fmt::format(_T("NvdaCtlr.{}.{}"), session_id, desktop_name);
     RPC_WSTR string_binding = nullptr;
     if (RpcStringBindingCompose(nullptr, RPC_WSTR(_T("ncalrpc")), nullptr,
                                 RPC_WSTR(endpoint.c_str()), nullptr,
@@ -139,9 +139,9 @@ public:
             static_cast<DWORD>(desktop_name.size()) * sizeof(wchar_t), nullptr);
         res == 0)
       return std::unexpected(BackendError::BackendNotAvailable);
-    const std::wstring desktop_ns = std::format(_T("{}.{}"), sid, desktop_name);
+    const std::wstring desktop_ns = fmt::format(_T("{}.{}"), sid, desktop_name);
     RPC_STATUS status;
-    const auto endpoint = std::format(_T("NvdaCtlr.{}"), desktop_ns);
+    const auto endpoint = fmt::format(_T("NvdaCtlr.{}"), desktop_ns);
     RPC_WSTR string_binding = nullptr;
     status = RpcStringBindingCompose(nullptr, RPC_WSTR(_T("ncalrpc")), nullptr,
                                      RPC_WSTR(endpoint.c_str()), nullptr,

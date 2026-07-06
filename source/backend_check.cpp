@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "backends/backend_registry.h" // where namespace Backends lives
+#include "backend_catalog.h"
 #include <cstdint>
 #include <prism.h>
 

@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#include "backend.h"
-#include "backend_registry.h"
-#include "utils.h"
-#include <concurrentqueue/concurrentqueue.h>
-#include <simdutf/simdutf.h>
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
 #ifndef NO_LIBSPIEL
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../utils.h"
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <concurrentqueue/concurrentqueue.h>
 #include <condition_variable>
 #include <gio/gio.h>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <simdutf/simdutf.h>
 #include <spiel/spiel.h>
 #include <string>
 #include <thread>

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
-#include "backend.h"
-#include "backend_registry.h"
-#include "utils.h"
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../utils.h"
 #include <algorithm>
 #include <array>
 #include <atlbase.h>
@@ -19,7 +19,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <dr_wav/dr_wav.h>
-#include <format>
 #include <limits>
 #include <memory>
 #include <mmreg.h>

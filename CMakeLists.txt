@@ -21,7 +21,6 @@ project(
   VERSION 0.16.7
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
-
 option(PRISM_ENABLE_TESTS "Enable tests" OFF)
 option(PRISM_ENABLE_DEMOS "Enable demo applications" OFF)
 option(
@@ -45,6 +44,8 @@ if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
     OFF)
 endif()
 option(PRISM_ENABLE_GDEXTENSION "Enable building of the Godot GDExtension" ON)
+option(PRISM_ENABLE_POWER_MANAGEMENT
+       "Enable OS power-state-aware availability polling where supported." ON)
 option(PRISM_ENABLE_LEGACY_BACKENDS
        "Enable building of legacy backends which are dead or rarely used" OFF)
 if(PRISM_ENABLE_LEGACY_BACKENDS)
@@ -145,7 +146,7 @@ function(prism_target_external_include target visibility)
   foreach(_dir IN LISTS ARGN)
     list(APPEND _wrapped "$<BUILD_INTERFACE:${_dir}>")
   endforeach()
-  target_include_directories(${target} ${visibility} ${_wrapped})
+  target_include_directories(${target} SYSTEM ${visibility} ${_wrapped})
   if(PRISM_ENABLE_LINTING AND MSVC)
     foreach(_dir IN LISTS ARGN)
       target_compile_options(${target} ${visibility} "/external:I ${_dir}")
@@ -172,8 +173,7 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS
 file(GLOB backend_sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/*.cpp")
 list(REMOVE_ITEM backend_sources
-     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/backend_registry.cpp"
-     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/utils.cpp")
+     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/custom_backend.cpp")
 list(REMOVE_ITEM sources ${backend_sources})
 foreach(src ${backend_sources})
   prism_add_backend("${src}")
@@ -197,6 +197,19 @@ if(MSVC)
   target_compile_options(prism_third_party_dr_wav PRIVATE /analyze- /W0 /WX-)
 else()
   target_compile_options(prism_third_party_dr_wav PRIVATE -w)
+endif()
+add_library(prism_third_party_fmt OBJECT third_party/fmt/src/format.cc
+                                         third_party/fmt/src/os.cc)
+prism_target_external_include(
+  prism_third_party_fmt PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/fmt/include")
+set_target_properties(prism_third_party_fmt PROPERTIES POSITION_INDEPENDENT_CODE
+                                                       ON)
+if(MSVC)
+  target_compile_options(prism_third_party_fmt PRIVATE /analyze- /W0 /WX-
+                                                       /utf-8)
+else()
+  target_compile_options(prism_third_party_fmt PRIVATE -w)
 endif()
 if(ANDROID)
   add_library(
@@ -228,7 +241,8 @@ prism_target_external_include(
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/simdutf"
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/moderncom"
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/concurrentqueue"
-  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/dr_wav")
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/dr_wav"
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/fmt/include")
 if(ANDROID)
   prism_target_external_include(
     prism_backend_iface
@@ -260,8 +274,10 @@ endforeach()
 target_link_libraries(${PROJECT_NAME}
                       PRIVATE "$<BUILD_INTERFACE:prism_backend_iface>")
 target_sources(
-  ${PROJECT_NAME} PRIVATE $<TARGET_OBJECTS:prism_third_party_simdutf>
-                          $<TARGET_OBJECTS:prism_third_party_dr_wav>)
+  ${PROJECT_NAME}
+  PRIVATE $<TARGET_OBJECTS:prism_third_party_simdutf>
+          $<TARGET_OBJECTS:prism_third_party_dr_wav>
+          $<TARGET_OBJECTS:prism_third_party_fmt>)
 if(ANDROID)
   target_sources(${PROJECT_NAME}
                  PRIVATE $<TARGET_OBJECTS:prism_third_party_djinni>)
@@ -277,7 +293,7 @@ if(EMSCRIPTEN)
   target_compile_options(prism_emscripten_threads INTERFACE -pthread)
   target_link_options(prism_emscripten_threads INTERFACE -pthread)
   foreach(_t prism_third_party_simdutf prism_third_party_dr_wav
-             ${_prism_backend_targets})
+             prism_third_party_fmt ${_prism_backend_targets})
     target_link_libraries(${_t} PRIVATE prism_emscripten_threads)
   endforeach()
   target_link_libraries(${PROJECT_NAME}
@@ -292,6 +308,9 @@ if(APPLE)
     "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/voiceover.cpp" TARGET_DIRECTORY
     prism_backend_voiceover PROPERTIES COMPILE_OPTIONS
                                        "-x;objective-c++;-fobjc-arc")
+  set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/power_notifier.cpp" TARGET_DIRECTORY
+    ${PROJECT_NAME} PROPERTIES COMPILE_OPTIONS "-x;objective-c++;-fobjc-arc")
 endif()
 set(_comp_arch_id "")
 if(DEFINED MSVC_CXX_ARCHITECTURE_ID)
@@ -415,8 +434,8 @@ if(WIN32)
     COMMENT "Generating NVDA controller client stub for ${MIDL_ENV_TARGET}"
     VERBATIM)
   target_sources(${PROJECT_NAME} PRIVATE "${GEN_DIR}/nvda_controller.c")
-  target_include_directories(${PROJECT_NAME} PRIVATE ${GEN_DIR})
-  target_include_directories(prism_backend_iface
+  target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${GEN_DIR})
+  target_include_directories(prism_backend_iface SYSTEM
                              INTERFACE "$<BUILD_INTERFACE:${GEN_DIR}>")
   add_custom_target(prism_nvda_codegen DEPENDS "${GEN_DIR}/nvda_controller.h"
                                                "${GEN_DIR}/nvda_controller.c")
@@ -424,6 +443,11 @@ if(WIN32)
     add_dependencies(prism_backend_nvda prism_nvda_codegen)
   endif()
   target_link_libraries(${PROJECT_NAME} PRIVATE rpcrt4)
+  if(PRISM_ENABLEPOWER_MANAGEMENT)
+    target_compile_definitions(${PROJECT_NAME}
+                               PRIVATE PRISM_ENABLE_POWER_MANAGEMENT)
+    target_link_libraries(${PROJECT_NAME} PRIVATE PowrProf)
+  endif()
   if(_comp_arch_id_lc STREQUAL "x86" OR _comp_arch_id_lc STREQUAL "i386")
     add_import_library(ZDSR ${CMAKE_CURRENT_SOURCE_DIR}/defs/zdsr32.def
                        ZDSRAPI.dll)
@@ -498,21 +522,45 @@ if(APPLE)
     find_library(UIKIT_FRAMEWORK UIKit REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${UIKIT_FRAMEWORK})
   endif()
+  if(PRISM_ENABLE_POWER_MANAGEMENT AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
+    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+    target_compile_definitions(${PROJECT_NAME}
+                               PRIVATE PRISM_ENABLE_POWER_MANAGEMENT)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${IOKIT_FRAMEWORK}
+                                                  ${COREFOUNDATION_FRAMEWORK})
+  endif()
 endif()
 if(UNIX
    AND NOT APPLE
    AND NOT ANDROID
    AND NOT EMSCRIPTEN)
+  if(PRISM_ENABLE_POWER_MANAGEMENT)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GIOMM_PM giomm-2.68>=2.68.0)
+    if(GIOMM_PM_FOUND)
+      target_compile_definitions(${PROJECT_NAME}
+                                 PRIVATE PRISM_ENABLE_POWER_MANAGEMENT)
+      target_include_directories(${PROJECT_NAME} SYSTEM
+                                 PRIVATE ${GIOMM_PM_INCLUDE_DIRS})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${GIOMM_PM_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} PRIVATE ${GIOMM_PM_LIBRARIES})
+    else()
+      message(
+        STATUS "Prism: giomm not found; availability power management disabled")
+    endif()
+  endif()
   if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
     find_package(PkgConfig REQUIRED)
     if(PRISM_VCPKG_WANTS_ORCA_BACKEND)
       pkg_check_modules(GLIBMM glibmm-2.68>=2.68.0 REQUIRED)
       pkg_check_modules(GIOMM giomm-2.68>=2.68.0 REQUIRED)
-      target_include_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_INCLUDE_DIRS}
-                                                         ${GIOMM_INCLUDE_DIRS})
       target_include_directories(
-        prism_backend_iface INTERFACE ${GLIBMM_INCLUDE_DIRS}
-                                      ${GIOMM_INCLUDE_DIRS})
+        ${PROJECT_NAME} SYSTEM PRIVATE ${GLIBMM_INCLUDE_DIRS}
+                                       ${GIOMM_INCLUDE_DIRS})
+      target_include_directories(
+        prism_backend_iface SYSTEM INTERFACE ${GLIBMM_INCLUDE_DIRS}
+                                             ${GIOMM_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARY_DIRS}
                               ${GIOMM_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARIES}
@@ -524,9 +572,9 @@ if(UNIX
     if(PRISM_VCPKG_WANTS_SPEECH_DISPATCHER_BACKEND)
       pkg_check_modules(LIBSPEECHD speech-dispatcher REQUIRED)
       target_include_directories(
-        ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
-                                ${CMAKE_CURRENT_BINARY_DIR})
-      target_include_directories(prism_backend_iface
+        ${PROJECT_NAME} SYSTEM PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
+                                       ${CMAKE_CURRENT_BINARY_DIR})
+      target_include_directories(prism_backend_iface SYSTEM
                                  INTERFACE ${LIBSPEECHD_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE
                               ${LIBSPEECHD_LIBRARY_DIRS})
@@ -537,8 +585,9 @@ if(UNIX
     endif()
     if(PRISM_VCPKG_WANTS_SPIEL_BACKEND)
       pkg_check_modules(SPIEL spiel-1.0 REQUIRED)
-      target_include_directories(${PROJECT_NAME} PRIVATE ${SPIEL_INCLUDE_DIRS})
-      target_include_directories(prism_backend_iface
+      target_include_directories(${PROJECT_NAME} SYSTEM
+                                 PRIVATE ${SPIEL_INCLUDE_DIRS})
+      target_include_directories(prism_backend_iface SYSTEM
                                  INTERFACE ${SPIEL_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARIES})
@@ -551,11 +600,12 @@ if(UNIX
     pkg_check_modules(GLIBMM glibmm-2.68>=2.68.0)
     pkg_check_modules(GIOMM giomm-2.68>=2.68.0)
     if(GLIBMM_FOUND AND GIOMM_FOUND)
-      target_include_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_INCLUDE_DIRS}
-                                                         ${GIOMM_INCLUDE_DIRS})
       target_include_directories(
-        prism_backend_iface INTERFACE ${GLIBMM_INCLUDE_DIRS}
-                                      ${GIOMM_INCLUDE_DIRS})
+        ${PROJECT_NAME} SYSTEM PRIVATE ${GLIBMM_INCLUDE_DIRS}
+                                       ${GIOMM_INCLUDE_DIRS})
+      target_include_directories(
+        prism_backend_iface SYSTEM INTERFACE ${GLIBMM_INCLUDE_DIRS}
+                                             ${GIOMM_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARY_DIRS}
                               ${GIOMM_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${GLIBMM_LIBRARIES}
@@ -567,9 +617,9 @@ if(UNIX
     pkg_check_modules(LIBSPEECHD speech-dispatcher)
     if(LIBSPEECHD_FOUND)
       target_include_directories(
-        ${PROJECT_NAME} PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
-                                ${CMAKE_CURRENT_BINARY_DIR})
-      target_include_directories(prism_backend_iface
+        ${PROJECT_NAME} SYSTEM PRIVATE ${LIBSPEECHD_INCLUDE_DIRS}
+                                       ${CMAKE_CURRENT_BINARY_DIR})
+      target_include_directories(prism_backend_iface SYSTEM
                                  INTERFACE ${LIBSPEECHD_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE
                               ${LIBSPEECHD_LIBRARY_DIRS})
@@ -580,8 +630,9 @@ if(UNIX
     endif()
     pkg_check_modules(SPIEL spiel-1.0)
     if(SPIEL_FOUND)
-      target_include_directories(${PROJECT_NAME} PRIVATE ${SPIEL_INCLUDE_DIRS})
-      target_include_directories(prism_backend_iface
+      target_include_directories(${PROJECT_NAME} SYSTEM
+                                 PRIVATE ${SPIEL_INCLUDE_DIRS})
+      target_include_directories(prism_backend_iface SYSTEM
                                  INTERFACE ${SPIEL_INCLUDE_DIRS})
       target_link_directories(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARY_DIRS})
       target_link_libraries(${PROJECT_NAME} PRIVATE ${SPIEL_LIBRARIES})
@@ -595,8 +646,8 @@ if(WIN32 OR WINDOWS_STORE)
   target_compile_definitions(
     ${PROJECT_NAME}
     PRIVATE _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
-           _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
-           BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
+            _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
+            BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
   target_compile_definitions(
     prism_backend_iface
     INTERFACE _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
@@ -689,8 +740,6 @@ if(NOT MSVC)
   check_cxx_compiler_flag(-Wall COMP_HAS_WALL_OPTION)
   check_cxx_compiler_flag(-Wextra COMP_HAS_WEXTRA_OPTION)
   check_cxx_compiler_flag(-Wthread-safety COMP_HAS_WTHREAD_SAFETY_OPTION)
-  check_cxx_compiler_flag(-Wthread-safety-negative
-                          COMP_HAS_WTHREAD_SAFETY_NEGATIVE_OPTION)
   if(COMP_HAS_WALL_OPTION AND COMP_HAS_WEXTRA_OPTION)
     target_compile_options(${PROJECT_NAME}
                            PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
@@ -707,15 +756,31 @@ if(NOT MSVC)
       INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety>
                 $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety>)
   endif()
-  if(COMP_HAS_WTHREAD_SAFETY_NEGATIVE_OPTION)
-    target_compile_options(
-      ${PROJECT_NAME}
-      PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety-negative>
-              $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety-negative>)
-    target_compile_options(
-      prism_backend_iface
-      INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety-negative>
-                $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety-negative>)
+  set(JTHREAD_TEST_CODE
+      "
+#include <thread>
+#include <stop_token>
+int main() {
+    std::jthread t([](std::stop_token st) {});
+    return 0;
+}
+")
+  check_cxx_source_compiles("${JTHREAD_TEST_CODE}" PRISM_HAS_JTHREAD_NATIVE)
+  if(NOT PRISM_HAS_JTHREAD_NATIVE)
+    set(CMAKE_REQUIRED_FLAGS "-fexperimental-library")
+    set(CMAKE_REQUIRED_LINK_OPTIONS "-fexperimental-library")
+    check_cxx_source_compiles("${JTHREAD_TEST_CODE}"
+                              PRISM_HAS_JTHREAD_EXPERIMENTAL)
+    set(CMAKE_REQUIRED_FLAGS "")
+    set(CMAKE_REQUIRED_LINK_OPTIONS "")
+    if(PRISM_HAS_JTHREAD_EXPERIMENTAL)
+      target_compile_options(
+        ${PROJECT_NAME}
+        PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fexperimental-library>)
+      target_compile_options(
+        prism_backend_iface
+        INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-fexperimental-library>)
+    endif()
   endif()
 endif()
 if(APPLE)

@@ -2,9 +2,9 @@
 
 #ifdef __OBJC__
 #ifdef __APPLE__
-#include "backend.h"
-#include "backend_registry.h"
-#include "utils.h"
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../utils.h"
 #import <AVFAudio/AVFAudio.h>
 #import <AVFoundation/AVFoundation.h>
 #import <Foundation/Foundation.h>
@@ -159,7 +159,7 @@ public:
     }
     if (@available(macOS 14.0, iOS 17.0, *)) {
       dispatch_semaphore_t auth_sema = dispatch_semaphore_create(0);
-      __block auto auth_status =
+      [[maybe_unused]] __block auto auth_status =
           AVSpeechSynthesisPersonalVoiceAuthorizationStatusNotDetermined;
       [AVSpeechSynthesizer
           requestPersonalVoiceAuthorizationWithCompletionHandler:^(

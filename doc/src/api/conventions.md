@@ -6,6 +6,7 @@ Within the Prism API, the following conventions are always constant:
 
 * Context management functions use the prefix `prism_`.
 * Backend registry functions use the prefix `prism_registry_`.
+* Registry builder functions use the prefix `prism_registry_builder_`.
 * Backend functions use the prefix `prism_backend_`.
 * Error utility functions use the prefix `prism_error_`.
 * Types use the prefix `Prism` followed by PascalCase naming.
@@ -46,3 +47,10 @@ These annotations are supported on GCC, Clang, and MSVC to varying degrees. On c
 The library does it's best to avoid copying unless absolutely required. On some back-ends, this is unavoidable. Programmers MUST be aware that, when passing in strings or other data, the caller owns the passed-in argument. The lifetime of the argument must exceed that of the function call. Although some back-ends may copy strings, this MUST NOT be assumed to occur.
 
 When the library returns pointers to data in memory, the library owns that data. The caller MUST NOT free or otherwise deallocate the returned memory unless explicitly specified in this manual (for example, a context requires explicit deallocation, as does a back-end, but a back-end name MUST NOT be freed).
+
+Custom backends introduce two further ownership rules:
+
+1. The vtable passed to `prism_registry_builder_add_backend` is copied during the call, so the caller may discard it afterwards, but the function pointers it contains MUST remain valid for as long as any registry or backend instance refers to them.
+2. If a `userdata_free` function is supplied, ownership of `userdata` transfers to Prism the moment `prism_registry_builder_add_backend` is called, and Prism invokes `userdata_free` exactly once, regardless of whether registration succeeds. If `userdata_free` is `NULL`, the caller retains ownership and MUST keep `userdata` valid for as long as any registry or backend instance refers to it.
+
+The precise lifetime rules are given in the chapter on custom backends.

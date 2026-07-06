@@ -1,6 +1,6 @@
 ## Backend Registry Functions
 
-The backend registry maintains the list of available backends and provides facilities for creating and managing backend instances. Backends are registered at library load time; the registry contents cannot be modified at runtime by application code.
+The backend registry maintains the list of available backends and provides facilities for creating and managing backend instances. The functions in this chapter operate on whichever registry the supplied context is bound to. A registry's contents are fixed when it is created: compiled-in backends register themselves at library load time and appear in every registry, and custom backends are added while a registry is under construction, as described in the chapter on custom backends. There is no way to add or remove a backend from a registry that already exists.
 
 ### prism_registry_count
 
@@ -24,7 +24,7 @@ Returns the number of registered backends.
 
 #### Remarks
 
-The return value represents the number of backends that were compiled into the Prism library and registered themselves at load time. This count is constant for the lifetime of the process; backends cannot be registered or unregistered at runtime.
+The return value represents the number of backends in the registry the context is bound to. For a context using the global registry, this is the number of backends that were compiled into the Prism library and registered themselves at load time, and for a context bound to an application-constructed registry, it additionally includes any custom backends. The count is constant for the lifetime of the registry.
 
 A return value of zero indicates that no backends are available, which typically means Prism was compiled without any backend support or is running on a platform for which no backends were configured. Applications SHOULD check for this condition and report an appropriate error to the user.
 
@@ -56,11 +56,11 @@ Returns the backend ID at the specified index on success. Returns `PRISM_BACKEND
 
 #### Remarks
 
-Backends are stored in the registry in descending priority order. Index 0 corresponds to the highest-priority backend, index 1 to the second-highest, and so on. This ordering is determined at compile time based on the priority values assigned to each backend.
+Backends are stored in the registry in descending priority order. Index 0 corresponds to the highest-priority backend, index 1 to the second-highest, and so on. This ordering is determined by the priority values, which are assigned at compile time for built-in backends and at registration time for custom backends.
 
 The priority ordering reflects a general preference hierarchy. Screen reader backends (such as NVDA, JAWS, and Orca) typically have higher priority than standalone TTS backends (such as SAPI and OneCore) because, when a screen reader is running, applications generally want to route speech through it rather than speaking independently. However, applications that have specific requirements MAY ignore this ordering and select backends by ID or name.
 
-The mapping between indices and IDs is stable for the lifetime of the process. The ID at a given index will not change unless the process is restarted.
+The mapping between indices and IDs is stable for the lifetime of the registry. The ID at a given index will not change unless the registry is recreated. In the case of built-in backends, the index is constant for each build of Prism.
 
 ### prism_registry_id
 
@@ -143,7 +143,7 @@ Returns a pointer to a null-terminated string containing the backend name on suc
 
 #### Remarks
 
-The returned string is owned by the registry and remains valid for the lifetime of the process. Applications MUST NOT modify or free the returned string.
+The returned string is owned by the registry and remains valid for the lifetime of the registry (i.e., for as long as a context bound to that registry remains valid). Applications MUST NOT retain the pointer after the last context bound to the registry has been shut down and the registry released. Applications MUST consider the returned string read-only and owned by Prism.
 
 This function is the inverse of `prism_registry_id`. Given an ID obtained from any source (such as `prism_registry_id_at`, a predefined constant, or storage), this function returns the corresponding human-readable name.
 
@@ -173,7 +173,7 @@ Returns the priority value of the backend on success. Returns `-1` if the ID is 
 
 #### Remarks
 
-Priority values are positive integers assigned to backends at compile time. Higher values indicate higher priority. When `prism_registry_create_best` or `prism_registry_acquire_best` is called, Prism attempts to create backends in descending priority order until one succeeds.
+Priority values are non-negative integers. Built-in backends are assigned priorities at compile time; custom backends supply theirs at registration, where a negative value is rejected. Higher values indicate higher priority. When `prism_registry_create_best` or `prism_registry_acquire_best` is called, Prism attempts to create backends in descending priority order until one succeeds.
 
 The priority system is designed to select the most appropriate backend automatically. Screen reader backends are assigned higher priorities because, when a user is running a screen reader, they generally expect all speech to go through it. If no screen reader is running, those backends will fail to initialize, and Prism will fall back to a standalone TTS backend.
 
@@ -263,7 +263,7 @@ The backend ID to instantiate.
 
 #### Return Value
 
-Returns a pointer to a newly created backend instance on success. Returns `NULL` if the ID is not found in the registry or if memory allocation fails.
+Returns a pointer to a newly created backend instance on success. Returns `NULL` if the ID is not found in the registry or if memory allocation fails, or if the backend is a custom backend, if the backend's creation callback fails to produce an instance.
 
 #### Remarks
 

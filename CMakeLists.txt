@@ -206,7 +206,8 @@ prism_target_external_include(
 set_target_properties(prism_third_party_fmt PROPERTIES POSITION_INDEPENDENT_CODE
                                                        ON)
 if(MSVC)
-  target_compile_options(prism_third_party_fmt PRIVATE /analyze- /W0 /WX- /utf-8)
+  target_compile_options(prism_third_party_fmt PRIVATE /analyze- /W0 /WX-
+                                                       /utf-8)
 else()
   target_compile_options(prism_third_party_fmt PRIVATE -w)
 endif()
@@ -754,6 +755,32 @@ if(NOT MSVC)
       prism_backend_iface
       INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-Wthread-safety>
                 $<$<COMPILE_LANGUAGE:C,CXX>:-Werror=thread-safety>)
+  endif()
+  set(JTHREAD_TEST_CODE
+      "
+#include <thread>
+#include <stop_token>
+int main() {
+    std::jthread t([](std::stop_token st) {});
+    return 0;
+}
+")
+  check_cxx_source_compiles("${JTHREAD_TEST_CODE}" PRISM_HAS_JTHREAD_NATIVE)
+  if(NOT PRISM_HAS_JTHREAD_NATIVE)
+    set(CMAKE_REQUIRED_FLAGS "-fexperimental-library")
+    set(CMAKE_REQUIRED_LINK_OPTIONS "-fexperimental-library")
+    check_cxx_source_compiles("${JTHREAD_TEST_CODE}"
+                              PRISM_HAS_JTHREAD_EXPERIMENTAL)
+    set(CMAKE_REQUIRED_FLAGS "")
+    set(CMAKE_REQUIRED_LINK_OPTIONS "")
+    if(PRISM_HAS_JTHREAD_EXPERIMENTAL)
+      target_compile_options(
+        ${PROJECT_NAME}
+        PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fexperimental-library>)
+      target_compile_options(
+        prism_backend_iface
+        INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-fexperimental-library>)
+    endif()
   endif()
 endif()
 if(APPLE)

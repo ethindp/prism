@@ -153,8 +153,9 @@ public:
         SysFreeString(bstr_activity);
       return E_OUTOFMEMORY;
     }
-    const auto processing = interrupt ? NotificationProcessing_ImportantAll
-                                      : NotificationProcessing_All;
+    const auto processing = interrupt
+                                ? NotificationProcessing_ImportantMostRecent
+                                : NotificationProcessing_All;
     const auto hr = UiaRaiseNotificationEvent(
         static_cast<IRawElementProviderSimple *>(this),
         NotificationKind_ActionCompleted, processing, bstr_text, bstr_activity);

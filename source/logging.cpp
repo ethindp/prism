@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
 #include <fmt/format.h>
 #include <memory>
 #include <mutex>
@@ -34,18 +35,24 @@ Logger::Logger() : drain([this] { run(); }) {}
 Logger::~Logger() { shutdown(); }
 
 PrismLogHandler Logger::set_handler(PrismLogHandler next) noexcept {
-  // NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks)
-  const Handler *fresh =
-      next.fn != nullptr ? new Handler{.fn = next.fn, .userdata = next.userdata}
-                         : nullptr;
-  const Handler *old = this->current.exchange(fresh, std::memory_order_acq_rel);
-  // NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
-  PrismLogHandler previous{};
-  if (old != nullptr)
-    previous = PrismLogHandler{.fn = old->fn, .userdata = old->userdata};
-  // old is intentionally leaked since we can't know when the drain thread is
-  // done with it
-  return previous;
+  try {
+    // NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks)
+    const Handler *fresh =
+        next.fn != nullptr
+            ? new Handler{.fn = next.fn, .userdata = next.userdata}
+            : nullptr;
+    const Handler *old =
+        this->current.exchange(fresh, std::memory_order_acq_rel);
+    // NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
+    PrismLogHandler previous{};
+    if (old != nullptr)
+      previous = PrismLogHandler{.fn = old->fn, .userdata = old->userdata};
+    // old is intentionally leaked since we can't know when the drain thread is
+    // done with it
+    return previous;
+  } catch (...) {
+    std::terminate(); // If this happens, we have bigger things to worry about
+  }
 }
 
 PrismLogLevel Logger::set_level(PrismLogLevel level) noexcept {

@@ -9,8 +9,7 @@ from pathlib import Path
 import numpy as np
 import sounddevice
 from piper import PiperVoice
-from prism.core import Context
-from prism.custom import CustomBackend, RegistryBuilder
+from prism import Context, CustomBackend, RegistryBuilder
 
 _VOICE_CACHE: dict[str, object] = {}
 

@@ -1,11 +1,13 @@
-from .core import (
-    AudioCallback,
-    Backend,
+from .common import (
     BackendFeatures,
     BackendId,
-    Context,
     PrismError,
 )
+from .core import AudioCallback, Backend, Context
+from .custom import CustomBackend, RegistryBuilder
+from .log import LogLevel, install_logging
+from .log import set_level as set_log_level
+from .log import uninstall as uninstall_logging
 
 __all__ = [
     "AudioCallback",
@@ -13,5 +15,11 @@ __all__ = [
     "BackendFeatures",
     "BackendId",
     "Context",
+    "CustomBackend",
+    "LogLevel",
     "PrismError",
+    "RegistryBuilder",
+    "install_logging",
+    "set_log_level",
+    "uninstall_logging",
 ]

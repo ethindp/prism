@@ -35,7 +35,7 @@ jobs:
           - { platform: web,     arch: wasm32, os: ubuntu-latest }
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
         with:
           submodules: true
       - name: install multilib (x86_32)
@@ -72,7 +72,7 @@ jobs:
               matrix.target.arch == 'arm64'  && 'amd64_arm64'
             }}
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.3.3
+        uses: lukka/get-cmake@v4.3.4
         with:
           cmakeVersion: latest
       - name: NDK setup

@@ -15,12 +15,12 @@ jobs:
   emscripten:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.3
+      - uses: actions/checkout@v7.0.0
       - uses: mymindstorm/setup-emsdk@v16
         with:
           version: latest
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.3.3
+        uses: lukka/get-cmake@v4.3.4
         with:
           cmakeVersion: latest
       - name: Build all configurations

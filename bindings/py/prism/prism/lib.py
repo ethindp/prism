@@ -13,7 +13,7 @@ else:
     _NATIVE_NAME = "libprism.so"
 
 
-def _find_native_dir() -> str:
+def _find_native_dir() -> Path:
     local_path = Path(__file__).parent / "_native"
     if local_path.exists() and any(local_path.iterdir()):
         return local_path
@@ -42,11 +42,6 @@ typedef uint64_t PrismBackendId;
 typedef struct PrismRegistry PrismRegistry;
 typedef struct PrismRegistryBuilder PrismRegistryBuilder;
 
-typedef struct {
-  uint8_t version;
-  PrismRegistry *registry;
-} PrismConfig;
-
 typedef enum PrismError {
   PRISM_OK = 0,
   PRISM_ERROR_NOT_INITIALIZED,
@@ -72,7 +67,7 @@ typedef enum PrismError {
   PRISM_ERROR_COUNT
 } PrismError;
 
-typedef void(PrismAudioCallback)(
+typedef void(*PrismAudioCallback)(
     void *userdata, const float *samples, size_t sample_count,
     size_t channels, size_t sample_rate);
 
@@ -107,6 +102,39 @@ typedef struct PrismBackendVTable {
   PrismError (*get_sample_rate)(void *instance, size_t *out_sample_rate);
   PrismError (*get_bit_depth)(void *instance, size_t *out_bit_depth);
 } PrismBackendVTable;
+
+typedef enum PrismLogLevel {
+  PRISM_LOG_LEVEL_TRACE,
+  PRISM_LOG_LEVEL_DEBUG,
+  PRISM_LOG_LEVEL_INFO,
+  PRISM_LOG_LEVEL_WARN,
+  PRISM_LOG_LEVEL_ERROR,
+  PRISM_LOG_LEVEL_NONE
+} PrismLogLevel;
+
+typedef void (*PrismLogCallback)(void *userdata, PrismLogLevel level,
+                                 const char *source, const char *message);
+
+typedef struct PrismLogHandler {
+  PrismLogCallback fn;
+  void *userdata;
+} PrismLogHandler;
+
+typedef void (*PrismAvailabilityCallback)(void *userdata,
+                                          PrismBackendId backend,
+                                          const char *name,
+                                          bool available);
+
+typedef struct {
+  uint8_t version;
+  PrismRegistry *registry;
+  PrismAvailabilityCallback availability_callback;
+  void *availability_userdata;
+  uint32_t availability_poll_interval_ms;
+  uint32_t availability_debounce_samples;
+  uint32_t availability_backoff_max_ms;
+  bool availability_auto_power_manage;
+} PrismConfig;
 
 PrismConfig prism_config_init(void);
 PrismContext *prism_init(PrismConfig* cfg);
@@ -172,6 +200,14 @@ PrismError prism_backend_get_channels(PrismBackend *backend, size_t *out_channel
 PrismError prism_backend_get_sample_rate(PrismBackend *backend, size_t *out_sample_rate);
 PrismError prism_backend_get_bit_depth(PrismBackend *backend, size_t *out_bit_depth);
 const char *prism_error_string(PrismError error);
+void prism_availability_poll_pause(PrismContext *ctx);
+void prism_availability_poll_resume(PrismContext *ctx);
+bool prism_availability_auto_power_supported(void);
+PrismLogHandler prism_set_log_handler(PrismLogHandler handler);
+PrismLogLevel prism_set_log_level(PrismLogLevel level);
+void prism_log(PrismLogLevel level, const char *source, const char *message);
+void prism_log_flush(void);
+void prism_log_shutdown(void);
 """)
 lib_path = (dll_home / _NATIVE_NAME).resolve()
 lib = ffi.dlopen(

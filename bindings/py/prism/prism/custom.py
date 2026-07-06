@@ -6,12 +6,15 @@ import threading
 import traceback
 from typing import TYPE_CHECKING, Final
 
-from .core import AudioCallback, _check_error
+from .core import AudioCallback, BackendFeatures, _check_error
 from .lib import ffi, lib
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Self
+
+from functools import reduce
+from operator import or_
 
 _FEATURE_BIT: Final[dict[str, int]] = {
     "speak": 1 << 2,
@@ -40,6 +43,7 @@ _FEATURE_BIT: Final[dict[str, int]] = {
 }
 
 _MAP: Final = object()
+_METHOD_BITS: Final[int] = reduce(or_, _FEATURE_BIT.values(), 0)
 
 
 class CustomBackend:
@@ -47,6 +51,8 @@ class CustomBackend:
 
     Override only the operations you actually support.
     """
+
+    EXTRA_FEATURES: BackendFeatures = BackendFeatures()
 
     def initialize(self) -> None: ...
     def is_supported(self) -> bool:
@@ -312,7 +318,13 @@ class _Registration:
             self._install(field, trampoline, on_error=_MAP)
             if bit is not None:
                 self.features |= bit
-
+        extra_bits: int = self._cls.EXTRA_FEATURES.to_bits()
+        offenders: int = extra_bits & _METHOD_BITS
+        if offenders:
+            raise ValueError(
+                f"EXTRA_FEATURES declared method-derived capability bits ({offenders:#x}), which is not allowed"
+            )
+        self.features |= extra_bits
         self.userdata_free = self._make_cb("void(void *)", userdata_free, on_error=None)
 
 

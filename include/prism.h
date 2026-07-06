@@ -180,6 +180,10 @@ typedef struct PrismBackendVTable {
   PrismError(PRISM_CALL *get_bit_depth)(void *instance, size_t *out_bit_depth);
 } PrismBackendVTable;
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 26812)
+#endif
 typedef enum PrismLogLevel {
   PRISM_LOG_LEVEL_TRACE,
   PRISM_LOG_LEVEL_DEBUG,
@@ -188,6 +192,9 @@ typedef enum PrismLogLevel {
   PRISM_LOG_LEVEL_ERROR,
   PRISM_LOG_LEVEL_NONE
 } PrismLogLevel;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 typedef void(PRISM_CALL *PrismLogCallback)(void *userdata, PrismLogLevel level,
                                            const char *source,

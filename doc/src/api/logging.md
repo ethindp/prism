@@ -254,12 +254,12 @@ After this function returns, the logger is no longer running. Calls to `prism_lo
 
 #### Warning
 
-There is no way to re-launch the logging thread after this function is called. Applications SHOULD take care that this  function is only called when they are absolutely certain they will not need the logging thread.
+There is no way to re-launch the logging thread after this function is called. Applications SHOULD take care that this  function is only called when they are absolutely certain they will not need the logging thread for the remaining lifetime of the process.
 
 ### Default behavior and the `PRISM_LOG` environment variable
 
 When the library is first initialized by `prism_init`, it inspects the `PRISM_LOG` environment variable. If the variable is set to one of the values `trace`, `debug`, `info`, `warn`, `error`, or `none`, Prism installs a built-in handler that writes messages to the standard error stream and sets the threshold to the corresponding level. The values are matched exactly and in lower case; any other value, or an unset variable, leaves the default configuration unchanged.
 
-In the absence of both an application-installed handler and the `PRISM_LOG` variable, no handler is installed and all messages are discarded. Logging therefore has negligible cost by default.
+In the absence of both an application-installed handler and the `PRISM_LOG` variable, no handler is installed and all messages are discarded. The default log level in this instance is None. Logging therefore has negligible cost by default.
 
 Because the `PRISM_LOG` handler is installed during `prism_init`, an application that installs its own handler with `prism_set_log_handler` after initialization will replace the standard-error handler. An application that wishes to observe messages produced before its own handler is installed SHOULD either set `PRISM_LOG` or install its handler before the first call to `prism_init`.

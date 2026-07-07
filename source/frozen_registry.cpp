@@ -2,13 +2,22 @@
 
 #include "frozen_registry.h"
 #include <algorithm>
+#include <version>
+#ifdef __cpp_lib_flat_set
 #include <flat_set>
+#else
+#include <unordered_set>
+#endif
 #include <ranges>
 #include <simdutf/simdutf.h>
 
 FrozenRegistry::FrozenRegistry(std::vector<Registration> registrations)
     : refcount(1) {
+#ifdef __cpp_lib_flat_set
   std::flat_set<std::uint64_t> seen;
+#else
+  std::unordered_set<std::uint64_t> seen;
+#endif
   entries.reserve(registrations.size());
   for (auto &reg : registrations) {
     if (!seen.emplace(static_cast<std::uint64_t>(reg.id)).second) {

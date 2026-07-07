@@ -48,6 +48,11 @@ class Backend:
                 lib.PRISM_ERROR_INVALID_PARAM,
                 "Text MUST NOT be empty",
             )
+        if "\x00" in text:
+            raise PrismInvalidParamError(
+                lib.PRISM_ERROR_INVALID_PARAM,
+                "Text MUST NOT contain embedded NULLs",
+            )
         return _check_error(
             lib.prism_backend_speak(self._raw, text.encode("utf-8"), interrupt),
         )
@@ -58,6 +63,12 @@ class Backend:
                 lib.PRISM_ERROR_INVALID_PARAM,
                 "Text MUST NOT be empty",
             )
+        if "\x00" in text:
+            raise PrismInvalidParamError(
+                lib.PRISM_ERROR_INVALID_PARAM,
+                "Text MUST NOT contain embedded NULLs",
+            )
+        captured: BaseException | None = None
 
         @ffi.callback("void(void *, const float *, size_t, size_t, size_t)")
         def audio_callback_shim(
@@ -67,24 +78,36 @@ class Backend:
             channels: int,
             rate: int,
         ) -> None:
-            pcm_data = ffi.unpack(samples_ptr, count)
-            on_audio_data(pcm_data, channels, rate)
+            nonlocal captured
+            if captured is not None:
+                return
+            try:
+                pcm_data = ffi.unpack(samples_ptr, count) if count > 0 else []
+                on_audio_data(pcm_data, channels, rate)
+            except BaseException as exc:  # noqa: BLE001
+                captured = exc
 
         self._active_callback = audio_callback_shim
-        return _check_error(
-            lib.prism_backend_speak_to_memory(
-                self._raw,
-                text.encode("utf-8"),
-                audio_callback_shim,
-                ffi.NULL,
-            ),
+        res = lib.prism_backend_speak_to_memory(
+            self._raw,
+            text,
+            audio_callback_shim,
+            ffi.NULL,
         )
+        if captured is not None:
+            raise captured
+        _check_error(res)
 
     def braille(self, text: str) -> None:
         if len(text) == 0:
             raise PrismInvalidParamError(
                 lib.PRISM_ERROR_INVALID_PARAM,
                 "Text MUST NOT be empty",
+            )
+        if "\x00" in text:
+            raise PrismInvalidParamError(
+                lib.PRISM_ERROR_INVALID_PARAM,
+                "Text MUST NOT contain embedded NULLs",
             )
         return _check_error(lib.prism_backend_braille(self._raw, text.encode("utf-8")))
 
@@ -93,6 +116,11 @@ class Backend:
             raise PrismInvalidParamError(
                 lib.PRISM_ERROR_INVALID_PARAM,
                 "Text MUST NOT be empty",
+            )
+        if "\x00" in text:
+            raise PrismInvalidParamError(
+                lib.PRISM_ERROR_INVALID_PARAM,
+                "Text MUST NOT contain embedded NULLs",
             )
         return _check_error(
             lib.prism_backend_output(self._raw, text.encode("utf-8"), interrupt),
@@ -276,7 +304,7 @@ class Context:
         return lib.prism_registry_count(self._ctx)
 
     def id_of(self, index_or_name: int | str) -> BackendId:
-        if isinstance(index_or_name, int):
+        if isinstance(index_or_name, int) and not isinstance(index_or_name, bool):
             res = lib.prism_registry_id_at(self._ctx, index_or_name)
         elif isinstance(index_or_name, str):
             res = lib.prism_registry_id(self._ctx, index_or_name.encode("utf-8"))

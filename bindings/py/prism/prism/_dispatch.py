@@ -77,7 +77,7 @@ class _Dispatcher:
         try:
             result: None | Awaitable[None] = cb(backend, name, available)
         except Exception:  # noqa: BLE001
-            _log.exception("availability callback raised (sync)")
+            _log.exception("availability callback raised an exception, which is not allowed")
             return
         if not inspect.isawaitable(result):
             return
@@ -107,7 +107,7 @@ class _Dispatcher:
                 except asyncio.CancelledError:
                     raise
                 except Exception:  # noqa: BLE001
-                    _log.exception("availability callback raised (async)")
+                    _log.exception("availability callback raised an exception, which is not allowed")
                 current = self._pending.pop(backend, None)
         finally:
             self._running.discard(backend)

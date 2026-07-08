@@ -44,11 +44,10 @@ private:
   alignas(hardware_destructive_interference_size) std::atomic_uint64_t dropped{
       0};
   std::atomic<const Handler *> current{nullptr};
-  std::atomic_flag stop;
   moodycamel::BlockingConcurrentQueue<Record> queue{capacity};
-  std::thread drain;
+  std::jthread drain;
 
-  void run() noexcept;
+  void run(const std::stop_token &st) noexcept;
 
   [[nodiscard]] const Handler *handler() const noexcept {
     return current.load(std::memory_order_acquire);

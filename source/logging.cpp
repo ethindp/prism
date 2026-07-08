@@ -31,7 +31,7 @@ void PRISM_CALL stderr_sink([[maybe_unused]] void *ud, PrismLogLevel level,
 std::once_flag logging_initializer;
 } // namespace
 
-Logger::Logger() : drain([this] { run(); }) {}
+Logger::Logger() : drain([this](const std::stop_token &st) { run(st); }) {}
 
 Logger::~Logger() { shutdown(); }
 
@@ -101,10 +101,10 @@ void Logger::report_drops(const Handler *pair) noexcept {
   // NOLINTEND(bugprone-empty-catch)
 }
 
-void Logger::run() noexcept {
+void Logger::run(const std::stop_token &st) noexcept {
   moodycamel::ConsumerToken token(queue);
   std::array<Record, drain_bulk> batch;
-  while (!stop.test(std::memory_order_relaxed)) {
+  while (!st.stop_requested()) {
     const std::size_t n = queue.wait_dequeue_bulk_timed(
         token, batch.begin(), drain_bulk, std::chrono::milliseconds(100));
     const Handler *pair = handler();
@@ -136,9 +136,7 @@ void Logger::flush() {
 }
 
 void Logger::shutdown() noexcept {
-  if (stop.test_and_set(std::memory_order_relaxed))
-    return;
-  queue.enqueue(Record{});
+  drain.request_stop();
   if (drain.joinable())
     drain.join();
 }

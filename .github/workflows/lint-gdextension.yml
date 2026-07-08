@@ -85,9 +85,6 @@ jobs:
         if: matrix.target.platform == 'android'
         run: |
           echo "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> "$GITHUB_PATH"
-      - name: download iOS toolchain
-        if: matrix.target.platform == 'ios'
-        run: curl -sSL https://raw.githubusercontent.com/leetal/ios-cmake/master/ios.toolchain.cmake -o ios.toolchain.cmake
       - name: Emscripten setup
         if: matrix.target.platform == 'web'
         uses: mymindstorm/setup-emsdk@v16
@@ -163,9 +160,13 @@ jobs:
                       -DANDROID_PLATFORM=android-21 )
               ;;
             ios-arm64)
-              args+=( -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake
-                      -DPLATFORM=OS64 -DDEPLOYMENT_TARGET=16.0
-                      "-DCMAKE_Swift_FLAGS=-target arm64-apple-ios16.0" )
+              SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)"
+              [ -d "$SDKROOT" ] || { echo "iOS SDK not found via xcrun" >&2; exit 1; }
+              export SDKROOT
+              args+=( -DCMAKE_SYSTEM_NAME=iOS
+                      -DCMAKE_OSX_ARCHITECTURES=arm64
+                      -DCMAKE_OSX_SYSROOT="$SDKROOT"
+                      -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 )
               ;;
             web-wasm32)
               use_emcmake=true

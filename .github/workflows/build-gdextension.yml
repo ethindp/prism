@@ -138,9 +138,13 @@ jobs:
                       -DANDROID_PLATFORM=android-21 )
               ;;
             ios-arm64)
+              SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)"
+              [ -d "$SDKROOT" ] || { echo "iOS SDK not found via xcrun" >&2; exit 1; }
+              export SDKROOT
               args+=( -DCMAKE_SYSTEM_NAME=iOS
-                -DCMAKE_OSX_ARCHITECTURES=arm64
-                -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0)
+                      -DCMAKE_OSX_ARCHITECTURES=arm64
+                      -DCMAKE_OSX_SYSROOT="$SDKROOT"
+                      -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 )
               ;;
             web-wasm32)
               use_emcmake=true

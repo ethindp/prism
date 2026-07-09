@@ -969,7 +969,7 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
     }
     log.warn("delay-load dummy handle pool exhausted after {} modules; '{}' "
              "left unresolved",
-             std::numeric_limits<std::atomic_unsigned_lock_free>::max(),
+             std::numeric_limits<std::atomic_unsigned_lock_free>::max().load(),
              pdli->szDll);
     return reinterpret_cast<FARPROC>(reinterpret_cast<HMODULE>(1));
   } break;

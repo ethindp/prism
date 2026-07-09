@@ -1,7 +1,7 @@
 import com.android.build.api.artifact.SingleArtifact
 plugins {
     id "com.android.library" version "9.2.1"
-    id "com.diffplug.spotless" version "8.7.0"
+    id "com.diffplug.spotless" version "8.8.0"
 }
 layout.buildDirectory.set(layout.projectDirectory.dir("build/android/gradle"))
 dependencies {

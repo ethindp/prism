@@ -10,7 +10,7 @@ Prism requires the following to be met to function properly. If your system does
 
 * For windows, Windows 10 or later is required. Older versions of windows are NOT supported.
 * Apple platforms require either MacOS 11, iOS 13, tvOS 13, WatchOS 7, or VisionOS 1.
-* Linux requires Glib 2.80.0 or later and Orca 49 or later for the Orca backend to function. Speech-dispatcher will work with any version of speech dispatcher that supports ABI version 2 (which means that versions 0.11.1 and on will definitely work).
+* Linux requires a version of Glib which conforms to the Glib-2.68 ABI. This typically means having glib and glibmm 2.80 or later and Orca 49 or later for the Orca backend to function. Speech-dispatcher will work with any version of speech dispatcher that supports ABI version 2 (which means that versions 0.11.1 and on will definitely work).
 * Android requires version 8/API level 26 or later.
 * Web requires that the browser implement the [WebSpeech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API) to be implemented.
 

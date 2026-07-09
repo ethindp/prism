@@ -541,6 +541,9 @@ public:
     case WAVE_FORMAT_IEEE_FLOAT: {
       switch (bit_depth) {
       case 32:
+        if (total_samples > std::numeric_limits<std::size_t>::max() / sizeof(float)) {
+          return std::unexpected(BackendError::InvalidAudioFormat);
+        }
         std::memcpy(samples.data(), data, total_samples * sizeof(float));
         break;
       case 64:

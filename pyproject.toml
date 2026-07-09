@@ -30,6 +30,7 @@ dev = [
     "numpy>=2.2.6",
     "packaging>=26.0",
     "piper-tts>=1.4.2",
+    "pocket-tts>=2.1.0",
     "pytest>=9.0.2",
     "pytest-timeout>=2.4.0",
     "silero-vad>=6.2.1",

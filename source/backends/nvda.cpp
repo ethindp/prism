@@ -46,6 +46,7 @@ error_status_t __stdcall nvdaController_setOnSsmlMarkReachedCallback(
 class NvdaBackend final : public TextToSpeechBackend {
 private:
   handle_t controller_handle;
+  std::atomic_flag supports_is_speaking;
 
   static bool server_supports_interface(handle_t binding,
                                         RPC_IF_HANDLE ifspec) {
@@ -158,12 +159,15 @@ public:
             controller_handle, nvdaController_NvdaController_v1_0_c_ifspec)) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
+    if (server_supports_interface(
+            controller_handle, nvdaController_NvdaController3_v1_0_c_ifspec)) {
+      supports_is_speaking.test_and_set();
+    }
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (controller_handle == nullptr ||
-        nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
+    if (controller_handle == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (interrupt) {
       if (nvdaController_cancelSpeech(controller_handle) != ERROR_SUCCESS)
@@ -184,8 +188,7 @@ public:
   }
 
   BackendResult<> braille(std::string_view text) override {
-    if (controller_handle == nullptr ||
-        nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
+    if (controller_handle == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
@@ -210,8 +213,7 @@ public:
   }
 
   BackendResult<> stop() override {
-    if (controller_handle == nullptr ||
-        nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
+    if (controller_handle == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (nvdaController_cancelSpeech(controller_handle) != ERROR_SUCCESS)
       return std::unexpected(BackendError::InternalBackendError);
@@ -219,11 +221,9 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    if (controller_handle == nullptr ||
-        nvdaController_testIfRunning(controller_handle) != ERROR_SUCCESS)
+    if (controller_handle == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
-    if (!server_supports_interface(
-            controller_handle, nvdaController_NvdaController3_v1_0_c_ifspec))
+    if (!supports_is_speaking.test())
       return std::unexpected(BackendError::NotImplemented);
     BOOLEAN speaking = FALSE;
     if (nvdaController_isSpeaking(controller_handle, &speaking) !=

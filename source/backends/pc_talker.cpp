@@ -95,7 +95,7 @@ public:
 
 class PCTalkerBackend final : public TextToSpeechBackend {
 private:
-  std::atomic_uint64_t braille_context;
+  std::atomic_unsigned_lock_free braille_context;
   std::atomic_flag initialized;
   BrailleMarshaller braille_marshaller;
 
@@ -139,9 +139,6 @@ public:
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
     }
-    if (PCTKStatus() == 0) {
-      return std::unexpected(BackendError::BackendNotAvailable);
-    }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);
@@ -161,9 +158,6 @@ public:
   BackendResult<> braille(std::string_view text) override {
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
-    }
-    if (PCTKStatus() == 0) {
-      return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (braille_marshaller.call([] { return PCTKPinStatus(); }) == 0) {
       return std::unexpected(BackendError::InvalidOperation);
@@ -201,18 +195,12 @@ public:
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
     }
-    if (PCTKStatus() == 0) {
-      return std::unexpected(BackendError::BackendNotAvailable);
-    }
     return PCTKGetVStatus() != 0;
   }
 
   BackendResult<> stop() override {
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
-    }
-    if (PCTKStatus() == 0) {
-      return std::unexpected(BackendError::BackendNotAvailable);
     }
     PCTKVReset();
     return {};

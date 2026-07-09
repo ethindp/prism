@@ -61,8 +61,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (IsWindow(FindWindow(_T("JFWUI2"), nullptr)) == FALSE)
-      return std::unexpected(BackendError::BackendNotAvailable);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
     if (bstr == nullptr)
@@ -86,8 +84,6 @@ public:
   BackendResult<> braille(std::string_view text) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (IsWindow(FindWindow(_T("JFWUI2"), nullptr)) == FALSE)
-      return std::unexpected(BackendError::BackendNotAvailable);
     constexpr std::wstring_view prefix = L"BrailleString(\"";
     constexpr std::wstring_view suffix = L"\")";
     const auto text_len =
@@ -130,8 +126,6 @@ public:
   BackendResult<> stop() override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (IsWindow(FindWindow(_T("JFWUI2"), nullptr)) == FALSE)
-      return std::unexpected(BackendError::BackendNotAvailable);
     if (SUCCEEDED(controller->StopSpeech()))
       return {};
     return std::unexpected(BackendError::InternalBackendError);

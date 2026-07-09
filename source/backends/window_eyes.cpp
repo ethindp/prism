@@ -85,9 +85,6 @@ public:
         braille_obj == nullptr || !initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
     }
-    if (!FindWindow(_T("GWMExternalControl"), _T("External Control"))) {
-      return std::unexpected(BackendError::BackendNotAvailable);
-    }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
     if (bstr == nullptr)
@@ -114,9 +111,6 @@ public:
     if (we_application == nullptr || speech_obj == nullptr ||
         braille_obj == nullptr || !initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
-    }
-    if (!FindWindow(_T("GWMExternalControl"), _T("External Control"))) {
-      return std::unexpected(BackendError::BackendNotAvailable);
     }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
@@ -148,9 +142,6 @@ public:
     if (we_application == nullptr || speech_obj == nullptr ||
         braille_obj == nullptr || !initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
-    }
-    if (!FindWindow(_T("GWMExternalControl"), _T("External Control"))) {
-      return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (SUCCEEDED(speech_obj->Silence())) {
       return {};

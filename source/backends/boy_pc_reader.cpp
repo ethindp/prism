@@ -47,7 +47,7 @@ template <std::size_t... Is> struct SlotTableImpl {
             .func = &CallbackSlot<Is>::callback}...};
 
   static BoyCtrlSpeakCompleteFunc acquire(BoyPCReaderBackend *obj) {
-    std::lock_guard lock(mtx);
+    std::scoped_lock lock(mtx);
     for (auto &e : entries) {
       if (*e.instance == nullptr) {
         *e.instance = obj;
@@ -59,7 +59,7 @@ template <std::size_t... Is> struct SlotTableImpl {
 
   static void release(BoyPCReaderBackend *obj) {
     assert(obj != nullptr);
-    std::lock_guard lock(mtx);
+    std::scoped_lock lock(mtx);
     for (auto &e : entries) {
       if (*e.instance == obj) {
         *e.instance = nullptr;
@@ -77,7 +77,7 @@ struct MakeSlotTable<N, std::index_sequence<Is...>> {
   using type = SlotTableImpl<Is...>;
 };
 
-template <std::size_t N> using SlotTable = typename MakeSlotTable<N>::type;
+template <std::size_t N> using SlotTable = MakeSlotTable<N>::type;
 
 class BoyPCReaderBackend final : public TextToSpeechBackend {
 private:

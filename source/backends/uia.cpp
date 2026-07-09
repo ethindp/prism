@@ -230,7 +230,7 @@ private:
         CloseDesktop(target_desktop);
         target_desktop.store(nullptr, std::memory_order_release);
         {
-          std::lock_guard g(ready_mtx);
+          std::scoped_lock g(ready_mtx);
           ready = false;
         }
         ready_cv.notify_all();
@@ -242,7 +242,7 @@ private:
     handle_guard stop_event(CreateEvent(nullptr, TRUE, FALSE, nullptr));
     if (stop_event.h == nullptr) {
       {
-        std::lock_guard g(ready_mtx);
+        std::scoped_lock g(ready_mtx);
         ready = false;
       }
       ready_cv.notify_all();
@@ -255,7 +255,7 @@ private:
       const bool should_uninit = SUCCEEDED(coinit_hr);
       if (FAILED(coinit_hr) && coinit_hr != RPC_E_CHANGED_MODE) {
         {
-          std::lock_guard g(ready_mtx);
+          std::scoped_lock g(ready_mtx);
           ready = false;
         }
         ready_cv.notify_all();
@@ -273,7 +273,7 @@ private:
         if (should_uninit)
           CoUninitialize();
         {
-          std::lock_guard g(ready_mtx);
+          std::scoped_lock g(ready_mtx);
           ready = false;
         }
         ready_cv.notify_all();
@@ -290,7 +290,7 @@ private:
         if (should_uninit)
           CoUninitialize();
         {
-          std::lock_guard g(ready_mtx);
+          std::scoped_lock g(ready_mtx);
           ready = false;
         }
         ready_cv.notify_all();
@@ -303,7 +303,7 @@ private:
       p->AddRef();
       provider.store(p, std::memory_order_release);
       {
-        std::lock_guard g(ready_mtx);
+        std::scoped_lock g(ready_mtx);
         ready = true;
       }
       ready_cv.notify_all();

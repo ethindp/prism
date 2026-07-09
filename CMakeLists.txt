@@ -664,7 +664,8 @@ if(MSVC)
       /delayload:byctrl.dll
       /delayload:PCTKUSR.dll
       /delayload:prism_orca_bridge.dll
-      /delayload:prism_speech_dispatcher_bridge.dll)
+      /delayload:prism_speech_dispatcher_bridge.dll
+      /delayload:unload)
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     target_link_options(
       ${PROJECT_NAME}
@@ -673,12 +674,13 @@ if(MSVC)
       /delayload:byctrl-x64.dll
       /delayload:PCTKUSR.dll
       /delayload:prism_orca_bridge.dll
-      /delayload:prism_speech_dispatcher_bridge.dll)
+      /delayload:prism_speech_dispatcher_bridge.dll
+      /delayload:unload)
   else()
     target_link_options(
       ${PROJECT_NAME} ${_PRISM_LINK_VIS} /delayload:PCTKUSR.dll
       /delayload:prism_orca_bridge.dll
-      /delayload:prism_speech_dispatcher_bridge.dll)
+      /delayload:prism_speech_dispatcher_bridge.dll /delayload:unload)
   endif()
   check_cxx_compiler_flag(/utf-8 MSVC_HAS_UTF8_OPTION)
   check_cxx_compiler_flag(/bigobj MSVC_HAS_BIGOBJ)
@@ -714,7 +716,8 @@ elseif(
       "LINKER:/delayload:byctrl.dll"
       "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
-      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
+      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll"
+      "LINKER:/delayload:unload")
   elseif(NOT _comp_arch_id_lc MATCHES "arm64|aarch64|arm64ec")
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
@@ -724,13 +727,17 @@ elseif(
       "LINKER:/delayload:byctrl-x64.dll"
       "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
-      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
+      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll"
+      "LINKER:/delayload:unload")
   else()
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
-      ${PROJECT_NAME} ${_PRISM_LINK_VIS} "LINKER:/delayload:PCTKUSR.dll"
+      ${PROJECT_NAME}
+      ${_PRISM_LINK_VIS}
+      "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
-      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll")
+      "LINKER:/delayload:prism_speech_dispatcher_bridge.dll"
+      "LINKER:/delayload:unload")
   endif()
 elseif(WIN32 AND MINGW)
   message(

@@ -103,9 +103,12 @@ public:
     const auto endpoint =
         fmt::format(_T("NvdaCtlr.{}.{}"), session_id, desktop_name);
     RPC_WSTR string_binding = nullptr;
-    if (RpcStringBindingCompose(nullptr, RPC_WSTR(_T("ncalrpc")), nullptr,
-                                RPC_WSTR(endpoint.c_str()), nullptr,
-                                &string_binding) != RPC_S_OK)
+    if (RpcStringBindingCompose(
+            nullptr,
+            reinterpret_cast<RPC_WSTR>(const_cast<wchar_t *>(_T("ncalrpc"))),
+            nullptr,
+            reinterpret_cast<RPC_WSTR>(const_cast<wchar_t *>(endpoint.c_str())),
+            nullptr, &string_binding) != RPC_S_OK)
       return features;
     handle_t handle = nullptr;
     if (RpcBindingFromStringBinding(string_binding, &handle) != RPC_S_OK) {
@@ -144,9 +147,12 @@ public:
     RPC_STATUS status;
     const auto endpoint = fmt::format(_T("NvdaCtlr.{}"), desktop_ns);
     RPC_WSTR string_binding = nullptr;
-    status = RpcStringBindingCompose(nullptr, RPC_WSTR(_T("ncalrpc")), nullptr,
-                                     RPC_WSTR(endpoint.c_str()), nullptr,
-                                     &string_binding);
+    status = RpcStringBindingCompose(
+        nullptr,
+        reinterpret_cast<RPC_WSTR>(const_cast<wchar_t *>(_T("ncalrpc"))),
+        nullptr,
+        reinterpret_cast<RPC_WSTR>(const_cast<wchar_t *>(endpoint.c_str())),
+        nullptr, &string_binding);
     if (status != RPC_S_OK)
       return std::unexpected(BackendError::BackendNotAvailable);
     status = RpcBindingFromStringBinding(string_binding, &controller_handle);

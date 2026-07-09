@@ -331,7 +331,7 @@ public:
 
   void wake() override {
     {
-      std::lock_guard lock(mutex);
+      std::scoped_lock lock(mutex);
       signaled = true;
     }
     cv.notify_one();

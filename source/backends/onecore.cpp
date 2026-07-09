@@ -94,8 +94,9 @@ template <std::invocable F> auto run_on_mta(F &&fn) -> std::invoke_result_t<F> {
     if constexpr (std::is_void_v<R>) {
       fn();
       return;
-    } else
+    } else {
       return fn();
+    }
   }
   MtaEventGuard evt;
   if (!evt)
@@ -129,7 +130,7 @@ private:
   SpeechSynthesizer synth{nullptr};
   MediaPlayer player{nullptr};
   std::atomic<MediaPlaybackState> current_state{MediaPlaybackState::None};
-  winrt::event_token state_changed_token{};
+  MediaPlaybackSession::PlaybackStateChanged_revoker state_changed_revoker;
   std::size_t cached_channels = 0;
   std::size_t cached_sample_rate = 0;
   std::size_t cached_bit_depth = 0;
@@ -138,10 +139,6 @@ private:
 
 public:
   ~OneCoreBackend() override {
-    if (player && state_changed_token) {
-      player.PlaybackSession().PlaybackStateChanged(state_changed_token);
-      state_changed_token = {};
-    }
     synth = nullptr;
     player = nullptr;
   }
@@ -183,7 +180,8 @@ public:
       synth.Options().AppendedSilence(SpeechAppendedSilence::Min);
       synth.Options().PunctuationSilence(SpeechPunctuationSilence::Min);
       player = MediaPlayer();
-      state_changed_token = player.PlaybackSession().PlaybackStateChanged(
+      state_changed_revoker = player.PlaybackSession().PlaybackStateChanged(
+          winrt::auto_revoke,
           [this](MediaPlaybackSession const &session, auto const &) {
             current_state = session.PlaybackState();
           });

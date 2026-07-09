@@ -91,14 +91,14 @@ struct InitHandshake {
   bool committed = false;
   ~InitHandshake() noexcept {
     if (!committed) {
-      std::lock_guard g(m);
+      std::scoped_lock g(m);
       ready = false;
       cv.notify_all();
     }
   }
 
   void succeed(IStream *s) {
-    std::lock_guard g(m);
+    std::scoped_lock g(m);
     marshal_stream.store(s, std::memory_order_release);
     committed = true;
     ready = true;

@@ -22,6 +22,9 @@
 #include <giomm/init.h>
 #endif
 #endif
+#ifdef _WIN32
+#include <delayimp.h>
+#endif
 
 struct PrismContext {
   FrozenRegistry *registry;
@@ -152,6 +155,15 @@ PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) {
     CoUninitialize();
 #endif
   delete ctx;
+#ifdef _WIN32
+  (void)__FUnloadDelayLoadedDLL2("ZDSRAPI.dll");
+  (void)__FUnloadDelayLoadedDLL2("byctrl.dll");
+  (void)__FUnloadDelayLoadedDLL2("PCTKUSR.dll");
+  (void)__FUnloadDelayLoadedDLL2("prism_orca_bridge.dll");
+  (void)__FUnloadDelayLoadedDLL2("prism_speech_dispatcher_bridge.dll");
+  (void)__FUnloadDelayLoadedDLL2("ZDSRAPI_x64.dll");
+  (void)__FUnloadDelayLoadedDLL2("byctrl-x64.dll");
+#endif
 }
 
 PRISM_API void PRISM_CALL prism_availability_poll_pause(PrismContext *ctx) {

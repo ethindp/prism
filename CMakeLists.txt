@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MPL-2.0
+# SPDX - License - Identifier : MPL - 2.0
 cmake_minimum_required(VERSION 3.24)
 
 include(CheckCCompilerFlag)
@@ -711,7 +711,8 @@ elseif(
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
       ${PROJECT_NAME}
-      ${_PRISM_LINK_VIS}
+      ${
+      _PRISM_LINK_VIS}
       "LINKER:/delayload:ZDSRAPI.dll"
       "LINKER:/delayload:byctrl.dll"
       "LINKER:/delayload:PCTKUSR.dll"
@@ -722,7 +723,8 @@ elseif(
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
       ${PROJECT_NAME}
-      ${_PRISM_LINK_VIS}
+      ${
+      _PRISM_LINK_VIS}
       "LINKER:/delayload:ZDSRAPI_x64.dll"
       "LINKER:/delayload:byctrl-x64.dll"
       "LINKER:/delayload:PCTKUSR.dll"
@@ -733,7 +735,8 @@ elseif(
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
       ${PROJECT_NAME}
-      ${_PRISM_LINK_VIS}
+      ${
+      _PRISM_LINK_VIS}
       "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
       "LINKER:/delayload:prism_speech_dispatcher_bridge.dll"
@@ -765,11 +768,11 @@ if(NOT MSVC)
   endif()
   set(JTHREAD_TEST_CODE
       "
-#include <thread>
 #include <stop_token>
+#include <thread>
 int main() {
-    std::jthread t([](std::stop_token st) {});
-    return 0;
+  std::jthread t([](std::stop_token st) {});
+  return 0;
 }
 ")
   check_cxx_source_compiles("${JTHREAD_TEST_CODE}" PRISM_HAS_JTHREAD_NATIVE)
@@ -959,6 +962,38 @@ set_target_properties(${PROJECT_NAME}_iface PROPERTIES EXPORT_NAME
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME}_iface)
 if(DEFINED SKBUILD)
   set(PRISM_PY_NATIVE_DIR "${SKBUILD_PLATLIB_DIR}/prism/_native")
+  find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+  set(_prism_cffi_c "${CMAKE_CURRENT_BINARY_DIR}/_prism_cffi.c")
+  add_custom_command(
+    OUTPUT "${_prism_cffi_c}"
+    COMMAND
+      ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_cffi.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/include/prism.h" "${_prism_cffi_c}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/prism.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_cffi.py"
+    VERBATIM)
+  python_add_library(_prism_cffi MODULE "${_prism_cffi_c}" WITH_SOABI)
+  # For some reason, MSVC doesn't implement nullptr in C23, so we have to fall
+  # back to C17 here. Get with the program, Microsoft!
+  if(MSVC)
+    set_target_properties(_prism_cffi PROPERTIES C_STANDARD 17
+                                                 C_STANDARD_REQUIRED ON)
+    target_compile_options(_prism_cffi PRIVATE /wd4113)
+  endif()
+  target_include_directories(_prism_cffi
+                             PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+  target_link_libraries(_prism_cffi PRIVATE ${PROJECT_NAME})
+  if(APPLE)
+    set_target_properties(_prism_cffi PROPERTIES INSTALL_RPATH
+                                                 "@loader_path/_native")
+  else()
+    set_target_properties(_prism_cffi PROPERTIES INSTALL_RPATH
+                                                 "$ORIGIN/_native")
+  endif()
+  install(
+    TARGETS _prism_cffi
+    LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
+    RUNTIME DESTINATION "${SKBUILD_PLATLIB_DIR}/prism")
   install(
     TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"

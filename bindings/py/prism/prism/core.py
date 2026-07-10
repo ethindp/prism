@@ -6,13 +6,13 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from ._dispatch import _Dispatcher
+from ._prism_cffi import ffi, lib
 from .common import (
     BackendFeatures,
     BackendId,
     PrismInvalidParamError,
     _check_error,
 )
-from .lib import ffi, lib
 
 if TYPE_CHECKING:
     from ._dispatch import AvailabilityCallback

@@ -1,3 +1,4 @@
+from . import _native as _native
 from .common import (
     BackendFeatures,
     BackendId,

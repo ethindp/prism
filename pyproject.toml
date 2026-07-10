@@ -22,7 +22,7 @@ license-files = [
 cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.{h,c,hpp,cpp}" }, { file = "CMakeLists.txt" }]
 
 [build-system]
-requires = ["scikit-build-core>=0.10"]
+requires = ["scikit-build-core>=0.10", "cffi>=2.0.0", "pcpp>=1.30"]
 build-backend = "scikit_build_core.build"
 
 [dependency-groups]

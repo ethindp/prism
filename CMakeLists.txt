@@ -1067,11 +1067,9 @@ if(DEFINED SKBUILD)
                              PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
   target_link_libraries(_prism_cffi PRIVATE ${PROJECT_NAME})
   if(APPLE)
-    set_target_properties(_prism_cffi PROPERTIES INSTALL_RPATH
-                                                 "@loader_path/_native")
+    set_target_properties(_prism_cffi PROPERTIES INSTALL_RPATH "@loader_path")
   else()
-    set_target_properties(_prism_cffi PROPERTIES INSTALL_RPATH
-                                                 "$ORIGIN/_native")
+    set_target_properties(_prism_cffi PROPERTIES INSTALL_RPATH "$ORIGIN")
   endif()
   install(
     TARGETS _prism_cffi

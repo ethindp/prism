@@ -215,3 +215,6 @@ max-args = 8
 
 [tool.ruff.lint.per-file-ignores]
 "demos/**" = ["T201"]
+
+[tool.cibuildwheel.android]
+repair-wheel-command = "auditwheel repair --ldpaths {ldpaths} --exclude libprism.so -w {dest_dir} {wheel}"

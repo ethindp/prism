@@ -26,6 +26,9 @@ enum class BackendError : int {
     ALREADY_INITIALIZED = 15,
     BACKEND_NOT_AVAILABLE = 16,
     UNKNOWN = 17,
+    INVALID_AUDIO_FORMAT = 18,
+    INTERNAL_BACKEND_LIMIT_EXCEEDED = 19,
+    BACKEND_ENTERED_UNDEFINED_STATE = 20,
 };
 
 constexpr const char* to_string(BackendError e) noexcept {
@@ -48,6 +51,9 @@ constexpr const char* to_string(BackendError e) noexcept {
         "already_initialized",
         "backend_not_available",
         "unknown",
+        "invalid_audio_format",
+        "internal_backend_limit_exceeded",
+        "backend_entered_undefined_state",
     };
     return names[static_cast<int>(e)];
 }

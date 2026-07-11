@@ -43,7 +43,7 @@ if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
     "Indicates that the Prism vcpkg port is being built with the spiel feature enabled"
     OFF)
 endif()
-option(PRISM_ENABLE_GDEXTENSION "Enable building of the Godot GDExtension" ON)
+option(PRISM_ENABLE_GDEXTENSION "Enable building of the Godot GDExtension" OFF)
 option(PRISM_ENABLE_POWER_MANAGEMENT
        "Enable OS power-state-aware availability polling where supported." ON)
 option(PRISM_ENABLE_LEGACY_BACKENDS
@@ -67,6 +67,9 @@ option(PRISM_BUILD_WINELIBS
        OFF)
 option(PRISM_DIAGNOSE_VECTORIZATION
        "Emit vectorization reports for optimized builds" OFF)
+option(PRISM_REGENERATE_DJINNI
+       "Re-derive the committed Djinni bindings from the IDL (MAINTAINER ONLY)"
+       OFF)
 if(WIN32)
   if(PRISM_ENABLE_GDEXTENSION)
     set(CMAKE_MSVC_RUNTIME_LIBRARY
@@ -167,6 +170,84 @@ file(GLOB_RECURSE android_headers CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/android/*.hpp")
 file(GLOB_RECURSE android_sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/android/*.cpp")
+if(PRISM_REGENERATE_DJINNI)
+  set(PRISM_TTS_IDL "${CMAKE_CURRENT_SOURCE_DIR}/idl/tts_backend.djinni")
+  set(DJINNI_JAR
+      ""
+      CACHE
+        FILEPATH
+        "Path to a djinni deploy jar (used when no 'djinni' launcher is on PATH)"
+  )
+  find_program(DJINNI_EXECUTABLE djinni)
+  if(DJINNI_EXECUTABLE)
+    set(_djinni_cmd "${DJINNI_EXECUTABLE}")
+  elseif(DJINNI_JAR)
+    find_package(Java REQUIRED COMPONENTS Runtime)
+    set(_djinni_cmd "${Java_JAVA_EXECUTABLE}" -jar "${DJINNI_JAR}")
+  else()
+    message(
+      FATAL_ERROR
+        "PRISM_REGENERATE_DJINNI is ON but no generator was found. Put 'djinni' "
+        "on PATH or set DJINNI_JAR to the djinni executable.")
+  endif()
+  set(_dj_out "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/android")
+  set(_djinni_flags
+      --idl
+      "${PRISM_TTS_IDL}"
+      --idl-include-path
+      "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
+      --java-out
+      "${_dj_out}"
+      --java-package
+      com.github.ethindp.prism
+      --java-use-final-for-record
+      true
+      --cpp-out
+      "${_dj_out}"
+      --cpp-namespace
+      prism::java
+      --cpp-include-prefix
+      android/
+      --cpp-base-lib-include-prefix
+      djinni/support/cpp/
+      --jni-out
+      "${_dj_out}/jni"
+      --jni-namespace
+      prism::jni
+      --jni-include-prefix
+      android/jni/
+      --jni-include-cpp-prefix
+      android/
+      --jni-base-lib-include-prefix
+      djinni/support/jni/
+      --jni-use-on-load-initializer
+      true)
+  set(_djinni_outlist "${CMAKE_CURRENT_BINARY_DIR}/djinni_outputs.txt")
+  execute_process(
+    COMMAND ${_djinni_cmd} ${_djinni_flags} --skip-generation true
+            --list-out-files "${_djinni_outlist}"
+    RESULT_VARIABLE _dj_rc
+    ERROR_VARIABLE _dj_err)
+  if(NOT _dj_rc EQUAL 0)
+    message(
+      FATAL_ERROR
+        "Could not generate djinni auto-generation file manifest because Djinni exited with code ${_dj_rc}:\n${_dj_err}"
+    )
+  endif()
+  file(STRINGS "${_djinni_outlist}" _dj_raw)
+  set(PRISM_DJINNI_OUTPUTS "")
+  foreach(_p IN LISTS _dj_raw)
+    file(TO_CMAKE_PATH "${_p}" _p)
+    list(APPEND PRISM_DJINNI_OUTPUTS "${_p}")
+  endforeach()
+  add_custom_command(
+    OUTPUT ${PRISM_DJINNI_OUTPUTS}
+    COMMAND ${_djinni_cmd} ${_djinni_flags}
+    DEPENDS "${PRISM_TTS_IDL}"
+    COMMENT "Regenerating Djinni bindings"
+    VERBATIM)
+  add_custom_target(regen-djinni DEPENDS ${PRISM_DJINNI_OUTPUTS})
+endif()
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c")
@@ -267,6 +348,9 @@ if(NOT EMSCRIPTEN)
   add_library(${PROJECT_NAME} ${headers} ${sources})
 else()
   add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
+endif()
+if(ANDROID AND PRISM_REGENERATE_DJINNI)
+  add_dependencies(${PROJECT_NAME} regen-djinni)
 endif()
 foreach(_tgt ${_prism_backend_targets})
   target_sources(${PROJECT_NAME} PRIVATE $<TARGET_OBJECTS:${_tgt}>)
@@ -993,7 +1077,8 @@ if(DEFINED SKBUILD)
   install(
     TARGETS _prism_cffi
     LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
-    RUNTIME DESTINATION "${SKBUILD_PLATLIB_DIR}/prism")
+    RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"
+    ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
   install(
     TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"

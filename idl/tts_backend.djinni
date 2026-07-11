@@ -1,0 +1,95 @@
+@extern "djinni/support/outcome.yaml"
+@extern "djinni/support/dataview.yaml"
+
+BackendError = enum {
+  ok;
+  not_initialized;
+  invalid_param;
+  not_implemented;
+  no_voices;
+  voice_not_found;
+  speak_failure;
+  memory_failure;
+  range_out_of_bounds;
+  internal_backend_error;
+  not_speaking;
+  not_paused;
+  already_paused;
+  invalid_utf8;
+  invalid_operation;
+  already_initialized;
+  backend_not_available;
+  unknown;
+  invalid_audio_format;
+  internal_backend_limit_exceeded;
+  backend_entered_undefined_state;  
+}
+
+BackendFeatures = flags {
+    is_supported_at_runtime;
+    reserved;
+    supports_speak;
+    supports_speak_to_memory;
+    supports_braille;
+    supports_output;
+    supports_is_speaking;
+    supports_stop;
+    supports_pause;
+    supports_resume;
+    supports_set_volume;
+    supports_get_volume;
+    supports_set_rate;
+    supports_get_rate;
+    supports_set_pitch;
+    supports_get_pitch;
+    supports_refresh_voices;
+    supports_count_voices;
+    supports_get_voice_name;
+    supports_get_voice_language;
+    supports_get_voice;
+    supports_set_voice;
+    supports_get_channels;
+    supports_get_sample_rate;
+    supports_get_bit_depth;
+    performs_silence_trimming_on_speak;
+    performs_silence_trimming_on_speak_to_memory;
+    supports_speak_ssml;
+    supports_speak_to_memory_ssml;
+}
+
+Unit = record {}
+
+AudioCallback = interface +c {
+  on_audio(userdata: i64, samples: DataView, sample_count: i64, channels: i64, sample_rate: i64): void;
+}
+
+AbstractTextToSpeechBackend = interface +j {
+  get_name(): string;
+  get_features(): BackendFeatures;
+  initialize(): outcome<Unit, BackendError>;
+  speak(text: DataView, interrupt: bool): outcome<Unit, BackendError>;
+  speak_ssml(text: DataView, interrupt: bool): outcome<Unit, BackendError>;
+  speak_to_memory(text: DataView, callback: AudioCallback, userdata: i64): outcome<Unit, BackendError>;
+  speak_to_memory_ssml(text: DataView, callback: AudioCallback, userdata: i64): outcome<Unit, BackendError>;
+  braille(text: DataView): outcome<Unit, BackendError>;
+  output(text: DataView, interrupt: bool): outcome<Unit, BackendError>;
+  is_speaking(): outcome<bool, BackendError>;
+  stop(): outcome<Unit, BackendError>;
+  pause(): outcome<Unit, BackendError>;
+  resume(): outcome<Unit, BackendError>;
+  set_volume(volume: f32): outcome<Unit, BackendError>;
+  get_volume(): outcome<f32, BackendError>;
+  set_rate(rate: f32): outcome<Unit, BackendError>;
+  get_rate(): outcome<f32, BackendError>;
+  set_pitch(pitch: f32): outcome<Unit, BackendError>;
+  get_pitch(): outcome<f32, BackendError>;
+  refresh_voices(): outcome<Unit, BackendError>;
+  count_voices(): outcome<i64, BackendError>;
+  get_voice_name(id: i64): outcome<string, BackendError>;
+  get_voice_language(id: i64): outcome<string, BackendError>;
+  set_voice(id: i64): outcome<Unit, BackendError>;
+  get_voice(): outcome<i64, BackendError>;
+  get_channels(): outcome<i64, BackendError>;
+  get_sample_rate(): outcome<i64, BackendError>;
+  get_bit_depth(): outcome<i64, BackendError>;
+}

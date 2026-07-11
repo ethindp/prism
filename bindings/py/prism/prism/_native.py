@@ -20,5 +20,9 @@ def _find_native_dir() -> Path | None:
 
 
 _native_dir = _find_native_dir()
-if sys.platform == "win32" and _native_dir is not None:
-    os.add_dll_directory(str(_native_dir))
+if _native_dir is not None:
+    _package = sys.modules.get(__package__ or "prism")
+    if _package is not None:
+        _package.__path__.append(str(_native_dir))
+    if sys.platform == "win32":
+        os.add_dll_directory(str(_native_dir))

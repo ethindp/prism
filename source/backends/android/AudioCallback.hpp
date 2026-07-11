@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <djinni/support/cpp/DataView.hpp>
+#include "djinni/support/cpp/DataView.hpp"
 #include <cstdint>
 
 namespace prism::java {

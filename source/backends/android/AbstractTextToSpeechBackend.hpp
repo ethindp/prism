@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <djinni/support/cpp/DataView.hpp>
-#include <djinni/support/cpp/expected.hpp>
+#include "djinni/support/cpp/DataView.hpp"
+#include "djinni/support/cpp/expected.hpp"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -13,6 +13,7 @@ namespace prism::java {
 
 class AudioCallback;
 enum class BackendError;
+enum class BackendFeatures : int32_t;
 struct Unit;
 
 class AbstractTextToSpeechBackend {
@@ -21,11 +22,17 @@ public:
 
     virtual std::string get_name() = 0;
 
+    virtual BackendFeatures get_features() = 0;
+
     virtual djinni::expected<Unit, BackendError> initialize() = 0;
 
     virtual djinni::expected<Unit, BackendError> speak(const ::djinni::DataView & text, bool interrupt) = 0;
 
+    virtual djinni::expected<Unit, BackendError> speak_ssml(const ::djinni::DataView & text, bool interrupt) = 0;
+
     virtual djinni::expected<Unit, BackendError> speak_to_memory(const ::djinni::DataView & text, const /*not-null*/ std::shared_ptr<AudioCallback> & callback, int64_t userdata) = 0;
+
+    virtual djinni::expected<Unit, BackendError> speak_to_memory_ssml(const ::djinni::DataView & text, const /*not-null*/ std::shared_ptr<AudioCallback> & callback, int64_t userdata) = 0;
 
     virtual djinni::expected<Unit, BackendError> braille(const ::djinni::DataView & text) = 0;
 

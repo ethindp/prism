@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 package com.github.ethindp.prism;
 
+import android.content.Intent;
 import android.media.AudioAttributes;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,6 +18,7 @@ import java.io.IOException;
 import java.nio.*;
 import java.nio.charset.*;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -28,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements AutoCloseable {
-  private TextToSpeech tts;
+  private volatile TextToSpeech tts;
   private float ttsVolume = 1.0f;
   private float ttsRate = 1.0f;
   private float ttsPitch = 1.0f;
@@ -42,6 +44,57 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
   @Override
   public String getName() {
     return "Android Text to Speech";
+  }
+
+  @Override
+  public EnumSet<BackendFeatures> getFeatures() {
+    final EnumSet<BackendFeatures> features = EnumSet.noneOf(BackendFeatures.class);
+    try {
+      final TextToSpeech localTts = this.tts;
+      final boolean initialized = this.isTTSInitialized;
+      final boolean available;
+      if (localTts != null) {
+        available = initialized;
+      } else {
+        boolean engineInstalled = false;
+        try {
+          final var ctx = PrismContext.get();
+          if (ctx != null) {
+            final var pm = ctx.getPackageManager();
+            if (pm != null) {
+              final var probe = new Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE);
+              engineInstalled = !pm.queryIntentServices(probe, 0).isEmpty();
+            }
+          }
+        } catch (Exception e) {
+          engineInstalled = false;
+        }
+        available = engineInstalled;
+      }
+      if (available) {
+        features.add(BackendFeatures.IS_SUPPORTED_AT_RUNTIME);
+      }
+      features.add(BackendFeatures.SUPPORTS_SPEAK);
+      features.add(BackendFeatures.SUPPORTS_OUTPUT);
+      features.add(BackendFeatures.SUPPORTS_SPEAK_TO_MEMORY);
+      features.add(BackendFeatures.SUPPORTS_IS_SPEAKING);
+      features.add(BackendFeatures.SUPPORTS_STOP);
+      features.add(BackendFeatures.SUPPORTS_SET_VOLUME);
+      features.add(BackendFeatures.SUPPORTS_GET_VOLUME);
+      features.add(BackendFeatures.SUPPORTS_SET_RATE);
+      features.add(BackendFeatures.SUPPORTS_GET_RATE);
+      features.add(BackendFeatures.SUPPORTS_SET_PITCH);
+      features.add(BackendFeatures.SUPPORTS_GET_PITCH);
+      features.add(BackendFeatures.SUPPORTS_REFRESH_VOICES);
+      features.add(BackendFeatures.SUPPORTS_COUNT_VOICES);
+      features.add(BackendFeatures.SUPPORTS_GET_VOICE_NAME);
+      features.add(BackendFeatures.SUPPORTS_GET_VOICE_LANGUAGE);
+      features.add(BackendFeatures.SUPPORTS_GET_VOICE);
+      features.add(BackendFeatures.SUPPORTS_SET_VOICE);
+      return features;
+    } catch (Exception e) {
+      return features;
+    }
   }
 
   @Override
@@ -262,8 +315,7 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
         ByteBuffer pcmBuf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         ShortBuffer shortBuf = pcmBuf.asShortBuffer();
         int sampleCount = shortBuf.remaining();
-        ByteBuffer floatBytes =
-            ByteBuffer.allocate(sampleCount * 4).order(ByteOrder.nativeOrder());
+        ByteBuffer floatBytes = ByteBuffer.allocate(sampleCount * 4).order(ByteOrder.nativeOrder());
         FloatBuffer floatBuf = floatBytes.asFloatBuffer();
         for (int i = 0; i < sampleCount; i++) {
           float sample = shortBuf.get(i) / 32768.0f;

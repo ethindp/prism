@@ -807,8 +807,7 @@ elseif(
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
       ${PROJECT_NAME}
-      ${
-      _PRISM_LINK_VIS}
+      ${_PRISM_LINK_VIS}
       "LINKER:/delayload:ZDSRAPI_x64.dll"
       "LINKER:/delayload:byctrl-x64.dll"
       "LINKER:/delayload:PCTKUSR.dll"

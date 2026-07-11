@@ -40,6 +40,7 @@ private:
   std::unique_ptr<PowerNotifier> power_notifier;
 #endif
   std::jthread thread;
+  LogSource logger{"Backend Enumerator"};
 
   void run(const std::stop_token &stop);
   bool poll_once(const SweepMode mode);

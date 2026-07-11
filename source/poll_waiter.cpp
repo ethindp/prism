@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "poll_waiter.h"
+#include "logging.h"
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
 #ifdef _WIN32
 #include <windows.h>
@@ -12,43 +16,77 @@ class WindowsWaiter final : public PollWaiter {
 private:
   HANDLE timer = nullptr;
   HANDLE event = nullptr;
+  LogSource logger{"Poll Waiter/win32"};
 
 public:
   WindowsWaiter() {
-    timer = CreateWaitableTimerEx(nullptr, nullptr,
-                                  CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
-                                  TIMER_ALL_ACCESS);
-    if (timer == nullptr)
-      timer = CreateWaitableTimer(nullptr, FALSE, nullptr);
+    logger.info("Initializing");
+    logger.debug("Creating timer with CreateWaitableTimerEx");
+    timer = CreateWaitableTimer(nullptr, FALSE, nullptr);
+    assert(timer != nullptr);
+    if (timer == nullptr) {
+      logger.error("Could not create waitable timer, code {:X}",
+                   GetLastError());
+      return;
+    }
     event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    assert(event != nullptr);
+    if (event == nullptr) {
+      logger.error("Could not create event, code {:X}", GetLastError());
+      return;
+    }
+    logger.debug(
+        "Timer created with handle {:X} and event created with handle {:X}",
+        reinterpret_cast<std::uintptr_t>(timer),
+        reinterpret_cast<std::uintptr_t>(event));
+    logger.info("Initialization complete");
   }
 
   ~WindowsWaiter() override {
+    logger.info("Shutting down");
     if (timer != nullptr)
       CloseHandle(timer);
     if (event != nullptr)
       CloseHandle(event);
+    logger.info("Shutdown complete");
   }
 
   Wake wait(std::optional<std::chrono::milliseconds> timeout,
             std::chrono::milliseconds leeway) override {
     if (!timeout) {
-      WaitForSingleObjectEx(event, INFINITE, TRUE);
+      logger.debug("Timeout is nullopt; waiting infintely");
+      WaitForSingleObject(event, INFINITE);
+      logger.debug("Event triggered, waking up");
       return Wake::Signal;
     }
     LARGE_INTEGER due;
     due.QuadPart = -static_cast<LONGLONG>(timeout->count()) * 10000;
     const auto tolerable =
         static_cast<ULONG>(std::max<ULONG>(leeway.count(), 0));
-    SetWaitableTimerEx(timer, &due, 0, nullptr, nullptr, nullptr, tolerable);
+    logger.debug("Setting timer to time out in {}ns with leeway of {}ns",
+                 std::abs(due.QuadPart), tolerable);
+    if (SetWaitableTimerEx(timer, &due, 0, nullptr, nullptr, nullptr,
+                           tolerable) == 0) {
+      logger.error("SetWaitableTimerEx failed, code {:X}; failing with wake "
+                   "source as signal",
+                   GetLastError());
+      return Wake::Signal;
+    }
     const auto handles = std::to_array<HANDLE>({timer, event});
-    const auto r = WaitForMultipleObjectsEx(handles.size(), handles.data(),
-                                            FALSE, INFINITE, TRUE);
+    logger.debug("Entering wait state for handles {:X} and {:X}",
+                 reinterpret_cast<std::uintptr_t>(handles[0]),
+                 reinterpret_cast<std::uintptr_t>(handles[1]));
+    const auto r =
+        WaitForMultipleObjects(handles.size(), handles.data(), FALSE, INFINITE);
+    logger.debug("Woke up with return code {:X}, cancelling timer", r);
     CancelWaitableTimer(timer);
     return (r == WAIT_OBJECT_0) ? Wake::Timer : Wake::Signal;
   }
 
-  void wake() override { SetEvent(event); }
+  void wake() override {
+    logger.debug("Immediate wake requested!");
+    SetEvent(event);
+  }
 };
 } // namespace
 
@@ -104,7 +142,7 @@ private:
     const auto deadline =
         timeout ? std::optional{std::chrono::steady_clock::now() + *timeout}
                 : std::nullopt;
-    for (;;) {
+    while (true) {
       if (woken.test()) {
         woken.clear();
         return Wake::Signal;

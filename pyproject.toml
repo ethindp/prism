@@ -102,7 +102,7 @@ manylinux-pypy_aarch64-image = "manylinux_2_34"
 manylinux-pypy_i686-image = "manylinux_2_34"
 
 [tool.cibuildwheel.linux]
-archs = ["x86_64", "i686", "aarch64", "riscv64", "ppc64le", "s390x"]
+archs = ["x86_64", "aarch64"]
 before-all = [
     """
     set -euo pipefail

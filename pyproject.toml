@@ -45,6 +45,7 @@ cmake.define = { PRISM_ENABLE_TESTS = "OFF", PRISM_ENABLE_GDEXTENSION = "OFF", P
 cmake.source-dir = "."
 build.verbose = true
 wheel.packages = ["bindings/py/prism/prism"]
+wheel.py-api = "cp310"
 sdist.include = [
   "CMakeLists.txt",
   "cmake/**",
@@ -73,6 +74,7 @@ sdist.include = [
   "third_party",
   "shims",
   "winelibs",
+  "tools",
 ]
 sdist.exclude = [
   ".venv",
@@ -188,7 +190,7 @@ environment = { MACOSX_DEPLOYMENT_TARGET = "11.0", CMAKE_OSX_DEPLOYMENT_TARGET =
 before-build = ["xcode-select --print-path || xcode-select --install"]
 
 [tool.cibuildwheel.windows]
-archs = ["AMD64", "ARM64", "X86"]
+archs = ["AMD64", "ARM64"]
 environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4" }
 
 [[tool.cibuildwheel.overrides]]

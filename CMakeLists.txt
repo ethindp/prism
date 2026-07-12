@@ -1045,7 +1045,8 @@ set_target_properties(${PROJECT_NAME}_iface PROPERTIES EXPORT_NAME
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME}_iface)
 if(DEFINED SKBUILD)
   set(PRISM_PY_NATIVE_DIR "${SKBUILD_PLATLIB_DIR}/prism/_native")
-  find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+  find_package(Python REQUIRED COMPONENTS Interpreter Development.Module
+                                          ${SKBUILD_SABI_COMPONENT})
   set(_prism_cffi_c "${CMAKE_CURRENT_BINARY_DIR}/_prism_cffi.c")
   add_custom_command(
     OUTPUT "${_prism_cffi_c}"
@@ -1055,7 +1056,12 @@ if(DEFINED SKBUILD)
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/prism.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_cffi.py"
     VERBATIM)
-  python_add_library(_prism_cffi MODULE "${_prism_cffi_c}" WITH_SOABI)
+  set(_prism_sabi "")
+  if(NOT "${SKBUILD_SABI_VERSION}" STREQUAL "")
+    set(_prism_sabi USE_SABI ${SKBUILD_SABI_VERSION})
+  endif()
+  python_add_library(_prism_cffi MODULE ${_prism_sabi} WITH_SOABI
+                     "${_prism_cffi_c}")
   # For some reason, MSVC doesn't implement nullptr in C23, so we have to fall
   # back to C17 here. Get with the program, Microsoft!
   if(MSVC)

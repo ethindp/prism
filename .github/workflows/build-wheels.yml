@@ -41,7 +41,7 @@ jobs:
         env:
           ANDROID_API_LEVEL: 26
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
-          CIBW_ARCHS: ${{ matrix.archs }}
+          CIBW_ARCHS: ${{ matrix.archs || 'auto' }}
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}

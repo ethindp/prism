@@ -494,11 +494,21 @@ if(WIN32)
     set(WIN_SDK_ROOT "$ENV{ProgramFiles\(x86\)}/Windows Kits/10")
     set(WIN_SDK_VERSION "${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
   endif()
+  string(TOLOWER "${CMAKE_HOST_SYSTEM_PROCESSOR}" _host_arch_lc)
+  if(_host_arch_lc MATCHES "^(amd64|x86_64)$")
+    set(_midl_host_dir "x64")
+  elseif(_host_arch_lc MATCHES "^(arm64|aarch64)$")
+    set(_midl_host_dir "arm64")
+  elseif(_host_arch_lc MATCHES "^(x86|i.86)$")
+    set(_midl_host_dir "x86")
+  else()
+    set(_midl_host_dir "x64")
+  endif()
   find_program(
     MIDL_COMPILER
     NAMES midl.exe
-    PATHS "${WIN_SDK_ROOT}/bin/${WIN_SDK_VERSION}/${_comp_arch_id_lc}"
-          "${WIN_SDK_ROOT}/bin/${_sdk_arch}"
+    PATHS "${WIN_SDK_ROOT}/bin/${WIN_SDK_VERSION}/${_midl_host_dir}"
+          "${WIN_SDK_ROOT}/bin/${_midl_host_dir}"
     DOC "Microsoft IDL Compiler" REQUIRED)
   if(NOT MIDL_COMPILER)
     message(FATAL_ERROR "midl.exe not found. Ensure Windows SDK is installed.")

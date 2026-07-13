@@ -1,8 +1,10 @@
 ## Backend-Specific Notes
 
-This chapter documents preconditions that go beyond the requirement that a backend's underlying speech or accessibility service be running. Backends not listed here have no preconditions beyond that one. Membership in the registry indicates only that a backend was compiled into the library, not that its preconditions are met. Applications SHOULD inspect `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` via `prism_backend_get_features` before invoking `prism_backend_initialize`. The flag reflects only the state at the moment of the call; `prism_backend_initialize` MAY still return `PRISM_ERROR_BACKEND_NOT_AVAILABLE` after a positive probe. Backend-specific error codes returned by `prism_backend_initialize` are documented in the relevant section below.
+This chapter documents preconditions that go beyond the requirement that a backend's underlying speech or accessibility service be running. Backends not listed here have no preconditions beyond that one. Membership in a registry indicates only that a backend was compiled into the library or added at context initialization time, not that its preconditions are met. Applications SHOULD inspect `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` via `prism_backend_get_features` before invoking `prism_backend_initialize`. The flag reflects only the state at the moment of the call; `prism_backend_initialize` MAY still return `PRISM_ERROR_BACKEND_NOT_AVAILABLE` after a positive probe. Backend-specific error codes returned by `prism_backend_initialize` are documented in the relevant section below.
 
 Some backends are designated legacy. Legacy backends are compiled into the official Prism release packages by default. They are NOT compiled into ordinary source builds; enabling a legacy backend in a source build requires the `PRISM_ENABLE_LEGACY_BACKENDS` build option together with the per-backend option named in the affected section.
+
+Note: if an application wishes to be notified asynchronously of a backends availability as it changes, it should utilize the backend availability enumeration system described previously in this manual.
 
 ### AVSpeech
 

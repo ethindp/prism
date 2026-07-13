@@ -21,7 +21,7 @@ struct Instance {
 
 struct PrismSpeechDispatcherInstance : Instance {};
 
-extern "C" bool prism_speechd_available(void) {
+extern "C" PRISM_WINELIB_ABI bool prism_speechd_available(void) {
   auto *addr = spd_get_default_address(nullptr);
   if (addr != nullptr) {
     bool available = false;
@@ -72,7 +72,8 @@ extern "C" bool prism_speechd_available(void) {
   return false;
 }
 
-extern "C" bool prism_speechd_create(PrismSpeechDispatcherInstance **out) {
+extern "C" PRISM_WINELIB_ABI bool
+prism_speechd_create(PrismSpeechDispatcherInstance **out) {
   if (!out)
     return false;
   *out = nullptr;
@@ -91,7 +92,8 @@ extern "C" bool prism_speechd_create(PrismSpeechDispatcherInstance **out) {
   return true;
 }
 
-extern "C" void prism_speechd_destroy(PrismSpeechDispatcherInstance *h) {
+extern "C" PRISM_WINELIB_ABI void
+prism_speechd_destroy(PrismSpeechDispatcherInstance *h) {
   if (!h)
     return;
   if (h->conn != nullptr) {
@@ -101,14 +103,15 @@ extern "C" void prism_speechd_destroy(PrismSpeechDispatcherInstance *h) {
   delete h;
 }
 
-extern "C" bool prism_speechd_speak(PrismSpeechDispatcherInstance *h,
-                                    const char *text) {
+extern "C" PRISM_WINELIB_ABI bool
+prism_speechd_speak(PrismSpeechDispatcherInstance *h, const char *text) {
   if (!h || !text || !h->conn)
     return false;
   return spd_say(h->conn, SPD_TEXT, text) >= 0;
 }
 
-extern "C" bool prism_speechd_stop(PrismSpeechDispatcherInstance *h) {
+extern "C" PRISM_WINELIB_ABI bool
+prism_speechd_stop(PrismSpeechDispatcherInstance *h) {
   if (!h || !h->conn)
     return false;
   return spd_stop(h->conn) == 0;

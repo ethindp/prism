@@ -137,7 +137,7 @@ static GDBusConnection *open_private_session_bus(void) {
   return c;
 }
 
-bool prism_orca_available(void) {
+PRISM_WINELIB_ABI bool prism_orca_available(void) {
   GError *err = NULL;
   GDBusConnection *c = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &err);
   if (err) {
@@ -166,7 +166,7 @@ bool prism_orca_available(void) {
   return result;
 }
 
-bool prism_orca_create(PrismOrcaDBusInstance **out) {
+PRISM_WINELIB_ABI bool prism_orca_create(PrismOrcaDBusInstance **out) {
   if (!out) {
     return false;
   }
@@ -206,7 +206,7 @@ bool prism_orca_create(PrismOrcaDBusInstance **out) {
   return true;
 }
 
-void prism_orca_destroy(PrismOrcaDBusInstance *h) {
+PRISM_WINELIB_ABI void prism_orca_destroy(PrismOrcaDBusInstance *h) {
   if (!h) {
     return;
   }
@@ -217,7 +217,8 @@ void prism_orca_destroy(PrismOrcaDBusInstance *h) {
   free(h);
 }
 
-bool prism_orca_speak(PrismOrcaDBusInstance *h, const char *text) {
+PRISM_WINELIB_ABI bool prism_orca_speak(PrismOrcaDBusInstance *h,
+                                        const char *text) {
   if (!h || !text || !h->conn || !h->dialect) {
     return false;
   }
@@ -239,7 +240,7 @@ bool prism_orca_speak(PrismOrcaDBusInstance *h, const char *text) {
   return ok ? true : false;
 }
 
-bool prism_orca_stop(PrismOrcaDBusInstance *h) {
+PRISM_WINELIB_ABI bool prism_orca_stop(PrismOrcaDBusInstance *h) {
   if (!h || !h->conn || !h->dialect || !h->speech_path) {
     return false;
   }

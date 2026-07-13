@@ -4,6 +4,7 @@
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "android/AudioCallback.hpp"
+#include "android/BackendFeatures.hpp"
 #include "android/Unit.hpp"
 #include "android/jni/AbstractTextToSpeechBackend.hpp"
 #include <atomic>
@@ -13,6 +14,7 @@
 #include <jni.h>
 #include <limits>
 #include <memory>
+#include <utility>
 
 class AndroidScreenReaderAudioCallbackAdapter
     : public prism::java::AudioCallback {
@@ -50,21 +52,50 @@ public:
   }
 
   [[nodiscard]] std::bitset<64> get_features() const override {
-    using namespace BackendFeature;
-    std::bitset<64> features;
-    auto *env = djinni::jniGetThreadEnv();
-    if (env != nullptr) {
-      auto *java_class =
-          env->FindClass("com/github/ethindp/prism/AndroidScreenReaderBackend");
-      if (java_class != nullptr) {
-        features |= IS_SUPPORTED_AT_RUNTIME;
-      } else {
+    try {
+      if (backend) {
+        return std::bitset<64>{
+            static_cast<std::uint64_t>(static_cast<std::uint32_t>(
+                std::to_underlying(backend->get_features())))};
+      }
+      auto *env = djinni::jniGetThreadEnv();
+      if (env == nullptr) {
+        return {};
+      }
+      auto *cls =
+          env->FindClass("com/github/ethindp/prism/AndroidTextToSpeechBackend");
+      if (cls == nullptr) {
         if (env->ExceptionCheck() != 0)
           env->ExceptionClear();
+        return {};
       }
+      auto *ctor = env->GetMethodID(cls, "<init>", "()V");
+      if (ctor == nullptr) {
+        if (env->ExceptionCheck() != 0)
+          env->ExceptionClear();
+        env->DeleteLocalRef(cls);
+        return {};
+      }
+      auto *instance = env->NewObject(cls, ctor);
+      if (instance == nullptr) {
+        if (env->ExceptionCheck() != 0)
+          env->ExceptionClear();
+        env->DeleteLocalRef(cls);
+        return {};
+      }
+      auto handle =
+          prism::jni::AbstractTextToSpeechBackend::toCpp(env, instance);
+      env->DeleteLocalRef(instance);
+      env->DeleteLocalRef(cls);
+      if (!handle) {
+        return {};
+      }
+      return std::bitset<64>{
+          static_cast<std::uint64_t>(static_cast<std::uint32_t>(
+              std::to_underlying(handle->get_features())))};
+    } catch (...) {
+      return {};
     }
-    features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
-    return features;
   }
 
   BackendResult<> initialize() override {

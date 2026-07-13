@@ -4,10 +4,11 @@
 #include "android/jni/AbstractTextToSpeechBackend.hpp"  // my header
 #include "android/jni/AudioCallback.hpp"
 #include "android/jni/BackendError.hpp"
+#include "android/jni/BackendFeatures.hpp"
 #include "android/jni/Unit.hpp"
-#include <djinni/support/jni/DataView_jni.hpp>
-#include <djinni/support/jni/Marshal.hpp>
-#include <djinni/support/jni/Outcome_jni.hpp>
+#include "djinni/support/jni/DataView_jni.hpp"
+#include "djinni/support/jni/Marshal.hpp"
+#include "djinni/support/jni/Outcome_jni.hpp"
 
 namespace prism::jni {
 
@@ -27,6 +28,14 @@ std::string AbstractTextToSpeechBackend::JavaProxy::get_name() {
     ::djinni::jniExceptionCheck(jniEnv);
     return ::djinni::String::toCpp(jniEnv, jret);
 }
+::prism::java::BackendFeatures AbstractTextToSpeechBackend::JavaProxy::get_features() {
+    auto jniEnv = ::djinni::jniGetThreadEnv();
+    ::djinni::JniLocalScope jscope(jniEnv, 10);
+    const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
+    auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_getFeatures);
+    ::djinni::jniExceptionCheck(jniEnv);
+    return ::prism::jni::BackendFeatures::toCpp(jniEnv, jret);
+}
 djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::initialize() {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
@@ -45,11 +54,32 @@ djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextT
     ::djinni::jniExceptionCheck(jniEnv);
     return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
 }
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::speak_ssml(const ::djinni::DataView & c_text, bool c_interrupt) {
+    auto jniEnv = ::djinni::jniGetThreadEnv();
+    ::djinni::JniLocalScope jscope(jniEnv, 10);
+    const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
+    auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_speakSsml,
+                                         ::djinni::get(::djinni::NativeDataView::fromCpp(jniEnv, c_text)),
+                                         ::djinni::get(::djinni::Bool::fromCpp(jniEnv, c_interrupt)));
+    ::djinni::jniExceptionCheck(jniEnv);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+}
 djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::speak_to_memory(const ::djinni::DataView & c_text, const /*not-null*/ std::shared_ptr<::prism::java::AudioCallback> & c_callback, int64_t c_userdata) {
     auto jniEnv = ::djinni::jniGetThreadEnv();
     ::djinni::JniLocalScope jscope(jniEnv, 10);
     const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_speakToMemory,
+                                         ::djinni::get(::djinni::NativeDataView::fromCpp(jniEnv, c_text)),
+                                         ::djinni::get(::prism::jni::AudioCallback::fromCpp(jniEnv, c_callback)),
+                                         ::djinni::get(::djinni::I64::fromCpp(jniEnv, c_userdata)));
+    ::djinni::jniExceptionCheck(jniEnv);
+    return ::djinni::Outcome<::prism::jni::Unit, ::prism::jni::BackendError>::toCpp(jniEnv, jret);
+}
+djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::speak_to_memory_ssml(const ::djinni::DataView & c_text, const /*not-null*/ std::shared_ptr<::prism::java::AudioCallback> & c_callback, int64_t c_userdata) {
+    auto jniEnv = ::djinni::jniGetThreadEnv();
+    ::djinni::JniLocalScope jscope(jniEnv, 10);
+    const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
+    auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_speakToMemorySsml,
                                          ::djinni::get(::djinni::NativeDataView::fromCpp(jniEnv, c_text)),
                                          ::djinni::get(::prism::jni::AudioCallback::fromCpp(jniEnv, c_callback)),
                                          ::djinni::get(::djinni::I64::fromCpp(jniEnv, c_userdata)));

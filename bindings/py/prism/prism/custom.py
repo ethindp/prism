@@ -6,8 +6,8 @@ import threading
 import traceback
 from typing import TYPE_CHECKING, Final
 
+from ._prism_cffi import ffi, lib
 from .core import AudioCallback, BackendFeatures, _check_error
-from .lib import ffi, lib
 
 if TYPE_CHECKING:
     from collections.abc import Callable

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field, fields
 from enum import IntEnum
 from typing import Self
 
-from .lib import ffi, lib
+from ._prism_cffi import ffi, lib
 
 
 class BackendId(IntEnum):

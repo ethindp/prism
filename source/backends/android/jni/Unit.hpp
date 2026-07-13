@@ -4,7 +4,7 @@
 #pragma once
 
 #include "android/Unit.hpp"
-#include <djinni/support/jni/djinni_support.hpp>
+#include "djinni/support/jni/djinni_support.hpp"
 
 namespace prism::jni {
 

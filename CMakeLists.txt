@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MPL-2.0
+# SPDX - License - Identifier : MPL - 2.0
 cmake_minimum_required(VERSION 3.24)
 
 include(CheckCCompilerFlag)
@@ -43,7 +43,7 @@ if(PRISM_ENABLE_VCPKG_SPECIFIC_OPTIONS)
     "Indicates that the Prism vcpkg port is being built with the spiel feature enabled"
     OFF)
 endif()
-option(PRISM_ENABLE_GDEXTENSION "Enable building of the Godot GDExtension" ON)
+option(PRISM_ENABLE_GDEXTENSION "Enable building of the Godot GDExtension" OFF)
 option(PRISM_ENABLE_POWER_MANAGEMENT
        "Enable OS power-state-aware availability polling where supported." ON)
 option(PRISM_ENABLE_LEGACY_BACKENDS
@@ -67,6 +67,9 @@ option(PRISM_BUILD_WINELIBS
        OFF)
 option(PRISM_DIAGNOSE_VECTORIZATION
        "Emit vectorization reports for optimized builds" OFF)
+option(PRISM_REGENERATE_DJINNI
+       "Re-derive the committed Djinni bindings from the IDL (MAINTAINER ONLY)"
+       OFF)
 if(WIN32)
   if(PRISM_ENABLE_GDEXTENSION)
     set(CMAKE_MSVC_RUNTIME_LIBRARY
@@ -167,6 +170,84 @@ file(GLOB_RECURSE android_headers CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/android/*.hpp")
 file(GLOB_RECURSE android_sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/android/*.cpp")
+if(PRISM_REGENERATE_DJINNI)
+  set(PRISM_TTS_IDL "${CMAKE_CURRENT_SOURCE_DIR}/idl/tts_backend.djinni")
+  set(DJINNI_JAR
+      ""
+      CACHE
+        FILEPATH
+        "Path to a djinni deploy jar (used when no 'djinni' launcher is on PATH)"
+  )
+  find_program(DJINNI_EXECUTABLE djinni)
+  if(DJINNI_EXECUTABLE)
+    set(_djinni_cmd "${DJINNI_EXECUTABLE}")
+  elseif(DJINNI_JAR)
+    find_package(Java REQUIRED COMPONENTS Runtime)
+    set(_djinni_cmd "${Java_JAVA_EXECUTABLE}" -jar "${DJINNI_JAR}")
+  else()
+    message(
+      FATAL_ERROR
+        "PRISM_REGENERATE_DJINNI is ON but no generator was found. Put 'djinni' "
+        "on PATH or set DJINNI_JAR to the djinni executable.")
+  endif()
+  set(_dj_out "${CMAKE_CURRENT_SOURCE_DIR}/source/backends/android")
+  set(_djinni_flags
+      --idl
+      "${PRISM_TTS_IDL}"
+      --idl-include-path
+      "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
+      --java-out
+      "${_dj_out}"
+      --java-package
+      com.github.ethindp.prism
+      --java-use-final-for-record
+      true
+      --cpp-out
+      "${_dj_out}"
+      --cpp-namespace
+      prism::java
+      --cpp-include-prefix
+      android/
+      --cpp-base-lib-include-prefix
+      djinni/support/cpp/
+      --jni-out
+      "${_dj_out}/jni"
+      --jni-namespace
+      prism::jni
+      --jni-include-prefix
+      android/jni/
+      --jni-include-cpp-prefix
+      android/
+      --jni-base-lib-include-prefix
+      djinni/support/jni/
+      --jni-use-on-load-initializer
+      true)
+  set(_djinni_outlist "${CMAKE_CURRENT_BINARY_DIR}/djinni_outputs.txt")
+  execute_process(
+    COMMAND ${_djinni_cmd} ${_djinni_flags} --skip-generation true
+            --list-out-files "${_djinni_outlist}"
+    RESULT_VARIABLE _dj_rc
+    ERROR_VARIABLE _dj_err)
+  if(NOT _dj_rc EQUAL 0)
+    message(
+      FATAL_ERROR
+        "Could not generate djinni auto-generation file manifest because Djinni exited with code ${_dj_rc}:\n${_dj_err}"
+    )
+  endif()
+  file(STRINGS "${_djinni_outlist}" _dj_raw)
+  set(PRISM_DJINNI_OUTPUTS "")
+  foreach(_p IN LISTS _dj_raw)
+    file(TO_CMAKE_PATH "${_p}" _p)
+    list(APPEND PRISM_DJINNI_OUTPUTS "${_p}")
+  endforeach()
+  add_custom_command(
+    OUTPUT ${PRISM_DJINNI_OUTPUTS}
+    COMMAND ${_djinni_cmd} ${_djinni_flags}
+    DEPENDS "${PRISM_TTS_IDL}"
+    COMMENT "Regenerating Djinni bindings"
+    VERBATIM)
+  add_custom_target(regen-djinni DEPENDS ${PRISM_DJINNI_OUTPUTS})
+endif()
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
      "${CMAKE_CURRENT_SOURCE_DIR}/source/*.c")
@@ -267,6 +348,9 @@ if(NOT EMSCRIPTEN)
   add_library(${PROJECT_NAME} ${headers} ${sources})
 else()
   add_library(${PROJECT_NAME} STATIC ${headers} ${sources})
+endif()
+if(ANDROID AND PRISM_REGENERATE_DJINNI)
+  add_dependencies(${PROJECT_NAME} regen-djinni)
 endif()
 foreach(_tgt ${_prism_backend_targets})
   target_sources(${PROJECT_NAME} PRIVATE $<TARGET_OBJECTS:${_tgt}>)
@@ -410,11 +494,21 @@ if(WIN32)
     set(WIN_SDK_ROOT "$ENV{ProgramFiles\(x86\)}/Windows Kits/10")
     set(WIN_SDK_VERSION "${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
   endif()
+  string(TOLOWER "${CMAKE_HOST_SYSTEM_PROCESSOR}" _host_arch_lc)
+  if(_host_arch_lc MATCHES "^(amd64|x86_64)$")
+    set(_midl_host_dir "x64")
+  elseif(_host_arch_lc MATCHES "^(arm64|aarch64)$")
+    set(_midl_host_dir "arm64")
+  elseif(_host_arch_lc MATCHES "^(x86|i.86)$")
+    set(_midl_host_dir "x86")
+  else()
+    set(_midl_host_dir "x64")
+  endif()
   find_program(
     MIDL_COMPILER
     NAMES midl.exe
-    PATHS "${WIN_SDK_ROOT}/bin/${WIN_SDK_VERSION}/${_comp_arch_id_lc}"
-          "${WIN_SDK_ROOT}/bin/${_sdk_arch}"
+    PATHS "${WIN_SDK_ROOT}/bin/${WIN_SDK_VERSION}/${_midl_host_dir}"
+          "${WIN_SDK_ROOT}/bin/${_midl_host_dir}"
     DOC "Microsoft IDL Compiler" REQUIRED)
   if(NOT MIDL_COMPILER)
     message(FATAL_ERROR "midl.exe not found. Ensure Windows SDK is installed.")
@@ -711,7 +805,8 @@ elseif(
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
       ${PROJECT_NAME}
-      ${_PRISM_LINK_VIS}
+      ${
+      _PRISM_LINK_VIS}
       "LINKER:/delayload:ZDSRAPI.dll"
       "LINKER:/delayload:byctrl.dll"
       "LINKER:/delayload:PCTKUSR.dll"
@@ -733,7 +828,8 @@ elseif(
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
       ${PROJECT_NAME}
-      ${_PRISM_LINK_VIS}
+      ${
+      _PRISM_LINK_VIS}
       "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
       "LINKER:/delayload:prism_speech_dispatcher_bridge.dll"
@@ -765,11 +861,11 @@ if(NOT MSVC)
   endif()
   set(JTHREAD_TEST_CODE
       "
-#include <thread>
 #include <stop_token>
+#include <thread>
 int main() {
-    std::jthread t([](std::stop_token st) {});
-    return 0;
+  std::jthread t([](std::stop_token st) {});
+  return 0;
 }
 ")
   check_cxx_source_compiles("${JTHREAD_TEST_CODE}" PRISM_HAS_JTHREAD_NATIVE)
@@ -959,6 +1055,43 @@ set_target_properties(${PROJECT_NAME}_iface PROPERTIES EXPORT_NAME
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME}_iface)
 if(DEFINED SKBUILD)
   set(PRISM_PY_NATIVE_DIR "${SKBUILD_PLATLIB_DIR}/prism/_native")
+  find_package(Python REQUIRED COMPONENTS Interpreter Development.Module
+                                          ${SKBUILD_SABI_COMPONENT})
+  set(_prism_cffi_c "${CMAKE_CURRENT_BINARY_DIR}/_prism_cffi.c")
+  add_custom_command(
+    OUTPUT "${_prism_cffi_c}"
+    COMMAND
+      ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_cffi.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/include/prism.h" "${_prism_cffi_c}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/prism.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_cffi.py"
+    VERBATIM)
+  set(_prism_sabi "")
+  if(NOT "${SKBUILD_SABI_VERSION}" STREQUAL "")
+    set(_prism_sabi USE_SABI ${SKBUILD_SABI_VERSION})
+  endif()
+  python_add_library(_prism_cffi MODULE ${_prism_sabi} WITH_SOABI
+                     "${_prism_cffi_c}")
+  # For some reason, MSVC doesn't implement nullptr in C23, so we have to fall
+  # back to C17 here. Get with the program, Microsoft!
+  if(MSVC)
+    set_target_properties(_prism_cffi PROPERTIES C_STANDARD 17
+                                                 C_STANDARD_REQUIRED ON)
+    target_compile_options(_prism_cffi PRIVATE /wd4113)
+  endif()
+  target_include_directories(_prism_cffi
+                             PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+  target_link_libraries(_prism_cffi PRIVATE ${PROJECT_NAME})
+  if(APPLE)
+    set_target_properties(_prism_cffi PROPERTIES INSTALL_RPATH "@loader_path")
+  else()
+    set_target_properties(_prism_cffi PROPERTIES INSTALL_RPATH "$ORIGIN")
+  endif()
+  install(
+    TARGETS _prism_cffi
+    LIBRARY DESTINATION "${PRISM_PY_NATIVE_DIR}"
+    RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"
+    ARCHIVE DESTINATION "${PRISM_PY_NATIVE_DIR}")
   install(
     TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION "${PRISM_PY_NATIVE_DIR}"

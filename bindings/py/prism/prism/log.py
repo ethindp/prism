@@ -6,7 +6,7 @@ import threading
 from enum import IntEnum
 from typing import Final
 
-from .lib import ffi, lib
+from ._prism_cffi import ffi, lib
 
 
 class LogLevel(IntEnum):

@@ -151,6 +151,7 @@ spotless {
     }
     java {
         target 'source/**/*.java', 'tests/**/*.java'
+        targetExclude '**/build/**', 'source/backends/android/BackendError.java', 'source/backends/android/BackendFeatures.java', 'source/backends/android/Unit.java', 'source/backends/android/AudioCallback.java', 'source/backends/android/AbstractTextToSpeechBackend.java', 'source/backends/android/TtsBackendModule.java'
         cleanthat()
         googleJavaFormat()
         leadingTabsToSpaces(4)

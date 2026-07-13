@@ -4,6 +4,7 @@
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "android/AudioCallback.hpp"
+#include "android/BackendFeatures.hpp"
 #include "android/Unit.hpp"
 #include "android/jni/AbstractTextToSpeechBackend.hpp"
 #include <atomic>
@@ -11,6 +12,7 @@
 #include <jni.h>
 #include <limits>
 #include <memory>
+#include <utility>
 
 class AndroidTextToSpeechAudioCallbackAdapter
     : public prism::java::AudioCallback {
@@ -69,27 +71,50 @@ public:
   }
 
   [[nodiscard]] std::bitset<64> get_features() const override {
-    using namespace BackendFeature;
-    std::bitset<64> features;
-    auto *env = djinni::jniGetThreadEnv();
-    if (env != nullptr) {
-      auto *java_class =
+    try {
+      if (backend) {
+        return std::bitset<64>{
+            static_cast<std::uint64_t>(static_cast<std::uint32_t>(
+                std::to_underlying(backend->get_features())))};
+      }
+      auto *env = djinni::jniGetThreadEnv();
+      if (env == nullptr) {
+        return {};
+      }
+      auto *cls =
           env->FindClass("com/github/ethindp/prism/AndroidTextToSpeechBackend");
-      if (java_class != nullptr) {
-        features |= IS_SUPPORTED_AT_RUNTIME;
-      } else {
+      if (cls == nullptr) {
         if (env->ExceptionCheck() != 0)
           env->ExceptionClear();
+        return {};
       }
+      auto *ctor = env->GetMethodID(cls, "<init>", "()V");
+      if (ctor == nullptr) {
+        if (env->ExceptionCheck() != 0)
+          env->ExceptionClear();
+        env->DeleteLocalRef(cls);
+        return {};
+      }
+      auto *instance = env->NewObject(cls, ctor);
+      if (instance == nullptr) {
+        if (env->ExceptionCheck() != 0)
+          env->ExceptionClear();
+        env->DeleteLocalRef(cls);
+        return {};
+      }
+      auto handle =
+          prism::jni::AbstractTextToSpeechBackend::toCpp(env, instance);
+      env->DeleteLocalRef(instance);
+      env->DeleteLocalRef(cls);
+      if (!handle) {
+        return {};
+      }
+      return std::bitset<64>{
+          static_cast<std::uint64_t>(static_cast<std::uint32_t>(
+              std::to_underlying(handle->get_features())))};
+    } catch (...) {
+      return {};
     }
-    features |= SUPPORTS_SPEAK | SUPPORTS_SPEAK_TO_MEMORY | SUPPORTS_OUTPUT |
-                SUPPORTS_IS_SPEAKING | SUPPORTS_STOP | SUPPORTS_SET_VOLUME |
-                SUPPORTS_GET_VOLUME | SUPPORTS_SET_RATE | SUPPORTS_GET_RATE |
-                SUPPORTS_SET_PITCH | SUPPORTS_GET_PITCH |
-                SUPPORTS_REFRESH_VOICES | SUPPORTS_COUNT_VOICES |
-                SUPPORTS_GET_VOICE_NAME | SUPPORTS_GET_VOICE_LANGUAGE |
-                SUPPORTS_GET_VOICE | SUPPORTS_SET_VOICE;
-    return features;
   }
 
   BackendResult<> initialize() override {

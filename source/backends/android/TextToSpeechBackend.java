@@ -20,6 +20,18 @@ public abstract class TextToSpeechBackend extends AbstractTextToSpeechBackend {
   }
 
   @Override
+  public com.snapchat.djinni.Outcome<Unit, BackendError> speakSsml(
+      java.nio.ByteBuffer text, boolean interrupt) {
+    return com.snapchat.djinni.Outcome.fromError(BackendError.NOT_IMPLEMENTED);
+  }
+
+  @Override
+  public com.snapchat.djinni.Outcome<Unit, BackendError> speakToMemorySsml(
+      java.nio.ByteBuffer text, AudioCallback callback, long userdata) {
+    return com.snapchat.djinni.Outcome.fromError(BackendError.NOT_IMPLEMENTED);
+  }
+
+  @Override
   public com.snapchat.djinni.Outcome<Unit, BackendError> braille(java.nio.ByteBuffer text) {
     return com.snapchat.djinni.Outcome.fromError(BackendError.NOT_IMPLEMENTED);
   }

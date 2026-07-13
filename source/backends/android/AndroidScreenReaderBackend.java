@@ -9,6 +9,7 @@ import android.view.accessibility.AccessibilityManager;
 import com.snapchat.djinni.Outcome;
 import java.nio.*;
 import java.nio.charset.*;
+import java.util.EnumSet;
 import java.util.List;
 
 public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
@@ -17,8 +18,6 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
 
   @Override
   public String getName() {
-    // Todo: decide if this is conforment to the API contract
-    // Here, we get the (name) of the active screen reader, or fall back to just "Screen Reader".
     Context context = PrismContext.get();
     AccessibilityManager am =
         (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
@@ -34,6 +33,23 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
       }
     }
     return "Screen Reader";
+  }
+
+  @Override
+  public EnumSet<BackendFeatures> getFeatures() {
+    final var features = EnumSet.noneOf(BackendFeatures.class);
+    Context context = PrismContext.get();
+    AccessibilityManager am =
+        (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
+    if (am != null && am.isEnabled()) {
+      List<AccessibilityServiceInfo> serviceInfoList =
+          am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_SPOKEN);
+      if (!serviceInfoList.isEmpty()) features.add(BackendFeatures.IS_SUPPORTED_AT_RUNTIME);
+    }
+    features.add(BackendFeatures.SUPPORTS_SPEAK);
+    features.add(BackendFeatures.SUPPORTS_OUTPUT);
+    features.add(BackendFeatures.SUPPORTS_STOP);
+    return features;
   }
 
   @Override
@@ -59,13 +75,6 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
     Context ctx = PrismContext.get();
     AccessibilityManager accessibilityManager =
         (AccessibilityManager) ctx.getSystemService(ctx.ACCESSIBILITY_SERVICE);
-    if (accessibilityManager == null) return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
-    if (!accessibilityManager.isEnabled())
-      return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
-    var serviceInfoList =
-        accessibilityManager.getEnabledAccessibilityServiceList(
-            AccessibilityServiceInfo.FEEDBACK_SPOKEN);
-    if (serviceInfoList.isEmpty()) return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
     var bb = text.asReadOnlyBuffer();
     decoder.reset();
     var out = CharBuffer.allocate((int) Math.ceil(bb.capacity() * decoder.maxCharsPerByte()));
@@ -109,13 +118,6 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
     Context ctx = PrismContext.get();
     AccessibilityManager accessibilityManager =
         (AccessibilityManager) ctx.getSystemService(ctx.ACCESSIBILITY_SERVICE);
-    if (accessibilityManager == null) return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
-    if (!accessibilityManager.isEnabled())
-      return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
-    var serviceInfoList =
-        accessibilityManager.getEnabledAccessibilityServiceList(
-            AccessibilityServiceInfo.FEEDBACK_SPOKEN);
-    if (serviceInfoList.isEmpty()) return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
     accessibilityManager.interrupt();
     return Outcome.fromResult(new Unit());
   }

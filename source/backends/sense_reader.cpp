@@ -14,28 +14,7 @@
 class SenseReaderBackend final : public TextToSpeechBackend {
 private:
   CComPtr<IXVApplication> application;
-  // Tracks the XVSRD HWND that `application` was bound to so the proxy can be
-  // refreshed when Sense Reader is restarted with a new window.
-  HWND target_hwnd{nullptr};
   std::atomic_flag initialized;
-
-  bool ensure_connected() {
-    HWND current = FindWindow(_T("XVSRD"), nullptr);
-    if (current == nullptr) {
-      return false;
-    }
-    if (current == target_hwnd && application != nullptr) {
-      return true;
-    }
-    application.Release();
-    if (FAILED(
-            application.CoCreateInstance(__uuidof(SenseReaderApplication)))) {
-      target_hwnd = nullptr;
-      return false;
-    }
-    target_hwnd = current;
-    return true;
-  }
 
 public:
   ~SenseReaderBackend() override = default;
@@ -66,7 +45,8 @@ public:
     if (initialized.test()) {
       return std::unexpected(BackendError::AlreadyInitialized);
     }
-    if (!ensure_connected()) {
+    if (FAILED(
+            application.CoCreateInstance(__uuidof(SenseReaderApplication)))) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     initialized.test_and_set();
@@ -76,9 +56,6 @@ public:
   BackendResult<> speak(std::string_view text, bool interrupt) override {
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
-    }
-    if (!ensure_connected()) {
-      return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (interrupt) {
       if (FAILED(application->StopSpeaking())) {
@@ -111,9 +88,6 @@ public:
   BackendResult<> stop() override {
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
-    }
-    if (!ensure_connected()) {
-      return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (FAILED(application->StopSpeaking())) {
       return std::unexpected(BackendError::InternalBackendError);

@@ -4,7 +4,7 @@
 #pragma once
 
 #include "android/AbstractTextToSpeechBackend.hpp"
-#include <djinni/support/jni/djinni_support.hpp>
+#include "djinni/support/jni/djinni_support.hpp"
 
 namespace prism::jni {
 
@@ -34,9 +34,12 @@ private:
         ~JavaProxy();
 
         std::string get_name() override;
+        ::prism::java::BackendFeatures get_features() override;
         djinni::expected<::prism::java::Unit, ::prism::java::BackendError> initialize() override;
         djinni::expected<::prism::java::Unit, ::prism::java::BackendError> speak(const ::djinni::DataView & text, bool interrupt) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> speak_ssml(const ::djinni::DataView & text, bool interrupt) override;
         djinni::expected<::prism::java::Unit, ::prism::java::BackendError> speak_to_memory(const ::djinni::DataView & text, const /*not-null*/ std::shared_ptr<::prism::java::AudioCallback> & callback, int64_t userdata) override;
+        djinni::expected<::prism::java::Unit, ::prism::java::BackendError> speak_to_memory_ssml(const ::djinni::DataView & text, const /*not-null*/ std::shared_ptr<::prism::java::AudioCallback> & callback, int64_t userdata) override;
         djinni::expected<::prism::java::Unit, ::prism::java::BackendError> braille(const ::djinni::DataView & text) override;
         djinni::expected<::prism::java::Unit, ::prism::java::BackendError> output(const ::djinni::DataView & text, bool interrupt) override;
         djinni::expected<bool, ::prism::java::BackendError> is_speaking() override;
@@ -65,9 +68,12 @@ private:
 
     const ::djinni::GlobalRef<jclass> clazz { ::djinni::jniFindClass("com/github/ethindp/prism/AbstractTextToSpeechBackend") };
     const jmethodID method_getName { ::djinni::jniGetMethodID(clazz.get(), "getName", "()Ljava/lang/String;") };
+    const jmethodID method_getFeatures { ::djinni::jniGetMethodID(clazz.get(), "getFeatures", "()Ljava/util/EnumSet;") };
     const jmethodID method_initialize { ::djinni::jniGetMethodID(clazz.get(), "initialize", "()Lcom/snapchat/djinni/Outcome;") };
     const jmethodID method_speak { ::djinni::jniGetMethodID(clazz.get(), "speak", "(Ljava/nio/ByteBuffer;Z)Lcom/snapchat/djinni/Outcome;") };
+    const jmethodID method_speakSsml { ::djinni::jniGetMethodID(clazz.get(), "speakSsml", "(Ljava/nio/ByteBuffer;Z)Lcom/snapchat/djinni/Outcome;") };
     const jmethodID method_speakToMemory { ::djinni::jniGetMethodID(clazz.get(), "speakToMemory", "(Ljava/nio/ByteBuffer;Lcom/github/ethindp/prism/AudioCallback;J)Lcom/snapchat/djinni/Outcome;") };
+    const jmethodID method_speakToMemorySsml { ::djinni::jniGetMethodID(clazz.get(), "speakToMemorySsml", "(Ljava/nio/ByteBuffer;Lcom/github/ethindp/prism/AudioCallback;J)Lcom/snapchat/djinni/Outcome;") };
     const jmethodID method_braille { ::djinni::jniGetMethodID(clazz.get(), "braille", "(Ljava/nio/ByteBuffer;)Lcom/snapchat/djinni/Outcome;") };
     const jmethodID method_output { ::djinni::jniGetMethodID(clazz.get(), "output", "(Ljava/nio/ByteBuffer;Z)Lcom/snapchat/djinni/Outcome;") };
     const jmethodID method_isSpeaking { ::djinni::jniGetMethodID(clazz.get(), "isSpeaking", "()Lcom/snapchat/djinni/Outcome;") };

@@ -7,24 +7,31 @@ jobs:
   wheels:
     name: Build wheels for ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - os: linux-intel
             runs-on: ubuntu-latest
+            archs: native
           - os: linux-arm
             runs-on: ubuntu-24.04-arm
+            archs: native
           - os: windows-intel
             runs-on: windows-latest
+            archs: native
           - os: windows-arm
             runs-on: windows-11-arm
+            archs: native
           - os: macos-intel
             runs-on: macos-26-intel
+            archs: native
           - os: macos-arm
             runs-on: macos-26
+            archs: native
           - os: android-intel
             runs-on: ubuntu-latest
             platform: android
+            archs: native
           - os: android-arm
             runs-on: ubuntu-latest
             platform: android
@@ -32,9 +39,6 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v7.0.0
-      - name: Activate MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-        if: runner.os == 'Windows'
       - name: Install current CMake
         uses: lukka/get-cmake@v4.3.4
         with:
@@ -42,9 +46,9 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.1.0
         env:
-          CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
-          CIBW_ARCHS: ${{ matrix.archs || 'auto' }}
           ANDROID_API_LEVEL: 26
+          CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
+          CIBW_ARCHS: ${{ matrix.archs || 'auto64' }}
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}

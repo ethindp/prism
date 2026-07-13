@@ -805,8 +805,7 @@ elseif(
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
       ${PROJECT_NAME}
-      ${
-      _PRISM_LINK_VIS}
+      ${_PRISM_LINK_VIS}
       "LINKER:/delayload:ZDSRAPI.dll"
       "LINKER:/delayload:byctrl.dll"
       "LINKER:/delayload:PCTKUSR.dll"
@@ -828,8 +827,7 @@ elseif(
     target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/STACK:8388608")
     target_link_options(
       ${PROJECT_NAME}
-      ${
-      _PRISM_LINK_VIS}
+      ${_PRISM_LINK_VIS}
       "LINKER:/delayload:PCTKUSR.dll"
       "LINKER:/delayload:prism_orca_bridge.dll"
       "LINKER:/delayload:prism_speech_dispatcher_bridge.dll"

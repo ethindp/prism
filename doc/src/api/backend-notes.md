@@ -78,8 +78,6 @@ The ZoomText backend communicates with ZoomText through a COM interface register
 
 The Sense Reader backend communicates with Sense Reader through a COM interface registered by the Sense Reader installer. The host process MUST be running on Windows, and the COM interface MUST be registered on the system; if it is not, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
 
-The backend re-establishes its connection automatically. If Sense Reader is restarted during the lifetime of the backend instance, the backend reconnects on the next operation, and applications need not destroy and re-create it.
-
 ### PCTalker
 
 The PC-Talker backend communicates with PC-Talker through a client library distributed with PC-Talker. The host process MUST be running on Windows, and the library MUST be resolvable through the host process's library search order; if it is not, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
@@ -138,7 +136,7 @@ The calling thread MUST be attached to the Java VM. This is automatic for thread
 
 ### Android Screen Reader
 
-The application-context and Java VM attachment requirements of the Android Text to Speech backend also apply to the Android Screen Reader backend. Accessibility services MUST be enabled on the device, and at least one accessibility service capable of spoken feedback MUST be enabled in the user's accessibility settings. Both conditions are rechecked on every speech request. A transition of either condition to false during the lifetime of the backend causes subsequent operations to return `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
+The application-context and Java VM attachment requirements of the Android Text to Speech backend also apply to the Android Screen Reader backend. Accessibility services MUST be enabled on the device, and at least one accessibility service capable of spoken feedback MUST be enabled in the user's accessibility settings.
 
 ### Web Speech
 

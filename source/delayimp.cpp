@@ -979,16 +979,15 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
                 pdli->szDll, pdli->dlp.dwOrdinal);
       return nullptr; // see below re: what this actually does
     }
-    // On x86, the delay-load table stores stdcall-decorated names (e.g.
-    // "InitTTS@12"), but the actual DLL may export undecorated names (e.g.
-    // "InitTTS"). Try GetProcAddress with the undecorated name first.
 #if defined(_M_IX86) || defined(__i386__)
     if (pdli->dlp.fImportByName != 0) {
-      auto name = std::string_view(pdli->dlp.szProcName);
-      auto at = name.find('@');
+      const auto name = std::string_view(pdli->dlp.szProcName);
+      const auto at = name.find('@');
       if (at != std::string_view::npos) {
-        std::string undecorated(name.substr(0, at));
-        if (auto *real = GetProcAddress(pdli->hmodCur, undecorated.c_str())) {
+        const std::string undecorated(name.substr(0, at));
+        if (auto const *real =
+                GetProcAddress(pdli->hmodCur, undecorated.c_str());
+            real != nullptr) {
           log.info("recovered '{}!{}' via undecorated name", pdli->szDll,
                    undecorated);
           return real;
@@ -1001,8 +1000,8 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
 #if defined(_M_IX86) || defined(__i386__)
         auto procName = std::string_view(pdli->dlp.szProcName);
         auto stubName = std::string_view(e.func);
-        auto procAt = procName.find('@');
-        auto stubAt = stubName.find('@');
+        const auto procAt = procName.find('@');
+        const auto stubAt = stubName.find('@');
         if (procAt != std::string_view::npos)
           procName = procName.substr(0, procAt);
         if (stubAt != std::string_view::npos)
@@ -1012,7 +1011,8 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
           return e.stub;
         }
 #else
-        if (strcmp(pdli->dlp.szProcName, e.func) == 0) {
+        if (std::string_view{pdli->dlp.szProcName} ==
+            std::string_view{e.func}) {
           log.trace("substituting stub for '{}!{}'", pdli->szDll, e.func);
           return e.stub;
         }

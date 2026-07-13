@@ -847,7 +847,7 @@ public:
   BackendResult<std::size_t> get_voice() override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    return voice_idx.load(std::memory_order_acquire);
+    return static_cast<std::size_t>(voice_idx.load(std::memory_order_acquire));
   }
 
   BackendResult<std::size_t> get_channels() override {

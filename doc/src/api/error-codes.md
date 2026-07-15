@@ -25,5 +25,8 @@ When a function returns a `PrismError`, the `prism_error_string` function can be
 | `PRISM_ERROR_INVALID_AUDIO_FORMAT` | 18 | Either the backend speech engine or backend voice have an audio format that Prism does not know how to handle, or the parameters that the underlying speech engine provided to Prism were nonsensical. |
 | `PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED` | 19 | The backend possesses an internal hard ceiling as to how many instances may be instantiated at any given time, and this limit would be exceeded were another to be initialized. |
 | `PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE` | 20 | An error occured when the backend was executing a function which has caused the backend to enter an undefined state. The caller should re-initialize the backend from scratch. |
+| `PRISM_ERROR_LIBRARY_LOAD_FAILED` | 21 | A shared library could not be opened, because no file exists at the given path, it is not a loadable image, it was built for a different architecture, or its initialization code failed |
+| `PRISM_ERROR_LIBRARY_INVALID` | 22 | A shared library was opened but does not export the plugin entry point |
+| `PRISM_ERROR_INCOMPATIBLE_ABI` | 23 | A plugin declined the host, or a backend descriptor declared an ABI generation this build of Prism does not accept |
 
 The constant `PRISM_ERROR_COUNT` equals the total number of error codes and MAY be used for bounds checking or table sizing. This constant may increase in future versions as new error codes are added.

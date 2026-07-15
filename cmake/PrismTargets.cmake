@@ -33,6 +33,7 @@ set(_prism_sources
     source/delayimp.cpp
     source/frozen_registry.cpp
     source/logging.cpp
+    source/plugin_loader.cpp
     source/poll_waiter.cpp
     source/power_notifier.cpp
     source/prism.cpp
@@ -59,6 +60,9 @@ else()
   add_library(prism ${_prism_sources} ${_prism_headers})
 endif()
 target_link_libraries(prism PRIVATE "$<BUILD_INTERFACE:prism_common>")
+if(NOT WIN32)
+  target_link_libraries(prism PRIVATE ${CMAKE_DL_LIBS})
+endif()
 target_include_directories(
   prism PUBLIC "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/include>"
                "$<INSTALL_INTERFACE:include>")

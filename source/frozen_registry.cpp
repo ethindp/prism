@@ -252,6 +252,13 @@ BuilderResult RegistryBuilder::add(std::string name, int priority,
   return BuilderResult::Ok;
 }
 
+void RegistryBuilder::rollback_to(std::size_t mark) noexcept {
+  if (mark < registrations.size())
+    registrations.erase(registrations.begin() +
+                            static_cast<std::ptrdiff_t>(mark),
+                        registrations.end());
+}
+
 FrozenRegistry *RegistryBuilder::freeze() {
   if (is_spent)
     return nullptr;

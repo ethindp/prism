@@ -4,6 +4,7 @@
 #include "backend_enumerator.h"
 #include "frozen_registry.h"
 #include "logging.h"
+#include "plugin_loader.h"
 #include "power_notifier.h"
 #include <cmath>
 #include <cstdint>
@@ -286,6 +287,15 @@ prism_registry_builder_add_backend(PrismRegistryBuilder *builder,
   return PRISM_ERROR_UNKNOWN;
 }
 
+PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
+prism_registry_builder_add_library(PrismRegistryBuilder *builder,
+                                   const char *PRISM_RESTRICT path,
+                                   int priority_override,
+                                   size_t *PRISM_RESTRICT out_count) {
+  return load_plugin(*reinterpret_cast<RegistryBuilder *>(builder), path,
+                     priority_override, out_count);
+}
+
 PRISM_API PRISM_NODISCARD PrismRegistry *PRISM_CALL
 prism_registry_freeze(PrismRegistryBuilder *builder) {
   return reinterpret_cast<PrismRegistry *>(
@@ -549,7 +559,10 @@ prism_error_string(PrismError error) {
                                         "Unknown error",
                                         "Invalid audio format",
                                         "Internal backend limit exceeded",
-                                        "Backend entered undefined state"};
+                                        "Backend entered undefined state",
+                                        "Shared library load failed",
+                                        "Shared library is not a Prism plugin",
+                                        "Incompatible plugin ABI"};
   static_assert(std::size(strings) == PRISM_ERROR_COUNT,
                 "Error string table size mismatches error count");
   if (static_cast<std::uint32_t>(error) >= PRISM_ERROR_COUNT)

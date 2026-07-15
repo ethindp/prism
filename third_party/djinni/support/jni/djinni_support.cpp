@@ -17,7 +17,7 @@
 //
 
 #include "djinni_support.hpp"
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include "../djinni_common.hpp"
 #include "../proxy_cache_impl.hpp"
 #include <cassert>

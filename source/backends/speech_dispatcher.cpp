@@ -3,7 +3,7 @@
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
-#ifndef NO_LIBSPEECHD
+#ifdef PRISM_HAVE_SPEECHD
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../utils.h"

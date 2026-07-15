@@ -3,16 +3,15 @@ include_guard(GLOBAL)
 include(PrismGuards)
 prism_require_targets(prism prism_common)
 prism_require_vars(PRISM_ARCH_CLASS PRISM_LINK_VIS)
-target_compile_definitions(
-  prism_common
-  INTERFACE _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
-            _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
-            BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
-target_link_libraries(prism PRIVATE delayimp.lib onecore.lib
-                                    uiautomationcore.lib rpcrt4)
+target_compile_definitions(prism_common INTERFACE
+  _CRT_SECURE_NO_WARNINGS
+  _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
+  _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
+  BELT_COM_NO_LEAK_DETECTION
+  UNICODE _UNICODE)
+target_link_libraries(prism PRIVATE delayimp.lib onecore.lib uiautomationcore.lib rpcrt4)
 if(PRISM_ENABLE_POWER_MANAGEMENT)
-  target_compile_definitions(prism_common
-                             INTERFACE PRISM_ENABLE_POWER_MANAGEMENT)
+  target_compile_definitions(prism_common INTERFACE PRISM_ENABLE_POWER_MANAGEMENT)
   target_link_libraries(prism PRIVATE PowrProf)
 endif()
 set(PRISM_WIN_IMPORT_LIBS "")
@@ -20,78 +19,63 @@ function(prism_add_import_library target def_file dll_name)
   set(_lib "${CMAKE_CURRENT_BINARY_DIR}/${target}.lib")
   if(PRISM_ARCH_CLASS STREQUAL "x86")
     set(_machine X86)
-  elseif(PRISM_ARCH_CLASS STREQUAL "arm64" OR PRISM_ARCH_CLASS STREQUAL
-                                              "arm64ec")
+  elseif(PRISM_ARCH_CLASS STREQUAL "arm64" OR PRISM_ARCH_CLASS STREQUAL "arm64ec")
     set(_machine ARM64)
   else()
     set(_machine X64)
   endif()
   if(MINGW)
-    add_custom_command(
-      OUTPUT "${_lib}"
+    add_custom_command(OUTPUT "${_lib}"
       COMMAND dlltool -d "${def_file}" -l "${_lib}"
-      DEPENDS "${def_file}"
-      COMMENT "Import library ${target}.lib")
+      DEPENDS "${def_file}" COMMENT "Import library ${target}.lib")
   else()
     find_program(PRISM_LIB_TOOL NAMES lib llvm-lib)
     if(NOT PRISM_LIB_TOOL)
-      message(
-        FATAL_ERROR
-          "Neither 'lib' nor 'llvm-lib' found; cannot build import libraries.")
+      message(FATAL_ERROR "Neither 'lib' nor 'llvm-lib' found; cannot build import libraries.")
     endif()
-    add_custom_command(
-      OUTPUT "${_lib}"
-      COMMAND "${PRISM_LIB_TOOL}" /nologo /def:"${def_file}" /out:"${_lib}"
-              /machine:${_machine}
-      DEPENDS "${def_file}"
-      COMMENT "Import library ${target}.lib")
+    add_custom_command(OUTPUT "${_lib}"
+      COMMAND "${PRISM_LIB_TOOL}" /nologo /def:"${def_file}" /out:"${_lib}" /machine:${_machine}
+      DEPENDS "${def_file}" COMMENT "Import library ${target}.lib")
   endif()
   add_custom_target(${target}_gen DEPENDS "${_lib}")
   add_library(${target} SHARED IMPORTED GLOBAL)
-  set_target_properties(${target} PROPERTIES IMPORTED_IMPLIB "${_lib}"
-                                             IMPORTED_LOCATION "${dll_name}")
+  set_target_properties(${target} PROPERTIES
+    IMPORTED_IMPLIB "${_lib}" IMPORTED_LOCATION "${dll_name}")
   add_dependencies(${target} ${target}_gen)
   target_link_libraries(prism PRIVATE "$<BUILD_INTERFACE:${target}>")
-  set(PRISM_WIN_IMPORT_LIBS
-      "${PRISM_WIN_IMPORT_LIBS};${target}"
-      PARENT_SCOPE)
-  set(PRISM_WIN_DELAYLOAD
-      "${PRISM_WIN_DELAYLOAD};${dll_name}"
-      PARENT_SCOPE)
+  list(APPEND PRISM_WIN_IMPORT_LIBS "${target}")
+  list(APPEND PRISM_WIN_DELAYLOAD "${dll_name}")
+  set(PRISM_WIN_IMPORT_LIBS "${PRISM_WIN_IMPORT_LIBS}" PARENT_SCOPE)
+  set(PRISM_WIN_DELAYLOAD "${PRISM_WIN_DELAYLOAD}" PARENT_SCOPE)
 endfunction()
 set(PRISM_WIN_DELAYLOAD "")
 set(_defs "${PRISM_SOURCE_ROOT}/defs")
 if(PRISM_ARCH_CLASS STREQUAL "x86")
-  prism_add_import_library(ZDSR "${_defs}/zdsr32.def" ZDSRAPI.dll)
-  prism_add_import_library(byctrl "${_defs}/boy_pc_reader32.def" byctrl.dll)
-  prism_add_import_library(PCTalker "${_defs}/pc_talker32.def" PCTKUSR.dll)
-  prism_add_import_library(PrismOrcaBridge "${_defs}/prism_orca_bridge32.def"
-                           prism_orca_bridge.dll)
-  prism_add_import_library(
-    PrismSpeechDispatcherBridge "${_defs}/prism_speech_dispatcher_bridge32.def"
-    prism_speech_dispatcher_bridge.dll)
+  prism_add_import_library(ZDSR     "${_defs}/zdsr32.def"           ZDSRAPI.dll)
+  prism_add_import_library(byctrl   "${_defs}/boy_pc_reader32.def"  byctrl.dll)
+  prism_add_import_library(PCTalker "${_defs}/pc_talker32.def"      PCTKUSR.dll)
+  prism_add_import_library(PrismOrcaBridge "${_defs}/prism_orca_bridge32.def" prism_orca_bridge.dll)
+  prism_add_import_library(PrismSpeechDispatcherBridge
+                           "${_defs}/prism_speech_dispatcher_bridge32.def"
+                           prism_speech_dispatcher_bridge.dll)
 elseif(PRISM_ARCH_CLASS STREQUAL "x64")
-  prism_add_import_library(ZDSR "${_defs}/zdsr.def" ZDSRAPI_x64.dll)
-  prism_add_import_library(byctrl "${_defs}/boy_pc_reader.def" byctrl-x64.dll)
-  prism_add_import_library(PCTalker "${_defs}/pc_talker.def" PCTKUSR.dll)
-  prism_add_import_library(PrismOrcaBridge "${_defs}/prism_orca_bridge.def"
-                           prism_orca_bridge.dll)
-  prism_add_import_library(
-    PrismSpeechDispatcherBridge "${_defs}/prism_speech_dispatcher_bridge.def"
-    prism_speech_dispatcher_bridge.dll)
+  prism_add_import_library(ZDSR     "${_defs}/zdsr.def"             ZDSRAPI_x64.dll)
+  prism_add_import_library(byctrl   "${_defs}/boy_pc_reader.def"    byctrl-x64.dll)
+  prism_add_import_library(PCTalker "${_defs}/pc_talker.def"        PCTKUSR.dll)
+  prism_add_import_library(PrismOrcaBridge "${_defs}/prism_orca_bridge.def" prism_orca_bridge.dll)
+  prism_add_import_library(PrismSpeechDispatcherBridge
+                           "${_defs}/prism_speech_dispatcher_bridge.def"
+                           prism_speech_dispatcher_bridge.dll)
 else()
-  prism_add_import_library(PCTalker "${_defs}/pc_talker.def" PCTKUSR.dll)
-  prism_add_import_library(PrismOrcaBridge "${_defs}/prism_orca_bridge.def"
-                           prism_orca_bridge.dll)
-  prism_add_import_library(
-    PrismSpeechDispatcherBridge "${_defs}/prism_speech_dispatcher_bridge.def"
-    prism_speech_dispatcher_bridge.dll)
+  prism_add_import_library(PCTalker "${_defs}/pc_talker.def"        PCTKUSR.dll)
+  prism_add_import_library(PrismOrcaBridge "${_defs}/prism_orca_bridge.def" prism_orca_bridge.dll)
+  prism_add_import_library(PrismSpeechDispatcherBridge
+                           "${_defs}/prism_speech_dispatcher_bridge.def"
+                           prism_speech_dispatcher_bridge.dll)
 endif()
 if(MINGW)
-  message(
-    WARNING "Delay loading is not supported by MinGW; Prism will malfunction.")
+  message(WARNING "Delay loading is not supported by MinGW; Prism will malfunction.")
 else()
-  list(APPEND PRISM_WIN_DELAYLOAD unload)
   set(_delay "")
   foreach(_dll IN LISTS PRISM_WIN_DELAYLOAD)
     if(MSVC)
@@ -100,6 +84,11 @@ else()
       list(APPEND _delay "LINKER:/delayload:${_dll}")
     endif()
   endforeach()
+  if(MSVC)
+    list(APPEND _delay "/DELAY:unload")
+  else()
+    list(APPEND _delay "LINKER:/DELAY:unload")
+  endif()
   target_link_options(prism ${PRISM_LINK_VIS} ${_delay})
   if(MSVC)
     target_link_options(prism PRIVATE "/STACK:8388608")
@@ -107,6 +96,4 @@ else()
     target_link_options(prism PRIVATE "LINKER:/STACK:8388608")
   endif()
 endif()
-set(PRISM_WIN_IMPORT_LIBS
-    "${PRISM_WIN_IMPORT_LIBS}"
-    CACHE INTERNAL "")
+set(PRISM_WIN_IMPORT_LIBS "${PRISM_WIN_IMPORT_LIBS}" CACHE INTERNAL "")

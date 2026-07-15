@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MPL-2.0
-
 include_guard(GLOBAL)
 include(PrismGuards)
 prism_require_vars(PRISM_SOURCE_ROOT PRISM_DEPENDENCY_PROVIDER)
+
 set(PRISM_COMPILED_DEP_TARGETS
     ""
     CACHE INTERNAL "")
@@ -92,7 +92,7 @@ function(prism_declare_dependency NAME)
       message(
         FATAL_ERROR
           "prism_declare_dependency(${NAME}): bundled, but LICENSE '${PD_LICENSE}' is missing.\n"
-          "Every bundled dependency ships its license. No exceptions.")
+      )
     endif()
     if(PD_HEADER_ONLY)
       add_library(${_impl} INTERFACE)
@@ -119,8 +119,10 @@ function(prism_declare_dependency NAME)
         target_compile_options(${_impl} PRIVATE -w)
       endif()
       set_property(TARGET ${_impl} PROPERTY SKIP_LINTING ON)
+      set(_cdt "${PRISM_COMPILED_DEP_TARGETS}")
+      list(APPEND _cdt "${_impl}")
       set(PRISM_COMPILED_DEP_TARGETS
-          "${PRISM_COMPILED_DEP_TARGETS};${_impl}"
+          "${_cdt}"
           CACHE INTERNAL "")
       set(_vis PUBLIC)
     endif()
@@ -155,7 +157,7 @@ prism_declare_dependency(
   src/format.cc
   src/os.cc
   BUNDLED_INCLUDES
-  include
+  include # <fmt/format.h>, <fmt/xchar.h>
   LICENSE
   LICENSES/fmt)
 prism_declare_dependency(
@@ -171,7 +173,7 @@ prism_declare_dependency(
   BUNDLED_SOURCES
   simdutf.cpp
   BUNDLED_INCLUDES
-  include
+  include # <simdutf.h>, <simdutf_c.h>
   LICENSE
   LICENSES/simdutf)
 prism_declare_dependency(
@@ -184,7 +186,7 @@ prism_declare_dependency(
   BUNDLED_ROOT
   third_party/concurrentqueue
   BUNDLED_INCLUDES
-  include
+  include # <moodycamel/concurrentqueue.h>
   LICENSE
   LICENSES/concurrentqueue)
 prism_declare_dependency(
@@ -197,7 +199,7 @@ prism_declare_dependency(
   BUNDLED_SOURCES
   wav.c
   BUNDLED_INCLUDES
-  include
+  include # <dr_wav/dr_wav.h>
   LICENSE
   LICENSES/dr_wav)
 prism_declare_dependency(
@@ -207,7 +209,7 @@ prism_declare_dependency(
   BUNDLED_ROOT
   third_party/moderncom
   BUNDLED_INCLUDES
-  include
+  include # <moderncom/interfaces.h>
   LICENSE
   LICENSES/moderncom)
 if(ANDROID)
@@ -225,7 +227,7 @@ if(ANDROID)
     BUNDLED_INCLUDES
     support
     support/cpp
-    support/jni
+    support/jni # djinni ships no install
     LICENSE
     LICENSES/djinni)
 endif()

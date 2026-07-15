@@ -7,7 +7,7 @@
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
-#ifndef NO_ORCA
+#ifdef PRISM_HAVE_ORCA
 #include <array>
 #include <functional>
 #include <giomm/dbusconnection.h>

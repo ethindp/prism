@@ -18,7 +18,7 @@
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
-#ifndef NO_ORCA
+#ifdef PRISM_HAVE_ORCA
 #include <giomm/init.h>
 #endif
 #endif
@@ -104,7 +104,7 @@ prism_init(PrismConfig *cfg) {
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
-#ifndef NO_ORCA
+#ifdef PRISM_HAVE_ORCA
   Gio::init();
 #endif
 #endif

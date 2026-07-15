@@ -8,7 +8,7 @@
 #include "../backend_catalog.h"
 #include <array>
 #include <raw/zdsr.h>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <string_view>
 #include <tchar.h>
 #include <tlhelp32.h>

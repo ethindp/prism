@@ -16,7 +16,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <spiel/spiel.h>
 #include <string>
 #include <thread>

@@ -9,7 +9,7 @@
 #include <unordered_set>
 #endif
 #include <ranges>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 
 FrozenRegistry::FrozenRegistry(std::vector<Registration> registrations)
     : refcount(1) {

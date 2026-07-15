@@ -160,13 +160,7 @@ else()
 endif()
 add_library(tolk SHARED tolk.c lock.c)
 target_link_libraries(tolk PRIVATE prism::prism)
-get_target_property(_prism_type prism TYPE)
-if(NOT _prism_type STREQUAL "STATIC_LIBRARY")
-  target_link_libraries(tolk PRIVATE prism_third_party_simdutf)
-else()
-  target_include_directories(tolk PRIVATE ${CMAKE_SOURCE_DIR}/third_party)
-endif()
-unset(_prism_type)
+target_link_libraries(tolk PRIVATE prism::dep::simdutf)
 target_compile_definitions(tolk PRIVATE TOLK_BUILDING)
 if(NEEDS_C11_ATOMICS_FLAG)
   target_compile_options(tolk PRIVATE /experimental:c11atomics)
@@ -193,7 +187,7 @@ if(PRISM_ENABLE_LINTING)
       set_target_properties(tolk PROPERTIES C_CLANG_TIDY "${CLANG_TIDY_EXE}")
     endif()
   else()
-    set(_MERGED_RULESET_PATH "${CMAKE_BINARY_DIR}/PrismCombinedRuleset.ruleset")
+    set(_MERGED_RULESET_PATH "${PRISM_MERGED_RULESET}")
     if(NOT EXISTS "${_MERGED_RULESET_PATH}")
       message(
         FATAL_ERROR
@@ -207,7 +201,6 @@ if(PRISM_ENABLE_LINTING)
       tolk
       PRIVATE /external:anglebrackets
               /external:W0
-              "/external:I ${CMAKE_SOURCE_DIR}/third_party/simdutf"
               /analyze
               /analyze:external-
               /analyze:log

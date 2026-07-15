@@ -7,7 +7,7 @@
 #include <atomic>
 #include <bitset>
 #include <raw/sense_reader.h>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 

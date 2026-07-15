@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <functional>
 #include <raw/pc_talker.h>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <windows.h>
 
 class BrailleMarshaller {

@@ -10,7 +10,7 @@
 #include <limits>
 #include <memory>
 #include <new>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <string>
 #ifdef __ANDROID__
 #include <jni.h>

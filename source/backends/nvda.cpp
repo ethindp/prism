@@ -7,7 +7,7 @@
 #include <fmt/xchar.h>
 #include <nvda_controller.h>
 #include <shared_mutex>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 

@@ -28,7 +28,7 @@
 #include <sapi.h>
 #include <shared_mutex>
 #include <shlwapi.h>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <span>
 #include <stop_token>
 #include <tchar.h>

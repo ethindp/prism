@@ -8,7 +8,7 @@
 #include <atomic>
 #include <ranges>
 #include <raw/zt.h>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 

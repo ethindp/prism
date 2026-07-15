@@ -14,7 +14,7 @@
 #include <cstddef>
 #include <mutex>
 #include <shared_mutex>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <string>
 #include <string_view>
 #include <vector>

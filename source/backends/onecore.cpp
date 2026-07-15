@@ -15,7 +15,7 @@
 #include <limits>
 #include <objbase.h>
 #include <optional>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <span>
 #include <tchar.h>
 #include <type_traits>

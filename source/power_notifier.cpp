@@ -3,8 +3,9 @@
 #include "power_notifier.h"
 #include <utility>
 #if defined(PRISM_ENABLE_POWER_MANAGEMENT) && defined(_WIN32)
-#include <powerbase.h>
 #include <windows.h>
+#include <powerbase.h>
+#include <powrprof.h>
 
 namespace {
 class WindowsPowerNotifier final : public PowerNotifier {
@@ -55,8 +56,8 @@ public:
 std::unique_ptr<PowerNotifier>
 PowerNotifier::create(const std::function<void()> &on_suspend,
                       const std::function<void()> &on_resume) {
-  return std::make_unique<WindowsPowerNotifier>(std::move(on_suspend),
-                                                std::move(on_resume));
+  return std::make_unique<WindowsPowerNotifier>(on_suspend,
+                                                on_resume);
 }
 
 bool PowerNotifier::supported() noexcept { return true; }

@@ -1,4 +1,4 @@
-include(${CMAKE_SOURCE_DIR}/cmake/CPM.cmake)
+include(${PRISM_SOURCE_ROOT}/cmake/CPM.cmake)
 cpmaddpackage(
   NAME
   gtest
@@ -13,11 +13,10 @@ include(GoogleTest)
 
 function(prism_add_test TEST_NAME)
   add_executable(${TEST_NAME} ${ARGN})
-  target_link_libraries(${TEST_NAME} PRIVATE GTest::gtest_main prism)
+  target_link_libraries(${TEST_NAME} PRIVATE GTest::gtest_main prism::prism)
   if(WIN32)
     target_link_libraries(${TEST_NAME} PRIVATE Rpcrt4.lib)
   endif()
-  target_include_directories(${TEST_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
   if(MSVC)
     target_compile_options(${TEST_NAME} PRIVATE /W4)
   else()

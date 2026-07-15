@@ -14,7 +14,7 @@
   * limitations under the License.
   */
 
-#include "Future_jni.hpp"
+#include "djinni/support/jni/Future_jni.hpp"
 
 namespace djinni {
 

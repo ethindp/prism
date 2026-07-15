@@ -7,14 +7,6 @@ set(PRISM_COMPILED_DEP_TARGETS
     ""
     CACHE INTERNAL "")
 
-# prism_declare_dependency(<name> PACKAGE <find_package name>        required
-# unless BUNDLED_ONLY MIN_VERSION <ver>                  version floor for the
-# SYSTEM provider SYSTEM_TARGETS <tgt>...            what to link when SYSTEM
-# BUNDLED_ROOT <dir>                 relative to PRISM_SOURCE_ROOT
-# BUNDLED_SOURCES <file>...          relative to BUNDLED_ROOT; omit if
-# HEADER_ONLY BUNDLED_INCLUDES <dir>...          relative to BUNDLED_ROOT; the
-# installed spelling LICENSE <path>                     relative to
-# PRISM_SOURCE_ROOT [HEADER_ONLY] [BUNDLED_ONLY] [LANGUAGE C|CXX])
 function(prism_declare_dependency NAME)
   cmake_parse_arguments(
     PD "HEADER_ONLY;BUNDLED_ONLY"
@@ -157,7 +149,7 @@ prism_declare_dependency(
   src/format.cc
   src/os.cc
   BUNDLED_INCLUDES
-  include # <fmt/format.h>, <fmt/xchar.h>
+  include
   LICENSE
   LICENSES/fmt)
 prism_declare_dependency(
@@ -173,7 +165,7 @@ prism_declare_dependency(
   BUNDLED_SOURCES
   simdutf.cpp
   BUNDLED_INCLUDES
-  include # <simdutf.h>, <simdutf_c.h>
+  include
   LICENSE
   LICENSES/simdutf)
 prism_declare_dependency(
@@ -186,7 +178,7 @@ prism_declare_dependency(
   BUNDLED_ROOT
   third_party/concurrentqueue
   BUNDLED_INCLUDES
-  include # <moodycamel/concurrentqueue.h>
+  include
   LICENSE
   LICENSES/concurrentqueue)
 prism_declare_dependency(
@@ -199,7 +191,7 @@ prism_declare_dependency(
   BUNDLED_SOURCES
   wav.c
   BUNDLED_INCLUDES
-  include # <dr_wav/dr_wav.h>
+  include
   LICENSE
   LICENSES/dr_wav)
 prism_declare_dependency(
@@ -209,7 +201,7 @@ prism_declare_dependency(
   BUNDLED_ROOT
   third_party/moderncom
   BUNDLED_INCLUDES
-  include # <moderncom/interfaces.h>
+  include
   LICENSE
   LICENSES/moderncom)
 if(ANDROID)
@@ -225,9 +217,8 @@ if(ANDROID)
     support/jni/DataRef_jni.cpp
     support/jni/Future_jni.cpp
     BUNDLED_INCLUDES
-    support
-    support/cpp
-    support/jni # djinni ships no install
+    support/include
     LICENSE
     LICENSES/djinni)
+  target_link_libraries(prism_dep_djinni PRIVATE prism_dep_simdutf)
 endif()

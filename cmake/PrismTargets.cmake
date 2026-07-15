@@ -76,7 +76,7 @@ set_target_properties(
              INTERPROCEDURAL_OPTIMIZATION ${PRISM_USE_IPO})
 get_target_property(PRISM_LIB_TYPE prism TYPE)
 if(PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
-  set(PRISM_LINK_VIS INTERFACE) # delay-load directives must reach consumers
+  set(PRISM_LINK_VIS INTERFACE)
 else()
   set(PRISM_LINK_VIS PRIVATE)
 endif()

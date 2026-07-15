@@ -14,7 +14,7 @@
   * limitations under the License.
   */
 
-#include "DataRef.hpp"
+#include "djinni/support/cpp/DataRef.hpp"
 
 #if !(DATAREF_JNI || DATAREF_OBJC || DATAREF_WASM)
 

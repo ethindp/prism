@@ -19,18 +19,13 @@ jobs:
         target-type: [template_debug, template_release]
         target:
           - { platform: linux,   arch: x86_64, os: ubuntu-latest }
-          - { platform: linux,   arch: x86_32, os: ubuntu-latest }
           - { platform: linux,   arch: arm64,  os: ubuntu-24.04-arm }
-          - { platform: linux,   arch: arm32,  os: ubuntu-24.04-arm }
           - { platform: windows, arch: x86_64, os: windows-latest }
-          - { platform: windows, arch: x86_32, os: windows-latest }
           - { platform: windows, arch: arm64,  os: windows-latest }
           - { platform: macos,   arch: arm64,  os: macos-26 }
           - { platform: macos,   arch: x86_64, os: macos-26 }
           - { platform: android, arch: x86_64, os: ubuntu-latest }
-          - { platform: android, arch: x86_32, os: ubuntu-latest }
           - { platform: android, arch: arm64,  os: ubuntu-latest }
-          - { platform: android, arch: arm32,  os: ubuntu-latest }
           - { platform: ios,     arch: arm64,  os: macos-26 }
           - { platform: web,     arch: wasm32, os: ubuntu-latest }
     runs-on: ${{ matrix.target.os }}

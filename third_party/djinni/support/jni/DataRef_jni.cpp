@@ -14,11 +14,11 @@
   * limitations under the License.
   */
 
-#include "../cpp/DataRef.hpp"
+#include "djinni/support/cpp/DataRef.hpp"
 
 #if DATAREF_JNI
 
-#include "djinni_support.hpp"
+#include "djinni/support/jni/djinni_support.hpp"
 
 #include <cassert>
 #include <variant>

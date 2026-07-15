@@ -8,14 +8,6 @@ prism_require_targets(prism prism_common)
 set(PRISM_BACKEND_TARGETS "")
 set(PRISM_BACKEND_SUMMARY "")
 
-# prism_declare_backend(<name> SOURCE   <file>            relative to
-# source/backends DOC      <text> [DEFAULT AUTO|ON|OFF]      overrides
-# PRISM_BACKEND_DEFAULT [PLATFORM <p>...]          WINDOWS APPLE DARWIN UNIX
-# ANDROID EMSCRIPTEN [ARCH <c>...]              x86 x64 arm64 arm64ec
-# [PKG_CONFIG <mod>...]      pkg-config modules, all required [LANGUAGE OBJCXX]
-# compile as Objective-C++ with ARC [FEATURE <DEFINE>]         published on
-# prism_common when the backend builds [DEFINES <D>...]           extra defines,
-# backend-local
 function(prism_declare_backend NAME)
   cmake_parse_arguments(PB "" "SOURCE;DOC;DEFAULT;LANGUAGE;FEATURE"
                         "PLATFORM;ARCH;PKG_CONFIG;DEFINES" ${ARGN})

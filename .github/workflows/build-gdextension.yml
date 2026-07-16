@@ -22,9 +22,6 @@ jobs:
           extra-conf: |
             substituters = https://cache.nixos.org
             experimental-features = nix-command flakes
-      - name: Configure script permissions
-        run: |
-          chmod -c -R +x tools
       - name: Configure and build
         run: |
           nix develop --ignore-environment --keep HOME ".#devShells.${{ matrix.target.system }}.${{ matrix.target.shell }}" -c ./tools/gdextension-nix.sh "${{ matrix.target.platform }}" "${{ matrix.target.arch }}" "${{ matrix.target-type }}"
@@ -69,9 +66,6 @@ jobs:
         with:
           ndk-version: r29
           local-cache: true
-      - name: Configure script permissions
-        run: |
-          chmod -c -R +x tools
       - name: Configure and build
         shell: bash
         env:

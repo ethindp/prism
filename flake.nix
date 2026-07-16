@@ -2,7 +2,7 @@
 {
   description = "The the Platform-agnostic Reader Interface for Speech and Messages";
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/26.05";
+    nixpkgs.url = "https://channels.nixos.org/nixos-26.05/nixexprs.tar.xz";
     godot-cpp = {
       url = "git+https://github.com/godotengine/godot-cpp?ref=4.5";
       flake = false;

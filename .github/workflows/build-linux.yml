@@ -20,9 +20,6 @@ jobs:
           extra-conf: |
             substituters = https://cache.nixos.org
             experimental-features = nix-command flakes
-      - name: Configure script permissions
-        run: |
-          chmod -c -R +x tools
       - name: Build all configurations
         run: |
           nix develop --ignore-environment --keep HOME ".#devShells.${{ matrix.system }}.winelibs" -c ./tools/build-linux.sh

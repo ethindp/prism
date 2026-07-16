@@ -5,6 +5,16 @@ include(PrismGuards)
 prism_require_targets(prism prism_common)
 prism_require_vars(PRISM_BACKEND_TARGETS)
 
+if(PRISM_ENABLE_LINTING
+   OR CMAKE_C_CLANG_TIDY
+   OR CMAKE_CXX_CLANG_TIDY)
+  if(CMAKE_VERSION VERSION_LESS 3.27)
+    message(
+      FATAL_ERROR
+        "Linting requires CMake 3.27 or newer, but this is version ${CMAKE_VERSION}."
+    )
+  endif()
+endif()
 if(NOT PRISM_ENABLE_LINTING)
   return()
 endif()

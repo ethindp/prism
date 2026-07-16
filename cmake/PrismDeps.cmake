@@ -110,7 +110,7 @@ function(prism_declare_dependency NAME)
       else()
         target_compile_options(${_impl} PRIVATE -w)
       endif()
-      set_property(TARGET ${_impl} PROPERTY SKIP_LINTING ON)
+      set_source_files_properties(${_srcs} PROPERTIES SKIP_LINTING ON)
       set(_cdt "${PRISM_COMPILED_DEP_TARGETS}")
       list(APPEND _cdt "${_impl}")
       set(PRISM_COMPILED_DEP_TARGETS

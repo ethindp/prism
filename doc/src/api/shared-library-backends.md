@@ -1,6 +1,6 @@
 ## Shared Library Backends
 
-This chapter specifies the mechanism through which an application loads custom backends from a shared library at run time, and the obligations each party assumes toward the other. A backend supplied in this way is a custom backend in every respect: every definition, guarantee, and requirement of the chapter on custom backends applies to it unchanged, and this chapter specifies only what is particular to delivery through a shared library.
+This chapter specifies the mechanism through which an application loads custom backends from a shared library at run time. The requirements of custom backends also applies to shared library ones. This chapter only discusses the set of requirements that apply solely to shared library backends and not custom backends.
 
 ### General
 
@@ -8,7 +8,7 @@ A plugin is a shared library that supplies custom backends to Prism at run time.
 
 A backend descriptor is a `PrismPluginBackend` structure. It names one backend and gives its priority, feature set, and vtable.
 
-Loading is the sequence of operations Prism performs in one call to `prism_registry_builder_add_library`. Prism opens the library, resolves the entry point, obtains the descriptors, examines each, and adds a backend for each. This chapter describes that sequence; an implementation need only behave as if it carried the sequence out in this order.
+Loading is the sequence of operations Prism performs in one call to `prism_registry_builder_add_library`. Prism opens the library, resolves the entry point, obtains the descriptors, examines them, and adds a backend for each. This chapter describes that sequence; Prism's internal implementation need only behave as if it executed the sequence in this order.
 
 Prism obtains a plugin's descriptors by calling the entry point with successive indices, beginning at zero. Enumeration stops at the first index for which the entry point returns `NULL`. A plugin MAY supply any number of backends, subject to the limits described under Implementation limits.
 
@@ -29,9 +29,9 @@ Loading is atomic. If any part of it fails, no backend from the library is added
 
 The plugin ABI comprises the layout and semantics of `PrismPluginHost`, of `PrismPluginBackend`, of the plugin entry point, and of every type they refer to. Two members of each structure govern compatibility: `abi_version` and `struct_size`. Both occupy fixed offsets in every generation, so either party can always read them.
 
-The `abi_version` member gives an ABI generation. Prism increments it only for a change that is not backward compatible, such as reordering a member or changing the entry point's signature. Appending a member to the end of a structure does not increment it. The generation this version of Prism implements is `PRISM_PLUGIN_ABI_VERSION`.
+The `abi_version` member gives an ABI generation. Prism increments it only for a change that is not backward compatible, such as reordering a member or changing the entry point's signature. The generation this version of Prism implements is defined by the `PRISM_PLUGIN_ABI_VERSION` macro.
 
-The `struct_size` member gives the size of the structure as the party supplying it defines it. Within one generation, a structure MAY grow by the addition of members at its end. The reader consults at most `struct_size` bytes and treats members beyond that point as absent. This is the scheme `PrismBackendVTable` uses through its own `size` member.
+The `struct_size` member gives the size of the structure as the party supplying it defines it. Within one generation, a structure MAY grow by the addition of members at its end. The reader consults at most `struct_size` bytes and treats members beyond that point as absent.
 
 Compatibility is settled during loading, and either side MAY refuse. A plugin that requires a newer host than the one presented declines by returning `NULL` at index 0, and SHOULD first record its reason through the host descriptor's `log` member. Prism rejects a descriptor whose generation exceeds `PRISM_PLUGIN_ABI_VERSION`, or falls below the oldest generation it accepts.
 
@@ -41,19 +41,19 @@ A plugin declaring a generation Prism accepts MUST have been compiled against a 
 
 Prism gives every backend it registers from a plugin a services object. A services object is a `PrismPluginServices` structure, particular to one backend, through which that backend reaches the facilities Prism offers it.
 
-A backend receives its services object through the instance context passed to its `create` member. A backend supplied by a plugin MUST therefore provide a `create` member. The convention by which a registration's `userdata` serves as the instance pointer directly is not available to it.
+A backend receives its services object through the instance context passed to its `create` member, which is required. The convention by which a registration's `userdata` serves as the instance pointer directly is not available to it.
 
 Every function of a services object takes that object as its first argument. Prism thereby supplies, on the backend's behalf, what it would otherwise require the backend to state. The source a diagnostic is recorded under is such a value.
 
-A services object is valid from the moment its backend is registered until the library has been unloaded. Prism releases it only after unloading completes, so code the library runs while unloading MAY still use it. A backend MAY retain its services object throughout that period.
+A services object is valid from the moment its backend is registered until the library has been unloaded. Prism releases it only after unloading completes, so code the library runs while unloading MAY still use it.
 
-A plugin MUST NOT call the functions Prism exports. It reaches Prism through the host descriptor and through its backends' services objects. A plugin therefore uses only the type and macro definitions of the Prism header, and does not link the library.
+Unlike consumers of Prism, a plugin MUST NOT call the functions Prism exports. Instead, it reaches Prism through the host descriptor and through its backends' services objects. A plugin therefore uses only the type and macro definitions of the Prism header, and does not link the library.
 
 ### Threads and apartments
 
 Prism calls the plugin entry point only on the thread that calls `prism_registry_builder_add_library`, only during that call, and never concurrently. The entry point MUST NOT assume any particular thread, COM apartment, or platform main context. It MUST NOT retain the host descriptor beyond the call.
 
-The `is_supported` member of a plugin's vtable MAY be invoked from Prism's internal availability poll thread, described in the chapter on background availability enumeration. It MAY also be invoked from application threads. The poll thread is not owned by the application. A plugin MUST NOT assume that it has entered any particular COM apartment, that any platform main context is current on it, or that it is the thread on which the instance was created.
+The `is_supported` member of a plugin's vtable MAY be invoked from Prism's internal availability poll thread, described in the chapter on background availability enumeration. It MAY also be invoked from application threads. Since the poll thread is not owned by the application, a plugin MUST NOT assume that it has entered any particular COM apartment, that any platform main context is current on it, or that it is the thread on which the instance was created.
 
 Some plugins wrap a resource with thread affinity, such as a COM object with apartment affinity or a handle bound to an event loop. Such a plugin MUST confine its use of that resource within `is_supported` to the single call, for example by acquiring and releasing it there. An `is_supported` that relies on affinity established on another thread results in undefined behavior.
 
@@ -61,31 +61,27 @@ Every member of the vtable other than `is_supported` is subject to the single-in
 
 ### Library lifetime
 
-Prism opens the library once and shares it among every backend registered from it. The library remains loaded for as long as any registration derived from it remains referenced, as that term is defined in the chapter on custom backends.
+Prism opens the library once and shares it among every backend registered from it. The library remains loaded for as long as any registration derived from it remains referenced.
 
 A descriptor's vtable function pointers reside in the library's image, as does the name string Prism copies during loading. They remain valid for as long as the library remains loaded. Unloading the image while a registration referring to it remains leaves dangling function pointers that Prism may later invoke, and results in undefined behavior.
 
-Whether Prism unloads the library once no registration derived from it remains referenced is unspecified, as is whether the platform honors the request. A plugin MUST NOT assume that unloading happens at any particular moment, and MUST tolerate a platform that does not unload the library at all.
-
-Prism does not free the object a descriptor's `userdata` member designates. A plugin requiring that object to be released at a determined time SHOULD tie the release to the library's own unloading, through whatever mechanism the platform provides.
+Prism does not free the object a descriptor's `userdata` member designates. A plugin requiring that object to be released at a determined time SHOULD tie the release to the library's own unloading, through whatever mechanism the platform provides. Whether the platform provides such a mechanism, or whether the platform ever actually unloads the library, is unspecified.
 
 ### Implementation limits
 
-This chapter describes the model Prism presents to a plugin. It does not oblige Prism to accept every plugin the model admits.
+This chapter describes the model Prism presents to a plugin. It does not oblige Prism to accept every plugin the model allows.
 
-Prism MAY impose limits on what a plugin supplies. The number of descriptors one plugin may offer, and the length of a backend's name, are limits of this kind. A plugin that exceeds a limit is rejected, and loading fails as it does for any other malformed plugin. Exceeding a limit does not result in undefined behavior. Which limits Prism imposes, and whether it imposes any, is unspecified.
-
-Prism MAY refuse to load a library for reasons this chapter does not describe. Code signing requirements, sandbox restrictions, loader policy, and Prism's own security posture are reasons of this kind. A refusal on any such ground is reported as a load failure and is not distinguished from any other.
+Prism MAY impose limits on what a plugin supplies. For example, Prism may constrain the number of descriptors one plugin may offer or the length of a backend's name. A plugin that exceeds a limit is rejected, and loading fails as it does for any other malformed plugin. Exceeding a limit does not result in undefined behavior. Which limits Prism imposes, and whether it imposes any, is unspecified. Similarly, Prism MAY refuse to load a library for reasons this chapter does not describe; for example, Prism may refuse to load a library due to Code signing requirements, sandbox restrictions, loader policy, or Prism's own security posture. A rejection on these grounds is indistinguishable from any other kind of load failure.
 
 Lastly, Prism MAY examine a descriptor more strictly than this chapter requires, and MAY reject one this chapter does not require it to reject. Prism does not accept a descriptor this chapter requires it to reject.
 
 ### Security and deployment
 
-Opening a shared library runs that library's initialization code before Prism reads any descriptor. Static constructors, load notifications, and image initialization routines all run at that point. An application MUST treat `prism_registry_builder_add_library` as equivalent to running code of the library's choosing. An application MUST NOT load a library from a location it does not trust.
+Opening a shared library runs that library's initialization code before Prism reads any descriptor. Initialization code of this kind includes `DLLMain` or static constructors and destructors. Prism does not and will not disallow this code from executing. An application MUST therefore treat `prism_registry_builder_add_library` as equivalent to running code of the library's choosing.
 
-The validation Prism performs on descriptors guards the registry against a malformed plugin. It is not a security boundary. It does not constrain code that has already run.
+#### Note
 
-Loading code at run time is restricted on some platforms and prohibited on others. Application store policies commonly forbid it, and sandboxed environments commonly prevent it. An application SHOULD establish that this mechanism is permitted where it will be deployed before relying on it. An application that cannot rely on it registers its backends directly instead, as described in the chapter on custom backends.
+Loading code at run time is restricted on some platforms and prohibited on others. Application store policies and sandboxed environments are examples of these kinds of restrictions. An application SHOULD establish that this mechanism is permitted where it will be deployed before relying on it. An application that cannot rely on it MUST register its backends directly instead.
 
 ### PrismPluginHost
 
@@ -165,7 +161,7 @@ The backend's priority. Higher values indicate higher priority. This value MUST 
 
 `features`
 
-The feature set the backend declares, formed by ORing `PRISM_BACKEND_*` feature constants together. It MUST be consistent with the vtable in the sense required of any custom backend: a feature constant that designates an operation MUST be declared if and only if the corresponding vtable member is non-null.
+The feature set the backend declares, formed by ORing `PRISM_BACKEND_*` feature constants together. It MUST be consistent with the vtable in the sense required of any custom backend.
 
 `vtable`
 
@@ -264,7 +260,7 @@ The zero-based index of the descriptor Prism requests. Prism begins at zero and 
 
 #### Return Value
 
-Returns a pointer to the backend descriptor at `index` when one exists. Returns `NULL` when `index` is past the last descriptor the plugin supplies, which terminates enumeration. A plugin returns `NULL` at index 0 to supply no backends, whether because it has none to offer or because it declines the presented host.
+Returns a pointer to the backend descriptor at `index` when one exists. Returns `NULL` when `index` is past the last descriptor the plugin supplies, which terminates enumeration.
 
 #### Remarks
 
@@ -272,7 +268,7 @@ The returned descriptor MUST remain valid until the entry point is next called o
 
 A plugin MUST return descriptors for a contiguous range of indices beginning at zero. If the entry point returns `NULL` for one index and a non-null descriptor for a greater index, the enumeration SHALL be incomplete.
 
-A plugin MUST export this function with C language linkage, the `PRISM_CALL` calling convention, and the external visibility the platform requires of a dynamically resolved symbol: `__declspec(dllexport)` or a module-definition file on Windows, and default symbol visibility elsewhere. The entry point is subject to the requirements given under Threads and apartments.
+A plugin MUST export this function with C language linkage, the `PRISM_CALL` calling convention, and the external visibility the platform requires of a dynamically resolved symbol. The entry point is subject to the requirements given under Threads and apartments.
 
 ### prism_registry_builder_add_library
 
@@ -322,13 +318,15 @@ An optional pointer receiving the number of backends added. This parameter MAY b
 
 Loading is atomic. On any error, no backend from the plugin is added, and the library is unloaded before the function returns. On success, one backend is added for each descriptor the plugin supplied, in the order the plugin supplied them, and `out_count`, if provided, receives their number.
 
-The library is opened once and shared among every backend loaded from it. Prism unloads it when the last registration derived from the plugin becomes unreferenced, as defined in the chapter on custom backends.
+The library is opened once and shared among every backend loaded from it. Prism unloads it when the last registration derived from the plugin becomes unreferenced.
 
 The identifiers Prism assigns to the loaded backends are those their names hash to. An application that knows a plugin's backend names can resolve their identifiers from the frozen registry with `prism_registry_id`; an application that does not can enumerate them with `prism_registry_count` and `prism_registry_id_at`.
 
 Opening a shared library executes that library's initialization code before Prism reads any descriptor or performs any validation, as described under Security and deployment.
 
 #### Example
+
+##### Part 1: shared library
 
 The following source, compiled as a shared library, is a minimal plugin that supplies a single backend. The backend takes its services object from the instance context in `create`, records a diagnostic through it, and writes speech requests to standard output.
 
@@ -405,6 +403,8 @@ DEMO_EXPORT const PrismPluginBackend *prism_plugin_query(
     return index == 0 ? &demo_backend : NULL;
 }
 ```
+
+##### Part 2: loading the shared library at run-time
 
 The following loads that plugin and freezes a registry containing it alongside the compiled-in backends.
 

@@ -3,43 +3,17 @@ name: Lint Emscripten
 on:
   workflow_call:
 
-env:
-  CMAKE_COMMON: >-
-    -G Ninja
-    -DPRISM_ENABLE_TESTS=OFF
-    -DPRISM_ENABLE_DEMOS=OFF
-    -DPRISM_ENABLE_LEGACY_BACKENDS=ON
-    -DPRISM_ENABLE_SHIMS=ON
-    -DPRISM_ENABLE_LINTING=ON
-
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
-      - name: Install host tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build wget gnupg
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh all
-      - uses: mymindstorm/setup-emsdk@v16
+      - uses: DeterminateSystems/nix-installer-action@main
         with:
-          version: latest
+          diagnostic-endpoint: ""
+          extra-conf: |
+            substituters = https://cache.nixos.org
+            experimental-features = nix-command flakes
       - name: Lint all configurations
         run: |
-          EM_SYSROOT="${EMSDK}/upstream/emscripten/cache/sysroot"
-          if [ ! -d "${EM_SYSROOT}" ]; then
-            EM_SYSROOT=$(em-config CACHE)/sysroot
-          fi
-          TIDY_FLAGS="/usr/bin/clang-tidy-20;--extra-arg=--sysroot=${EM_SYSROOT};--extra-arg=-stdlib=libc++"
-          for bt in Release Debug; do
-            config=$(echo "$bt" | tr '[:upper:]' '[:lower:]')
-            emcmake cmake -B "build-${config}" ${{ env.CMAKE_COMMON }} \
-              -DCMAKE_BUILD_TYPE="$bt" \
-              -DCMAKE_C_CLANG_TIDY="${TIDY_FLAGS}" \
-              -DCMAKE_CXX_CLANG_TIDY="${TIDY_FLAGS}" \
-              -DPRISM_ENABLE_GDEXTENSION=OFF
-            cmake --build "build-${config}"
-          done
+          nix develop --ignore-environment --keep HOME ".#devShells.x86_64-linux.emscripten-lint" -c ./tools/lint-emscripten.sh

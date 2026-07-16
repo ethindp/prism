@@ -4,16 +4,27 @@ set(GODOT_PROJECT_DIR
     CACHE STRING "The directory of a Godot project folder")
 
 find_package(Python3 3.4 REQUIRED)
-find_program(GIT git REQUIRED)
 
-if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/godot-cpp/src")
-  message(NOTICE "godot-cpp bindings source not found")
-  message(NOTICE "initializing/updating the godot-cpp submodule...")
-  execute_process(
-    COMMAND git submodule update --init godot-cpp
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR} COMMAND_ERROR_IS_FATAL ANY)
+set(PRISM_GODOT_CPP_SOURCE_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/godot-cpp"
+    CACHE PATH "godot-cpp sources; defaults to the in-tree submodule")
+if(NOT EXISTS "${PRISM_GODOT_CPP_SOURCE_DIR}/src")
+  if(PRISM_GODOT_CPP_SOURCE_DIR STREQUAL "${CMAKE_CURRENT_LIST_DIR}/godot-cpp")
+    find_program(GIT git REQUIRED)
+    message(NOTICE "godot-cpp bindings source not found")
+    message(NOTICE "initializing/updating the godot-cpp submodule...")
+    execute_process(
+      COMMAND "${GIT}" submodule update --init godot-cpp
+      WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}" COMMAND_ERROR_IS_FATAL ANY)
+  else()
+    message(
+      FATAL_ERROR
+        "PRISM_GODOT_CPP_SOURCE_DIR='${PRISM_GODOT_CPP_SOURCE_DIR}' contains no src/"
+    )
+  endif()
 endif()
-add_subdirectory(godot-cpp SYSTEM)
+add_subdirectory("${PRISM_GODOT_CPP_SOURCE_DIR}"
+                 "${CMAKE_CURRENT_BINARY_DIR}/godot-cpp" SYSTEM)
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${godot-cpp_SOURCE_DIR}/cmake")
 include(GodotCPPModule)
 get_target_property(GODOTCPP_SUFFIX godot::cpp GODOTCPP_SUFFIX)
@@ -37,7 +48,7 @@ if(APPLE)
   target_link_libraries(${LIBNAME}
                         PRIVATE ${CMAKE_Swift_IMPLICIT_LINK_LIBRARIES})
 endif()
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if(WIN32)
   target_compile_definitions(${LIBNAME} PRIVATE TYPED_METHOD_BIND)
   target_compile_definitions(godot-cpp PUBLIC TYPED_METHOD_BIND)
 endif()

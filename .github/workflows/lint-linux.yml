@@ -37,6 +37,10 @@ jobs:
           sudo meson install -C build
           cd ..
           rm -rf libspiel
+      - name: Install current CMake
+        uses: lukka/get-cmake@v4.3.4
+        with:
+          cmakeVersion: latest
       - name: Lint all configurations
         run: |
           for shared in ON OFF; do

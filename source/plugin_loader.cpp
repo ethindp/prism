@@ -139,18 +139,16 @@ LibraryHandle open_library(std::string_view path) {
 void close_library(LibraryHandle h) { dlclose(h); }
 
 std::string last_library_error() {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   const char *e = dlerror();
   return e != nullptr ? std::string{e} : std::string{"unknown error"};
 }
 
 PrismPluginQueryFn resolve_entry(LibraryHandle h) noexcept {
-  dlerror();
   void *sym = dlsym(h, "prism_plugin_query");
   if (sym == nullptr)
     return nullptr;
-  PrismPluginQueryFn fn = nullptr;
-  std::memcpy(&fn, &sym, sizeof fn);
-  return fn;
+  return reinterpret_cast<PrismPluginQueryFn>(sym);
 }
 #endif
 

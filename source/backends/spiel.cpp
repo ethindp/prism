@@ -10,10 +10,10 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
-#include <concurrentqueue/concurrentqueue.h>
 #include <condition_variable>
 #include <gio/gio.h>
 #include <memory>
+#include <moodycamel/concurrentqueue.h>
 #include <mutex>
 #include <optional>
 #include <simdutf.h>
@@ -530,7 +530,7 @@ public:
     const auto snap = voices_snapshot.load(std::memory_order_acquire);
     if (snap == nullptr || snap->empty())
       return std::unexpected(BackendError::InternalBackendError);
-    const size_t i = voice_idx.load(std::memory_order_acquire);
+    const auto i = voice_idx.load(std::memory_order_acquire);
     if (i >= snap->size())
       return std::unexpected(BackendError::InternalBackendError);
     return i;

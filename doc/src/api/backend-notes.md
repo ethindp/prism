@@ -94,11 +94,11 @@ The Boy PC Reader backend communicates with Boy PC Reader through a client libra
 
 ### SystemAccess
 
-The System Access backend is a legacy backend. In addition to `PRISM_ENABLE_LEGACY_BACKENDS`, source builds that wish to include it MUST set `PRISM_ENABLE_LEGACY_SYSTEM_ACCESS_BACKEND`. No other requirements are imposed.
+The System Access backend is a legacy backend. In addition to `PRISM_ENABLE_LEGACY_BACKENDS`, source builds that wish to include it MUST set `PRISM_ENABLE_SYSTEM_ACCESS_BACKEND`. No other requirements are imposed.
 
 ### WindowEyes
 
-The Window Eyes backend is a legacy backend. In addition to `PRISM_ENABLE_LEGACY_BACKENDS`, source builds that wish to include it MUST set `PRISM_ENABLE_LEGACY_WINDOW_EYES_BACKEND`. The backend communicates with WindowEyes through a COM interface registered by the WindowEyes installer. The host process MUST be running on Windows, and the COM interface MUST be registered on the system; if it is not, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
+The Window Eyes backend is a legacy backend. In addition to `PRISM_ENABLE_LEGACY_BACKENDS`, source builds that wish to include it MUST set `PRISM_ENABLE_WINDOW_EYES_BACKEND`. The backend communicates with WindowEyes through a COM interface registered by the WindowEyes installer. The host process MUST be running on Windows, and the COM interface MUST be registered on the system; if it is not, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
 
 ### Speech Dispatcher
 

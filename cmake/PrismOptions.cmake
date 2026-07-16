@@ -10,6 +10,8 @@ option(
   "Enable shim shared libraries for compatibility with older screen reader libraries"
   OFF)
 option(PRISM_ENABLE_TOLK_SHIM "Enable the Tolk compatibility shim" ON)
+option(PRISM_ENABLE_LEGACY_BACKENDS
+       "Build backends for discontinued screen readers" OFF)
 option(PRISM_ENABLE_POWER_MANAGEMENT
        "Enable OS power-state-aware availability polling where supported" ON)
 option(PRISM_ENABLE_LINTING

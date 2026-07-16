@@ -9,7 +9,7 @@ set(PRISM_BACKEND_TARGETS "")
 set(PRISM_BACKEND_SUMMARY "")
 
 function(prism_declare_backend NAME)
-  cmake_parse_arguments(PB "" "SOURCE;DOC;DEFAULT;LANGUAGE;FEATURE"
+  cmake_parse_arguments(PB "LEGACY" "SOURCE;DOC;DEFAULT;LANGUAGE;FEATURE"
                         "PLATFORM;ARCH;PKG_CONFIG;DEFINES" ${ARGN})
   if(PB_UNPARSED_ARGUMENTS)
     message(
@@ -21,7 +21,7 @@ function(prism_declare_backend NAME)
     message(
       FATAL_ERROR "prism_declare_backend(${NAME}): SOURCE and DOC are required")
   endif()
-  if(NOT PB_DEFAULT)
+  if(NOT DEFINED PB_DEFAULT OR PB_DEFAULT STREQUAL "")
     set(PB_DEFAULT "${PRISM_BACKEND_DEFAULT}")
   endif()
   string(TOUPPER "${NAME}" _UP)
@@ -68,6 +68,19 @@ function(prism_declare_backend NAME)
           PARENT_SCOPE)
       return()
     endif()
+  endif()
+  if(PB_LEGACY AND NOT PRISM_ENABLE_LEGACY_BACKENDS)
+    if(${_opt} STREQUAL "ON")
+      message(
+        FATAL_ERROR
+          "${_opt}=ON but PRISM_ENABLE_LEGACY_BACKENDS is OFF. ${NAME} is a legacy backend."
+      )
+    endif()
+    list(APPEND PRISM_BACKEND_SUMMARY "${NAME}=legacy-off")
+    set(PRISM_BACKEND_SUMMARY
+        "${PRISM_BACKEND_SUMMARY}"
+        PARENT_SCOPE)
+    return()
   endif()
   if(PB_ARCH AND NOT PRISM_ARCH_CLASS IN_LIST PB_ARCH)
     string(REPLACE ";" "/" _a "${PB_ARCH}")
@@ -122,11 +135,11 @@ function(prism_declare_backend NAME)
       ${_tgt} PROPERTIES COMPILE_OPTIONS "-x;objective-c++;-fobjc-arc")
   endif()
   target_sources(prism PRIVATE $<TARGET_OBJECTS:${_tgt}>)
+  if(_libs)
+    target_link_libraries(prism PRIVATE ${_libs})
+  endif()
   if(PB_FEATURE)
     target_compile_definitions(prism_common INTERFACE ${PB_FEATURE})
-    if(_libs)
-      target_link_libraries(prism PRIVATE ${_libs})
-    endif()
   endif()
   message(STATUS "Prism backend ${NAME}: enabled")
   list(APPEND PRISM_BACKEND_TARGETS ${_tgt})
@@ -233,12 +246,11 @@ prism_declare_backend(
   "BoyPCReader")
 prism_declare_backend(
   system_access
+  LEGACY
   SOURCE
   system_access.cpp
   PLATFORM
   WINDOWS
-  DEFAULT
-  OFF
   DOC
   "System Access"
   DEFINES
@@ -246,12 +258,11 @@ prism_declare_backend(
   PRISM_ENABLE_SYSTEM_ACCESS_LEGACY_BACKEND)
 prism_declare_backend(
   window_eyes
+  LEGACY
   SOURCE
   window_eyes.cpp
   PLATFORM
   WINDOWS
-  DEFAULT
-  OFF
   DOC
   "Window-Eyes"
   DEFINES

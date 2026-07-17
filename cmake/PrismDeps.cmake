@@ -171,10 +171,10 @@ prism_declare_dependency(
 prism_declare_dependency(
   concurrentqueue
   PACKAGE
-  unofficial-concurrentqueue
+  concurrentqueue
   HEADER_ONLY
   SYSTEM_TARGETS
-  unofficial::concurrentqueue::concurrentqueue
+  concurrentqueue::concurrentqueue
   BUNDLED_ROOT
   third_party/concurrentqueue
   BUNDLED_INCLUDES

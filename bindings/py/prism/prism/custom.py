@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import threading
 import traceback
 from typing import TYPE_CHECKING, Final
 
 from ._prism_cffi import ffi, lib
+from .common import PrismInvalidParamError
 from .core import AudioCallback, BackendFeatures, _check_error
 
 if TYPE_CHECKING:
@@ -366,6 +368,50 @@ class RegistryBuilder:
         )
         _check_error(err)
         return int(out_id[0])
+
+    def add_library(
+        self,
+        path: str | os.PathLike[str],
+        *,
+        priority_override: int | None = None,
+    ) -> int:
+        if self._frozen or self._ptr == ffi.NULL:
+            msg = "builder is spent"
+            raise RuntimeError(msg)
+        raw_path = os.fspath(path)
+        if not isinstance(raw_path, str):
+            msg = "path must be a str, or an os.PathLike yielding str"
+            raise TypeError(msg)
+        if len(raw_path) == 0:
+            raise PrismInvalidParamError(
+                lib.PRISM_ERROR_INVALID_PARAM,
+                "Path MUST NOT be empty",
+            )
+        if "\x00" in raw_path:
+            raise PrismInvalidParamError(
+                lib.PRISM_ERROR_INVALID_PARAM,
+                "Path MUST NOT contain embedded NULLs",
+            )
+        if priority_override is None:
+            override = -1
+        elif priority_override < 0:
+            msg = (
+                "priority_override MUST be non-negative; "
+                "pass None to honor the priorities the plugin declares"
+            )
+            raise ValueError(msg)
+        else:
+            override = priority_override
+        out_count = ffi.new("size_t*")
+        _check_error(
+            lib.prism_registry_builder_add_library(
+                self._ptr,
+                raw_path.encode("utf-8"),
+                override,
+                out_count,
+            ),
+        )
+        return int(out_count[0])
 
     def freeze(self) -> Registry:
         if self._frozen or self._ptr == ffi.NULL:

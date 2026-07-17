@@ -41,7 +41,7 @@ dev = [
 minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
 cmake.version = ">=3.31.0"
-cmake.define = { PRISM_ENABLE_TESTS = "OFF", PRISM_ENABLE_GDEXTENSION = "OFF", PRISM_ENABLE_LEGACY_BACKENDS = "ON"}
+cmake.define = { PRISM_ENABLE_TESTS = "OFF", PRISM_ENABLE_GDEXTENSION = "OFF", PRISM_ENABLE_LEGACY_BACKENDS = "ON", PRISM_ENABLE_POWER_MANAGEMENT = "ON"}
 cmake.source-dir = "."
 build.verbose = true
 wheel.packages = ["bindings/py/prism/prism"]

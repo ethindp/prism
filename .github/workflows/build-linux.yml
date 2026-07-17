@@ -9,8 +9,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: x64,   os: ubuntu-latest,    system: x86_64-linux }
-          - { name: arm64, os: ubuntu-24.04-arm, system: aarch64-linux }
+          - { name: x64,   os: ubuntu-latest,    system: x86_64-linux,  shell: winelibs, winelibs: "ON" }
+          - { name: arm64, os: ubuntu-24.04-arm, system: aarch64-linux, shell: default,  winelibs: "OFF" }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7.0.0
@@ -21,11 +21,13 @@ jobs:
             substituters = https://cache.nixos.org
             experimental-features = nix-command flakes
       - name: Build all configurations
+        env:
+          PRISM_BUILD_WINELIBS: ${{ matrix.winelibs }}
         run: |
-          nix develop --ignore-environment --keep HOME ".#devShells.${{ matrix.system }}.winelibs" -c ./tools/build-linux.sh
+          nix develop --ignore-environment --keep HOME --keep PRISM_BUILD_WINELIBS ".#devShells.${{ matrix.system }}.${{ matrix.shell }}" -c ./tools/build-linux.sh
       - name: Package
         run: |
-          nix develop --ignore-environment --keep HOME ".#devShells.${{ matrix.system }}.winelibs" -c ./tools/package-linux.sh "${{ matrix.name }}"
+          nix develop --ignore-environment --keep HOME --keep PRISM_BUILD_WINELIBS ".#devShells.${{ matrix.system }}.${{ matrix.shell }}" -c ./tools/package-linux.sh "${{ matrix.name }}"
       - uses: actions/upload-artifact@v7
         with:
           name: linux-${{ matrix.name }}

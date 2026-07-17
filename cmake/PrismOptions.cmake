@@ -71,3 +71,9 @@ if(PRISM_BUILD_WINELIBS
        ))
   message(FATAL_ERROR "PRISM_BUILD_WINELIBS requires a Linux/BSD host build")
 endif()
+if(PRISM_BUILD_WINELIBS
+   AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86)$")
+  message(FATAL_ERROR
+          "PRISM_BUILD_WINELIBS requires an x86 host; winegcc cannot build "
+          "Winelib objects on ${CMAKE_SYSTEM_PROCESSOR}")
+endif()

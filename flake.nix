@@ -120,6 +120,23 @@
           ))
         ];
       wineFor = pkgs: [ pkgs.wine64 ];
+      prismVersion =
+        let
+          lines = builtins.filter builtins.isString (
+            builtins.split "\n" (builtins.readFile ./CMakeLists.txt)
+          );
+          hits = builtins.concatMap (
+            l:
+            let
+              m = builtins.match "[[:space:]]*VERSION[[:space:]]+([0-9]+\\.[0-9]+\\.[0-9]+)[[:space:]]*" l;
+            in
+            if m == null then [ ] else m
+          ) lines;
+        in
+        if hits == [ ] then
+          throw "flake.nix: no 'VERSION x.y.z' line found in CMakeLists.txt"
+        else
+          builtins.head hits;
       mkShell =
         {
           pkgs,
@@ -133,6 +150,7 @@
             + lib.optionalString withWinelibs "-winelibs"
             + lib.optionalString withEmscripten "-emscripten"
             + lib.optionalString withLint "-lint";
+          PRISM_GODOT_CPP_SOURCE_DIR = "${godot-cpp}";
           buildInputs = libsFor pkgs;
           nativeBuildInputs =
             toolsFor pkgs
@@ -144,11 +162,11 @@
             ];
           shellHook = lib.optionalString withEmscripten ''
             
-                        export EM_CACHE="''${EM_CACHE:-$PWD/.em_cache}"
-                        if [ ! -d "$EM_CACHE" ]; then
-                          mkdir -p "$EM_CACHE"
-                          cp -r --no-preserve=mode,ownership ${pkgs.emscripten}/share/emscripten/cache/. "$EM_CACHE" || true
-                        fi
+                                    export EM_CACHE="''${EM_CACHE:-$PWD/.em_cache}"
+                                    if [ ! -d "$EM_CACHE" ]; then
+                                      mkdir -p "$EM_CACHE"
+                                      cp -r --no-preserve=mode,ownership ${pkgs.emscripten}/share/emscripten/cache/. "$EM_CACHE" || true
+                                    fi
           '';
         };
       mkPrism =
@@ -163,7 +181,7 @@
         }:
         pkgs.stdenv.mkDerivation {
           pname = "prism";
-          version = "0.17.3";
+          version = prismVersion;
           src = self;
           buildInputs = libsFor pkgs;
           nativeBuildInputs = toolsFor pkgs ++ lib.optionals withWinelibs (wineFor pkgs);
@@ -200,6 +218,10 @@
             withWinelibs = true;
           };
           lint = mkShell {
+            inherit pkgs;
+            withLint = true;
+          };
+          winelibs-lint = mkShell {
             inherit pkgs;
             withWinelibs = true;
             withLint = true;
@@ -245,6 +267,7 @@
           shell-default = self.devShells.${system}.default;
           shell-winelibs = self.devShells.${system}.winelibs;
           shell-lint = self.devShells.${system}.lint;
+          shell-winelibs-lint = self.devShells.${system}.winelibs-lint;
           shell-emscripten = self.devShells.${system}.emscripten;
           shell-emscripten-lint = self.devShells.${system}.emscripten-lint;
         }

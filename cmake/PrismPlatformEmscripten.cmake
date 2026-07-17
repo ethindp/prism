@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MPL-2.0
+include_guard(GLOBAL)
+include(PrismGuards)
+prism_require_targets(prism prism_common)
+target_compile_options(prism_common INTERFACE -pthread)
+target_link_options(prism_common INTERFACE -pthread)
+target_link_options(prism PRIVATE -pthread)
+foreach(_d IN LISTS PRISM_COMPILED_DEP_TARGETS)
+  target_compile_options(${_d} PRIVATE -pthread)
+  target_link_options(${_d} PRIVATE -pthread)
+endforeach()

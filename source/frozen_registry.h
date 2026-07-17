@@ -76,6 +76,10 @@ public:
                     BackendId *out_id);
   [[nodiscard]] FrozenRegistry *freeze();
   [[nodiscard]] bool spent() const noexcept { return is_spent; }
+  [[nodiscard]] std::size_t count() const noexcept {
+    return registrations.size();
+  }
+  void rollback_to(std::size_t mark) noexcept;
 
 private:
   bool is_spent = false;

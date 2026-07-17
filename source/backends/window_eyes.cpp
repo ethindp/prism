@@ -14,7 +14,7 @@
 #include <bitset>
 #include <ranges>
 #include <raw/wineyes.h>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 

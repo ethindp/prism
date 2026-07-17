@@ -3,7 +3,7 @@
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
-#ifndef NO_LIBSPEECHD
+#ifdef PRISM_HAVE_SPEECHD
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../utils.h"
@@ -20,7 +20,7 @@
 #include <optional>
 #include <ranges>
 #include <shared_mutex>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -417,7 +417,7 @@ REGISTER_BACKEND_WITH_ID(SpeechDispatcherBackend, Backends::SpeechDispatcher,
 #include "../utils.h"
 #include <atomic>
 #include <raw/prism_speech_dispatcher_bridge.h>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <tchar.h>
 #include <windows.h>
 

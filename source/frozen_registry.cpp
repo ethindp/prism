@@ -9,7 +9,7 @@
 #include <unordered_set>
 #endif
 #include <ranges>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 
 FrozenRegistry::FrozenRegistry(std::vector<Registration> registrations)
     : refcount(1) {
@@ -250,6 +250,13 @@ BuilderResult RegistryBuilder::add(std::string name, int priority,
   if (out_id != nullptr)
     *out_id = new_id;
   return BuilderResult::Ok;
+}
+
+void RegistryBuilder::rollback_to(std::size_t mark) noexcept {
+  if (mark < registrations.size())
+    registrations.erase(registrations.begin() +
+                            static_cast<std::ptrdiff_t>(mark),
+                        registrations.end());
 }
 
 FrozenRegistry *RegistryBuilder::freeze() {

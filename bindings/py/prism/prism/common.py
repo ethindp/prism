@@ -129,6 +129,18 @@ class PrismBackendEnteredUndefinedStateError(PrismError, RuntimeError):
     """PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE"""
 
 
+class PrismLibraryLoadFailedError(PrismError, OSError):
+    """PRISM_ERROR_LIBRARY_LOAD_FAILED"""
+
+
+class PrismLibraryInvalidError(PrismError, ImportError):
+    """PRISM_ERROR_LIBRARY_INVALID"""
+
+
+class PrismIncompatibleAbiError(PrismError, RuntimeError):
+    """PRISM_ERROR_INCOMPATIBLE_ABI"""
+
+
 _ERROR_MAP = {
     lib.PRISM_ERROR_NOT_INITIALIZED: PrismNotInitializedError,
     lib.PRISM_ERROR_INVALID_PARAM: PrismInvalidParamError,
@@ -150,6 +162,9 @@ _ERROR_MAP = {
     lib.PRISM_ERROR_INVALID_AUDIO_FORMAT: PrismInvalidAudioFormatError,
     lib.PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED: PrismInternalBackendLimitExceededError,
     lib.PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE: PrismBackendEnteredUndefinedStateError,
+    lib.PRISM_ERROR_LIBRARY_LOAD_FAILED: PrismLibraryLoadFailedError,
+    lib.PRISM_ERROR_LIBRARY_INVALID: PrismLibraryInvalidError,
+    lib.PRISM_ERROR_INCOMPATIBLE_ABI: PrismIncompatibleAbiError,
 }
 
 

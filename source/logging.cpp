@@ -11,7 +11,7 @@
 #include <fmt/format.h>
 #include <memory>
 #include <mutex>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 
 namespace {
 struct FlushSignal {

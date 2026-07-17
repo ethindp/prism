@@ -78,13 +78,14 @@ struct CustomRegistration {
   PrismBackendVTable vtable;
   void *userdata;
   void (*userdata_free)(void *);
+  std::shared_ptr<void> owner;
   std::bitset<64> features;
   std::string name;
   CustomRegistration(const PrismBackendVTable &vtable, void *userdata,
-                     void (*userdata_free)(void *), std::uint64_t features,
-                     std::string name)
+                     void (*userdata_free)(void *), std::shared_ptr<void> owner,
+                     std::uint64_t features, std::string name)
       : vtable(vtable), userdata(userdata), userdata_free(userdata_free),
-        features(features), name(std::move(name)) {}
+        owner(std::move(owner)), features(features), name(std::move(name)) {}
   ~CustomRegistration() {
     if (userdata_free != nullptr)
       userdata_free(userdata);
@@ -349,20 +350,25 @@ public:
   }
 };
 
-BackendFactory make_custom_factory(const PrismBackendVTable *vtable,
-                                   void *userdata,
-                                   void (*userdata_free)(void *),
-                                   std::uint64_t features, std::string name) {
+static BackendFactory make_factory_impl(const PrismBackendVTable *vtable,
+                                        void *userdata,
+                                        void (*userdata_free)(void *),
+                                        std::shared_ptr<void> owner,
+                                        std::uint64_t features,
+                                        std::string name, bool require_create) {
   if (vtable == nullptr || vtable->size == 0)
     return {};
   PrismBackendVTable normalized{};
   std::memcpy(&normalized, vtable,
               std::min(vtable->size, sizeof(PrismBackendVTable)));
   normalized.size = sizeof(PrismBackendVTable);
+  if (require_create && normalized.create == nullptr)
+    return {};
   if (!vtable_consistent(features, normalized))
     return {};
   auto registration = std::make_shared<CustomRegistration>(
-      normalized, userdata, userdata_free, features, std::move(name));
+      normalized, userdata, userdata_free, std::move(owner), features,
+      std::move(name));
   return [registration]() -> std::shared_ptr<TextToSpeechBackend> {
     void *instance = registration->vtable.create != nullptr
                          ? registration->vtable.create(registration->userdata)
@@ -371,4 +377,20 @@ BackendFactory make_custom_factory(const PrismBackendVTable *vtable,
       return nullptr;
     return std::make_shared<CustomBackend>(registration, instance);
   };
+}
+
+BackendFactory make_custom_factory(const PrismBackendVTable *vtable,
+                                   void *userdata,
+                                   void (*userdata_free)(void *),
+                                   std::uint64_t features, std::string name) {
+  return make_factory_impl(vtable, userdata, userdata_free, nullptr, features,
+                           std::move(name), false);
+}
+
+BackendFactory make_plugin_factory(const PrismBackendVTable *vtable,
+                                   void *create_userdata,
+                                   std::shared_ptr<void> owner,
+                                   std::uint64_t features, std::string name) {
+  return make_factory_impl(vtable, create_userdata, nullptr, std::move(owner),
+                           features, std::move(name), true);
 }

@@ -132,6 +132,9 @@ typedef enum PrismError {
   PRISM_ERROR_INVALID_AUDIO_FORMAT,
   PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED,
   PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE,
+  PRISM_ERROR_LIBRARY_LOAD_FAILED,
+  PRISM_ERROR_LIBRARY_INVALID,
+  PRISM_ERROR_INCOMPATIBLE_ABI,
   PRISM_ERROR_COUNT
 } PrismError;
 #ifdef _MSC_VER
@@ -205,6 +208,46 @@ typedef struct PrismLogHandler {
   void *userdata;
 } PrismLogHandler;
 
+typedef struct PrismPluginServices PrismPluginServices;
+typedef struct PrismPluginHost PrismPluginHost;
+
+struct PrismPluginServices {
+  uint32_t struct_size;
+  uint32_t reserved;
+  void(PRISM_CALL *log)(const PrismPluginServices *self, PrismLogLevel level,
+                        const char *message);
+};
+
+typedef struct PrismPluginInstanceContext {
+  uint32_t struct_size;
+  uint32_t reserved;
+  const PrismPluginServices *services;
+  void *userdata;
+} PrismPluginInstanceContext;
+
+typedef struct PrismPluginHost {
+  uint64_t abi_version;
+  uint32_t struct_size;
+  uint32_t reserved;
+  void(PRISM_CALL *log)(const PrismPluginHost *self, PrismLogLevel level,
+                        const char *message);
+} PrismPluginHost;
+
+typedef struct PrismPluginBackend {
+  uint64_t abi_version;
+  uint32_t struct_size;
+  uint32_t reserved;
+  const char *name;
+  int priority;
+  uint64_t features;
+  const PrismBackendVTable *vtable;
+  void *userdata;
+  uint64_t plugin_version;
+} PrismPluginBackend;
+
+typedef const PrismPluginBackend *(PRISM_CALL *PrismPluginQueryFn)(
+    const PrismPluginHost *host, size_t index);
+
 #define PRISM_BACKEND_INVALID UINT64_C(0)
 #define PRISM_BACKEND_SAPI UINT64_C(0x1D6DF72422CEEE66)
 #define PRISM_BACKEND_AV_SPEECH UINT64_C(0x28E3429577805C24)
@@ -227,6 +270,7 @@ typedef struct PrismLogHandler {
 #define PRISM_BACKEND_WINDOW_EYES UINT64_C(0x9120D89908785C13)
 #define PRISM_BACKEND_SPIEL UINT64_C(0x478B44F14AD3D89C)
 #define PRISM_CONFIG_VERSION 3
+#define PRISM_PLUGIN_ABI_VERSION UINT64_C(1)
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -271,6 +315,14 @@ PRISM_STATIC_ASSERT(sizeof(PrismBackendId) == 8,
                     "PrismBackendId must be 64 bits");
 PRISM_STATIC_ASSERT(alignof(PrismBackendId) >= 4, "PrismBackendId alignment");
 PRISM_STATIC_ASSERT(PRISM_OK == 0, "PRISM_OK must be zero");
+PRISM_STATIC_ASSERT(offsetof(PrismPluginBackend, abi_version) == 0,
+                    "PrismPluginBackend.abi_version must be at offset 0");
+PRISM_STATIC_ASSERT(offsetof(PrismPluginBackend, struct_size) == 8,
+                    "PrismPluginBackend.struct_size must be at offset 8");
+PRISM_STATIC_ASSERT(offsetof(PrismPluginHost, abi_version) == 0,
+                    "PrismPluginHost.abi_version must be at offset 0");
+PRISM_STATIC_ASSERT(offsetof(PrismPluginHost, struct_size) == 8,
+                    "PrismPluginHost.struct_size must be at offset 8");
 
 PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void);
 
@@ -434,6 +486,13 @@ PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2, 5)
         PrismRegistryBuilder *builder, const char *name, int priority,
         uint64_t features, const PrismBackendVTable *vtable, void *userdata,
         void(PRISM_CALL *userdata_free)(void *), PrismBackendId *out_id);
+
+PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
+    PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
+    prism_registry_builder_add_library(PrismRegistryBuilder *builder,
+                                       const char *PRISM_RESTRICT path,
+                                       int priority_override,
+                                       size_t *PRISM_RESTRICT out_count);
 
 PRISM_API
 PRISM_NODISCARD PRISM_MALLOC PRISM_NONNULL(1) PrismRegistry *PRISM_CALL

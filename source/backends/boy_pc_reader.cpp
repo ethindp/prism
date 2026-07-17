@@ -17,7 +17,7 @@
 #include <mutex>
 #include <raw/boy_pc_reader.h>
 #include <shared_mutex>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <string_view>
 #include <tchar.h>
 #include <thread>

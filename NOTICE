@@ -8,5 +8,6 @@ This project uses code from other projects. Specifically:
 * Prism uses dr_libs (specifically, dr_wav) by David Reid for PCM sample handling and conversion (among other things) in `prism_backend_speak_to_memory`. Per the software's license, Prism has opted to license the library under the public domain.
 * Prism uses Djinni, and it's associated support library, originally by Dropbox but forked by Snapchat, for JNI communication and interoperability on Android. The support library, under `third_party/djinni`, is licensed under the Apache License, version 2.0. The auto-generated code, under `source/backends/android`, is under Prism's license.
 * Prism uses `concurrentqueue` by Cameron Desrochers. Prism has opted for the simplified BSD license for this library.
+* Prism uses the `{fmt}` library, by Victor Zverovich and `{fmt}` contributors, for string formatting and the like. That code is licensed under the  MIT license.
 
 All licenses may be found under the LICENSES directory.

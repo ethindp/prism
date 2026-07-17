@@ -3,12 +3,12 @@
 #ifdef _WIN32
 #include "../backend.h"
 #include "../backend_catalog.h"
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #ifdef _MSC_VER
 #pragma warning(push, 0)
 #pragma warning(disable : 28182)
 #endif
-#include <concurrentqueue/concurrentqueue.h>
+#include <moodycamel/concurrentqueue.h>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif

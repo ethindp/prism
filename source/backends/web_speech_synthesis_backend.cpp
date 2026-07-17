@@ -7,7 +7,7 @@
 #include <atomic>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
-#include <simdutf/simdutf.h>
+#include <simdutf.h>
 #include <string>
 #include <vector>
 

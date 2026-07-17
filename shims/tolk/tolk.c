@@ -11,7 +11,7 @@
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #endif
-#include <simdutf/simdutf_c.h>
+#include <simdutf_c.h>
 #ifdef _WIN32
 static const PrismBackendId default_tts_backend = PRISM_BACKEND_SAPI;
 #elifdef __APPLE__

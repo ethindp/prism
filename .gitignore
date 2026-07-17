@@ -102,3 +102,4 @@ wheelhouse/
 **/target/
 bindings/dotnet/Prism.Net/staging/version.txt
 .hypothesis
+.em_cache/

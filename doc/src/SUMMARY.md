@@ -15,6 +15,7 @@
 - [Backend Functions](./api/backend-functions.md)
 - [Backend Availability Enumeration](./api/backend-enumeration.md)
 - [Custom Backends](./api/custom-backends.md)
+- [Shared Library Backends](./api/shared-library-backends.md)
 - [Voice Parameters](./api/voice-parameters.md)
 - [Voice Selection](./api/voice-selection.md)
 - [Audio Format](./api/audio-format.md)

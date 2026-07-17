@@ -16,10 +16,10 @@
 // This file has been modified by Snap, Inc.
 //
 
-#include "djinni_support.hpp"
-#include <simdutf/simdutf.h>
-#include "../djinni_common.hpp"
-#include "../proxy_cache_impl.hpp"
+#include "djinni/support/jni/djinni_support.hpp"
+#include <simdutf.h>
+#include "djinni/support/djinni_common.hpp"
+#include "djinni/support/proxy_cache_impl.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>

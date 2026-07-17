@@ -3,7 +3,7 @@
 #pragma once
 #include "prism.h"
 #include <atomic>
-#include <blockingconcurrentqueue.h>
+#include <moodycamel/blockingconcurrentqueue.h>
 #include <cstddef>
 #include <cstdint>
 #include <fmt/format.h>

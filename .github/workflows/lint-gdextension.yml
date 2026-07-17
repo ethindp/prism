@@ -66,7 +66,6 @@ jobs:
         id: setup-ndk
         with:
           ndk-version: r29
-          local-cache: true
       - name: Use NDK clang-tidy on PATH
         if: matrix.target.platform == 'android'
         run: |

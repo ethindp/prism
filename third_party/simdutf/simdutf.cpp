@@ -1,4 +1,4 @@
-/* auto-generated on 2026-06-23 15:54:42 +0200. Do not edit! */
+/* auto-generated on 2026-04-21 17:01:59 -0400. Do not edit! */
 /* begin file src\simdutf.cpp */
 #include "simdutf.h"
 
@@ -14754,12 +14754,12 @@ simdutf_warn_unused size_t count_utf16be(const char16_t *input,
 }
 #endif // SIMDUTF_FEATURE_UTF16
 
-#if SIMDUTF_FEATURE_UTF8
+#if SIMDUTF_FEATURE_UTF8 && SIMDUTF_FEATURE_LATIN1
 simdutf_warn_unused size_t count_utf8(const char *input,
                                       size_t length) noexcept {
   return get_default_implementation()->count_utf8(input, length);
 }
-#endif // SIMDUTF_FEATURE_UTF8
+#endif // SIMDUTF_FEATURE_UTF8 && SIMDUTF_FEATURE_LATIN1
 
 #if SIMDUTF_FEATURE_UTF8 && SIMDUTF_FEATURE_LATIN1
 simdutf_warn_unused size_t latin1_length_from_utf8(const char *buf,
@@ -19462,10 +19462,10 @@ struct utf8_checker {
       static_assert((simd8x64<uint8_t>::NUM_CHUNKS == 2) ||
                         (simd8x64<uint8_t>::NUM_CHUNKS == 4),
                     "We support either two or four chunks per 64-byte block.");
-      if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+      if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-      } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+      } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -20208,10 +20208,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -20295,10 +20295,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -20512,8 +20512,8 @@ simdutf_really_inline size_t count_code_points(const char *in, size_t size) {
 }
 
 #ifdef SIMDUTF_SIMD_HAS_BYTEMASK
-simdutf_unused simdutf_really_inline size_t
-count_code_points_bytemask(const char *in, size_t size) {
+simdutf_really_inline size_t count_code_points_bytemask(const char *in,
+                                                        size_t size) {
   using vector_i8 = simd8<int8_t>;
   using vector_u8 = simd8<uint8_t>;
   using vector_u64 = simd64<uint64_t>;
@@ -20736,10 +20736,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -20825,10 +20825,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -21031,9 +21031,6 @@ simdutf_warn_unused size_t binary_length_from_base64(const char16_t *input,
     uint64_t maybe_base64 = block.gteq(33); // >= 33 which is '!' in ASCII
     count += count_ones(maybe_base64);
   }
-  // simd16x32::to_bitmask sets two bits per matching 16-bit lane, so the
-  // vectorized loop counted each unit twice.
-  count /= 2;
   while (pos < length) {
     count += (input[pos] > 0x20) ? 1 : 0;
     pos++;
@@ -22883,22 +22880,12 @@ size_t implementation::binary_to_base64_with_lines(
 
 const char *implementation::find(const char *start, const char *end,
                                  char character) const noexcept {
-  for (; start < end; ++start) {
-    if (*start == character) {
-      return start;
-    }
-  }
-  return end;
+  return std::find(start, end, character);
 }
 
 const char16_t *implementation::find(const char16_t *start, const char16_t *end,
                                      char16_t character) const noexcept {
-  for (; start < end; ++start) {
-    if (*start == character) {
-      return start;
-    }
-  }
-  return end;
+  return std::find(start, end, character);
 }
 #endif // SIMDUTF_FEATURE_BASE64
 
@@ -24766,7 +24753,7 @@ size_t icelake_convert_utf16_to_latin1(const char16_t *buf, size_t len,
     buf += 32;
   }
   if (buf < end) {
-    uint32_t mask((1U << (end - buf)) - 1);
+    uint32_t mask(uint32_t(1 << (end - buf)) - 1);
     __m512i in = _mm512_maskz_loadu_epi16(mask, buf);
     if (big_endian) {
       in = _mm512_shuffle_epi8(in, byteflip);
@@ -24818,7 +24805,7 @@ icelake_convert_utf16_to_latin1_with_errors(const char16_t *buf, size_t len,
     buf += 32;
   }
   if (buf < end) {
-    uint32_t mask((1U << (end - buf)) - 1);
+    uint32_t mask(uint32_t(1 << (end - buf)) - 1);
     __m512i in = _mm512_maskz_loadu_epi16(mask, buf);
     if (big_endian) {
       in = _mm512_shuffle_epi8(in, byteflip);
@@ -26769,7 +26756,7 @@ size_t icelake_convert_latin1_to_utf16(const char *latin1_input, size_t len,
     _mm512_storeu_si512((__m512i *)&utf16_output[i], out);
   }
   if (rounded_len != len) {
-    uint32_t mask = (1U << (len - rounded_len)) - 1;
+    uint32_t mask = uint32_t(1 << (len - rounded_len)) - 1;
     __m256i in = _mm256_maskz_loadu_epi8(mask, latin1_input + rounded_len);
 
     // Zero extend each set of 8 Latin1 characters to 32 16-bit integers
@@ -27272,10 +27259,8 @@ compress_decode_base64(char *dst, const chartype *src, size_t srclen,
           last_chunk_options == last_chunk_handling_options::strict &&
           (idx >= 2) && ((idx + padding_characters) & 3) != 0) {
         // The partial chunk was at src - idx
-        if (output_len > 0) {
-          _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
-          dst += output_len;
-        }
+        _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
+        dst += output_len;
         return {BASE64_INPUT_REMAINDER, equallocation, size_t(dst - dstinit),
                 true};
       } else
@@ -27289,10 +27274,8 @@ compress_decode_base64(char *dst, const chartype *src, size_t srclen,
             (last_chunk_options ==
                  last_chunk_handling_options::only_full_chunks &&
              (idx >= 2 || padding_characters == 0))) {
-          if (output_len > 0) {
-            _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
-            dst += output_len;
-          }
+          _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
+          dst += output_len;
           // we need to rewind src to before the partial chunk
           size_t characters_to_skip = idx;
           while (characters_to_skip > 0) {
@@ -27321,11 +27304,8 @@ compress_decode_base64(char *dst, const chartype *src, size_t srclen,
               uint32_t triple = (uint32_t(bufferptr[-2]) << 3 * 6) +
                                 (uint32_t(bufferptr[-1]) << 2 * 6);
               if (triple & 0xffff) {
-                if (output_len > 0) {
-                  _mm512_mask_storeu_epi8((__m512i *)dst, output_mask,
-                                          shuffled);
-                  dst += output_len;
-                }
+                _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
+                dst += output_len;
                 return {BASE64_EXTRA_BITS, size_t(src - srcinit),
                         size_t(dst - dstinit)};
               }
@@ -27341,11 +27321,8 @@ compress_decode_base64(char *dst, const chartype *src, size_t srclen,
                                 (uint32_t(bufferptr[-2]) << 2 * 6) +
                                 (uint32_t(bufferptr[-1]) << 1 * 6);
               if (triple & 0xff) {
-                if (output_len > 0) {
-                  _mm512_mask_storeu_epi8((__m512i *)dst, output_mask,
-                                          shuffled);
-                  dst += output_len;
-                }
+                _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
+                dst += output_len;
                 return {BASE64_EXTRA_BITS, size_t(src - srcinit),
                         size_t(dst - dstinit)};
               }
@@ -27358,24 +27335,18 @@ compress_decode_base64(char *dst, const chartype *src, size_t srclen,
                      (!is_partial(last_chunk_options) ||
                       (is_partial(last_chunk_options) &&
                        padding_characters > 0))) {
-            if (output_len > 0) {
-              _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
-              dst += output_len;
-            }
+            _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
+            dst += output_len;
             return {BASE64_INPUT_REMAINDER, size_t(src - srcinit),
                     size_t(dst - dstinit)};
           } else if (!ignore_garbage && idx == 0 && padding_characters > 0) {
-            if (output_len > 0) {
-              _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
-              dst += output_len;
-            }
+            _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
+            dst += output_len;
             return {INVALID_BASE64_CHARACTER, equallocation,
                     size_t(dst - dstinit), true};
           } else {
-            if (output_len > 0) {
-              _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
-              dst += output_len;
-            }
+            _mm512_mask_storeu_epi8((__m512i *)dst, output_mask, shuffled);
+            dst += output_len;
           }
         }
     if (!ignore_garbage && !is_partial(last_chunk_options) &&
@@ -33282,10 +33253,10 @@ struct utf8_checker {
       static_assert((simd8x64<uint8_t>::NUM_CHUNKS == 2) ||
                         (simd8x64<uint8_t>::NUM_CHUNKS == 4),
                     "We support either two or four chunks per 64-byte block.");
-      if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+      if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-      } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+      } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -34129,10 +34100,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -34216,10 +34187,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -34451,8 +34422,8 @@ simdutf_really_inline size_t count_code_points(const char *in, size_t size) {
 }
 
 #ifdef SIMDUTF_SIMD_HAS_BYTEMASK
-simdutf_unused simdutf_really_inline size_t
-count_code_points_bytemask(const char *in, size_t size) {
+simdutf_really_inline size_t count_code_points_bytemask(const char *in,
+                                                        size_t size) {
   using vector_i8 = simd8<int8_t>;
   using vector_u8 = simd8<uint8_t>;
   using vector_u64 = simd64<uint64_t>;
@@ -35123,10 +35094,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -35212,10 +35183,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -35732,8 +35703,8 @@ simdutf_really_inline const char *find(const char *start, const char *end,
   uintptr_t misalignment = reinterpret_cast<uintptr_t>(start) % 64;
   if (misalignment != 0) {
     size_t adjustment = 64 - misalignment;
-    if (size_t(end - start) < adjustment) {
-      adjustment = end - start;
+    if (size_t(std::distance(start, end)) < adjustment) {
+      adjustment = std::distance(start, end);
     }
     for (size_t i = 0; i < adjustment; i++) {
       if (start[i] == character) {
@@ -35744,7 +35715,7 @@ simdutf_really_inline const char *find(const char *start, const char *end,
   }
 
   // Main loop for 64-byte aligned data
-  for (; size_t(end - start) >= 64; start += 64) {
+  for (; std::distance(start, end) >= 64; start += 64) {
     simd8x64<uint8_t> input(reinterpret_cast<const uint8_t *>(start));
     uint64_t matches = input.eq(uint8_t(character));
     if (matches != 0) {
@@ -35753,13 +35724,7 @@ simdutf_really_inline const char *find(const char *start, const char *end,
       return start + index;
     }
   }
-  // Handle remaining bytes with scalar loop
-  for (; start < end; ++start) {
-    if (*start == character) {
-      return start;
-    }
-  }
-  return end;
+  return std::find(start, end, character);
 }
 
 simdutf_really_inline const char16_t *
@@ -35771,8 +35736,8 @@ find(const char16_t *start, const char16_t *end, char16_t character) noexcept {
   uintptr_t misalignment = reinterpret_cast<uintptr_t>(start) % 64;
   if (misalignment != 0 && misalignment % 2 == 0) {
     size_t adjustment = (64 - misalignment) / sizeof(char16_t);
-    if (size_t(end - start) < adjustment) {
-      adjustment = end - start;
+    if (size_t(std::distance(start, end)) < adjustment) {
+      adjustment = std::distance(start, end);
     }
     for (size_t i = 0; i < adjustment; i++) {
       if (start[i] == character) {
@@ -35783,7 +35748,7 @@ find(const char16_t *start, const char16_t *end, char16_t character) noexcept {
   }
 
   // Main loop for 64-byte aligned data
-  for (; size_t(end - start) >= 32; start += 32) {
+  for (; std::distance(start, end) >= 32; start += 32) {
     simd16x32<uint16_t> input(reinterpret_cast<const uint16_t *>(start));
     uint64_t matches = input.eq(uint16_t(character));
     if (matches != 0) {
@@ -35792,13 +35757,7 @@ find(const char16_t *start, const char16_t *end, char16_t character) noexcept {
       return start + index;
     }
   }
-  // Handle remaining elements with scalar loop
-  for (; start < end; ++start) {
-    if (*start == character) {
-      return start;
-    }
-  }
-  return end;
+  return std::find(start, end, character);
 }
 
 } // namespace util
@@ -40473,10 +40432,10 @@ struct utf8_checker {
       static_assert((simd8x64<uint8_t>::NUM_CHUNKS == 2) ||
                         (simd8x64<uint8_t>::NUM_CHUNKS == 4),
                     "We support either two or four chunks per 64-byte block.");
-      if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+      if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-      } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+      } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -41164,10 +41123,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -41251,10 +41210,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -41391,8 +41350,8 @@ simdutf_really_inline size_t count_code_points(const char *in, size_t size) {
 }
 
 #ifdef SIMDUTF_SIMD_HAS_BYTEMASK
-simdutf_unused simdutf_really_inline size_t
-count_code_points_bytemask(const char *in, size_t size) {
+simdutf_really_inline size_t count_code_points_bytemask(const char *in,
+                                                        size_t size) {
   using vector_i8 = simd8<int8_t>;
   using vector_u8 = simd8<uint8_t>;
   using vector_u64 = simd64<uint64_t>;
@@ -42156,10 +42115,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -42245,10 +42204,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -42661,8 +42620,8 @@ simdutf_really_inline const char *find(const char *start, const char *end,
   uintptr_t misalignment = reinterpret_cast<uintptr_t>(start) % 64;
   if (misalignment != 0) {
     size_t adjustment = 64 - misalignment;
-    if (size_t(end - start) < adjustment) {
-      adjustment = end - start;
+    if (size_t(std::distance(start, end)) < adjustment) {
+      adjustment = std::distance(start, end);
     }
     for (size_t i = 0; i < adjustment; i++) {
       if (start[i] == character) {
@@ -42673,7 +42632,7 @@ simdutf_really_inline const char *find(const char *start, const char *end,
   }
 
   // Main loop for 64-byte aligned data
-  for (; size_t(end - start) >= 64; start += 64) {
+  for (; std::distance(start, end) >= 64; start += 64) {
     simd8x64<uint8_t> input(reinterpret_cast<const uint8_t *>(start));
     uint64_t matches = input.eq(uint8_t(character));
     if (matches != 0) {
@@ -42682,13 +42641,7 @@ simdutf_really_inline const char *find(const char *start, const char *end,
       return start + index;
     }
   }
-  // Handle remaining bytes with scalar loop
-  for (; start < end; ++start) {
-    if (*start == character) {
-      return start;
-    }
-  }
-  return end;
+  return std::find(start, end, character);
 }
 
 simdutf_really_inline const char16_t *
@@ -42700,8 +42653,8 @@ find(const char16_t *start, const char16_t *end, char16_t character) noexcept {
   uintptr_t misalignment = reinterpret_cast<uintptr_t>(start) % 64;
   if (misalignment != 0 && misalignment % 2 == 0) {
     size_t adjustment = (64 - misalignment) / sizeof(char16_t);
-    if (size_t(end - start) < adjustment) {
-      adjustment = end - start;
+    if (size_t(std::distance(start, end)) < adjustment) {
+      adjustment = std::distance(start, end);
     }
     for (size_t i = 0; i < adjustment; i++) {
       if (start[i] == character) {
@@ -42712,7 +42665,7 @@ find(const char16_t *start, const char16_t *end, char16_t character) noexcept {
   }
 
   // Main loop for 64-byte aligned data
-  for (; size_t(end - start) >= 32; start += 32) {
+  for (; std::distance(start, end) >= 32; start += 32) {
     simd16x32<uint16_t> input(reinterpret_cast<const uint16_t *>(start));
     uint64_t matches = input.eq(uint16_t(character));
     if (matches != 0) {
@@ -42721,13 +42674,7 @@ find(const char16_t *start, const char16_t *end, char16_t character) noexcept {
       return start + index;
     }
   }
-  // Handle remaining elements with scalar loop
-  for (; start < end; ++start) {
-    if (*start == character) {
-      return start;
-    }
-  }
-  return end;
+  return std::find(start, end, character);
 }
 
 } // namespace util
@@ -49078,10 +49025,10 @@ struct utf8_checker {
       static_assert((simd8x64<uint8_t>::NUM_CHUNKS == 2) ||
                         (simd8x64<uint8_t>::NUM_CHUNKS == 4),
                     "We support either two or four chunks per 64-byte block.");
-      if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+      if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-      } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+      } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -49923,10 +49870,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -50010,10 +49957,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -50244,8 +50191,8 @@ simdutf_really_inline size_t count_code_points(const char *in, size_t size) {
 }
 
 #ifdef SIMDUTF_SIMD_HAS_BYTEMASK
-simdutf_unused simdutf_really_inline size_t
-count_code_points_bytemask(const char *in, size_t size) {
+simdutf_really_inline size_t count_code_points_bytemask(const char *in,
+                                                        size_t size) {
   using vector_i8 = simd8<int8_t>;
   using vector_u8 = simd8<uint8_t>;
   using vector_u64 = simd64<uint64_t>;
@@ -50913,10 +50860,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -51002,10 +50949,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -51522,8 +51469,8 @@ simdutf_really_inline const char *find(const char *start, const char *end,
   uintptr_t misalignment = reinterpret_cast<uintptr_t>(start) % 64;
   if (misalignment != 0) {
     size_t adjustment = 64 - misalignment;
-    if (size_t(end - start) < adjustment) {
-      adjustment = end - start;
+    if (size_t(std::distance(start, end)) < adjustment) {
+      adjustment = std::distance(start, end);
     }
     for (size_t i = 0; i < adjustment; i++) {
       if (start[i] == character) {
@@ -51534,7 +51481,7 @@ simdutf_really_inline const char *find(const char *start, const char *end,
   }
 
   // Main loop for 64-byte aligned data
-  for (; size_t(end - start) >= 64; start += 64) {
+  for (; std::distance(start, end) >= 64; start += 64) {
     simd8x64<uint8_t> input(reinterpret_cast<const uint8_t *>(start));
     uint64_t matches = input.eq(uint8_t(character));
     if (matches != 0) {
@@ -51543,13 +51490,7 @@ simdutf_really_inline const char *find(const char *start, const char *end,
       return start + index;
     }
   }
-  // Handle remaining bytes with scalar loop
-  for (; start < end; ++start) {
-    if (*start == character) {
-      return start;
-    }
-  }
-  return end;
+  return std::find(start, end, character);
 }
 
 simdutf_really_inline const char16_t *
@@ -51561,8 +51502,8 @@ find(const char16_t *start, const char16_t *end, char16_t character) noexcept {
   uintptr_t misalignment = reinterpret_cast<uintptr_t>(start) % 64;
   if (misalignment != 0 && misalignment % 2 == 0) {
     size_t adjustment = (64 - misalignment) / sizeof(char16_t);
-    if (size_t(end - start) < adjustment) {
-      adjustment = end - start;
+    if (size_t(std::distance(start, end)) < adjustment) {
+      adjustment = std::distance(start, end);
     }
     for (size_t i = 0; i < adjustment; i++) {
       if (start[i] == character) {
@@ -51573,7 +51514,7 @@ find(const char16_t *start, const char16_t *end, char16_t character) noexcept {
   }
 
   // Main loop for 64-byte aligned data
-  for (; size_t(end - start) >= 32; start += 32) {
+  for (; std::distance(start, end) >= 32; start += 32) {
     simd16x32<uint16_t> input(reinterpret_cast<const uint16_t *>(start));
     uint64_t matches = input.eq(uint16_t(character));
     if (matches != 0) {
@@ -51582,13 +51523,7 @@ find(const char16_t *start, const char16_t *end, char16_t character) noexcept {
       return start + index;
     }
   }
-  // Handle remaining elements with scalar loop
-  for (; start < end; ++start) {
-    if (*start == character) {
-      return start;
-    }
-  }
-  return end;
+  return std::find(start, end, character);
 }
 
 } // namespace util
@@ -51638,9 +51573,6 @@ simdutf_warn_unused size_t binary_length_from_base64(const char16_t *input,
     uint64_t maybe_base64 = block.gteq(33); // >= 33 which is '!' in ASCII
     count += count_ones(maybe_base64);
   }
-  // simd16x32::to_bitmask sets two bits per matching 16-bit lane, so the
-  // vectorized loop counted each unit twice.
-  count /= 2;
   while (pos < length) {
     count += (input[pos] > 0x20) ? 1 : 0;
     pos++;
@@ -56776,10 +56708,10 @@ struct utf8_checker {
       static_assert((simd8x64<uint8_t>::NUM_CHUNKS == 2) ||
                         (simd8x64<uint8_t>::NUM_CHUNKS == 4),
                     "We support either two or four chunks per 64-byte block.");
-      if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+      if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-      } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+      } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -57096,10 +57028,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -57185,10 +57117,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -58022,10 +57954,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -58109,10 +58041,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -58205,8 +58137,8 @@ simdutf_really_inline size_t count_code_points(const char *in, size_t size) {
 }
 
 #ifdef SIMDUTF_SIMD_HAS_BYTEMASK
-simdutf_unused simdutf_really_inline size_t
-count_code_points_bytemask(const char *in, size_t size) {
+simdutf_really_inline size_t count_code_points_bytemask(const char *in,
+                                                        size_t size) {
   using vector_i8 = simd8<int8_t>;
   using vector_u8 = simd8<uint8_t>;
   using vector_u64 = simd64<uint64_t>;
@@ -59035,9 +58967,6 @@ simdutf_warn_unused size_t binary_length_from_base64(const char16_t *input,
     uint64_t maybe_base64 = block.gteq(33); // >= 33 which is '!' in ASCII
     count += count_ones(maybe_base64);
   }
-  // simd16x32::to_bitmask sets two bits per matching 16-bit lane, so the
-  // vectorized loop counted each unit twice.
-  count /= 2;
   while (pos < length) {
     count += (input[pos] > 0x20) ? 1 : 0;
     pos++;
@@ -63726,10 +63655,10 @@ struct utf8_checker {
       static_assert((simd8x64<uint8_t>::NUM_CHUNKS == 2) ||
                         (simd8x64<uint8_t>::NUM_CHUNKS == 4),
                     "We support either two or four chunks per 64-byte block.");
-      if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+      if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-      } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+      } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
         this->check_utf8_bytes(input.chunks[0], this->prev_input_block);
         this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
         this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -64046,10 +63975,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -64135,10 +64064,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -64974,10 +64903,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -65061,10 +64990,10 @@ struct validating_transcoder {
                 (simd8x64<uint8_t>::NUM_CHUNKS == 4),
             "We support either two or four chunks per 64-byte block.");
         auto zero = simd8<uint8_t>{uint8_t(0)};
-        if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
+        if (simd8x64<uint8_t>::NUM_CHUNKS == 2) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-        } else if constexpr (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
+        } else if (simd8x64<uint8_t>::NUM_CHUNKS == 4) {
           this->check_utf8_bytes(input.chunks[0], zero);
           this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
           this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
@@ -65157,8 +65086,8 @@ simdutf_really_inline size_t count_code_points(const char *in, size_t size) {
 }
 
 #ifdef SIMDUTF_SIMD_HAS_BYTEMASK
-simdutf_unused simdutf_really_inline size_t
-count_code_points_bytemask(const char *in, size_t size) {
+simdutf_really_inline size_t count_code_points_bytemask(const char *in,
+                                                        size_t size) {
   using vector_i8 = simd8<int8_t>;
   using vector_u8 = simd8<uint8_t>;
   using vector_u64 = simd64<uint64_t>;
@@ -65987,9 +65916,6 @@ simdutf_warn_unused size_t binary_length_from_base64(const char16_t *input,
     uint64_t maybe_base64 = block.gteq(33); // >= 33 which is '!' in ASCII
     count += count_ones(maybe_base64);
   }
-  // simd16x32::to_bitmask sets two bits per matching 16-bit lane, so the
-  // vectorized loop counted each unit twice.
-  count /= 2;
   while (pos < length) {
     count += (input[pos] > 0x20) ? 1 : 0;
     pos++;

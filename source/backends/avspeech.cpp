@@ -69,6 +69,9 @@ struct VoiceInfo {
 class AVSpeechBackend final : public TextToSpeechBackend {
 private:
   AVSpeechSynthesizer *synthesizer{nullptr};
+  // Reused across speak_to_memory calls: a per-utterance synthesizer's
+  // teardown races its queued TextToSpeech callbacks and crashes under load.
+  AVSpeechSynthesizer *memory_synthesizer{nullptr};
   std::atomic_flag initialized;
   std::atomic<float> volume{0.5F};
   std::atomic<float> pitch{0.5F};
@@ -115,6 +118,10 @@ public:
         if (synthesizer != nullptr) {
           [synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
           synthesizer = nil;
+        }
+        if (memory_synthesizer != nullptr) {
+          [memory_synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
+          memory_synthesizer = nil;
         }
       });
     }
@@ -281,9 +288,12 @@ public:
           target_voice_id = voices[v_idx].identifier;
       }
       auto *acc = [[AVSpeechMemoryAccumulator alloc] init];
-      __block AVSpeechSynthesizer *mem_synth = nil;
       sync_on_main(^{
-        mem_synth = [[AVSpeechSynthesizer alloc] init];
+        if (memory_synthesizer == nullptr) {
+          memory_synthesizer = [[AVSpeechSynthesizer alloc] init];
+        } else if (memory_synthesizer.isSpeaking) {
+          [memory_synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
+        }
         AVSpeechUtterance *utterance =
             [AVSpeechUtterance speechUtteranceWithString:ns_text];
         utterance.volume = current_vol;
@@ -302,19 +312,20 @@ public:
               utterance.voice = v;
           }
         }
-        [mem_synth writeUtterance:utterance
-                 toBufferCallback:^(AVAudioBuffer *_Nonnull buffer) {
-                   if ([buffer isKindOfClass:[AVAudioPCMBuffer class]] == NO)
-                     return;
-                   auto *pcm = (AVAudioPCMBuffer *)buffer;
-                   if (pcm.frameLength == 0) {
-                     dispatch_semaphore_signal(acc.done_sema);
-                     return;
-                   }
-                   if (acc.captured_format == nullptr)
-                     acc.captured_format = pcm.format;
-                   [acc.buffers addObject:pcm];
-                 }];
+        [memory_synthesizer
+              writeUtterance:utterance
+            toBufferCallback:^(AVAudioBuffer *_Nonnull buffer) {
+              if ([buffer isKindOfClass:[AVAudioPCMBuffer class]] == NO)
+                return;
+              auto *pcm = (AVAudioPCMBuffer *)buffer;
+              if (pcm.frameLength == 0) {
+                dispatch_semaphore_signal(acc.done_sema);
+                return;
+              }
+              if (acc.captured_format == nullptr)
+                acc.captured_format = pcm.format;
+              [acc.buffers addObject:pcm];
+            }];
       });
       wait_for_semaphore_pumping_main(acc.done_sema, 60.0 * 5.0);
       if (acc.buffers.count == 0 || acc.captured_format == nil)

@@ -289,7 +289,7 @@ public:
       sync_on_main(^{
         if (memory_synthesizer == nullptr) {
           memory_synthesizer = [[AVSpeechSynthesizer alloc] init];
-        } else if (memory_synthesizer.isSpeaking) {
+        } else if (memory_synthesizer.isSpeaking == YES) {
           [memory_synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
         }
         auto *mem_synth = memory_synthesizer;

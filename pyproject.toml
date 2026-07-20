@@ -26,6 +26,7 @@ build-backend = "scikit_build_core.build"
 
 [dependency-groups]
 dev = [
+    "moonshine-voice>=0.0.69",
     "numpy>=2.2.6",
     "packaging>=26.0",
     "piper-tts>=1.4.2",

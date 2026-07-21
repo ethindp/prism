@@ -69,6 +69,7 @@ struct VoiceInfo {
 class AVSpeechBackend final : public TextToSpeechBackend {
 private:
   AVSpeechSynthesizer *synthesizer{nullptr};
+  AVSpeechSynthesizer *memory_synthesizer{nullptr};
   std::atomic_flag initialized;
   std::atomic<float> volume{0.5F};
   std::atomic<float> pitch{0.5F};
@@ -115,6 +116,10 @@ public:
         if (synthesizer != nullptr) {
           [synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
           synthesizer = nil;
+        }
+        if (memory_synthesizer != nullptr) {
+          [memory_synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
+          memory_synthesizer = nil;
         }
       });
     }
@@ -281,9 +286,13 @@ public:
           target_voice_id = voices[v_idx].identifier;
       }
       auto *acc = [[AVSpeechMemoryAccumulator alloc] init];
-      __block AVSpeechSynthesizer *mem_synth = nil;
       sync_on_main(^{
-        mem_synth = [[AVSpeechSynthesizer alloc] init];
+        if (memory_synthesizer == nullptr) {
+          memory_synthesizer = [[AVSpeechSynthesizer alloc] init];
+        } else if (memory_synthesizer.isSpeaking == YES) {
+          [memory_synthesizer stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
+        }
+        auto *mem_synth = memory_synthesizer;
         AVSpeechUtterance *utterance =
             [AVSpeechUtterance speechUtteranceWithString:ns_text];
         utterance.volume = current_vol;

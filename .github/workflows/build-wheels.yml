@@ -38,9 +38,9 @@ jobs:
             archs: arm64_v8a
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.3.4
+        uses: lukka/get-cmake@v4.4.0
         with:
           cmakeVersion: latest
       - name: Build wheels

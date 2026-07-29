@@ -15,7 +15,7 @@ jobs:
           - { platform: web,   arch: wasm32, os: ubuntu-latest,    system: x86_64-linux,  shell: emscripten-lint }
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
       - uses: DeterminateSystems/nix-installer-action@main
         with:
           diagnostic-endpoint: ""
@@ -42,7 +42,7 @@ jobs:
           - { platform: ios,     arch: arm64,  os: macos-26 }
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           submodules: true
       - name: install ninja-build

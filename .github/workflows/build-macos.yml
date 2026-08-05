@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.4.0
+        uses: lukka/get-cmake@v4.4.1
         with:
           cmakeVersion: latest
       - name: Build all configurations

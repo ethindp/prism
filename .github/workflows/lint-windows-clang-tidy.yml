@@ -18,7 +18,7 @@ jobs:
         with:
           arch: ${{ matrix.msvc_arch }}
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.4.0
+        uses: lukka/get-cmake@v4.4.1
         with:
           cmakeVersion: latest
       - name: Set up LLVM toolchain if needed

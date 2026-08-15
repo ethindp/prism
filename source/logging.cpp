@@ -77,8 +77,8 @@ void Logger::deliver(Record &record, const Handler *pair) noexcept {
     {
       std::scoped_lock lock(signal->m);
       signal->done = true;
+      signal->cv.notify_all();
     }
-    signal->cv.notify_all();
     return;
   }
   if (pair != nullptr && pair->fn != nullptr)

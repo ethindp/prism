@@ -4,6 +4,7 @@
 #ifndef PRISM_H
 #define PRISM_H
 
+#include <prism_version.h>
 #include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>

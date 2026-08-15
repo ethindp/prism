@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: MPL-2.0
+//
+// GENERATED FILE - DO NOT EDIT.
+// Produced by CMake from include/prism_version.h.in.
+
+#ifndef PRISM_VERSION_H
+#define PRISM_VERSION_H
+
+#define PRISM_VERSION_MAJOR @PROJECT_VERSION_MAJOR @
+#define PRISM_VERSION_MINOR @PROJECT_VERSION_MINOR @
+#define PRISM_VERSION_PATCH @PROJECT_VERSION_PATCH @
+#define PRISM_VERSION_STRING "@PROJECT_VERSION@"
+
+#endif

@@ -123,7 +123,7 @@ prism_init(PrismConfig *cfg) {
 #endif
   FrozenRegistry *registry = FrozenRegistry::global();
   if (cfg != nullptr) {
-    if (cfg->version > PRISM_CONFIG_VERSION) {
+    if (cfg->version == 0 || cfg->version > PRISM_CONFIG_VERSION) {
 #ifdef _WIN32
       if (owns_com)
         CoUninitialize();

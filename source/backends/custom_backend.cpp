@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "../backend_catalog.h"
+#include "../logging.h"
 #include "prism.h"
 #include <algorithm>
 #include <bitset>
@@ -364,6 +365,13 @@ static BackendFactory make_factory_impl(const PrismBackendVTable *vtable,
   normalized.size = sizeof(PrismBackendVTable);
   if (require_create && normalized.create == nullptr)
     return {};
+  if (!((features & ~BackendFeature::KNOWN) == 0)) {
+    static const LogSource log{"CustomBackend"};
+    log.error("Rejecting registration: declared unknown or reserved feature "
+              "bits {:#x}",
+              features & ~BackendFeature::KNOWN);
+    return {};
+  }
   if (!vtable_consistent(features, normalized))
     return {};
   auto registration = std::make_shared<CustomRegistration>(

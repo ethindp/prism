@@ -60,7 +60,12 @@ install(
   FILE prism-targets.cmake
   NAMESPACE prism::
   DESTINATION share/prism)
-install(DIRECTORY include/ DESTINATION include)
+install(
+  DIRECTORY include/
+  DESTINATION include
+  PATTERN "*.in" EXCLUDE)
+install(FILES "${CMAKE_BINARY_DIR}/generated/include/prism_version.h"
+        DESTINATION include)
 set(PRISM_CONFIG_FIND_DEPS "")
 if(PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
   foreach(_d IN ITEMS FMT SIMDUTF CONCURRENTQUEUE)

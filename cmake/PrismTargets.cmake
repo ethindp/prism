@@ -5,12 +5,15 @@ include(PrismGuards)
 prism_require_vars(PRISM_SOURCE_ROOT PRISM_ARCH_CLASS PRISM_USE_IPO)
 prism_require_targets(prism::dep::fmt prism::dep::simdutf
                       prism::dep::concurrentqueue)
+configure_file("${PRISM_SOURCE_ROOT}/include/prism_version.h.in"
+               "${CMAKE_BINARY_DIR}/generated/include/prism_version.h" @ONLY)
 add_library(prism_common INTERFACE)
 target_compile_features(prism_common INTERFACE cxx_std_23 c_std_17)
 target_include_directories(
   prism_common
   INTERFACE "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/include>"
             "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/source>"
+            "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated/include>"
             "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/source/backends>")
 target_link_libraries(
   prism_common
@@ -65,15 +68,13 @@ if(NOT WIN32)
   target_link_libraries(prism PRIVATE ${CMAKE_DL_LIBS})
 endif()
 target_include_directories(
-  prism PUBLIC "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/include>"
-               "$<INSTALL_INTERFACE:include>")
+  prism
+  PUBLIC "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/include>"
+         "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated/include>"
+         "$<INSTALL_INTERFACE:include>")
 target_compile_definitions(
   prism
   PRIVATE PRISM_BUILDING
-          PRISM_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
-          PRISM_VERSION_MINOR=${PROJECT_VERSION_MINOR}
-          PRISM_VERSION_PATCH=${PROJECT_VERSION_PATCH}
-          PRISM_VERSION_STRING="${PROJECT_VERSION}"
   PUBLIC ${PRISM_PUBLIC_DEFINES})
 set_target_properties(
   prism

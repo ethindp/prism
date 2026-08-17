@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/nix-installer-action@33c9ab3ef95cd57c164d9d6eb1f9a46338538d41 # main
         with:
           diagnostic-endpoint: ""
           extra-conf: |
@@ -71,8 +71,10 @@ jobs:
           ndk-version: r29
       - name: Use NDK clang-tidy on PATH
         if: matrix.target.platform == 'android'
+        env:
+          NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          echo "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> "$GITHUB_PATH"
+          echo "${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> "$GITHUB_PATH"
       - name: Lint and build
         shell: bash
         env:

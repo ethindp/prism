@@ -46,6 +46,8 @@ Prism has a few options, noted in the README, which are developer-only. You are 
 * The PRISM_ENABLE_LINTING option enables building with linters such as clang-tidy. You are very strongly encouraged to do this *before* you open a PR, but it is not required: the lint will be run when your PR is opened after the workflows have been approved. If your modification is instead to the Java code, you are strongly encouraged to run a full Java lint pass with gradle :lint, but again, this will be done after the workflows have been approved on your PR. As stated above, a PR will NOT be merged should a linter fail it.
 * If you modify the shell scripts, please run shellcheck and shfmt, respectively, for linting and formatting, and, optionally, shellharden; if you modify the Python code, run ruff check and ruff check --fix. In the former case, fix as many errors as you are able to; we strongly encourage you to run shellcheck via shellcheck -o all. In the case of the latter, all errors MUST be fixed before your PR will get merged.
 
+Note that we have done our best to introduce lints in CI as a part of the PR process, so if you fail to run the above checkers, or are unable to, GH will do this automatically for you when your PR is opened and the workflows are approved.
+
 ## Dependencies
 
 Prism does not download dependencies excepting tests, whereupon we use [cpm.cmake](https://github.com/cpm-cmake/CPM.cmake) for googletest. This is because Prism is in package managers such as vcpkg, and these package managers require that all dependencies be available when the package is built, and internet access is usually disabled in these environments.

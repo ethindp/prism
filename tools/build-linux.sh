@@ -12,7 +12,7 @@ CMAKE_COMMON=(
 	"-DPRISM_BUILD_WINELIBS=${WINELIBS}"
 )
 for shared in ON OFF; do
-	linkage=$([[ "${shared}" = "ON" ]] && echo dynamic || echo static)
+	linkage=$([[ ${shared} == "ON" ]] && echo dynamic || echo static)
 	for bt in Release Debug; do
 		config=$(echo "${bt}" | tr '[:upper:]' '[:lower:]')
 		dir="build-${linkage}-${config}"

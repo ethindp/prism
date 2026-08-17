@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 set -euo pipefail
 EM_SYSROOT="$(em-config CACHE)/sysroot"
-[[ -d "${EM_SYSROOT}" ]] || {
+[[ -d ${EM_SYSROOT}   ]] || {
 	echo "no emscripten sysroot at ${EM_SYSROOT}" >&2
 	exit 1
 }

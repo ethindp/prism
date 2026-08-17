@@ -31,3 +31,7 @@ jobs:
     uses: ./.github/workflows/lint-python.yml
   lint-github-actions:
     uses: ./.github/workflows/lint-github-actions.yml
+  lint-shell:
+    uses: ./.github/workflows/lint-shell.yml
+  lint-shfmt:
+    uses: ./.github/workflows/lint-shfmt.yml

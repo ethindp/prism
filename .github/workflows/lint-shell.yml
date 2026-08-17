@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Lint Shell
+on:
+  workflow_call:
+permissions:
+  contents: read
+
+jobs:
+  lint-shell:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+      - name: Run ShellCheck
+        run: |
+          find tools -type f -name '*.sh' -print0 | xargs -0 shellcheck -o all

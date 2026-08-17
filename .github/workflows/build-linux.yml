@@ -13,7 +13,9 @@ jobs:
           - { name: arm64, os: ubuntu-24.04-arm, system: aarch64-linux, shell: default,  winelibs: "OFF" }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: DeterminateSystems/nix-installer-action@main
         with:
           diagnostic-endpoint: ""
@@ -28,7 +30,7 @@ jobs:
       - name: Package
         run: |
           nix develop --ignore-environment --keep HOME --keep PRISM_BUILD_WINELIBS ".#devShells.${{ matrix.system }}.${{ matrix.shell }}" -c ./tools/package-linux.sh "${{ matrix.name }}"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: linux-${{ matrix.name }}
           path: prism-linux-${{ matrix.name }}.zip

@@ -15,7 +15,9 @@ jobs:
           - { platform: web,   arch: wasm32, os: ubuntu-latest,    system: x86_64-linux,  shell: emscripten }
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: DeterminateSystems/nix-installer-action@main
         with:
           diagnostic-endpoint: ""
@@ -28,7 +30,7 @@ jobs:
       - name: Verify and fix binary name
         run: |
           ./tools/gdextension-fixname.sh "${{ matrix.target.platform }}" "${{ matrix.target.arch }}" "${{ matrix.target-type }}"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: gdextension-${{ matrix.target.platform }}-${{ matrix.target.arch }}-${{ matrix.target-type }}
           path: gdextension/project/bin/**
@@ -47,21 +49,22 @@ jobs:
           - { platform: ios,     arch: arm64,  os: macos-26 }
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: true
+          persist-credentials: false
       - name: MSVC setup
         if: matrix.target.platform == 'windows'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: ${{ matrix.target.msvc }}
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.4.2
+        uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
         with:
           cmakeVersion: latest
       - name: NDK setup
         if: matrix.target.platform == 'android'
-        uses: nttld/setup-ndk@v1
+        uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1.6.0
         id: setup-ndk
         with:
           ndk-version: r29
@@ -80,7 +83,7 @@ jobs:
         shell: pwsh
         run: |
           Remove-Item gdextension/project/bin/* -Include *.exp,*.lib,*.pdb -Recurse -Force -ErrorAction SilentlyContinue
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: gdextension-${{ matrix.target.platform }}-${{ matrix.target.arch }}-${{ matrix.target-type }}
           path: gdextension/project/bin/**

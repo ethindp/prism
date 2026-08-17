@@ -13,12 +13,14 @@ jobs:
           - { name: arm64, msvc_arch: amd64_arm64, extra_cmake: "-DCMAKE_SYSTEM_PROCESSOR=ARM64 -DCMAKE_C_FLAGS=--target=aarch64-pc-windows-msvc -DCMAKE_CXX_FLAGS=--target=aarch64-pc-windows-msvc", os: windows-2025-vs2026 }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: ${{ matrix.msvc_arch }}
       - name: Install current CMake
-        uses: lukka/get-cmake@v4.4.2
+        uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
         with:
           cmakeVersion: latest
       - name: Set up LLVM toolchain if needed

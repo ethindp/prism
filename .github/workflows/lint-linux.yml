@@ -13,7 +13,9 @@ jobs:
           - { name: arm64, os: ubuntu-24.04-arm, system: aarch64-linux, shell: lint,          winelibs: "OFF" }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: DeterminateSystems/nix-installer-action@main
         with:
           diagnostic-endpoint: ""

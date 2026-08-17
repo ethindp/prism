@@ -15,7 +15,9 @@ jobs:
           - { platform: web,   arch: wasm32, os: ubuntu-latest,    system: x86_64-linux,  shell: emscripten-lint }
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: DeterminateSystems/nix-installer-action@main
         with:
           diagnostic-endpoint: ""
@@ -42,9 +44,10 @@ jobs:
           - { platform: ios,     arch: arm64,  os: macos-26 }
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: true
+          persist-credentials: false
       - name: install ninja-build
         if: matrix.target.platform == 'android'
         run: |
@@ -57,12 +60,12 @@ jobs:
           echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
       - name: MSVC setup
         if: matrix.target.platform == 'windows'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: ${{ matrix.target.msvc }}
       - name: NDK setup
         if: matrix.target.platform == 'android'
-        uses: nttld/setup-ndk@v1
+        uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1.6.0
         id: setup-ndk
         with:
           ndk-version: r29

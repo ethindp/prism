@@ -17,7 +17,9 @@ jobs:
       version: ${{ steps.extract.outputs.version }}
       tag: ${{ steps.extract.outputs.tag }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Extract version
         id: extract
         run: |
@@ -68,13 +70,15 @@ jobs:
     needs: [version, build-docs, build-windows, build-linux, build-macos, build-ios, build-tvos, build-visionos, build-watchos, build-android, build-emscripten, build-gdextension, build-wheels, build-sdist]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
       - name: Assemble SDK
         run: |
-          tag="${{ needs.version.outputs.tag }}"
+          tag="${NEEDS_VERSION_OUTPUTS_TAG}"
           sdk="prism-sdk-${tag}"
           mkdir -p "${sdk}"/{windows/x64,windows/arm64,macos/universal,ios/arm64,ios-simulator/arm64,tvos/arm64,tvos-simulator/arm64,visionos/arm64,visionos-simulator/arm64,watchos/arm64,watchos-simulator/arm64,linux/x64,linux/arm64,android,wasm,include,doc,LICENSES}
           cp include/prism.h "${sdk}/include/"
@@ -100,9 +104,11 @@ jobs:
           cp -r LICENSES "${sdk}"
           cp NOTICE "${sdk}"
           zip -r "${sdk}.zip" "${sdk}"
+        env:
+          NEEDS_VERSION_OUTPUTS_TAG: ${{ needs.version.outputs.tag }}
       - name: Package GDExtension addon
         run: |
-          tag="${{ needs.version.outputs.tag }}"
+          tag="${NEEDS_VERSION_OUTPUTS_TAG}"
           mkdir -p prismatoid/bin
           for dir in artifacts/gdextension-*/; do
             cp -r "${dir}"* prismatoid/bin/
@@ -148,12 +154,14 @@ jobs:
           mkdir -p addons/prismatoid
           mv prismatoid/* addons/prismatoid
           zip -r "prismatoid-gdextension-${tag}.zip" addons
-      - uses: actions/create-github-app-token@v3.2.0
+        env:
+          NEEDS_VERSION_OUTPUTS_TAG: ${{ needs.version.outputs.tag }}
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-      - uses: softprops/action-gh-release@v3.0.2
+      - uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           token: ${{ steps.app-token.outputs.token }}
           tag_name: ${{ needs.version.outputs.tag }}

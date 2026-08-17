@@ -27,3 +27,7 @@ jobs:
 # Todo: try to get this workflow to work, or remove it entirely
 #  lint-emscripten:
 #    uses: ./.github/workflows/lint-emscripten.yml
+  lint-python:
+    uses: ./.github/workflows/lint-python.yml
+  lint-github-actions:
+    uses: ./.github/workflows/lint-github-actions.yml

@@ -51,51 +51,48 @@ public:
     return "Android screen reader";
   }
 
-  [[nodiscard]] std::bitset<64> get_features() const override {
-    try {
-      if (backend) {
-        return std::bitset<64>{
-            static_cast<std::uint64_t>(static_cast<std::uint32_t>(
-                std::to_underlying(backend->get_features())))};
-      }
-      auto *env = djinni::jniGetThreadEnv();
-      if (env == nullptr) {
-        return {};
-      }
-      auto *cls =
-          env->FindClass("com/github/ethindp/prism/AndroidScreenReaderBackend");
-      if (cls == nullptr) {
-        if (env->ExceptionCheck() != 0)
-          env->ExceptionClear();
-        return {};
-      }
-      auto *ctor = env->GetMethodID(cls, "<init>", "()V");
-      if (ctor == nullptr) {
-        if (env->ExceptionCheck() != 0)
-          env->ExceptionClear();
-        env->DeleteLocalRef(cls);
-        return {};
-      }
-      auto *instance = env->NewObject(cls, ctor);
-      if (instance == nullptr) {
-        if (env->ExceptionCheck() != 0)
-          env->ExceptionClear();
-        env->DeleteLocalRef(cls);
-        return {};
-      }
-      auto handle =
-          prism::jni::AbstractTextToSpeechBackend::toCpp(env, instance);
-      env->DeleteLocalRef(instance);
-      env->DeleteLocalRef(cls);
-      if (!handle) {
-        return {};
-      }
+  [[nodiscard]] std::bitset<64> get_features() const override try {
+    if (backend) {
       return std::bitset<64>{
           static_cast<std::uint64_t>(static_cast<std::uint32_t>(
-              std::to_underlying(handle->get_features())))};
-    } catch (...) {
+              std::to_underlying(backend->get_features())))};
+    }
+    auto *env = djinni::jniGetThreadEnv();
+    if (env == nullptr) {
       return {};
     }
+    auto *cls =
+        env->FindClass("com/github/ethindp/prism/AndroidScreenReaderBackend");
+    if (cls == nullptr) {
+      if (env->ExceptionCheck() != 0)
+        env->ExceptionClear();
+      return {};
+    }
+    auto *ctor = env->GetMethodID(cls, "<init>", "()V");
+    if (ctor == nullptr) {
+      if (env->ExceptionCheck() != 0)
+        env->ExceptionClear();
+      env->DeleteLocalRef(cls);
+      return {};
+    }
+    auto *instance = env->NewObject(cls, ctor);
+    if (instance == nullptr) {
+      if (env->ExceptionCheck() != 0)
+        env->ExceptionClear();
+      env->DeleteLocalRef(cls);
+      return {};
+    }
+    auto handle = prism::jni::AbstractTextToSpeechBackend::toCpp(env, instance);
+    env->DeleteLocalRef(instance);
+    env->DeleteLocalRef(cls);
+    if (!handle) {
+      return {};
+    }
+    return std::bitset<64>{
+        static_cast<std::uint64_t>(static_cast<std::uint32_t>(
+            std::to_underlying(handle->get_features())))};
+  } catch (...) {
+    return {};
   }
 
   BackendResult<> initialize() override {

@@ -167,145 +167,135 @@ public:
     return features;
   }
 
-  BackendResult<> initialize() override {
-    try {
-      if (!ApiInformation::IsTypePresent(
-              _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||
-          !ApiInformation::IsTypePresent(
-              _T("Windows.Media.Playback.MediaPlayer")))
-        return std::unexpected(BackendError::BackendNotAvailable);
-      if (synth || player)
-        return std::unexpected(BackendError::AlreadyInitialized);
-      synth = SpeechSynthesizer();
-      synth.Options().AppendedSilence(SpeechAppendedSilence::Min);
-      synth.Options().PunctuationSilence(SpeechPunctuationSilence::Min);
-      player = MediaPlayer();
-      state_changed_revoker = player.PlaybackSession().PlaybackStateChanged(
-          winrt::auto_revoke,
-          [this](MediaPlaybackSession const &session, auto const &) {
-            current_state = session.PlaybackState();
-          });
-      cache_audio_format();
-      return {};
-    } catch (const winrt::hresult_error &e) {
-      logger.error("Could not initialize OneCore backend: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+  BackendResult<> initialize() override try {
+    if (!ApiInformation::IsTypePresent(
+            _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||
+        !ApiInformation::IsTypePresent(
+            _T("Windows.Media.Playback.MediaPlayer")))
+      return std::unexpected(BackendError::BackendNotAvailable);
+    if (synth || player)
+      return std::unexpected(BackendError::AlreadyInitialized);
+    synth = SpeechSynthesizer();
+    synth.Options().AppendedSilence(SpeechAppendedSilence::Min);
+    synth.Options().PunctuationSilence(SpeechPunctuationSilence::Min);
+    player = MediaPlayer();
+    state_changed_revoker = player.PlaybackSession().PlaybackStateChanged(
+        winrt::auto_revoke,
+        [this](MediaPlaybackSession const &session, auto const &) {
+          current_state = session.PlaybackState();
+        });
+    cache_audio_format();
+    return {};
+  } catch (const winrt::hresult_error &e) {
+    logger.error("Could not initialize OneCore backend: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<> speak(std::string_view text, bool interrupt) override {
+  BackendResult<> speak(std::string_view text, bool interrupt) override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    try {
-      if (interrupt)
-        if (const auto res = stop(); !res)
-          return res;
-      const auto wtext = to_hstring(text);
-      const auto stream = run_on_mta(
-          [&] { return synth.SynthesizeTextToStreamAsync(wtext).get(); });
-      const auto source =
-          MediaSource::CreateFromStream(stream, stream.ContentType());
-      player.Source(source);
-      player.Play();
-      current_state = MediaPlaybackState::Playing;
-      return {};
-    } catch (const winrt::hresult_error &e) {
-      logger.error("Could not speak text of size {}: {}", text.size(),
-                   e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    if (interrupt)
+      if (const auto res = stop(); !res)
+        return res;
+    const auto wtext = to_hstring(text);
+    const auto stream = run_on_mta(
+        [&] { return synth.SynthesizeTextToStreamAsync(wtext).get(); });
+    const auto source =
+        MediaSource::CreateFromStream(stream, stream.ContentType());
+    player.Source(source);
+    player.Play();
+    current_state = MediaPlaybackState::Playing;
+    return {};
+  } catch (const winrt::hresult_error &e) {
+    logger.error("Could not speak text of size {}: {}", text.size(),
+                 e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
   BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
-                                  void *userdata) override {
+                                  void *userdata) override try {
     if (!synth)
       return std::unexpected(BackendError::NotInitialized);
-    try {
-      const auto wtext = to_hstring(text);
-      const auto stream = run_on_mta(
-          [&] { return synth.SynthesizeTextToStreamAsync(wtext).get(); });
-      if (stream.ContentType() != _T("audio/wav"))
-        return std::unexpected(BackendError::NotImplemented);
-      const auto size64 = stream.Size();
-      if (size64 > std::numeric_limits<uint32_t>::max())
-        return std::unexpected(BackendError::RangeOutOfBounds);
-      const auto cap = static_cast<uint32_t>(size64);
-      Buffer buffer(cap);
-      stream.Seek(0);
-      std::uint32_t total = 0;
-      while (total < cap) {
-        Buffer chunk(cap - total);
-        run_on_mta([&] {
-          stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
-        });
-        const uint32_t got = chunk.Length();
-        if (got == 0)
-          break;
-        std::memcpy(buffer.data() + total, chunk.data(), got);
-        total += got;
-      }
-      if (total == 0)
-        return std::unexpected(BackendError::InternalBackendError);
-      drwav wav{};
-      if (drwav_init_memory(&wav, buffer.data(), total, nullptr) == 0)
-        return std::unexpected(BackendError::InvalidAudioFormat);
-      auto frame_count = wav.totalPCMFrameCount;
-      std::vector<float> samples(frame_count * wav.channels);
-      drwav_read_pcm_frames_f32(&wav, frame_count, samples.data());
-      auto const trimmed_samples =
-          trim_silence_rms_gate(samples, wav.channels, wav.sampleRate);
-      callback(userdata, trimmed_samples.data(), trimmed_samples.size(),
-               wav.channels, wav.sampleRate);
-      drwav_uninit(&wav);
-      return {};
-    } catch (const std::exception &e) {
-      logger.error(
-          "speak_to_memory failed  with text of size {} and userdata {}: {}",
-          text.size(), static_cast<const void *>(userdata), e.what());
-      return std::unexpected(BackendError::Unknown);
-    } catch (...) {
-      logger.error(
-          "speak_to_memory failed  with text of size {} and userdata {}: "
-          "unknown non-std exception",
-          text.size(), static_cast<const void *>(userdata));
-      return std::unexpected(BackendError::Unknown);
+    const auto wtext = to_hstring(text);
+    const auto stream = run_on_mta(
+        [&] { return synth.SynthesizeTextToStreamAsync(wtext).get(); });
+    if (stream.ContentType() != _T("audio/wav"))
+      return std::unexpected(BackendError::NotImplemented);
+    const auto size64 = stream.Size();
+    if (size64 > std::numeric_limits<uint32_t>::max())
+      return std::unexpected(BackendError::RangeOutOfBounds);
+    const auto cap = static_cast<uint32_t>(size64);
+    Buffer buffer(cap);
+    stream.Seek(0);
+    std::uint32_t total = 0;
+    while (total < cap) {
+      Buffer chunk(cap - total);
+      run_on_mta([&] {
+        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+      });
+      const uint32_t got = chunk.Length();
+      if (got == 0)
+        break;
+      std::memcpy(buffer.data() + total, chunk.data(), got);
+      total += got;
     }
+    if (total == 0)
+      return std::unexpected(BackendError::InternalBackendError);
+    drwav wav{};
+    if (drwav_init_memory(&wav, buffer.data(), total, nullptr) == 0)
+      return std::unexpected(BackendError::InvalidAudioFormat);
+    auto frame_count = wav.totalPCMFrameCount;
+    std::vector<float> samples(frame_count * wav.channels);
+    drwav_read_pcm_frames_f32(&wav, frame_count, samples.data());
+    auto const trimmed_samples =
+        trim_silence_rms_gate(samples, wav.channels, wav.sampleRate);
+    callback(userdata, trimmed_samples.data(), trimmed_samples.size(),
+             wav.channels, wav.sampleRate);
+    drwav_uninit(&wav);
+    return {};
+  } catch (const std::exception &e) {
+    logger.error(
+        "speak_to_memory failed  with text of size {} and userdata {}: {}",
+        text.size(), static_cast<const void *>(userdata), e.what());
+    return std::unexpected(BackendError::Unknown);
+  } catch (...) {
+    logger.error(
+        "speak_to_memory failed  with text of size {} and userdata {}: "
+        "unknown non-std exception",
+        text.size(), static_cast<const void *>(userdata));
+    return std::unexpected(BackendError::Unknown);
   }
 
   BackendResult<> output(std::string_view text, bool interrupt) override {
     return speak(text, interrupt);
   }
 
-  BackendResult<bool> is_speaking() override {
+  BackendResult<bool> is_speaking() override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    try {
-      return current_state == MediaPlaybackState::Playing;
-    } catch (const winrt::hresult_error &e) {
-      logger.error("is_speaking failed: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    return current_state == MediaPlaybackState::Playing;
+  } catch (const winrt::hresult_error &e) {
+    logger.error("is_speaking failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<> stop() override {
+  BackendResult<> stop() override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     const auto state = current_state.load();
     if (state == MediaPlaybackState::Playing ||
         state == MediaPlaybackState::Paused) {
-      try {
-        player.Pause();
-        player.Source(nullptr);
-        current_state = MediaPlaybackState::None;
-      } catch (const winrt::hresult_error &e) {
-        logger.error("stop failed: {}", e.message());
-        return std::unexpected(BackendError::Unknown);
-      }
+      player.Pause();
+      player.Source(nullptr);
+      current_state = MediaPlaybackState::None;
     }
     return {};
+  } catch (const winrt::hresult_error &e) {
+    logger.error("stop failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<> pause() override {
+  BackendResult<> pause() override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     const auto state = current_state.load();
@@ -313,102 +303,85 @@ public:
       return std::unexpected(BackendError::AlreadyPaused);
     if (state != MediaPlaybackState::Playing)
       return std::unexpected(BackendError::NotSpeaking);
-    try {
-      player.Pause();
-      current_state = MediaPlaybackState::Paused;
-      return {};
-    } catch (const winrt::hresult_error &e) {
-      logger.error("pause failed: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    player.Pause();
+    current_state = MediaPlaybackState::Paused;
+    return {};
+  } catch (const winrt::hresult_error &e) {
+    logger.error("pause failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<> resume() override {
+  BackendResult<> resume() override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     const auto state = current_state.load();
     if (state != MediaPlaybackState::Paused)
       return std::unexpected(BackendError::NotPaused);
-    try {
-      player.Play();
-      current_state = MediaPlaybackState::Playing;
-      return {};
-    } catch (const winrt::hresult_error &e) {
-      logger.error("resume failed: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    player.Play();
+    current_state = MediaPlaybackState::Playing;
+    return {};
+  } catch (const winrt::hresult_error &e) {
+    logger.error("resume failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<> set_volume(float volume) override {
+  BackendResult<> set_volume(float volume) override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    try {
-      synth.Options().AudioVolume(volume);
-      return {};
-    } catch (const winrt::hresult_error &e) {
-      logger.error("set_volume failed: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    synth.Options().AudioVolume(volume);
+    return {};
+  } catch (const winrt::hresult_error &e) {
+    logger.error("set_volume failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<float> get_volume() override {
+  BackendResult<float> get_volume() override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    try {
-      return static_cast<float>(synth.Options().AudioVolume());
-    } catch (const winrt::hresult_error &e) {
-      logger.error("get_volume failed: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    return static_cast<float>(synth.Options().AudioVolume());
+  } catch (const winrt::hresult_error &e) {
+    logger.error("get_volume failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<> set_rate(float rate) override {
+  BackendResult<> set_rate(float rate) override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    try {
-      const auto val = exp_range_convert(rate, 0.5, 1.0, 6.0);
-      synth.Options().SpeakingRate(val);
-      return {};
-    } catch (const winrt::hresult_error &e) {
-      logger.error("set_rate failed: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    const auto val = exp_range_convert(rate, 0.5, 1.0, 6.0);
+    synth.Options().SpeakingRate(val);
+    return {};
+  } catch (const winrt::hresult_error &e) {
+    logger.error("set_rate failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<float> get_rate() override {
+  BackendResult<float> get_rate() override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    try {
-      return exp_range_convert_inv(synth.Options().SpeakingRate(), 0.5, 1.0,
-                                   6.0);
-    } catch (const winrt::hresult_error &e) {
-      logger.error("get_rate failed: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    return exp_range_convert_inv(synth.Options().SpeakingRate(), 0.5, 1.0, 6.0);
+  } catch (const winrt::hresult_error &e) {
+    logger.error("get_rate failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<> set_pitch(float pitch) override {
+  BackendResult<> set_pitch(float pitch) override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    try {
-      const auto val = exp_range_convert(pitch, 0.0, 1.0, 2.0);
-      synth.Options().AudioPitch(val);
-      return {};
-    } catch (const winrt::hresult_error &e) {
-      logger.error("set_pitch failed: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    const auto val = exp_range_convert(pitch, 0.0, 1.0, 2.0);
+    synth.Options().AudioPitch(val);
+    return {};
+  } catch (const winrt::hresult_error &e) {
+    logger.error("set_pitch failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<float> get_pitch() override {
+  BackendResult<float> get_pitch() override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    try {
-      return exp_range_convert_inv(synth.Options().AudioPitch(), 0.0, 1.0, 2.0);
-    } catch (const winrt::hresult_error &e) {
-      logger.error("get_pitch failed: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    }
+    return exp_range_convert_inv(synth.Options().AudioPitch(), 0.0, 1.0, 2.0);
+  } catch (const winrt::hresult_error &e) {
+    logger.error("get_pitch failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
   BackendResult<> refresh_voices() override {
@@ -418,13 +391,16 @@ public:
     return {};
   }
 
-  BackendResult<std::size_t> count_voices() override {
+  BackendResult<std::size_t> count_voices() override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     return SpeechSynthesizer::AllVoices().Size();
+  } catch (const winrt::hresult_error &e) {
+    logger.error("count_voices failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<std::string> get_voice_name(std::size_t id) override {
+  BackendResult<std::string> get_voice_name(std::size_t id) override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
@@ -434,9 +410,12 @@ public:
       return std::unexpected(BackendError::RangeOutOfBounds);
     return to_string(
         voices.GetAt(static_cast<std::uint32_t>(id)).DisplayName());
+  } catch (const winrt::hresult_error &e) {
+    logger.error("get_voice_name failed for id {}: {}", id, e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<std::string> get_voice_language(std::size_t id) override {
+  BackendResult<std::string> get_voice_language(std::size_t id) override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
@@ -445,9 +424,12 @@ public:
     if (id >= voices.Size())
       return std::unexpected(BackendError::RangeOutOfBounds);
     return to_string(voices.GetAt(static_cast<std::uint32_t>(id)).Language());
+  } catch (const winrt::hresult_error &e) {
+    logger.error("get_voice_language failed for id {}: {}", id, e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<> set_voice(std::size_t id) override {
+  BackendResult<> set_voice(std::size_t id) override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
@@ -459,9 +441,12 @@ public:
     format_cached = false;
     cache_audio_format();
     return {};
+  } catch (const winrt::hresult_error &e) {
+    logger.error("set_voice failed for id {}: {}", id, e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
-  BackendResult<std::size_t> get_voice() override {
+  BackendResult<std::size_t> get_voice() override try {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     const auto voices = SpeechSynthesizer::AllVoices();
@@ -470,6 +455,9 @@ public:
         return i;
     }
     return std::unexpected(BackendError::InternalBackendError);
+  } catch (const winrt::hresult_error &e) {
+    logger.error("get_voice failed: {}", e.message());
+    return std::unexpected(BackendError::Unknown);
   }
 
   BackendResult<std::size_t> get_channels() override {
@@ -496,67 +484,64 @@ public:
     return cached_bit_depth;
   }
 
-  void cache_audio_format() {
+  void cache_audio_format() try {
     if (format_cached) {
       logger.info("cache_audio_format: audio format already cached; aborting");
       return;
     }
-    try {
-      const auto stream = run_on_mta(
-          [&] { return synth.SynthesizeTextToStreamAsync(_T(" ")).get(); });
-      if (stream.ContentType() != _T("audio/wav")) {
-        logger.error(
-            "cache_audio_format: unknown stream content type {}; aborting",
-            stream.ContentType());
-        return;
-      }
-      const auto size64 = stream.Size();
-      if (size64 > std::numeric_limits<uint32_t>::max()) {
-        logger.error("cache_audio_format: stream size of {} exceeds max size "
-                     "of {}; aborting",
-                     size64, std::numeric_limits<uint32_t>::max());
-        return;
-      }
-      const auto cap = static_cast<uint32_t>(size64);
-      Buffer buffer(cap);
-      stream.Seek(0);
-      std::uint32_t total = 0;
-      while (total < cap) {
-        Buffer chunk(cap - total);
-        run_on_mta([&] {
-          stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
-        });
-        const uint32_t got = chunk.Length();
-        if (got == 0)
-          break;
-        std::memcpy(buffer.data() + total, chunk.data(), got);
-        total += got;
-      }
-      if (total == 0) {
-        logger.error("cache_audio_format: synthesis audio stream has no "
-                     "samples; aborting");
-        return;
-      }
-      drwav wav{};
-      if (const auto res =
-              drwav_init_memory(&wav, buffer.data(), total, nullptr);
-          res != 0) {
-        cached_channels = wav.channels;
-        cached_sample_rate = wav.sampleRate;
-        cached_bit_depth = wav.bitsPerSample;
-        format_cached = true;
-        drwav_uninit(&wav);
-      } else {
-        logger.error("cache_audio_format: WAV parse error: code {}", res);
-        return;
-      }
-    } catch (const std::exception &e) {
-      logger.error("cache_audio_format failed:  {}", e.what());
-      return;
-    } catch (...) {
-      logger.error("cache_audio_format failed: unknown non-std exception");
+    const auto stream = run_on_mta(
+        [&] { return synth.SynthesizeTextToStreamAsync(_T(" ")).get(); });
+    if (stream.ContentType() != _T("audio/wav")) {
+      logger.error(
+          "cache_audio_format: unknown stream content type {}; aborting",
+          stream.ContentType());
       return;
     }
+    const auto size64 = stream.Size();
+    if (size64 > std::numeric_limits<uint32_t>::max()) {
+      logger.error("cache_audio_format: stream size of {} exceeds max size "
+                   "of {}; aborting",
+                   size64, std::numeric_limits<uint32_t>::max());
+      return;
+    }
+    const auto cap = static_cast<uint32_t>(size64);
+    Buffer buffer(cap);
+    stream.Seek(0);
+    std::uint32_t total = 0;
+    while (total < cap) {
+      Buffer chunk(cap - total);
+      run_on_mta([&] {
+        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
+      });
+      const uint32_t got = chunk.Length();
+      if (got == 0)
+        break;
+      std::memcpy(buffer.data() + total, chunk.data(), got);
+      total += got;
+    }
+    if (total == 0) {
+      logger.error("cache_audio_format: synthesis audio stream has no "
+                   "samples; aborting");
+      return;
+    }
+    drwav wav{};
+    if (const auto res = drwav_init_memory(&wav, buffer.data(), total, nullptr);
+        res != 0) {
+      cached_channels = wav.channels;
+      cached_sample_rate = wav.sampleRate;
+      cached_bit_depth = wav.bitsPerSample;
+      format_cached = true;
+      drwav_uninit(&wav);
+    } else {
+      logger.error("cache_audio_format: WAV parse error: code {}", res);
+      return;
+    }
+  } catch (const std::exception &e) {
+    logger.error("cache_audio_format failed:  {}", e.what());
+    return;
+  } catch (...) {
+    logger.error("cache_audio_format failed: unknown non-std exception");
+    return;
   }
 };
 

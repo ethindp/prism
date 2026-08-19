@@ -671,7 +671,7 @@ wheels = [
 
 [[package]]
 name = "moonshine-voice"
-version = "0.1.0"
+version = "0.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filelock" },
@@ -685,11 +685,11 @@ dependencies = [
     { name = "tqdm" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/a4/6e128bb0f2fce9993e0ffd8e8b6214d1d7f694f880182339eedbb6f3f375/moonshine_voice-0.1.0-py3-none-macosx_15_0_arm64.whl", hash = "sha256:9c70431836ed805f9ab30adcdfe97018c17b1e932ba7e205fff0562950dc0913", size = 54399781, upload-time = "2026-07-27T21:01:03.631Z" },
-    { url = "https://files.pythonhosted.org/packages/45/99/6157236653594449575de6ef41abce70242c1a5a57c6dbaac408c2f99fe3/moonshine_voice-0.1.0-py3-none-manylinux_2_31_aarch64.manylinux_2_39_aarch64.whl", hash = "sha256:58d5546a656f65061d1d4a376818b08109fe25600a22dfdbbba0179ccb3f0d07", size = 55090195, upload-time = "2026-07-27T23:57:52.377Z" },
-    { url = "https://files.pythonhosted.org/packages/05/08/39d25f1ccc106720eb6122bc7a7ab029ac3c407be0f010a8855056b1f593/moonshine_voice-0.1.0-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:da54a99587edb987c8755f2c746cab72fada0e67cf847f7edfb8105447f405af", size = 55143464, upload-time = "2026-07-27T21:15:00.875Z" },
-    { url = "https://files.pythonhosted.org/packages/fd/a3/e3c0156664e9505af7b23072c3e947cec3a7ee938764c70424051366c368/moonshine_voice-0.1.0-py3-none-manylinux_2_34_x86_64.whl", hash = "sha256:0f833deb43bad5dcfb4cfd3257b6df83ef9abd3f27be3199622fe41932e8d916", size = 56369045, upload-time = "2026-07-27T21:10:54.822Z" },
-    { url = "https://files.pythonhosted.org/packages/77/78/2e0fb469c6d236eb2782d6129d056a317e75d85efb340680617cebc8d82b/moonshine_voice-0.1.0-py3-none-win_amd64.whl", hash = "sha256:af2b8536ab08c48f33d5b1e126656b05ceae9a8980fc1c95dd70665b0b57c8e7", size = 50534088, upload-time = "2026-07-28T00:49:05.373Z" },
+    { url = "https://files.pythonhosted.org/packages/67/e5/d0ed1839af18450995f74c436b7dea3a8e158325fb264fc73d3262a07a71/moonshine_voice-0.1.1-py3-none-macosx_15_0_arm64.whl", hash = "sha256:9cf5d0c4995eca51a9c01047b759fc8c38845fcbb614853c90bc4ab47c8d8c22", size = 19466975, upload-time = "2026-08-07T12:39:17.079Z" },
+    { url = "https://files.pythonhosted.org/packages/17/f5/72fb77d6e3c846ae66cd4ad3d30819d06ff7737a4365c6ff37daac7f1c48/moonshine_voice-0.1.1-py3-none-manylinux_2_31_aarch64.manylinux_2_39_aarch64.whl", hash = "sha256:f5ce5dfea28c987e45cb15b6d1c58197ca468db597bfeb16a9ff13b149a34ba0", size = 49159543, upload-time = "2026-08-07T19:49:32.675Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/98/33f553d2d448e623641ecdbfab27bd84631629e73b45e5915004eeabfe85/moonshine_voice-0.1.1-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:e03281336453d770d927f09313d4ef4e18e302ba7a86f12c8c27abac6b0ff7d1", size = 20443160, upload-time = "2026-08-07T12:51:00.074Z" },
+    { url = "https://files.pythonhosted.org/packages/da/64/2d2a640457c383c064c5ad24294525404481390570c9559e8f8f21a59379/moonshine_voice-0.1.1-py3-none-manylinux_2_34_x86_64.whl", hash = "sha256:d6abe509ce8ade79b18ba1f88c64e8cacc73f7761c308fb3abad6d1e968ad669", size = 21665523, upload-time = "2026-08-07T12:47:14.899Z" },
+    { url = "https://files.pythonhosted.org/packages/96/59/9230397e87088333fde20a814c89459fb7eb86717155513de6cac1f81305/moonshine_voice-0.1.1-py3-none-win_amd64.whl", hash = "sha256:ffc76b9554a7fd4f28f4e565688858bd10ee501f2b8de8819fc9dbfd57111034", size = 44785237, upload-time = "2026-08-07T22:20:50.115Z" },
 ]
 
 [[package]]

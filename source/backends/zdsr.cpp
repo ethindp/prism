@@ -60,7 +60,7 @@ public:
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);
-    if (const auto res = simdutf::convert_utf8_to_utf16le(
+    if (const auto res = simdutf::convert_valid_utf8_to_utf16(
             text.data(), text.size(),
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
@@ -75,7 +75,7 @@ public:
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);
-    if (const auto res = simdutf::convert_utf8_to_utf16le(
+    if (const auto res = simdutf::convert_valid_utf8_to_utf16(
             text.data(), text.size(),
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)

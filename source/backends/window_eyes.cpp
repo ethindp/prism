@@ -89,7 +89,7 @@ public:
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
     if (bstr == nullptr)
       return std::unexpected(BackendError::MemoryFailure);
-    if (const auto res = simdutf::convert_utf8_to_utf16le(
+    if (const auto res = simdutf::convert_valid_utf8_to_utf16(
             text.data(), text.size(), reinterpret_cast<char16_t *>(bstr));
         res == 0) {
       SysFreeString(bstr);
@@ -116,7 +116,7 @@ public:
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
     if (bstr == nullptr)
       return std::unexpected(BackendError::MemoryFailure);
-    if (const auto res = simdutf::convert_utf8_to_utf16le(
+    if (const auto res = simdutf::convert_valid_utf8_to_utf16(
             text.data(), text.size(), reinterpret_cast<char16_t *>(bstr));
         res == 0) {
       SysFreeString(bstr);

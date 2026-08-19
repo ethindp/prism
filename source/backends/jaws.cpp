@@ -65,7 +65,7 @@ public:
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(len));
     if (bstr == nullptr)
       return std::unexpected(BackendError::MemoryFailure);
-    if (const auto res = simdutf::convert_utf8_to_utf16le(
+    if (const auto res = simdutf::convert_valid_utf8_to_utf16(
             text.data(), text.size(), reinterpret_cast<char16_t *>(bstr));
         res == 0) {
       SysFreeString(bstr);
@@ -84,8 +84,8 @@ public:
   BackendResult<> braille(std::string_view text) override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    constexpr std::wstring_view prefix = L"BrailleString(\"";
-    constexpr std::wstring_view suffix = L"\")";
+    constexpr std::wstring_view prefix = _T("BrailleString(\"");
+    constexpr std::wstring_view suffix = _T("\")");
     const auto text_len =
         simdutf::utf16_length_from_utf8(text.data(), text.size());
     const auto total_len = prefix.size() + text_len + suffix.size();
@@ -96,14 +96,14 @@ public:
     std::ranges::copy(prefix, ptr);
     ptr += prefix.size();
     if (text_len > 0 &&
-        simdutf::convert_utf8_to_utf16le(
+        simdutf::convert_valid_utf8_to_utf16(
             text.data(), text.size(), reinterpret_cast<char16_t *>(ptr)) == 0) {
       SysFreeString(bstr);
       return std::unexpected(BackendError::InvalidUtf8);
     }
     for (size_t i = 0; i < text_len; ++i) {
-      if (ptr[i] == L'"')
-        ptr[i] = L'\'';
+      if (ptr[i] == _T('"'))
+        ptr[i] = _T('\'');
     }
     ptr += text_len;
     std::ranges::copy(suffix, ptr);

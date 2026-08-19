@@ -217,7 +217,7 @@ private:
       return std::unexpected(BackendError::RangeOutOfBounds);
     std::wstring wtext(
         simdutf::utf16_length_from_utf8(text.data(), text.size()), _T('\0'));
-    if (simdutf::convert_utf8_to_utf16le(
+    if (simdutf::convert_valid_utf8_to_utf16(
             text.data(), text.size(),
             reinterpret_cast<char16_t *>(wtext.data())) == 0)
       return std::unexpected(BackendError::InvalidUtf8);
@@ -734,7 +734,7 @@ public:
                 reinterpret_cast<const char16_t *>(name_view.data()),
                 name_view.size()),
             '\0');
-        (void)simdutf::convert_utf16le_to_utf8(
+        (void)simdutf::convert_valid_utf16_to_utf8(
             reinterpret_cast<const char16_t *>(name_view.data()),
             name_view.size(), name.data()); // Deliberately ignored return value
         if (name.empty()) {
@@ -766,7 +766,7 @@ public:
               language.resize(simdutf::utf8_length_from_utf16le(
                   reinterpret_cast<const char16_t *>(locale_view.data()),
                   locale_view.size()));
-              (void)simdutf::convert_utf16le_to_utf8(
+              (void)simdutf::convert_valid_utf16_to_utf8(
                   reinterpret_cast<const char16_t *>(locale_view.data()),
                   locale_view.size(), language.data());
               std::ranges::transform(

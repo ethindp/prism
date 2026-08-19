@@ -455,7 +455,7 @@ public:
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);
-    if (simdutf::convert_utf8_to_utf16le(
+    if (simdutf::convert_valid_utf8_to_utf16(
             text.data(), text.size(),
             reinterpret_cast<char16_t *>(wstr.data())) == 0)
       return std::unexpected(BackendError::InvalidUtf8);

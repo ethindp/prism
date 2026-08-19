@@ -15,7 +15,6 @@
 #include <vector>
 #include <windows.h>
 
-// To do: make this faster
 namespace {
 void encode_base128(std::vector<std::byte> &output, std::uint64_t i) {
   if (i == 0) {

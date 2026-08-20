@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
   prism
-  VERSION 0.17.3
+  VERSION 0.18.0
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 set(PRISM_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")

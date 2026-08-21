@@ -987,7 +987,7 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
       const auto at = name.find('@');
       if (at != std::string_view::npos) {
         const std::string undecorated(name.substr(0, at));
-        if (auto const *real =
+        if (auto *const real =
                 GetProcAddress(pdli->hmodCur, undecorated.c_str());
             real != nullptr) {
           log.info("recovered '{}!{}' via undecorated name", pdli->szDll,

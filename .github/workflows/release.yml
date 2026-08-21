@@ -98,6 +98,7 @@ jobs:
           unzip -q artifacts/linux-arm64/prism-linux-arm64.zip     -d "${sdk}/linux/arm64/"
           unzip -q artifacts/android/prism-android.zip             -d "${sdk}/android/"
           unzip -q artifacts/wasm/prism-wasm.zip                   -d "${sdk}/wasm/"
+          find "${sdk}" -mindepth 2 -name prism_version.h -exec cp {} "${sdk}/include/" \; -quit
           find "${sdk}" -depth -type d -name include -not -path "${sdk}/include" -exec rm -rf {} +
           find "${sdk}" -depth -type d -name LICENSES -not -path "${sdk}/LICENSES" -exec rm -rf {} +
           find "${sdk}" -name "NOTICE" -type f -delete

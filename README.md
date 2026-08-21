@@ -81,3 +81,7 @@ This project uses code from other projects. The full listing can be found in the
 ## Contributing
 
 Contributions are welcome. This includes, but is not limited to, documentation enhancements, new backends, bindings, build system improvements, etc. The project uses C++23 so please ensure that your compiler supports that standard. Please read the [Contributing Guidelines](./CONTRIBUTING.md) for more information on the contribution process.
+
+## Support
+
+If you use Prism and like what it does, please consider sponsoring the project.

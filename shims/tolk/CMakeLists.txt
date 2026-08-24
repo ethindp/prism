@@ -23,8 +23,10 @@ if(NOT
 endif()
 add_library(tolk SHARED tolk.c lock.c)
 target_link_libraries(tolk PRIVATE prism::prism)
-target_link_libraries(tolk PRIVATE prism::dep::simdutf)
 target_compile_definitions(tolk PRIVATE TOLK_BUILDING)
+if(PRISM_HAS_NO_UNDEFINED_LINK_FLAG)
+  target_link_options(tolk PRIVATE "LINKER:--no-undefined")
+endif()
 if(NOT MSVC)
   check_cxx_compiler_flag(-Wall COMP_HAS_WALL_OPTION)
   check_cxx_compiler_flag(-Wextra COMP_HAS_WEXTRA_OPTION)
@@ -82,8 +84,12 @@ elseif(
   target_link_libraries(tolk PRIVATE Threads::Threads)
 endif()
 check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
-if(ipo_supported)
+if(ipo_supported AND PRISM_USE_IPO)
   set_target_properties(tolk PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
+  if(PRISM_IPO_FAT_OBJECTS)
+    target_compile_options(
+      tolk PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-ffat-lto-objects>)
+  endif()
 endif()
 target_include_directories(
   tolk PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>

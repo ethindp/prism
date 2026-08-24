@@ -3,8 +3,8 @@
 include_guard(GLOBAL)
 include(PrismGuards)
 prism_require_vars(PRISM_SOURCE_ROOT PRISM_ARCH_CLASS PRISM_USE_IPO)
-prism_require_targets(prism::dep::fmt prism::dep::simdutf
-                      prism::dep::concurrentqueue)
+prism_require_targets(prism::dep_iface::fmt prism::dep_iface::simdutf
+                      prism::dep_iface::concurrentqueue)
 configure_file("${PRISM_SOURCE_ROOT}/include/prism_version.h.in"
                "${CMAKE_BINARY_DIR}/generated/include/prism_version.h" @ONLY)
 add_library(prism_common INTERFACE)
@@ -17,13 +17,18 @@ target_include_directories(
             "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/source/backends>")
 target_link_libraries(
   prism_common
-  INTERFACE prism::dep::fmt prism::dep::simdutf prism::dep::concurrentqueue
-            prism::dep::dr_wav prism::dep::moderncom prism::dep::highway)
+  INTERFACE prism::dep_iface::fmt prism::dep_iface::simdutf
+            prism::dep_iface::concurrentqueue prism::dep_iface::dr_wav
+            prism::dep_iface::moderncom prism::dep_iface::highway)
 set(PRISM_PUBLIC_DEFINES
     NOMINMAX
     $<$<STREQUAL:$<TARGET_PROPERTY:prism,TYPE>,STATIC_LIBRARY>:PRISM_STATIC>)
 target_compile_definitions(prism_common INTERFACE PRISM_BUILDING
                                                   ${PRISM_PUBLIC_DEFINES})
+if(PRISM_USE_IPO AND PRISM_IPO_FAT_OBJECTS)
+  target_compile_options(
+    prism_common INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-ffat-lto-objects>)
+endif()
 if(NOT MSVC AND NOT PRISM_HAS_JTHREAD_NATIVE)
   target_compile_options(
     prism_common INTERFACE $<$<COMPILE_LANGUAGE:C,CXX>:-fexperimental-library>)
@@ -91,6 +96,10 @@ set_target_properties(
              VISIBILITY_INLINES_HIDDEN ON
              INTERPROCEDURAL_OPTIMIZATION ${PRISM_USE_IPO})
 get_target_property(PRISM_LIB_TYPE prism TYPE)
+if(PRISM_HAS_NO_UNDEFINED_LINK_FLAG AND PRISM_LIB_TYPE STREQUAL
+                                        "SHARED_LIBRARY")
+  target_link_options(prism PRIVATE "LINKER:--no-undefined")
+endif()
 if(PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
   set(PRISM_LINK_VIS INTERFACE)
 else()

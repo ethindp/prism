@@ -3,7 +3,10 @@
 include_guard(GLOBAL)
 include(PrismGuards)
 include(CheckCXXSourceCompiles)
+include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
 include(CheckIPOSupported)
+include(CheckLinkerFlag)
 
 if(MSVC_CXX_ARCHITECTURE_ID)
   set(_arch "${MSVC_CXX_ARCHITECTURE_ID}")
@@ -84,13 +87,46 @@ int main() { std::jthread t([](std::stop_token st) {}); return 0; }
   endif()
 endif()
 check_ipo_supported(RESULT PRISM_HAS_IPO OUTPUT _ipo_why)
-if(ANDROID)
-  set(PRISM_USE_IPO OFF)
-elseif(PRISM_DIAGNOSE_VECTORIZATION)
-  set(PRISM_USE_IPO OFF)
-elseif(PRISM_HAS_IPO)
-  set(PRISM_USE_IPO ON)
+if(EMSCRIPTEN OR BUILD_SHARED_LIBS)
+  set(_prism_ipo_ships_ir OFF)
 else()
+  set(_prism_ipo_ships_ir ON)
+endif()
+set(PRISM_IPO_FAT_OBJECTS OFF)
+if(_prism_ipo_ships_ir AND NOT MSVC)
+  set(_prism_saved_required_flags "${CMAKE_REQUIRED_FLAGS}")
+  set(CMAKE_REQUIRED_FLAGS "-flto")
+  check_c_compiler_flag(-ffat-lto-objects PRISM_HAS_FAT_LTO_OBJECTS_C)
+  check_cxx_compiler_flag(-ffat-lto-objects PRISM_HAS_FAT_LTO_OBJECTS_CXX)
+  set(CMAKE_REQUIRED_FLAGS "${_prism_saved_required_flags}")
+  unset(_prism_saved_required_flags)
+  if(PRISM_HAS_FAT_LTO_OBJECTS_C AND PRISM_HAS_FAT_LTO_OBJECTS_CXX)
+    set(PRISM_IPO_FAT_OBJECTS ON)
+  endif()
+endif()
+if(ANDROID
+   OR PRISM_DIAGNOSE_VECTORIZATION
+   OR PRISM_IPO STREQUAL "OFF"
+   OR NOT PRISM_HAS_IPO)
   set(PRISM_USE_IPO OFF)
   message(STATUS "Prism: IPO unavailable (${_ipo_why})")
+elseif(
+  _prism_ipo_ships_ir
+  AND NOT PRISM_IPO_FAT_OBJECTS
+  AND PRISM_IPO STREQUAL "AUTO")
+  set(PRISM_USE_IPO OFF)
+  message(
+    STATUS
+      "Prism: IPO disabled because ${CMAKE_CXX_COMPILER_ID} cannot emit fat LTO objects. Pass -DPRISM_IPO=ON to force-enable."
+  )
+else()
+  set(PRISM_USE_IPO ON)
+endif()
+unset(_prism_ipo_ships_ir)
+if(NOT APPLE
+   AND NOT WIN32
+   AND NOT EMSCRIPTEN)
+  check_linker_flag(C "LINKER:--no-undefined" PRISM_HAS_NO_UNDEFINED_LINK_FLAG)
+else()
+  set(PRISM_HAS_NO_UNDEFINED_LINK_FLAG OFF)
 endif()

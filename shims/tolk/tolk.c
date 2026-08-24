@@ -4,7 +4,6 @@
 #include "lock.h"
 #include "thread_safety.h"
 #include <prism.h>
-#include <simdutf_c.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -45,75 +44,162 @@ static wchar_t *sapi_backend_name TSA_GUARDED_BY(lock);
 static bool loaded TSA_GUARDED_BY(lock);
 static bool prefer_sapi TSA_GUARDED_BY(lock);
 
-static inline char *wchar_to_utf8(const wchar_t *src) {
-  if (src == NULL_CONSTANT)
-    return NULL_CONSTANT;
-#if WCHAR_MAX <= 0xFFFFu
-  const char16_t *in = (const char16_t *)src;
-  size_t in_len = 0;
-  while (in[in_len] != 0)
-    ++in_len;
-  const size_t out_len = simdutf_utf8_length_from_utf16(in, in_len);
-  char *buf = malloc(out_len + 1);
-  if (buf == NULL_CONSTANT)
-    return NULL_CONSTANT;
-  const size_t written = simdutf_convert_utf16_to_utf8(in, in_len, buf);
-  if (written == 0 && in_len != 0) {
-    free(buf);
+static char *wchar_to_utf8(const wchar_t *src) {
+  if (src == NULL_CONSTANT) {
     return NULL_CONSTANT;
   }
-  buf[written] = '\0';
-  return buf;
-#else
-  const char32_t *in = (const char32_t *)src;
   size_t in_len = 0;
-  while (in[in_len] != 0)
+  while (src[in_len] != L'\0') {
     ++in_len;
-  const size_t out_len = simdutf_utf8_length_from_utf32(in, in_len);
-  char *buf = malloc(out_len + 1);
-  if (buf == NULL_CONSTANT)
-    return NULL_CONSTANT;
-  const size_t written = simdutf_convert_utf32_to_utf8(in, in_len, buf);
-  if (written == 0 && in_len != 0) {
-    free(buf);
+  }
+  if (in_len > ((SIZE_MAX - 1) / 4)) {
     return NULL_CONSTANT;
   }
-  buf[written] = '\0';
+  const size_t cap = (in_len * 4) + 1;
+  char *buf = malloc(cap);
+  if (buf == NULL_CONSTANT) {
+    return NULL_CONSTANT;
+  }
+  size_t in_pos = 0;
+  size_t out_pos = 0;
+  while (in_pos < in_len) {
+    uint32_t cp = (uint32_t)src[in_pos];
+    ++in_pos;
+    if (WCHAR_MAX <= 0xFFFF) {
+      if ((cp >= 0xD800) && (cp <= 0xDBFF)) {
+        if (in_pos >= in_len) {
+          free(buf);
+          return NULL_CONSTANT;
+        }
+        const uint32_t low = (uint32_t)src[in_pos];
+        if ((low < 0xDC00) || (low > 0xDFFF)) {
+          free(buf);
+          return NULL_CONSTANT;
+        }
+        ++in_pos;
+        cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
+      } else if ((cp >= 0xDC00) && (cp <= 0xDFFF)) {
+        free(buf);
+        return NULL_CONSTANT;
+      }
+    } else {
+      if ((cp >= 0xD800) && (cp <= 0xDFFF)) {
+        free(buf);
+        return NULL_CONSTANT;
+      }
+    }
+    if (cp > 0x10FFFF) {
+      free(buf);
+      return NULL_CONSTANT;
+    }
+    if ((cap - out_pos) < 5) {
+      free(buf);
+      return NULL_CONSTANT;
+    }
+    if (cp < 0x80) {
+      buf[out_pos] = (char)cp;
+      out_pos++;
+    } else if (cp < 0x800) {
+      buf[out_pos] = (char)(0xC0 | (cp >> 6));
+      buf[out_pos + 1] = (char)(0x80 | (cp & 0x3F));
+      out_pos += 2;
+    } else if (cp < 0x10000) {
+      buf[out_pos] = (char)(0xE0 | (cp >> 12));
+      buf[out_pos + 1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+      buf[out_pos + 2] = (char)(0x80 | (cp & 0x3F));
+      out_pos += 3;
+    } else {
+      buf[out_pos] = (char)(0xF0U | (cp >> 18U));
+      buf[out_pos + 1U] = (char)(0x80U | ((cp >> 12U) & 0x3FU));
+      buf[out_pos + 2U] = (char)(0x80U | ((cp >> 6U) & 0x3FU));
+      buf[out_pos + 3U] = (char)(0x80U | (cp & 0x3FU));
+      out_pos += 4U;
+    }
+  }
+  buf[out_pos] = '\0';
   return buf;
-#endif
 }
 
-static inline wchar_t *utf8_to_wchar(const char *src) {
-  if (src == NULL_CONSTANT)
+static wchar_t *utf8_to_wchar(const char *src) {
+  if (src == NULL_CONSTANT) {
     return NULL_CONSTANT;
+  }
   const size_t in_len = strlen(src);
-#if WCHAR_MAX <= 0xFFFFu
-  const size_t out_len = simdutf_utf16_length_from_utf8(src, in_len);
-  wchar_t *buf = malloc((out_len + 1) * sizeof(wchar_t));
-  if (buf == NULL_CONSTANT)
-    return NULL_CONSTANT;
-  const size_t written =
-      simdutf_convert_utf8_to_utf16(src, in_len, (char16_t *)buf);
-  if (written == 0 && in_len != 0) {
-    free(buf);
+  if (in_len > ((SIZE_MAX / sizeof(wchar_t)) - 1)) {
     return NULL_CONSTANT;
   }
-  buf[written] = L'\0';
-  return buf;
-#else
-  const size_t out_len = simdutf_utf32_length_from_utf8(src, in_len);
-  wchar_t *buf = malloc((out_len + 1) * sizeof(wchar_t));
-  if (buf == NULL_CONSTANT)
-    return NULL_CONSTANT;
-  const size_t written =
-      simdutf_convert_utf8_to_utf32(src, in_len, (char32_t *)buf);
-  if (written == 0 && in_len != 0) {
-    free(buf);
+  const size_t cap = in_len + 1;
+  wchar_t *buf = malloc(cap * sizeof(wchar_t));
+  if (buf == NULL_CONSTANT) {
     return NULL_CONSTANT;
   }
-  buf[written] = L'\0';
+  const unsigned char *in = (const unsigned char *)src;
+  size_t in_pos = 0;
+  size_t out_pos = 0;
+  while (in_pos < in_len) {
+    const unsigned char lead = in[in_pos];
+    uint32_t cp = 0;
+    size_t trail = 0;
+    if (lead < 0x80) {
+      cp = (uint32_t)lead;
+      trail = 0;
+    } else if ((lead & 0xE0) == 0xC0) {
+      cp = (uint32_t)(lead & 0x1F);
+      trail = 1;
+    } else if ((lead & 0xF0) == 0xE0) {
+      cp = (uint32_t)(lead & 0x0F);
+      trail = 2;
+    } else if ((lead & 0xF8) == 0xF0) {
+      cp = (uint32_t)(lead & 0x07);
+      trail = 3;
+    } else {
+      free(buf);
+      return NULL_CONSTANT;
+    }
+    if ((in_len - in_pos) <= trail) {
+      free(buf);
+      return NULL_CONSTANT;
+    }
+    for (size_t k = 1; k <= trail; ++k) {
+      const unsigned char cont = in[in_pos + k];
+      if ((cont & 0xC0) != 0x80) {
+        free(buf);
+        return NULL_CONSTANT;
+      }
+      cp = (cp << 6) | (uint32_t)(cont & 0x3F);
+    }
+    in_pos += trail + 1;
+    if (((trail == 1) && (cp < 0x80)) || ((trail == 2) && (cp < 0x800)) ||
+        ((trail == 3) && (cp < 0x10000))) {
+      free(buf);
+      return NULL_CONSTANT;
+    }
+    if ((cp > 0x10FFFF) || ((cp >= 0xD800) && (cp <= 0xDFFF))) {
+      free(buf);
+      return NULL_CONSTANT;
+    }
+    if (WCHAR_MAX <= 0xFFFF) {
+      if (cp >= 0x10000) {
+        if ((cap - out_pos) < 3) {
+          free(buf);
+          return NULL_CONSTANT;
+        }
+        const uint32_t adjusted = cp - 0x10000;
+        buf[out_pos] = (wchar_t)(0xD800 + (adjusted >> 10));
+        buf[out_pos + 1] = (wchar_t)(0xDC00 + (adjusted & 0x3FF));
+        out_pos += 2;
+        continue;
+      }
+    }
+    if ((cap - out_pos) < 2) {
+      free(buf);
+      return NULL_CONSTANT;
+    }
+    buf[out_pos] = (wchar_t)cp;
+    out_pos++;
+  }
+  buf[out_pos] = L'\0';
   return buf;
-#endif
 }
 
 TOLK_API void TOLK_CALL Tolk_Load(void) {

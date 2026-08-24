@@ -49,18 +49,19 @@ if(NOT EMSCRIPTEN)
       ON
       CACHE BOOL "Build shared libraries")
 endif()
+set(PRISM_IPO
+    "AUTO"
+    CACHE STRING "Interprocedural (link-time) optimization (AUTO, ON or OFF)")
+set_property(CACHE PRISM_IPO PROPERTY STRINGS AUTO ON OFF)
+prism_require_enum(PRISM_IPO AUTO ON OFF)
 if(WIN32)
   if(PRISM_ENABLE_GDEXTENSION)
     set(CMAKE_MSVC_RUNTIME_LIBRARY
         "MultiThreadedDLL"
         CACHE STRING "Match godot-cpp non-debug CRT")
-  elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_MSVC_RUNTIME_LIBRARY
-        "MultiThreadedDebug"
-        CACHE STRING "MSVC CRT library type")
   else()
     set(CMAKE_MSVC_RUNTIME_LIBRARY
-        "MultiThreaded"
+        "MultiThreaded$<$<CONFIG:Debug>:Debug>"
         CACHE STRING "MSVC CRT library type")
   endif()
 endif()
@@ -70,7 +71,7 @@ if(PRISM_BUILD_WINELIBS
         OR ANDROID
         OR EMSCRIPTEN
        ))
-  message(FATAL_ERROR "PRISM_BUILD_WINELIBS requires a Linux/BSD host build")
+  message(FATAL_ERROR "PRISM_BUILD_WINELIBS requires a Linux/BSD host")
 endif()
 if(PRISM_BUILD_WINELIBS AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES
                             "^(x86_64|amd64|AMD64|i[3-6]86)$")

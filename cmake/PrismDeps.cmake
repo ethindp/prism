@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 include_guard(GLOBAL)
 include(PrismGuards)
-prism_require_vars(PRISM_SOURCE_ROOT PRISM_DEPENDENCY_PROVIDER)
+prism_require_vars(PRISM_SOURCE_ROOT PRISM_DEPENDENCY_PROVIDER PRISM_USE_IPO)
 
 set(PRISM_COMPILED_DEP_TARGETS
     ""
@@ -18,9 +18,11 @@ set(PRISM_PKGCONFIG_FIND_DEPENDS
 
 function(prism_declare_dependency NAME)
   cmake_parse_arguments(
-    PD "HEADER_ONLY;BUNDLED_ONLY"
-    "PACKAGE;MIN_VERSION;BUNDLED_ROOT;LICENSE;LANGUAGE"
-    "SYSTEM_TARGETS;BUNDLED_SOURCES;BUNDLED_INCLUDES" ${ARGN})
+    PD
+    "HEADER_ONLY;BUNDLED_ONLY"
+    "PACKAGE;ALT_PACKAGE;MIN_VERSION;BUNDLED_ROOT;LICENSE;LANGUAGE"
+    "SYSTEM_TARGETS;ALT_SYSTEM_TARGETS;BUNDLED_SOURCES;BUNDLED_INCLUDES"
+    ${ARGN})
   if(PD_UNPARSED_ARGUMENTS)
     message(
       FATAL_ERROR
@@ -47,6 +49,7 @@ function(prism_declare_dependency NAME)
   endif()
   string(TOUPPER "${NAME}" _UP)
   set(_impl prism_dep_${NAME})
+  set(_alias_target ${_impl})
   if(PD_BUNDLED_ONLY)
     if(PD_PACKAGE OR PD_SYSTEM_TARGETS)
       message(
@@ -70,24 +73,39 @@ function(prism_declare_dependency NAME)
     set(_provider "${PRISM_${_UP}_PROVIDER}")
   endif()
   if(_provider STREQUAL "SYSTEM")
-    find_package(${PD_PACKAGE} ${PD_MIN_VERSION} CONFIG QUIET)
-    if(NOT ${PD_PACKAGE}_FOUND)
+    set(_pkg "${PD_PACKAGE}")
+    set(_pkg_targets "${PD_SYSTEM_TARGETS}")
+    find_package(${_pkg} ${PD_MIN_VERSION} CONFIG QUIET)
+    if(NOT ${_pkg}_FOUND AND PD_ALT_PACKAGE)
+      set(_pkg "${PD_ALT_PACKAGE}")
+      set(_pkg_targets "${PD_ALT_SYSTEM_TARGETS}")
+      find_package(${_pkg} ${PD_MIN_VERSION} CONFIG QUIET)
+    endif()
+    if(NOT ${_pkg}_FOUND)
+      set(_tried "${PD_PACKAGE}")
+      if(PD_ALT_PACKAGE)
+        string(APPEND _tried " or ${PD_ALT_PACKAGE}")
+      endif()
       message(
         FATAL_ERROR
-          "PRISM_${_UP}_PROVIDER=SYSTEM but find_package(${PD_PACKAGE} ${PD_MIN_VERSION} CONFIG) failed.\n"
+          "PRISM_${_UP}_PROVIDER=SYSTEM but find_package(${_tried} ${PD_MIN_VERSION} CONFIG) failed.\n"
           "Install ${NAME}, or set -DPRISM_${_UP}_PROVIDER=BUNDLED to use third_party/."
       )
     endif()
     add_library(${_impl} INTERFACE)
-    target_link_libraries(${_impl} INTERFACE ${PD_SYSTEM_TARGETS})
-    set(_where "system ${${PD_PACKAGE}_VERSION}")
+    target_link_libraries(${_impl} INTERFACE ${_pkg_targets})
+    set(_where "system ${${_pkg}_VERSION} (${_pkg})")
     set(_sdt "${PRISM_SYSTEM_DEP_TARGETS}")
-    list(APPEND _sdt ${PD_SYSTEM_TARGETS})
+    list(APPEND _sdt ${_pkg_targets})
     set(PRISM_SYSTEM_DEP_TARGETS
         "${_sdt}"
         CACHE INTERNAL "")
+    set(_found_version "${${_pkg}_VERSION}")
+    if(NOT _found_version)
+      set(_found_version "${PD_MIN_VERSION}")
+    endif()
     set(_sfd "${PRISM_SYSTEM_DEP_FIND_DEPENDS}")
-    list(APPEND _sfd "find_dependency(${PD_PACKAGE} ${PD_MIN_VERSION} CONFIG)")
+    list(APPEND _sfd "find_dependency(${_pkg} ${_found_version} CONFIG)")
     set(PRISM_SYSTEM_DEP_FIND_DEPENDS
         "${_sfd}"
         CACHE INTERNAL "")
@@ -119,7 +137,12 @@ function(prism_declare_dependency NAME)
         PROPERTIES POSITION_INDEPENDENT_CODE ON
                    CXX_VISIBILITY_PRESET hidden
                    C_VISIBILITY_PRESET hidden
-                   VISIBILITY_INLINES_HIDDEN ON)
+                   VISIBILITY_INLINES_HIDDEN ON
+                   INTERPROCEDURAL_OPTIMIZATION ${PRISM_USE_IPO})
+      if(PRISM_USE_IPO AND PRISM_IPO_FAT_OBJECTS)
+        target_compile_options(
+          ${_impl} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-ffat-lto-objects>)
+      endif()
       if(PD_LANGUAGE STREQUAL "C")
         set_target_properties(${_impl} PROPERTIES C_STANDARD 17
                                                   C_STANDARD_REQUIRED ON)
@@ -136,6 +159,8 @@ function(prism_declare_dependency NAME)
           "${_cdt}"
           CACHE INTERNAL "")
       set(_vis PUBLIC)
+      add_library(${_impl}_iface INTERFACE)
+      set(_alias_target ${_impl}_iface)
     endif()
     foreach(_inc IN LISTS PD_BUNDLED_INCLUDES)
       get_filename_component(_abs "${_root}/${_inc}" ABSOLUTE)
@@ -148,9 +173,14 @@ function(prism_declare_dependency NAME)
       target_include_directories(${_impl} SYSTEM ${_vis}
                                  "$<BUILD_INTERFACE:${_abs}>")
     endforeach()
+    if(NOT _alias_target STREQUAL ${_impl})
+      target_include_directories(
+        ${_alias_target} SYSTEM
+        INTERFACE "$<TARGET_PROPERTY:${_impl},INTERFACE_INCLUDE_DIRECTORIES>")
+    endif()
     set(_where "bundled ${PD_BUNDLED_ROOT}")
   endif()
-  add_library(prism::dep::${NAME} ALIAS ${_impl})
+  add_library(prism::dep_iface::${NAME} ALIAS ${_alias_target})
   message(STATUS "Prism dep ${NAME}: ${_where}")
 endfunction()
 
@@ -211,9 +241,13 @@ prism_declare_dependency(
   concurrentqueue
   PACKAGE
   concurrentqueue
+  ALT_PACKAGE
+  unofficial-concurrentqueue
   HEADER_ONLY
   SYSTEM_TARGETS
   concurrentqueue::concurrentqueue
+  ALT_SYSTEM_TARGETS
+  unofficial::concurrentqueue::concurrentqueue
   BUNDLED_ROOT
   third_party/concurrentqueue
   BUNDLED_INCLUDES

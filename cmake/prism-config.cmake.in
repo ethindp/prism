@@ -1,6 +1,7 @@
 @PACKAGE_INIT@
 include(CMakeFindDependencyMacro)
 @PRISM_CONFIG_FIND_DEPS@
+@PRISM_CONFIG_PKGCONFIG_DEPS@
 include("${CMAKE_CURRENT_LIST_DIR}/prism-targets.cmake")
 set(_prism_win_import_libs "@PRISM_WIN_STATIC_IMPORT_LIBS@")
 if(_prism_win_import_libs)

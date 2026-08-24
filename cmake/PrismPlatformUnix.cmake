@@ -10,6 +10,15 @@ if(PRISM_ENABLE_POWER_MANAGEMENT)
     target_compile_definitions(prism_common
                                INTERFACE PRISM_ENABLE_POWER_MANAGEMENT)
     target_link_libraries(prism PRIVATE PkgConfig::PRISM_PM)
+    set(_pcd "${PRISM_PKGCONFIG_FIND_DEPENDS}")
+    list(
+      APPEND
+      _pcd
+      "pkg_check_modules(PRISM_PM REQUIRED IMPORTED_TARGET \"giomm-2.68>=2.68.0\")"
+    )
+    set(PRISM_PKGCONFIG_FIND_DEPENDS
+        "${_pcd}"
+        CACHE INTERNAL "")
   else()
     message(
       STATUS "Prism: giomm not found; power-aware availability polling disabled"

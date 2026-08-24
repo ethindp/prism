@@ -6,6 +6,15 @@ prism_require_vars(PRISM_SOURCE_ROOT PRISM_DEPENDENCY_PROVIDER)
 set(PRISM_COMPILED_DEP_TARGETS
     ""
     CACHE INTERNAL "")
+set(PRISM_SYSTEM_DEP_TARGETS
+    ""
+    CACHE INTERNAL "")
+set(PRISM_SYSTEM_DEP_FIND_DEPENDS
+    ""
+    CACHE INTERNAL "")
+set(PRISM_PKGCONFIG_FIND_DEPENDS
+    ""
+    CACHE INTERNAL "")
 
 function(prism_declare_dependency NAME)
   cmake_parse_arguments(
@@ -72,6 +81,16 @@ function(prism_declare_dependency NAME)
     add_library(${_impl} INTERFACE)
     target_link_libraries(${_impl} INTERFACE ${PD_SYSTEM_TARGETS})
     set(_where "system ${${PD_PACKAGE}_VERSION}")
+    set(_sdt "${PRISM_SYSTEM_DEP_TARGETS}")
+    list(APPEND _sdt ${PD_SYSTEM_TARGETS})
+    set(PRISM_SYSTEM_DEP_TARGETS
+        "${_sdt}"
+        CACHE INTERNAL "")
+    set(_sfd "${PRISM_SYSTEM_DEP_FIND_DEPENDS}")
+    list(APPEND _sfd "find_dependency(${PD_PACKAGE} ${PD_MIN_VERSION} CONFIG)")
+    set(PRISM_SYSTEM_DEP_FIND_DEPENDS
+        "${_sfd}"
+        CACHE INTERNAL "")
   else()
     set(_root "${PRISM_SOURCE_ROOT}/${PD_BUNDLED_ROOT}")
     if(NOT IS_DIRECTORY "${_root}")
@@ -94,7 +113,7 @@ function(prism_declare_dependency NAME)
       foreach(_s IN LISTS PD_BUNDLED_SOURCES)
         list(APPEND _srcs "${_root}/${_s}")
       endforeach()
-      add_library(${_impl} STATIC ${_srcs})
+      add_library(${_impl} OBJECT ${_srcs})
       set_target_properties(
         ${_impl}
         PROPERTIES POSITION_INDEPENDENT_CODE ON

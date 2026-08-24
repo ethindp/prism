@@ -95,6 +95,15 @@ function(prism_declare_backend NAME)
     endif()
     if(PRISM_PC_${_id}_FOUND)
       list(APPEND _libs PkgConfig::PRISM_PC_${_id})
+      set(_pcd "${PRISM_PKGCONFIG_FIND_DEPENDS}")
+      list(
+        APPEND
+        _pcd
+        "pkg_check_modules(PRISM_PC_${_id} REQUIRED IMPORTED_TARGET \"${_mod}\")"
+      )
+      set(PRISM_PKGCONFIG_FIND_DEPENDS
+          "${_pcd}"
+          CACHE INTERNAL "")
     else()
       list(APPEND _missing "${_mod}")
     endif()

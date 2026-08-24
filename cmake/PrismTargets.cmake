@@ -67,6 +67,12 @@ target_link_libraries(prism PRIVATE "$<BUILD_INTERFACE:prism_common>")
 if(NOT WIN32)
   target_link_libraries(prism PRIVATE ${CMAKE_DL_LIBS})
 endif()
+foreach(_cd IN LISTS PRISM_COMPILED_DEP_TARGETS)
+  target_sources(prism PRIVATE $<TARGET_OBJECTS:${_cd}>)
+endforeach()
+if(PRISM_SYSTEM_DEP_TARGETS)
+  target_link_libraries(prism PRIVATE ${PRISM_SYSTEM_DEP_TARGETS})
+endif()
 target_include_directories(
   prism
   PUBLIC "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/include>"

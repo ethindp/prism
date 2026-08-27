@@ -1,8 +1,5 @@
 name: Bug report
 description: Report a reproducible bug in Prism
-title: ""
-labels: []
-assignees: []
 
 body:
   - type: markdown

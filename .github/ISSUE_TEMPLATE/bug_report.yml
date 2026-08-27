@@ -31,7 +31,7 @@ body:
       description: |
         Provide a complete reproduction of the behavior as a source code
         artifact, if possible. Include everything necessary for a maintainer
-        to reproduce the problem.
+        to reproduce the problem. If your reproduction is a file, upload it or provide a link to it.
       placeholder: |
         Paste a minimal reproducible example and any necessary steps here. If your example is a file, upload it or provide a link to it.
     validations:
@@ -113,7 +113,7 @@ body:
   - type: checkboxes
     id: verification
     attributes:
-      label: Verification
+      label: Confirmation/verification
       options:
         - label: I have personally reproduced this bug and verified that the information in this report accurately describes the observed behavior.
           required: true

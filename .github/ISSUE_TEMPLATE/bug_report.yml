@@ -1,0 +1,122 @@
+name: Bug report
+description: Report a reproducible bug in Prism
+title: ""
+labels: []
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug in Prism.
+
+        Please complete all required fields. Bug reports that do not provide
+        the requested information will be closed.
+
+        If AI assisted in discovering, investigating, or writing this report,
+        you are still responsible for personally verifying that the reported
+        behavior is reproducible and that the information below is accurate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: |
+        Provide a clear and concise description of the bug.
+      placeholder: Describe what is going wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: To reproduce
+      description: |
+        Provide a complete reproduction of the behavior as a source code
+        artifact, if possible. Include everything necessary for a maintainer
+        to reproduce the problem.
+      placeholder: |
+        Paste a minimal reproducible example and any necessary steps here. If your example is a file, upload it or provide a link to it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: |
+        Clearly describe what you expected to happen instead.
+      placeholder: Describe the expected behavior.
+    validations:
+      required: true
+
+  - type: input
+    id: prism-version
+    attributes:
+      label: Prism version or commit hash
+      description: |
+        Specify the exact Prism version(s) or commit(s) on which you reproduced
+        the problem.
+      placeholder: "v0.18.2 or f237af67d0460a6dad312cc446623856ad823c50"
+    validations:
+      required: true
+
+  - type: input
+    id: operating-systems
+    attributes:
+      label: Operating system(s) and/or CPU architecture(s)
+      description: |
+        Specify the operating system(s) and version(s) on which the problem occurs. If the problem is architecture-specific, include that information. If not relevant, enter "N/A".
+      placeholder: "Windows 11 25H2, Ubuntu 26.04, macOS 27, etc."
+    validations:
+      required: true
+
+  - type: input
+    id: backends
+    attributes:
+      label: Affected backend(s)
+      description: |
+        Specify every Prism backend with which you reproduced the problem.
+        If the problem does not involve a backend, enter "N/A".
+      placeholder: "NVDA, SAPI, Speech Dispatcher, N/A, etc."
+    validations:
+      required: true
+
+  - type: input
+    id: compiler
+    attributes:
+      label: Compiler and version
+      description: |
+        If you built Prism from source, specify the compiler and exact version.
+        If you used a prebuilt Prism binary, enter "N/A".
+      placeholder: "MSVC 19.XX, Clang 22.1.3, GCC 16.1, or N/A"
+    validations:
+      required: true
+
+  - type: input
+    id: build-options
+    attributes:
+      label: Non-default build options
+      description: |
+        If you built Prism with any non-default build options, specify them.
+        Otherwise enter "None".
+      placeholder: "None"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: |
+        Add any other information that may help investigate the problem.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: Verification
+      options:
+        - label: I have personally reproduced this bug and verified that the information in this report accurately describes the observed behavior.
+          required: true

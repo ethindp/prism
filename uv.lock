@@ -671,7 +671,7 @@ wheels = [
 
 [[package]]
 name = "moonshine-voice"
-version = "0.1.1"
+version = "0.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filelock" },
@@ -685,11 +685,11 @@ dependencies = [
     { name = "tqdm" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/67/e5/d0ed1839af18450995f74c436b7dea3a8e158325fb264fc73d3262a07a71/moonshine_voice-0.1.1-py3-none-macosx_15_0_arm64.whl", hash = "sha256:9cf5d0c4995eca51a9c01047b759fc8c38845fcbb614853c90bc4ab47c8d8c22", size = 19466975, upload-time = "2026-08-07T12:39:17.079Z" },
-    { url = "https://files.pythonhosted.org/packages/17/f5/72fb77d6e3c846ae66cd4ad3d30819d06ff7737a4365c6ff37daac7f1c48/moonshine_voice-0.1.1-py3-none-manylinux_2_31_aarch64.manylinux_2_39_aarch64.whl", hash = "sha256:f5ce5dfea28c987e45cb15b6d1c58197ca468db597bfeb16a9ff13b149a34ba0", size = 49159543, upload-time = "2026-08-07T19:49:32.675Z" },
-    { url = "https://files.pythonhosted.org/packages/cd/98/33f553d2d448e623641ecdbfab27bd84631629e73b45e5915004eeabfe85/moonshine_voice-0.1.1-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:e03281336453d770d927f09313d4ef4e18e302ba7a86f12c8c27abac6b0ff7d1", size = 20443160, upload-time = "2026-08-07T12:51:00.074Z" },
-    { url = "https://files.pythonhosted.org/packages/da/64/2d2a640457c383c064c5ad24294525404481390570c9559e8f8f21a59379/moonshine_voice-0.1.1-py3-none-manylinux_2_34_x86_64.whl", hash = "sha256:d6abe509ce8ade79b18ba1f88c64e8cacc73f7761c308fb3abad6d1e968ad669", size = 21665523, upload-time = "2026-08-07T12:47:14.899Z" },
-    { url = "https://files.pythonhosted.org/packages/96/59/9230397e87088333fde20a814c89459fb7eb86717155513de6cac1f81305/moonshine_voice-0.1.1-py3-none-win_amd64.whl", hash = "sha256:ffc76b9554a7fd4f28f4e565688858bd10ee501f2b8de8819fc9dbfd57111034", size = 44785237, upload-time = "2026-08-07T22:20:50.115Z" },
+    { url = "https://files.pythonhosted.org/packages/64/a7/4846c35097411db6d4bce1234b0676cdebbb9dc2d6c0af3eba97a0394d62/moonshine_voice-0.1.3-py3-none-macosx_15_0_arm64.whl", hash = "sha256:5a8d0c273e8f1ea163773eee261f3f6dc039acddbc82b9b275f6820ee04c6889", size = 18518053, upload-time = "2026-08-18T05:23:08.865Z" },
+    { url = "https://files.pythonhosted.org/packages/27/7a/845a4f8925464b8c6ca79f14982975576f6663e95fab2733edfbe885fd7e/moonshine_voice-0.1.3-py3-none-manylinux_2_31_aarch64.whl", hash = "sha256:f92db8bd016611eb959b746ba228baccc851c6502043d69d9b9074bfc791cf21", size = 18415964, upload-time = "2026-08-18T05:50:46.3Z" },
+    { url = "https://files.pythonhosted.org/packages/22/1d/3f7ed76c6ae92f1c513c34a39f3397c73cd3312b29ae1e4e5a8abdf1532f/moonshine_voice-0.1.3-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:80ff94630895a777495e155011b18af2b09d2ab154c3ebbb0688fe9d70c01708", size = 18548619, upload-time = "2026-08-18T05:44:07.886Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/02/73be4c29a9b03535ba2f932acef2344af868aebaa14eb8a44fa8d1609597/moonshine_voice-0.1.3-py3-none-manylinux_2_34_x86_64.whl", hash = "sha256:c48f852c353688da551c2ba73c7e6103bb8ca6d212b1723f07c053ee50722f55", size = 19806078, upload-time = "2026-08-18T05:36:49.189Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/8c/f16cd54f2f554a8b97289251b39887aa637c893d2ed33a6ebbec1c277669/moonshine_voice-0.1.3-py3-none-win_amd64.whl", hash = "sha256:1668050f3d0b15765caaf0f82c76c285c5ae1b4348bd9aec6ba1dad1383c242e", size = 16467591, upload-time = "2026-08-18T07:12:42.13Z" },
 ]
 
 [[package]]
@@ -1182,20 +1182,20 @@ wheels = [
 
 [[package]]
 name = "piper-tts"
-version = "1.6.0"
+version = "1.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "onnxruntime", version = "1.24.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "onnxruntime", version = "1.27.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pathvalidate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3e/7d/2e97b591465abf75525e658df61cff4bcb34367d69b39b2ef19b1d533908/piper_tts-1.6.0.tar.gz", hash = "sha256:876952ba7e206957951943f24f0649415fc8c1c513bc8b7e58f2813bd01adb0a", size = 24250315, upload-time = "2026-07-23T16:11:44.946Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/52/21fd6898dbb5f24fb2b8cd6d454ef97304f47dc5c7e3349a8eebf46c9325/piper_tts-1.7.0.tar.gz", hash = "sha256:9d097cc1aa96817c840c0a9d33644ade65e99f9b88d695546cfdf23d0b6b7b8c", size = 24268274, upload-time = "2026-08-15T18:51:16.501Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/0f/1cd99c8074eece70cc578b92c81392f52baa481d36e2cecb3e0bbf6c2a82/piper_tts-1.6.0-cp39-abi3-macosx_10_9_x86_64.whl", hash = "sha256:930c1fe1f275fd45b2b96079efe34dad08763e08d72a7a3351051ca17101cd92", size = 34090334, upload-time = "2026-07-23T16:11:19.397Z" },
-    { url = "https://files.pythonhosted.org/packages/08/8e/1331e87924c96553fe9d1492c49e281d21136cc66c11ed27e58e4c1d67d3/piper_tts-1.6.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:b37ddd191b31995fbe981d5900df9c15888cccf427bff8e0b368cc95489fd60a", size = 34098290, upload-time = "2026-07-23T16:11:24.259Z" },
-    { url = "https://files.pythonhosted.org/packages/87/c7/0839e798a8577e539105e74834165ea43c3898d0889dfd98b2037e28dd1a/piper_tts-1.6.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:f42386c8674959f5f1cc396d54f9b4e417d1956cc87ab1daa7728f43ff1f5fa1", size = 34110310, upload-time = "2026-07-23T16:11:29.709Z" },
-    { url = "https://files.pythonhosted.org/packages/60/45/e4393b88d31672993c9b916c6847593f63c1fbf7db323f2446e4192182e9/piper_tts-1.6.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3120d5cc45e07fb99bdede8feef85116fd45bf488aa1d89c7b1aefb657d38683", size = 34109999, upload-time = "2026-07-23T16:11:35.069Z" },
-    { url = "https://files.pythonhosted.org/packages/63/0a/ce74581bbbff5ceae2aa51f322ae01cd8239590efe5784df3e1ffd018e18/piper_tts-1.6.0-cp39-abi3-win_amd64.whl", hash = "sha256:5f10915ff8193053303ae406d0f121e2e775b4a91309c0c89b0d8652a232c438", size = 34098254, upload-time = "2026-07-23T16:11:39.96Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/72/fae4e71199c68e7c402cc063c069458671a7057c1477b04934bec8578339/piper_tts-1.7.0-cp39-abi3-macosx_10_9_x86_64.whl", hash = "sha256:68f8e052fe09b4532edd2e2b32de7080c20e477cb8c31118043922023dbbe377", size = 34106243, upload-time = "2026-08-15T18:51:02.357Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/31/64d0053a4ba24d0435671560d6cfe4636ecf174fc611aa28eaed0116571e/piper_tts-1.7.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:b01504ae404631005a88d72d2a5792adff29ccea6c84f20601f7fefcfc5574de", size = 34114202, upload-time = "2026-08-15T18:51:05.303Z" },
+    { url = "https://files.pythonhosted.org/packages/89/e1/5cbbd7e9de2a9f6004ff0fdd2637a07614251148fa29ec410ff1b7cff8fb/piper_tts-1.7.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b43b2d299556bd6e87bcb6932fe853f8f89d65d7ad85cc372c89777ad2035d8f", size = 34126221, upload-time = "2026-08-15T18:51:08.028Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/29/9123b168249b8a37be150847a3853ea000d22895265e384f754ace50bb1a/piper_tts-1.7.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:72adc623b977bdbbdf3d6f6bf88d66eda7cfe2ee8e7919a74a5952acb77a339e", size = 34125913, upload-time = "2026-08-15T18:51:10.822Z" },
+    { url = "https://files.pythonhosted.org/packages/76/e1/58fe12897ce3885060447a14078d2c6abe099f9b87dd05291c40b98a43a5/piper_tts-1.7.0-cp39-abi3-win_amd64.whl", hash = "sha256:a2af3dae98e1835a3b1da37e4aa290e6adf41165c7d768e1ce73d9246f867d2c", size = 34114093, upload-time = "2026-08-15T18:51:13.442Z" },
 ]
 
 [[package]]
@@ -1883,18 +1883,18 @@ wheels = [
 
 [[package]]
 name = "sounddevice"
-version = "0.5.5"
+version = "0.5.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cffi" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2a/f9/2592608737553638fca98e21e54bfec40bf577bb98a61b2770c912aab25e/sounddevice-0.5.5.tar.gz", hash = "sha256:22487b65198cb5bf2208755105b524f78ad173e5ab6b445bdab1c989f6698df3", size = 143191, upload-time = "2026-01-23T18:36:43.529Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/db/0c890e2d9aab9ba284021efc02e1d3aebfecab1b611762d7434602209bcf/sounddevice-0.5.6.tar.gz", hash = "sha256:8ec9fbfde2e32f020b167e348f3ab3bac6625a5f15af524d790108ac7147a410", size = 1120094, upload-time = "2026-08-17T07:55:05.048Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/0a/478e441fd049002cf308520c0d62dd8333e7c6cc8d997f0dda07b9fbcc46/sounddevice-0.5.5-py3-none-any.whl", hash = "sha256:30ff99f6c107f49d25ad16a45cacd8d91c25a1bcdd3e81a206b921a3a6405b1f", size = 32807, upload-time = "2026-01-23T18:36:35.649Z" },
-    { url = "https://files.pythonhosted.org/packages/56/f9/c037c35f6d0b6bc3bc7bfb314f1d6f1f9a341328ef47cd63fc4f850a7b27/sounddevice-0.5.5-py3-none-macosx_10_6_x86_64.macosx_10_6_universal2.whl", hash = "sha256:05eb9fd6c54c38d67741441c19164c0dae8ce80453af2d8c4ad2e7823d15b722", size = 108557, upload-time = "2026-01-23T18:36:37.41Z" },
-    { url = "https://files.pythonhosted.org/packages/88/a1/d19dd9889cd4bce2e233c4fac007cd8daaf5b9fe6e6a5d432cf17be0b807/sounddevice-0.5.5-py3-none-win32.whl", hash = "sha256:1234cc9b4c9df97b6cbe748146ae0ec64dd7d6e44739e8e42eaa5b595313a103", size = 317765, upload-time = "2026-01-23T18:36:39.047Z" },
-    { url = "https://files.pythonhosted.org/packages/c3/0e/002ed7c4c1c2ab69031f78989d3b789fee3a7fba9e586eb2b81688bf4961/sounddevice-0.5.5-py3-none-win_amd64.whl", hash = "sha256:cfc6b2c49fb7f555591c78cb8ecf48d6a637fd5b6e1db5fec6ed9365d64b3519", size = 365324, upload-time = "2026-01-23T18:36:40.496Z" },
-    { url = "https://files.pythonhosted.org/packages/4e/39/a61d4b83a7746b70d23d9173be688c0c6bfc7173772344b7442c2c155497/sounddevice-0.5.5-py3-none-win_arm64.whl", hash = "sha256:3861901ddd8230d2e0e8ae62ac320cdd4c688d81df89da036dcb812f757bb3e6", size = 317115, upload-time = "2026-01-23T18:36:42.235Z" },
+    { url = "https://files.pythonhosted.org/packages/72/1f/62eef605172bddc1017508469a12f75bc7c4194ece35c734f822795f53b1/sounddevice-0.5.6-py3-none-any.whl", hash = "sha256:de099612311ad81e55d31ccbd83f43ea6bf4d87b48f9b6ea55a1fbcde0eee4e0", size = 32793, upload-time = "2026-08-17T07:54:57.507Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/84/85e719d49cf98b2f406d9ac9c338892286c4448eb42ef0b2625ccf159616/sounddevice-0.5.6-py3-none-macosx_10_6_x86_64.macosx_10_6_universal2.whl", hash = "sha256:e3aef00ad8b1d1740eb66d9a7671eab88a4d2b8fa4ab33498d742e63b65c309c", size = 1009647, upload-time = "2026-08-17T07:54:58.814Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/6f/6292145099f72a153a710245f46ae43e5fb6c77bec1b6086cb76c12dc280/sounddevice-0.5.6-py3-none-win32.whl", hash = "sha256:b36b807eb02abd257198bf84b2af05e4fea199a9d2f0019014169c7136d45e9c", size = 1009627, upload-time = "2026-08-17T07:55:00.401Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/3e/cbc593c31a5f0d817b3fe97e64aa8461bd0f55cb07b67ce1b776296ae336/sounddevice-0.5.6-py3-none-win_amd64.whl", hash = "sha256:7f4162f514f007b0bf25a3ccfed3f1705bc2ec311888a90232729eec4f57a4f4", size = 1009630, upload-time = "2026-08-17T07:55:02.088Z" },
+    { url = "https://files.pythonhosted.org/packages/60/a4/b0c21c9f215a6fd9606b8f8748c21212dc098e5d5a2d93068c50edcf19b4/sounddevice-0.5.6-py3-none-win_arm64.whl", hash = "sha256:c8ae19173e5f27f8c12d4b5eee2dbfe542cee125d591e663e0fb4dfb75246d45", size = 1009630, upload-time = "2026-08-17T07:55:03.689Z" },
 ]
 
 [[package]]

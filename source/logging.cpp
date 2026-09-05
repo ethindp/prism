@@ -66,7 +66,8 @@ void Logger::submit(PrismLogLevel level, std::string source,
   Record record{.source = std::move(source),
                 .message = std::move(message),
                 .flush_signal = nullptr,
-                .level = level};
+                .level = level,
+  };
   if (!queue.try_enqueue(std::move(record)))
     dropped.fetch_add(1, std::memory_order_relaxed);
 }

@@ -10,17 +10,17 @@ permissions:
 
 jobs:
   lint-linux:
-    uses: ./.github/workflows/lint-linux.yml
+    uses: $/.github/workflows/lint-linux.yml
   lint-windows-msvc:
-    uses: ./.github/workflows/lint-windows-msvc.yml
+    uses: $/.github/workflows/lint-windows-msvc.yml
   lint-windows-clang-tidy:
-    uses: ./.github/workflows/lint-windows-clang-tidy.yml
+    uses: $/.github/workflows/lint-windows-clang-tidy.yml
   lint-macos:
-    uses: ./.github/workflows/lint-macos.yml
+    uses: $/.github/workflows/lint-macos.yml
   lint-ios:
-    uses: ./.github/workflows/lint-ios.yml
+    uses: $/.github/workflows/lint-ios.yml
   lint-android:
-    uses: ./.github/workflows/lint-android.yml
+    uses: $/.github/workflows/lint-android.yml
     permissions:
       contents: read
       security-events: write
@@ -28,10 +28,10 @@ jobs:
 #  lint-emscripten:
 #    uses: ./.github/workflows/lint-emscripten.yml
   lint-python:
-    uses: ./.github/workflows/lint-python.yml
+    uses: $/.github/workflows/lint-python.yml
   lint-github-actions:
-    uses: ./.github/workflows/lint-github-actions.yml
+    uses: $/.github/workflows/lint-github-actions.yml
   lint-shell:
-    uses: ./.github/workflows/lint-shell.yml
+    uses: $/.github/workflows/lint-shell.yml
   lint-shfmt:
-    uses: ./.github/workflows/lint-shfmt.yml
+    uses: $/.github/workflows/lint-shfmt.yml

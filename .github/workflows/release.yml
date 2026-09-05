@@ -28,43 +28,43 @@ jobs:
           echo "tag=v${version}" >> "$GITHUB_OUTPUT"
 
   build-docs:
-    uses: ./.github/workflows/build-docs.yml
+    uses: $/.github/workflows/build-docs.yml
 
   build-windows:
-    uses: ./.github/workflows/build-windows.yml
+    uses: $/.github/workflows/build-windows.yml
 
   build-linux:
-    uses: ./.github/workflows/build-linux.yml
+    uses: $/.github/workflows/build-linux.yml
 
   build-macos:
-    uses: ./.github/workflows/build-macos.yml
+    uses: $/.github/workflows/build-macos.yml
 
   build-ios:
-    uses: ./.github/workflows/build-ios.yml
+    uses: $/.github/workflows/build-ios.yml
 
   build-tvos:
-    uses: ./.github/workflows/build-tvos.yml
+    uses: $/.github/workflows/build-tvos.yml
 
   build-visionos:
-    uses: ./.github/workflows/build-visionos.yml
+    uses: $/.github/workflows/build-visionos.yml
 
   build-watchos:
-    uses: ./.github/workflows/build-watchos.yml
+    uses: $/.github/workflows/build-watchos.yml
 
   build-android:
-    uses: ./.github/workflows/build-android.yml
+    uses: $/.github/workflows/build-android.yml
 
   build-emscripten:
-    uses: ./.github/workflows/build-emscripten.yml
+    uses: $/.github/workflows/build-emscripten.yml
 
   build-gdextension:
-    uses: ./.github/workflows/build-gdextension.yml
+    uses: $/.github/workflows/build-gdextension.yml
 
   build-wheels:
-    uses: ./.github/workflows/build-wheels.yml
+    uses: $/.github/workflows/build-wheels.yml
 
   build-sdist:
-    uses: ./.github/workflows/build-sdist.yml
+    uses: $/.github/workflows/build-sdist.yml
 
   release:
     needs: [version, build-docs, build-windows, build-linux, build-macos, build-ios, build-tvos, build-visionos, build-watchos, build-android, build-emscripten, build-gdextension, build-wheels, build-sdist]

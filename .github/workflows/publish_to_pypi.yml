@@ -8,11 +8,11 @@ permissions:
 jobs:
   build-wheels:
     if: ${{ !github.event.release.prerelease }}
-    uses: ./.github/workflows/build-wheels.yml
+    uses: $/.github/workflows/build-wheels.yml
 
   build-sdist:
     if: ${{ !github.event.release.prerelease }}
-    uses: ./.github/workflows/build-sdist.yml
+    uses: $/.github/workflows/build-sdist.yml
 
   upload_pypi:
     needs: [build-wheels, build-sdist]

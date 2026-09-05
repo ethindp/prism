@@ -163,64 +163,64 @@ jobs:
   build-docs:
     needs: changes
     if: needs.changes.outputs.docs == 'true'
-    uses: ./.github/workflows/build-docs.yml
+    uses: $/.github/workflows/build-docs.yml
 
   build-windows:
     needs: changes
     if: needs.changes.outputs.windows == 'true'
-    uses: ./.github/workflows/build-windows.yml
+    uses: $/.github/workflows/build-windows.yml
 
   build-linux:
     needs: changes
     if: needs.changes.outputs.linux == 'true'
-    uses: ./.github/workflows/build-linux.yml
+    uses: $/.github/workflows/build-linux.yml
 
   build-macos:
     needs: changes
     if: needs.changes.outputs.macos == 'true'
-    uses: ./.github/workflows/build-macos.yml
+    uses: $/.github/workflows/build-macos.yml
 
   build-ios:
     needs: changes
     if: needs.changes.outputs.ios == 'true'
-    uses: ./.github/workflows/build-ios.yml
+    uses: $/.github/workflows/build-ios.yml
 
   build-tvos:
     needs: changes
     if: needs.changes.outputs.ios == 'true'
-    uses: ./.github/workflows/build-tvos.yml
+    uses: $/.github/workflows/build-tvos.yml
 
   build-visionos:
     needs: changes
     if: needs.changes.outputs.ios == 'true'
-    uses: ./.github/workflows/build-visionos.yml
+    uses: $/.github/workflows/build-visionos.yml
 
   build-watchos:
     needs: changes
     if: needs.changes.outputs.ios == 'true'
-    uses: ./.github/workflows/build-watchos.yml
+    uses: $/.github/workflows/build-watchos.yml
 
   build-android:
     needs: changes
     if: needs.changes.outputs.android == 'true'
-    uses: ./.github/workflows/build-android.yml
+    uses: $/.github/workflows/build-android.yml
 
   build-emscripten:
     needs: changes
     if: needs.changes.outputs.emscripten == 'true'
-    uses: ./.github/workflows/build-emscripten.yml
+    uses: $/.github/workflows/build-emscripten.yml
 
   build-gdextension:
     needs: changes
     if: needs.changes.outputs.gdextension == 'true'
-    uses: ./.github/workflows/build-gdextension.yml
+    uses: $/.github/workflows/build-gdextension.yml
 
   build-wheels:
     needs: changes
     if: needs.changes.outputs.wheels == 'true'
-    uses: ./.github/workflows/build-wheels.yml
+    uses: $/.github/workflows/build-wheels.yml
 
   build-sdist:
     needs: changes
     if: needs.changes.outputs.sdist == 'true'
-    uses: ./.github/workflows/build-sdist.yml
+    uses: $/.github/workflows/build-sdist.yml

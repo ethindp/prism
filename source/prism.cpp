@@ -169,12 +169,10 @@ PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) {
 #endif
   delete ctx;
 #ifdef _WIN32
-  (void)__FUnloadDelayLoadedDLL2("ZDSRAPI.dll");
   (void)__FUnloadDelayLoadedDLL2("byctrl.dll");
   (void)__FUnloadDelayLoadedDLL2("PCTKUSR.dll");
   (void)__FUnloadDelayLoadedDLL2("prism_orca_bridge.dll");
   (void)__FUnloadDelayLoadedDLL2("prism_speech_dispatcher_bridge.dll");
-  (void)__FUnloadDelayLoadedDLL2("ZDSRAPI_x64.dll");
   (void)__FUnloadDelayLoadedDLL2("byctrl-x64.dll");
 #endif
 }

@@ -16,8 +16,6 @@
 #ifdef _WIN32
 #include <tchar.h>
 #include <windows.h>
-#include <winrt/Windows.Foundation.Diagnostics.h>
-#include <winrt/Windows.Foundation.h>
 #else
 #include <dlfcn.h>
 #endif
@@ -117,11 +115,27 @@ LibraryHandle open_library(std::string_view path) {
 void close_library(LibraryHandle h) { FreeLibrary(h); }
 
 std::string last_library_error() {
-  const auto d =
-      winrt::Windows::Foundation::Diagnostics::ErrorDetails::
-          CreateFromHResultAsync(static_cast<HRESULT>(GetLastError()))
-              .get();
-  return winrt::to_string(d.Description());
+  const auto error = GetLastError();
+  LPWSTR message = nullptr;
+  const auto length = FormatMessage(
+      FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+          FORMAT_MESSAGE_IGNORE_INSERTS,
+      nullptr, error, 0, reinterpret_cast<LPWSTR>(&message), 0, nullptr);
+  if (length == 0 || message == nullptr)
+    return fmt::format("Windows error {}", error);
+  std::wstring_view wide{message, length};
+  while (!wide.empty() && (wide.back() == _T('\r') || wide.back() == _T('\n')))
+    wide.remove_suffix(1);
+  std::string result(
+      simdutf::utf8_length_from_utf16(
+          reinterpret_cast<const char16_t *>(wide.data()), wide.size()),
+      '\0');
+  const std::size_t written = simdutf::convert_utf16_to_utf8(
+      reinterpret_cast<const char16_t *>(wide.data()), wide.size(),
+      result.data());
+  LocalFree(message);
+  result.resize(written);
+  return result;
 }
 
 PrismPluginQueryFn resolve_entry(LibraryHandle h) noexcept {
@@ -349,9 +363,13 @@ PrismError load_plugin(RegistryBuilder &builder, const char *path,
     if (out_count != nullptr)
       *out_count = added;
     return PRISM_OK;
+  } catch (const std::exception &ex) {
+    builder.rollback_to(mark);
+    log.error("Failed to load '{}': {}", path, ex.what());
+    return PRISM_ERROR_INTERNAL;
   } catch (...) {
     builder.rollback_to(mark);
-    log.error("Failed to load '{}': out of memory", path);
-    return PRISM_ERROR_MEMORY_FAILURE;
+    log.error("Failed to load '{}': Unknown error", path);
+    return PRISM_ERROR_UNKNOWN;
   }
 }

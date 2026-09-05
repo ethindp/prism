@@ -312,7 +312,8 @@ An optional pointer receiving the number of backends added. This parameter MAY b
 | `PRISM_ERROR_LIBRARY_INVALID` | The library was opened but does not export `prism_plugin_query`. |
 | `PRISM_ERROR_INCOMPATIBLE_ABI` | The plugin declined the host by returning `NULL` at index 0, or a descriptor declared an ABI generation this implementation does not accept. |
 | `PRISM_ERROR_INVALID_OPERATION` | The builder is spent, or a backend the plugin supplies has the same name or identifier as a backend already present in the builder, whether compiled-in, previously registered, or supplied by an earlier index of the same plugin. |
-| `PRISM_ERROR_MEMORY_FAILURE` | Memory allocation failed. |
+| `PRISM_ERROR_INTERNAL` | An internal error occurred while trying to perform a loader operation. |
+| `PRISM_ERROR_UNKNOWN` | An unspecified error occurred, and Prism has no other classification for it. |
 
 #### Remarks
 

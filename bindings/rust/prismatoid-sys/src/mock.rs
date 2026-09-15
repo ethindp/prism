@@ -449,6 +449,10 @@ unsafe extern "C" fn prism_backend_set_voice(
     _backend: *mut PrismBackend,
     voice_id: usize,
 ) -> PrismError {
+    if voice_id == u32::MAX as usize {
+        VOICE_ID.store(u32::MAX, Ordering::SeqCst);
+        return PrismError::Ok;
+    }
     if voice_id >= 2 {
         return PrismError::VoiceNotFound;
     }
@@ -464,7 +468,11 @@ unsafe extern "C" fn prism_backend_get_voice(
     if out_voice_id.is_null() {
         return PrismError::InvalidParam;
     }
-    *out_voice_id = VOICE_ID.load(Ordering::SeqCst) as usize;
+    let val = VOICE_ID.load(Ordering::SeqCst);
+    if val == u32::MAX {
+        return PrismError::NoVoices;
+    }
+    *out_voice_id = val as usize;
     PrismError::Ok
 }
 

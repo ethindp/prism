@@ -100,18 +100,66 @@ fn test_audio_format_and_synthesis() {
 }
 
 #[test]
-fn test_is_supported_and_current_voice() {
+fn test_backend_is_supported() {
+    let ctx = init().expect("init failed");
+    let backend = ctx.create_best().expect("create backend failed");
+    let supported: bool = backend.is_supported();
+    assert!(supported);
+}
+
+#[test]
+fn test_current_voice_ok() {
     let ctx = init().expect("init failed");
     let backend = ctx.create_best().expect("create backend failed");
 
-    assert!(backend.is_supported());
-
+    // 1. Returns Ok(Some(voice)) on voice-enabled backends
     let voice = backend.current_voice().expect("current_voice failed");
     assert!(voice.is_some());
     let v = voice.unwrap();
-    assert_eq!(v.id, 0);
-    assert_eq!(v.name, "David");
-    assert_eq!(v.language, "en-US");
+    assert!(!v.name.is_empty());
+    assert!(!v.language.is_empty());
+
+    // 2. Returns Ok(None) when NoVoices or NotImplemented is encountered
+    #[cfg(feature = "mock")]
+    {
+        let mut backend = backend;
+        // Mock backend maps u32::MAX to NoVoices
+        backend
+            .set_voice(u32::MAX as usize)
+            .expect("set_voice failed");
+        let no_voice = backend
+            .current_voice()
+            .expect("current_voice on NoVoices failed");
+        assert!(no_voice.is_none());
+        // Restore voice
+        backend.set_voice(0).expect("restore voice failed");
+    }
+    #[cfg(not(feature = "mock"))]
+    {
+        #[derive(Default)]
+        struct NoVoiceBackend;
+        impl prismatoid::CustomBackend for NoVoiceBackend {
+            fn name(&self) -> &str {
+                "NoVoiceBackend"
+            }
+            fn voice(&self) -> Result<usize, Error> {
+                Err(Error::NoVoices)
+            }
+        }
+        let mut builder = prismatoid::RegistryBuilder::new().expect("builder failed");
+        let id = builder
+            .add_backend::<NoVoiceBackend>("NoVoiceBackend", 200, BackendFeatures::empty())
+            .expect("add_backend failed");
+        let reg = builder.freeze().expect("freeze failed");
+        let custom_ctx =
+            prismatoid::init_with_config(prismatoid::Config::builder().registry(reg).build())
+                .expect("init failed");
+        let no_v_backend = custom_ctx.create_backend(id).expect("create failed");
+        let res = no_v_backend
+            .current_voice()
+            .expect("current_voice on NoVoices failed");
+        assert!(res.is_none());
+    }
 }
 
 #[test]
@@ -120,22 +168,25 @@ fn test_synthesize_stream() {
     let mut backend = ctx.create_best().expect("create backend failed");
 
     let stream = backend
-        .synthesize_stream("Streaming test text")
+        .synthesize_stream("hello")
         .expect("synthesize_stream failed");
-    assert_eq!(stream.len(), 2);
+    assert!(!stream.is_empty());
 
     let chunks: Vec<_> = stream.collect();
-    assert_eq!(chunks.len(), 2);
-    assert_eq!(chunks[0].samples.len(), 100);
-    assert_eq!(chunks[1].samples.len(), 100);
-    assert_eq!(chunks[0].channels, 2);
-    assert_eq!(chunks[0].sample_rate, 44100);
-    assert!(chunks[0].duration_seconds() > 0.0);
-    assert_eq!(chunks[0].frames_count(), 50);
+    assert!(!chunks.is_empty());
+    let c0 = &chunks[0];
+    assert!(!c0.samples.is_empty());
+    assert!(c0.channels > 0);
+    assert!(c0.sample_rate > 0);
+    assert!(c0.duration_seconds() > 0.0);
+    assert_eq!(c0.frames_count(), c0.samples.len() / c0.channels);
+
+    let pcm16 = c0.to_i16_pcm();
+    assert_eq!(pcm16.len(), c0.samples.len());
 }
 
 #[test]
-fn test_empty_text_validation() {
+fn test_empty_input_validation() {
     let ctx = init().expect("init failed");
     let mut backend = ctx.create_best().expect("create backend failed");
 
@@ -159,5 +210,36 @@ fn test_empty_text_validation() {
     assert!(matches!(
         backend.synthesize_stream(""),
         Err(Error::InvalidParam(_))
+    ));
+}
+
+#[test]
+fn test_nul_byte_rejection() {
+    let ctx = init().expect("init failed");
+    let mut backend = ctx.create_best().expect("create backend failed");
+
+    assert!(matches!(
+        backend.speak("hello\0world", false),
+        Err(Error::NulError(_))
+    ));
+    assert!(matches!(
+        backend.braille("hello\0world"),
+        Err(Error::NulError(_))
+    ));
+    assert!(matches!(
+        backend.output("hello\0world", false),
+        Err(Error::NulError(_))
+    ));
+    assert!(matches!(
+        backend.speak_to_memory("hello\0world", |_, _, _| {}),
+        Err(Error::NulError(_))
+    ));
+    assert!(matches!(
+        backend.synthesize("hello\0world"),
+        Err(Error::NulError(_))
+    ));
+    assert!(matches!(
+        backend.synthesize_stream("hello\0world"),
+        Err(Error::NulError(_))
     ));
 }

@@ -131,6 +131,21 @@ impl AudioChunk {
             self.frames_count() as f32 / self.sample_rate as f32
         }
     }
+
+    /// Converts the 32-bit floating-point samples to 16-bit signed integer PCM.
+    pub fn to_i16_pcm(&self) -> Vec<i16> {
+        self.samples
+            .iter()
+            .map(|&s| {
+                let clamped = s.clamp(-1.0, 1.0);
+                if clamped >= 0.0 {
+                    (clamped * 32767.0) as i16
+                } else {
+                    (clamped * 32768.0) as i16
+                }
+            })
+            .collect()
+    }
 }
 
 /// An iterator over chunks of synthesized audio.
@@ -145,6 +160,11 @@ impl ChunkIterator {
         Self {
             iter: chunks.into_iter(),
         }
+    }
+
+    /// Returns `true` if the iterator contains no chunks.
+    pub fn is_empty(&self) -> bool {
+        self.iter.len() == 0
     }
 }
 

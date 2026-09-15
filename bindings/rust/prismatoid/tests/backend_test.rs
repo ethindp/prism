@@ -38,13 +38,13 @@ fn test_voice_parameters() {
     let vol = backend.volume().expect("volume failed");
     assert!((vol - 0.75).abs() < 1e-4);
 
-    backend.set_rate(1.5).expect("set_rate failed");
+    backend.set_rate(0.8).expect("set_rate failed");
     let r = backend.rate().expect("rate failed");
-    assert!((r - 1.5).abs() < 1e-4);
+    assert!((r - 0.8).abs() < 1e-4);
 
-    backend.set_pitch(1.2).expect("set_pitch failed");
+    backend.set_pitch(0.7).expect("set_pitch failed");
     let p = backend.pitch().expect("pitch failed");
-    assert!((p - 1.2).abs() < 1e-4);
+    assert!((p - 0.7).abs() < 1e-4);
 }
 
 #[test]

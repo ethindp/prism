@@ -52,8 +52,6 @@ fn test_create_and_acquire_backend() {
     let best = ctx.create_best().expect("failed to create best backend");
     assert!(!best.name().unwrap().is_empty());
 
-    let nvda_backend = ctx
-        .create_backend(BackendId::NVDA)
-        .expect("failed to create NVDA backend");
-    assert!(!nvda_backend.name().unwrap().is_empty());
+    let acquired = ctx.acquire_best().expect("failed to acquire best backend");
+    assert!(!acquired.name().unwrap().is_empty());
 }

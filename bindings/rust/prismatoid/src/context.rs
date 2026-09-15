@@ -178,7 +178,7 @@ impl Context {
         if ptr.is_null() {
             Err(Error::BackendNotAvailable)
         } else {
-            Ok(unsafe { Backend::from_raw(ptr) })
+            unsafe { Backend::from_raw(ptr) }
         }
     }
 
@@ -188,7 +188,7 @@ impl Context {
         if ptr.is_null() {
             Err(Error::BackendNotAvailable)
         } else {
-            Ok(unsafe { Backend::from_raw(ptr) })
+            unsafe { Backend::from_raw(ptr) }
         }
     }
 
@@ -203,7 +203,7 @@ impl Context {
         if ptr.is_null() {
             Err(Error::BackendNotAvailable)
         } else {
-            Ok(unsafe { Backend::from_raw(ptr) })
+            unsafe { Backend::from_raw(ptr) }
         }
     }
 
@@ -213,8 +213,13 @@ impl Context {
         if ptr.is_null() {
             Err(Error::BackendNotAvailable)
         } else {
-            Ok(unsafe { Backend::from_raw(ptr) })
+            unsafe { Backend::from_raw(ptr) }
         }
+    }
+
+    /// Alias for [`acquire_best_backend`].
+    pub fn acquire_best(&self) -> Result<Backend, Error> {
+        self.acquire_best_backend()
     }
 
     /// Returns a list of all backend descriptors currently registered in this context.

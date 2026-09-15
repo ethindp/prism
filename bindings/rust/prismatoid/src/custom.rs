@@ -349,20 +349,64 @@ impl RegistryBuilder {
             destroy: Some(custom_destroy::<B>),
             is_supported: Some(custom_is_supported::<B>),
             initialize: Some(custom_initialize::<B>),
-            speak: Some(custom_speak::<B>),
+            speak: if features.contains(BackendFeatures::SUPPORTS_SPEAK) {
+                Some(custom_speak::<B>)
+            } else {
+                None
+            },
             speak_to_memory: None,
             braille: None,
             output: None,
-            stop: Some(custom_stop::<B>),
-            pause: Some(custom_pause::<B>),
-            resume: Some(custom_resume::<B>),
-            is_speaking: Some(custom_is_speaking::<B>),
-            set_volume: Some(custom_set_volume::<B>),
-            get_volume: Some(custom_get_volume::<B>),
-            set_rate: Some(custom_set_rate::<B>),
-            get_rate: Some(custom_get_rate::<B>),
-            set_pitch: Some(custom_set_pitch::<B>),
-            get_pitch: Some(custom_get_pitch::<B>),
+            stop: if features.contains(BackendFeatures::SUPPORTS_STOP) {
+                Some(custom_stop::<B>)
+            } else {
+                None
+            },
+            pause: if features.contains(BackendFeatures::SUPPORTS_PAUSE) {
+                Some(custom_pause::<B>)
+            } else {
+                None
+            },
+            resume: if features.contains(BackendFeatures::SUPPORTS_RESUME) {
+                Some(custom_resume::<B>)
+            } else {
+                None
+            },
+            is_speaking: if features.contains(BackendFeatures::SUPPORTS_IS_SPEAKING) {
+                Some(custom_is_speaking::<B>)
+            } else {
+                None
+            },
+            set_volume: if features.contains(BackendFeatures::SUPPORTS_SET_VOLUME) {
+                Some(custom_set_volume::<B>)
+            } else {
+                None
+            },
+            get_volume: if features.contains(BackendFeatures::SUPPORTS_GET_VOLUME) {
+                Some(custom_get_volume::<B>)
+            } else {
+                None
+            },
+            set_rate: if features.contains(BackendFeatures::SUPPORTS_SET_RATE) {
+                Some(custom_set_rate::<B>)
+            } else {
+                None
+            },
+            get_rate: if features.contains(BackendFeatures::SUPPORTS_GET_RATE) {
+                Some(custom_get_rate::<B>)
+            } else {
+                None
+            },
+            set_pitch: if features.contains(BackendFeatures::SUPPORTS_SET_PITCH) {
+                Some(custom_set_pitch::<B>)
+            } else {
+                None
+            },
+            get_pitch: if features.contains(BackendFeatures::SUPPORTS_GET_PITCH) {
+                Some(custom_get_pitch::<B>)
+            } else {
+                None
+            },
             refresh_voices: None,
             count_voices: None,
             get_voice_name: None,

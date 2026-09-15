@@ -32,15 +32,35 @@ impl Drop for Backend {
 }
 
 impl Backend {
-    /// Wraps a raw PrismBackend pointer.
+    /// Wraps and initializes a raw PrismBackend pointer.
     ///
     /// # Safety
     /// `raw` must be a valid, non-null pointer returned by a Prism registry function.
-    pub unsafe fn from_raw(raw: *mut prismatoid_sys::PrismBackend) -> Self {
+    pub unsafe fn from_raw(raw: *mut prismatoid_sys::PrismBackend) -> Result<Self, Error> {
         assert!(!raw.is_null(), "Backend pointer must not be null");
-        Self {
+        let res = prismatoid_sys::prism_backend_initialize(raw);
+        if res != prismatoid_sys::PrismError::Ok
+            && res != prismatoid_sys::PrismError::AlreadyInitialized
+        {
+            prismatoid_sys::prism_backend_free(raw);
+            return Err(Error::from(res));
+        }
+        Ok(Self {
             raw,
             _marker: PhantomData,
+        })
+    }
+
+    /// Explicitly initializes the backend. Returns `Ok(())` if initialization succeeds
+    /// or if the backend was already initialized.
+    pub fn initialize(&mut self) -> Result<(), Error> {
+        let res = unsafe { prismatoid_sys::prism_backend_initialize(self.raw) };
+        if res == prismatoid_sys::PrismError::Ok
+            || res == prismatoid_sys::PrismError::AlreadyInitialized
+        {
+            Ok(())
+        } else {
+            Err(Error::from(res))
         }
     }
 

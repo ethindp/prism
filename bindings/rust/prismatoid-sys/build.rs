@@ -16,7 +16,7 @@ fn main() {
     } else {
         // Probe common in-tree Prism build and distribution directories
         let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-        let repo_root = manifest_dir.join("../..");
+        let repo_root = manifest_dir.join("../../..");
 
         let candidate_dirs = [
             repo_root.join("build"),
@@ -24,8 +24,15 @@ fn main() {
             repo_root.join("build/Debug"),
             repo_root.join("build-dynamic-release"),
             repo_root.join("build-static-release"),
+            repo_root.join("dist/dynamic/release/lib"),
             repo_root.join("dist/dynamic/release"),
+            repo_root.join("dist/dynamic/debug/lib"),
+            repo_root.join("dist/dynamic/debug"),
+            repo_root.join("dist/static/release/lib"),
             repo_root.join("dist/static/release"),
+            repo_root.join("dist/static/debug/lib"),
+            repo_root.join("dist/static/debug"),
+            repo_root.join("dist/lib"),
             repo_root.join("dist"),
         ];
 

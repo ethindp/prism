@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use prismatoid::{init, BackendFeatures};
+use prismatoid::{init, BackendFeatures, Error};
 
 #[test]
 fn test_backend_features() {
@@ -97,4 +97,67 @@ fn test_audio_format_and_synthesis() {
     assert_eq!(&wav[0..4], b"RIFF");
     assert_eq!(&wav[8..12], b"WAVE");
     assert_eq!(&wav[12..16], b"fmt ");
+}
+
+#[test]
+fn test_is_supported_and_current_voice() {
+    let ctx = init().expect("init failed");
+    let backend = ctx.create_best().expect("create backend failed");
+
+    assert!(backend.is_supported());
+
+    let voice = backend.current_voice().expect("current_voice failed");
+    assert!(voice.is_some());
+    let v = voice.unwrap();
+    assert_eq!(v.id, 0);
+    assert_eq!(v.name, "David");
+    assert_eq!(v.language, "en-US");
+}
+
+#[test]
+fn test_synthesize_stream() {
+    let ctx = init().expect("init failed");
+    let mut backend = ctx.create_best().expect("create backend failed");
+
+    let stream = backend
+        .synthesize_stream("Streaming test text")
+        .expect("synthesize_stream failed");
+    assert_eq!(stream.len(), 2);
+
+    let chunks: Vec<_> = stream.collect();
+    assert_eq!(chunks.len(), 2);
+    assert_eq!(chunks[0].samples.len(), 100);
+    assert_eq!(chunks[1].samples.len(), 100);
+    assert_eq!(chunks[0].channels, 2);
+    assert_eq!(chunks[0].sample_rate, 44100);
+    assert!(chunks[0].duration_seconds() > 0.0);
+    assert_eq!(chunks[0].frames_count(), 50);
+}
+
+#[test]
+fn test_empty_text_validation() {
+    let ctx = init().expect("init failed");
+    let mut backend = ctx.create_best().expect("create backend failed");
+
+    assert!(matches!(
+        backend.speak("", true),
+        Err(Error::InvalidParam(_))
+    ));
+    assert!(matches!(backend.braille(""), Err(Error::InvalidParam(_))));
+    assert!(matches!(
+        backend.output("", false),
+        Err(Error::InvalidParam(_))
+    ));
+    assert!(matches!(
+        backend.speak_to_memory("", |_, _, _| {}),
+        Err(Error::InvalidParam(_))
+    ));
+    assert!(matches!(
+        backend.synthesize(""),
+        Err(Error::InvalidParam(_))
+    ));
+    assert!(matches!(
+        backend.synthesize_stream(""),
+        Err(Error::InvalidParam(_))
+    ));
 }

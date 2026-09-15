@@ -17,8 +17,10 @@ prismatoid-sys = { version = "0.18.2", path = "../prismatoid-sys" }
 bitflags = "2.4"
 thiserror = "2.0"
 log = { version = "0.4", optional = true }
+tracing = { version = "0.1", optional = true }
 
 [features]
 default = []
 mock = ["prismatoid-sys/mock"]
 log = ["dep:log"]
+tracing = ["dep:tracing"]

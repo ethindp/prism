@@ -172,6 +172,21 @@ impl Context {
         unsafe { prismatoid_sys::prism_registry_exists(self.raw, id.raw()) }
     }
 
+    /// Retrieves a backend instance by its ID if it exists in the registry.
+    pub fn get_backend(&self, id: BackendId) -> Option<Backend> {
+        let ptr = unsafe { prismatoid_sys::prism_registry_get(self.raw, id.raw()) };
+        if ptr.is_null() {
+            None
+        } else {
+            unsafe { Backend::from_raw(ptr).ok() }
+        }
+    }
+
+    /// Alias for [`get_backend`].
+    pub fn get(&self, id: BackendId) -> Option<Backend> {
+        self.get_backend(id)
+    }
+
     /// Creates a newly allocated, independent instance of the specified backend.
     pub fn create_backend(&self, id: BackendId) -> Result<Backend, Error> {
         let ptr = unsafe { prismatoid_sys::prism_registry_create(self.raw, id.raw()) };

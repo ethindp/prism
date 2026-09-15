@@ -96,3 +96,72 @@ impl AudioBuffer {
         wav
     }
 }
+
+/// A chunk of synthesized audio emitted during streaming synthesis.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AudioChunk {
+    /// Interleaved IEEE 32-bit floating-point PCM audio samples in range [-1.0, 1.0].
+    pub samples: Vec<f32>,
+    /// Number of audio channels.
+    pub channels: usize,
+    /// Sample rate in Hertz.
+    pub sample_rate: usize,
+}
+
+impl AudioChunk {
+    /// Constructs a new `AudioChunk` with the specified parameters.
+    pub fn new(samples: Vec<f32>, channels: usize, sample_rate: usize) -> Self {
+        Self {
+            samples,
+            channels,
+            sample_rate,
+        }
+    }
+
+    /// Returns the total number of multi-channel frames in this chunk.
+    pub fn frames_count(&self) -> usize {
+        self.samples.len().checked_div(self.channels).unwrap_or(0)
+    }
+
+    /// Returns the duration of the audio in seconds.
+    pub fn duration_seconds(&self) -> f32 {
+        if self.sample_rate == 0 || self.channels == 0 {
+            0.0
+        } else {
+            self.frames_count() as f32 / self.sample_rate as f32
+        }
+    }
+}
+
+/// An iterator over chunks of synthesized audio.
+#[derive(Debug, Clone)]
+pub struct ChunkIterator {
+    iter: std::vec::IntoIter<AudioChunk>,
+}
+
+impl ChunkIterator {
+    /// Constructs a new `ChunkIterator` from a vector of audio chunks.
+    pub fn new(chunks: Vec<AudioChunk>) -> Self {
+        Self {
+            iter: chunks.into_iter(),
+        }
+    }
+}
+
+impl Iterator for ChunkIterator {
+    type Item = AudioChunk;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+impl ExactSizeIterator for ChunkIterator {
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
+}

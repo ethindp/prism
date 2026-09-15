@@ -13,6 +13,33 @@ static RATE: Mutex<f32> = Mutex::new(1.0);
 static PITCH: Mutex<f32> = Mutex::new(1.0);
 static VOICE_ID: AtomicU32 = AtomicU32::new(0);
 
+type AvailabilityCb = unsafe extern "C" fn(*mut c_void, PrismBackendId, *const c_char, bool);
+static AVAILABILITY_CB: Mutex<Vec<(AvailabilityCb, usize)>> = Mutex::new(Vec::new());
+
+struct MockContext {
+    _dummy: u8,
+    userdata: usize,
+}
+
+/// Triggers the registered availability callback in mock tests.
+pub fn mock_trigger_availability(backend: PrismBackendId, name: &str, available: bool) {
+    let callbacks = {
+        let store = AVAILABILITY_CB.lock().unwrap();
+        store.clone()
+    };
+    let c_name = std::ffi::CString::new(name).unwrap_or_default();
+    for (cb, userdata_val) in callbacks {
+        unsafe {
+            cb(
+                userdata_val as *mut c_void,
+                backend,
+                c_name.as_ptr(),
+                available,
+            );
+        }
+    }
+}
+
 #[no_mangle]
 unsafe extern "C" fn prism_config_init() -> PrismConfig {
     PrismConfig {
@@ -28,14 +55,29 @@ unsafe extern "C" fn prism_config_init() -> PrismConfig {
 }
 
 #[no_mangle]
-unsafe extern "C" fn prism_init(_cfg: *mut PrismConfig) -> *mut PrismContext {
-    Box::into_raw(Box::new(42u8)) as *mut PrismContext
+unsafe extern "C" fn prism_init(cfg: *mut PrismConfig) -> *mut PrismContext {
+    let mut ud_val = 0;
+    if !cfg.is_null() {
+        if let Some(cb) = (*cfg).availability_callback {
+            ud_val = (*cfg).availability_userdata as usize;
+            let mut store = AVAILABILITY_CB.lock().unwrap();
+            store.push((cb, ud_val));
+        }
+    }
+    Box::into_raw(Box::new(MockContext {
+        _dummy: 42,
+        userdata: ud_val,
+    })) as *mut PrismContext
 }
 
 #[no_mangle]
 unsafe extern "C" fn prism_shutdown(ctx: *mut PrismContext) {
     if !ctx.is_null() {
-        drop(Box::from_raw(ctx as *mut u8));
+        let mock_ctx = Box::from_raw(ctx as *mut MockContext);
+        if mock_ctx.userdata != 0 {
+            let mut store = AVAILABILITY_CB.lock().unwrap();
+            store.retain(|&(_, ud)| ud != mock_ctx.userdata);
+        }
     }
 }
 
@@ -115,10 +157,14 @@ unsafe extern "C" fn prism_registry_exists(_ctx: *mut PrismContext, id: PrismBac
 
 #[no_mangle]
 unsafe extern "C" fn prism_registry_get(
-    _ctx: *mut PrismContext,
-    _id: PrismBackendId,
+    ctx: *mut PrismContext,
+    id: PrismBackendId,
 ) -> *mut PrismBackend {
-    Box::into_raw(Box::new(100u8)) as *mut PrismBackend
+    if !prism_registry_exists(ctx, id) {
+        std::ptr::null_mut()
+    } else {
+        Box::into_raw(Box::new(100u8)) as *mut PrismBackend
+    }
 }
 
 #[no_mangle]
@@ -202,6 +248,9 @@ unsafe extern "C" fn prism_backend_speak(
     if text.is_null() {
         return PrismError::InvalidParam;
     }
+    if CStr::from_ptr(text).to_bytes().is_empty() {
+        return PrismError::InvalidParam;
+    }
     IS_SPEAKING.store(true, Ordering::SeqCst);
     PrismError::Ok
 }
@@ -216,10 +265,15 @@ unsafe extern "C" fn prism_backend_speak_to_memory(
     if text.is_null() {
         return PrismError::InvalidParam;
     }
+    if CStr::from_ptr(text).to_bytes().is_empty() {
+        return PrismError::InvalidParam;
+    }
     if let Some(cb) = callback {
-        // Synthesize 100 frames of stereo audio at 44100Hz
-        let dummy_samples: Vec<f32> = vec![0.1; 200];
-        cb(userdata, dummy_samples.as_ptr(), 200, 2, 44100);
+        // Emit 2 chunks of stereo audio at 44100Hz
+        let chunk1: Vec<f32> = vec![0.1; 100];
+        cb(userdata, chunk1.as_ptr(), 100, 2, 44100);
+        let chunk2: Vec<f32> = vec![0.2; 100];
+        cb(userdata, chunk2.as_ptr(), 100, 2, 44100);
     }
     PrismError::Ok
 }
@@ -230,6 +284,9 @@ unsafe extern "C" fn prism_backend_braille(
     text: *const c_char,
 ) -> PrismError {
     if text.is_null() {
+        return PrismError::InvalidParam;
+    }
+    if CStr::from_ptr(text).to_bytes().is_empty() {
         return PrismError::InvalidParam;
     }
     PrismError::Ok
@@ -542,9 +599,27 @@ unsafe extern "C" fn prism_registry_release(registry: *mut PrismRegistry) {
     }
 }
 
+static MOCK_LOG_HANDLER: Mutex<Option<(PrismLogCallback, usize)>> = Mutex::new(None);
+
 #[no_mangle]
 unsafe extern "C" fn prism_set_log_handler(handler: PrismLogHandler) -> PrismLogHandler {
-    handler
+    let mut store = MOCK_LOG_HANDLER.lock().unwrap();
+    let prev = match *store {
+        Some((cb, ud)) => PrismLogHandler {
+            fn_callback: Some(cb),
+            userdata: ud as *mut c_void,
+        },
+        None => PrismLogHandler {
+            fn_callback: None,
+            userdata: std::ptr::null_mut(),
+        },
+    };
+    if let Some(cb) = handler.fn_callback {
+        *store = Some((cb, handler.userdata as usize));
+    } else {
+        *store = None;
+    }
+    prev
 }
 
 #[no_mangle]
@@ -554,10 +629,17 @@ unsafe extern "C" fn prism_set_log_level(level: PrismLogLevel) -> PrismLogLevel 
 
 #[no_mangle]
 unsafe extern "C" fn prism_log(
-    _level: PrismLogLevel,
-    _source: *const c_char,
-    _message: *const c_char,
+    level: PrismLogLevel,
+    source: *const c_char,
+    message: *const c_char,
 ) {
+    let handler_data = {
+        let store = MOCK_LOG_HANDLER.lock().unwrap();
+        *store
+    };
+    if let Some((cb, ud)) = handler_data {
+        cb(ud as *mut c_void, level, source, message);
+    }
 }
 
 #[no_mangle]

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::audio::{AudioBuffer, AudioFormat};
+use crate::audio::{AudioBuffer, AudioChunk, AudioFormat, ChunkIterator};
 use crate::error::{check, Error};
 use crate::features::BackendFeatures;
 use crate::voice::VoiceInfo;
@@ -92,22 +92,36 @@ impl Backend {
             .unwrap_or(false)
     }
 
+    /// Returns whether this backend is supported on the host system at runtime.
+    pub fn is_supported(&self) -> bool {
+        self.supports(BackendFeatures::IS_SUPPORTED_AT_RUNTIME)
+    }
+
     /// Speaks the given text.
     ///
     /// If `interrupt` is true, ongoing speech is cancelled before this text is spoken.
     pub fn speak(&mut self, text: &str, interrupt: bool) -> Result<(), Error> {
+        if text.is_empty() {
+            return Err(Error::InvalidParam("text must not be empty".into()));
+        }
         let c_text = CString::new(text)?;
         check(unsafe { prismatoid_sys::prism_backend_speak(self.raw, c_text.as_ptr(), interrupt) })
     }
 
     /// Outputs text as braille on supported screen readers.
     pub fn braille(&mut self, text: &str) -> Result<(), Error> {
+        if text.is_empty() {
+            return Err(Error::InvalidParam("text must not be empty".into()));
+        }
         let c_text = CString::new(text)?;
         check(unsafe { prismatoid_sys::prism_backend_braille(self.raw, c_text.as_ptr()) })
     }
 
     /// Outputs text simultaneously to speech and braille.
     pub fn output(&mut self, text: &str, interrupt: bool) -> Result<(), Error> {
+        if text.is_empty() {
+            return Err(Error::InvalidParam("text must not be empty".into()));
+        }
         let c_text = CString::new(text)?;
         check(unsafe { prismatoid_sys::prism_backend_output(self.raw, c_text.as_ptr(), interrupt) })
     }
@@ -220,6 +234,31 @@ impl Backend {
         Ok(id)
     }
 
+    /// Retrieves information about the currently active voice, or `Ok(None)` if no voices
+    /// are available or voice querying is not implemented.
+    pub fn current_voice(&self) -> Result<Option<VoiceInfo>, Error> {
+        let id = match self.voice() {
+            Ok(id) => id,
+            Err(Error::NoVoices) | Err(Error::NotImplemented) => return Ok(None),
+            Err(e) => return Err(e),
+        };
+        let name = match self.voice_name(id) {
+            Ok(name) => name,
+            Err(Error::NoVoices) | Err(Error::NotImplemented) | Err(Error::VoiceNotFound) => {
+                return Ok(None)
+            }
+            Err(e) => return Err(e),
+        };
+        let language = match self.voice_language(id) {
+            Ok(lang) => lang,
+            Err(Error::NoVoices) | Err(Error::NotImplemented) | Err(Error::VoiceNotFound) => {
+                return Ok(None)
+            }
+            Err(e) => return Err(e),
+        };
+        Ok(Some(VoiceInfo { id, name, language }))
+    }
+
     /// Returns a list of all available voices on this backend.
     pub fn voices(&self) -> Result<Vec<VoiceInfo>, Error> {
         let count = self.voices_count()?;
@@ -287,6 +326,9 @@ impl Backend {
     where
         F: FnMut(&[f32], usize, usize),
     {
+        if text.is_empty() {
+            return Err(Error::InvalidParam("text must not be empty".into()));
+        }
         let c_text = CString::new(text)?;
 
         unsafe extern "C" fn trampoline<T: FnMut(&[f32], usize, usize)>(
@@ -299,9 +341,11 @@ impl Backend {
             if userdata.is_null() || samples.is_null() || sample_count == 0 {
                 return;
             }
-            let closure = &mut *(userdata as *mut T);
-            let slice = std::slice::from_raw_parts(samples, sample_count);
-            closure(slice, channels, sample_rate);
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let closure = &mut *(userdata as *mut T);
+                let slice = std::slice::from_raw_parts(samples, sample_count);
+                closure(slice, channels, sample_rate);
+            }));
         }
 
         let cb_ptr = &mut callback as *mut F as *mut c_void;
@@ -333,5 +377,14 @@ impl Backend {
             out_channels,
             out_rate,
         ))
+    }
+
+    /// Synthesizes text in-memory and returns a [`ChunkIterator`] yielding chunks of PCM audio.
+    pub fn synthesize_stream(&mut self, text: &str) -> Result<ChunkIterator, Error> {
+        let mut chunks = Vec::new();
+        self.speak_to_memory(text, |chunk, channels, rate| {
+            chunks.push(AudioChunk::new(chunk.to_vec(), channels, rate));
+        })?;
+        Ok(ChunkIterator::new(chunks))
     }
 }

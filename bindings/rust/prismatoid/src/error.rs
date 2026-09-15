@@ -138,7 +138,7 @@ impl From<Error> for prismatoid_sys::PrismError {
     fn from(err: Error) -> Self {
         match err {
             Error::NotInitialized => prismatoid_sys::PrismError::NotInitialized,
-            Error::InvalidParam(_) => prismatoid_sys::PrismError::InvalidParam,
+            Error::InvalidParam(_) | Error::NulError(_) => prismatoid_sys::PrismError::InvalidParam,
             Error::NotImplemented => prismatoid_sys::PrismError::NotImplemented,
             Error::NoVoices => prismatoid_sys::PrismError::NoVoices,
             Error::VoiceNotFound => prismatoid_sys::PrismError::VoiceNotFound,
@@ -163,7 +163,7 @@ impl From<Error> for prismatoid_sys::PrismError {
             Error::LibraryLoadFailed => prismatoid_sys::PrismError::LibraryLoadFailed,
             Error::LibraryInvalid => prismatoid_sys::PrismError::LibraryInvalid,
             Error::IncompatibleAbi => prismatoid_sys::PrismError::IncompatibleAbi,
-            Error::Unknown | Error::NulError(_) => prismatoid_sys::PrismError::Unknown,
+            Error::Unknown => prismatoid_sys::PrismError::Unknown,
         }
     }
 }

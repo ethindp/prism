@@ -3,6 +3,7 @@
 use crate::backend_id::BackendId;
 use crate::custom::Registry;
 use std::ffi::{c_char, c_void, CStr};
+use std::sync::Mutex;
 
 /// Type alias for the dynamic backend availability closure.
 pub type AvailabilityCallback = Box<dyn FnMut(BackendId, &str, bool) + Send + 'static>;
@@ -111,11 +112,15 @@ pub(crate) unsafe extern "C" fn availability_trampoline(
     if userdata.is_null() {
         return;
     }
-    let cb = &mut *(userdata as *mut AvailabilityCallback);
-    let name_str = if name.is_null() {
-        ""
-    } else {
-        CStr::from_ptr(name).to_str().unwrap_or("")
-    };
-    cb(BackendId::from_raw(backend), name_str, available);
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mutex = &*(userdata as *const Mutex<AvailabilityCallback>);
+        if let Ok(mut cb) = mutex.lock() {
+            let name_str = if name.is_null() {
+                ""
+            } else {
+                CStr::from_ptr(name).to_str().unwrap_or("")
+            };
+            cb(BackendId::from_raw(backend), name_str, available);
+        }
+    }));
 }

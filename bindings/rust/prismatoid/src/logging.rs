@@ -8,7 +8,7 @@
 use crate::error::Result;
 use prismatoid_sys as sys;
 use std::ffi::{c_char, c_void, CStr, CString};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// Severity levels for Prism log messages.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -48,8 +48,8 @@ impl From<LogLevel> for sys::PrismLogLevel {
     }
 }
 
-type LogCallback = Box<dyn Fn(LogLevel, &str, &str) + Send + Sync + 'static>;
-static LOG_HANDLER: Mutex<Option<LogCallback>> = Mutex::new(None);
+type LogCallback = dyn Fn(LogLevel, &str, &str) + Send + Sync + 'static;
+static LOG_HANDLER: Mutex<Option<Arc<LogCallback>>> = Mutex::new(None);
 
 unsafe extern "C" fn log_trampoline(
     _userdata: *mut c_void,
@@ -57,23 +57,30 @@ unsafe extern "C" fn log_trampoline(
     source: *const c_char,
     message: *const c_char,
 ) {
-    let source_str = if source.is_null() {
-        "prism"
-    } else {
-        CStr::from_ptr(source).to_str().unwrap_or("prism")
-    };
-    let message_str = if message.is_null() {
-        ""
-    } else {
-        CStr::from_ptr(message).to_str().unwrap_or("")
-    };
-    let rust_level = LogLevel::from(level);
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let cb_arc = {
+            if let Ok(guard) = LOG_HANDLER.lock() {
+                guard.clone()
+            } else {
+                None
+            }
+        };
 
-    if let Ok(guard) = LOG_HANDLER.lock() {
-        if let Some(ref cb) = *guard {
+        if let Some(cb) = cb_arc {
+            let source_str = if source.is_null() {
+                "prism"
+            } else {
+                CStr::from_ptr(source).to_str().unwrap_or("prism")
+            };
+            let message_str = if message.is_null() {
+                ""
+            } else {
+                CStr::from_ptr(message).to_str().unwrap_or("")
+            };
+            let rust_level = LogLevel::from(level);
             cb(rust_level, source_str, message_str);
         }
-    }
+    }));
 }
 
 /// Sets a custom log handler callback for Prism diagnostics.
@@ -83,7 +90,7 @@ where
 {
     {
         let mut guard = LOG_HANDLER.lock().expect("logging mutex poisoned");
-        *guard = Some(Box::new(handler));
+        *guard = Some(Arc::new(handler));
     }
     unsafe {
         sys::prism_set_log_handler(sys::PrismLogHandler {
@@ -150,5 +157,18 @@ pub fn init_log_bridge() {
             LogLevel::Error => ::log::error!(target: &target, "{message}"),
             LogLevel::None => {}
         }
+    });
+}
+
+#[cfg(feature = "tracing")]
+/// Bridges Prism log messages to the `tracing` ecosystem.
+pub fn init_tracing_bridge() {
+    set_log_handler(|level, source, message| match level {
+        LogLevel::Trace => ::tracing::trace!(target: "prism", source = source, "{message}"),
+        LogLevel::Debug => ::tracing::debug!(target: "prism", source = source, "{message}"),
+        LogLevel::Info => ::tracing::info!(target: "prism", source = source, "{message}"),
+        LogLevel::Warn => ::tracing::warn!(target: "prism", source = source, "{message}"),
+        LogLevel::Error => ::tracing::error!(target: "prism", source = source, "{message}"),
+        LogLevel::None => {}
     });
 }

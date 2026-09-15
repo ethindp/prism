@@ -374,4 +374,6 @@ extern "C" {
 }
 
 #[cfg(feature = "mock")]
-mod mock;
+pub mod mock;
+#[cfg(feature = "mock")]
+pub use mock::mock_trigger_availability;

@@ -51,7 +51,7 @@ pub mod features;
 pub mod logging;
 pub mod voice;
 
-pub use audio::{AudioBuffer, AudioFormat};
+pub use audio::{AudioBuffer, AudioChunk, AudioFormat, ChunkIterator};
 pub use backend::Backend;
 pub use backend_id::BackendId;
 pub use config::{AvailabilityCallback, Config, ConfigBuilder};

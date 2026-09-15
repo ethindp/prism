@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: MPL-2.0
+
+[package]
+name = "prismatoid"
+version = "0.18.2"
+edition = "2021"
+authors = ["Ethin Probst <hsmr@duck.com>", "Prism Contributors"]
+license = "MPL-2.0"
+description = "Idiomatic Rust bindings for Prism, the Platform-agnostic Reader Interface for Speech and Messages"
+repository = "https://github.com/ethindp/prism"
+readme = "README.md"
+keywords = ["accessibility", "speech", "screen-reader", "tts", "audio"]
+categories = ["accessibility", "multimedia::audio", "api-bindings"]
+
+[dependencies]
+prismatoid-sys = { version = "0.18.2", path = "../prismatoid-sys" }
+bitflags = "2.4"
+thiserror = "2.0"
+log = { version = "0.4", optional = true }
+
+[features]
+default = []
+mock = ["prismatoid-sys/mock"]
+log = ["dep:log"]

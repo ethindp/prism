@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MPL-2.0
+
+[package]
+name = "prismatoid-sys"
+version = "0.18.2"
+edition = "2021"
+authors = ["Ethin Probst <hsmr@duck.com>", "Prism Contributors"]
+license = "MPL-2.0"
+description = "Raw FFI bindings for Prism, the Platform-agnostic Reader Interface for Speech and Messages"
+repository = "https://github.com/ethindp/prism"
+readme = "README.md"
+links = "prism"
+
+[dependencies]
+
+[build-dependencies]
+
+[features]
+default = []
+# Compile mock implementation for testing without the full native C++ library
+mock = []

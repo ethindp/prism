@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MPL-2.0
+
+[workspace]
+resolver = "2"
+members = [
+    "prismatoid-sys",
+    "prismatoid",
+]

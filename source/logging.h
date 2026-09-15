@@ -3,12 +3,15 @@
 #pragma once
 #include "prism.h"
 #include <atomic>
-#include <moodycamel/blockingconcurrentqueue.h>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <fmt/format.h>
 #include <fmt/xchar.h>
+#include <moodycamel/blockingconcurrentqueue.h>
+#include <mutex>
 #include <new>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -28,13 +31,13 @@ private:
   struct Record {
     std::string source;
     std::string message;
-    void *flush_signal = nullptr;
     PrismLogLevel level = PRISM_LOG_LEVEL_INFO;
   };
 
-  struct Handler {
-    PrismLogCallback fn = nullptr;
-    void *userdata = nullptr;
+  enum class Lifecycle {
+    Running,
+    Stopping,
+    Stopped,
   };
 
   static constexpr std::size_t capacity = 4096;
@@ -43,19 +46,27 @@ private:
       std::atomic_uint32_t threshold{PRISM_LOG_LEVEL_NONE};
   alignas(hardware_destructive_interference_size) std::atomic_uint64_t dropped{
       0};
-  std::atomic<const Handler *> current{nullptr};
+  mutable std::mutex handler_mtx;
+  PrismLogHandler current{};
   moodycamel::BlockingConcurrentQueue<Record> queue{capacity};
+  moodycamel::ProducerToken producer{queue};
+  std::mutex lifecycle_mtx;
+  std::condition_variable lifecycle_cv;
+  Lifecycle lifecycle{Lifecycle::Running};
+  std::uint64_t submitted = 0;
+  std::uint64_t completed = 0;
   std::jthread drain;
 
   void run(const std::stop_token &st) noexcept;
 
-  [[nodiscard]] const Handler *handler() const noexcept {
-    return current.load(std::memory_order_acquire);
+  [[nodiscard]] PrismLogHandler handler() const noexcept {
+    std::scoped_lock lock(handler_mtx);
+    return current;
   }
 
-  static void deliver(Record &record, const Handler *pair) noexcept;
+  void deliver(std::span<const Record> records) noexcept;
 
-  void report_drops(const Handler *pair) noexcept;
+  void report_drops(const PrismLogHandler &pair) noexcept;
 
 public:
   Logger();

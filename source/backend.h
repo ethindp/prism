@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #pragma once
+#include <atomic>
 #include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <string_view>
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
 #ifdef _WIN32
+#include <objbase.h>
 #include <windows.h>
 #endif
 
@@ -92,18 +95,34 @@ static_assert((KNOWN & (1ULL << 1)) == 0, "bit 1 has never been assigned");
 } // namespace BackendFeature
 
 class TextToSpeechBackend {
-#ifdef __ANDROID__
-protected:
-  JavaVM *java_vm{nullptr};
-#endif
-#ifdef _WIN32
-protected:
-  HWND hwnd_in{static_cast<HWND>(INVALID_HANDLE_VALUE)};
-#endif
+private:
+  std::mutex initialization_mtx;
+  std::atomic_flag initialized_for_cache;
+
 public:
   using AudioCallback = std::function<void(void *, const float *, std::size_t,
                                            std::size_t, std::size_t)>;
   virtual ~TextToSpeechBackend() = default;
+  virtual BackendResult<> initialize_tracked() final {
+    std::scoped_lock lock(initialization_mtx);
+    const auto result = initialize();
+    if (result || result.error() == BackendError::AlreadyInitialized)
+      initialized_for_cache.test_and_set(std::memory_order_release);
+    return result;
+  }
+  [[nodiscard]] virtual bool ensure_initialized() final {
+    std::scoped_lock lock(initialization_mtx);
+    if (initialized_for_cache.test(std::memory_order_relaxed))
+      return true;
+    const auto result = initialize();
+    if (!result && result.error() != BackendError::AlreadyInitialized)
+      return false;
+    initialized_for_cache.test_and_set(std::memory_order_release);
+    return true;
+  }
+  [[nodiscard]] virtual bool is_initialized_for_cache() const noexcept final {
+    return initialized_for_cache.test(std::memory_order_acquire);
+  }
   [[nodiscard]] virtual std::string_view get_name() const = 0;
   [[nodiscard]] virtual std::bitset<64> get_features() const = 0;
   virtual BackendResult<> initialize() {
@@ -186,3 +205,21 @@ public:
     return std::unexpected(BackendError::NotImplemented);
   }
 };
+
+#ifdef _WIN32
+class ComTextToSpeechBackend : public TextToSpeechBackend {
+private:
+  CO_MTA_USAGE_COOKIE mta_cookie{};
+  bool mta_usage_retained = false;
+
+public:
+  ComTextToSpeechBackend() noexcept {
+    mta_usage_retained = SUCCEEDED(CoIncrementMTAUsage(&mta_cookie));
+  }
+
+  ~ComTextToSpeechBackend() override {
+    if (mta_usage_retained)
+      (void)CoDecrementMTAUsage(mta_cookie);
+  }
+};
+#endif

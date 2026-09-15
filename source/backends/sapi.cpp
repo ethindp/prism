@@ -46,6 +46,17 @@ struct VoiceInfo {
   std::string language;
 };
 
+struct ComApartmentGuard {
+  bool initialized;
+  ~ComApartmentGuard() noexcept {
+    if (initialized)
+      CoUninitialize();
+  }
+  explicit ComApartmentGuard(HRESULT result) : initialized(SUCCEEDED(result)) {}
+  ComApartmentGuard(const ComApartmentGuard &) = delete;
+  ComApartmentGuard &operator=(const ComApartmentGuard &) = delete;
+};
+
 struct HandleGuard {
   HANDLE h{};
   ~HandleGuard() noexcept {
@@ -132,7 +143,7 @@ const T *lifetime_as_array(const void *p,
 }
 } // namespace
 
-class SapiBackend final : public TextToSpeechBackend {
+class SapiBackend final : public ComTextToSpeechBackend {
 private:
   std::jthread worker_thread;
   CComPtr<ISpVoice> voice;
@@ -165,7 +176,7 @@ private:
     HandleGuard stop_event(CreateEvent(nullptr, TRUE, FALSE, nullptr));
     HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED |
                                              COINIT_SPEED_OVER_MEMORY);
-    const bool should_uninit = SUCCEEDED(hr);
+    ComApartmentGuard apartment{hr};
     if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) {
       return;
     }
@@ -176,19 +187,13 @@ private:
       std::stop_callback cb(st, [h = stop_event.h] { SetEvent(h); });
       CComPtr<ISpVoice> local_voice;
       hr = local_voice.CoCreateInstance(CLSID_SpVoice);
-      if (FAILED(hr)) {
-        if (should_uninit)
-          CoUninitialize();
+      if (FAILED(hr))
         return;
-      }
       IStream *stream = nullptr;
       hr = CoMarshalInterThreadInterfaceInStream(__uuidof(ISpVoice),
                                                  local_voice, &stream);
-      if (FAILED(hr)) {
-        if (should_uninit)
-          CoUninitialize();
+      if (FAILED(hr))
         return;
-      }
       handshake.succeed(stream);
       while (true) {
         auto const r = MsgWaitForMultipleObjectsEx(
@@ -200,8 +205,13 @@ private:
           DispatchMessage(&msg);
         }
       }
-      if (should_uninit)
-        CoUninitialize();
+      stream = marshal_stream.exchange(nullptr, std::memory_order_acq_rel);
+      if (stream != nullptr) {
+        LARGE_INTEGER start{};
+        if (SUCCEEDED(stream->Seek(start, STREAM_SEEK_SET, nullptr)))
+          (void)CoReleaseMarshalData(stream);
+        stream->Release();
+      }
     }
   }
 
@@ -318,12 +328,141 @@ private:
     return {};
   }
 
+  BackendResult<> refresh_voices_locked() {
+    std::vector<VoiceInfo> new_voices;
+    for (const auto &category_id : VOICE_CATEGORIES) {
+      CComPtr<ISpObjectTokenCategory> category;
+      if (FAILED(category.CoCreateInstance(CLSID_SpObjectTokenCategory)))
+        continue;
+      if (FAILED(category->SetId(category_id, FALSE))) {
+        logger.debug(_T("voice category absent, skipping: {}"), category_id);
+        continue;
+      }
+      CComPtr<IEnumSpObjectTokens> enum_tokens;
+      if (FAILED(category->EnumTokens(nullptr, nullptr, &enum_tokens)))
+        continue;
+      ULONG count = 0;
+      if (FAILED(enum_tokens->GetCount(&count)))
+        continue;
+      new_voices.reserve(new_voices.size() + count);
+      HRESULT hr = S_OK;
+      for (ULONG i = 0; i < count; ++i) {
+        CComPtr<ISpObjectToken> token;
+        hr = enum_tokens->Next(1, &token, nullptr);
+        if (FAILED(hr))
+          break;
+        LPWSTR name_ptr = nullptr;
+        hr = token->GetStringValue(nullptr, &name_ptr);
+        if (FAILED(hr) || name_ptr == nullptr) {
+          if (name_ptr != nullptr)
+            CoTaskMemFree(name_ptr);
+          continue;
+        }
+        std::wstring_view name_view{name_ptr};
+        std::string name(
+            simdutf::utf8_length_from_utf16le(
+                reinterpret_cast<const char16_t *>(name_view.data()),
+                name_view.size()),
+            '\0');
+        (void)simdutf::convert_valid_utf16_to_utf8(
+            reinterpret_cast<const char16_t *>(name_view.data()),
+            name_view.size(), name.data()); // Deliberately ignored return value
+        if (name.empty()) {
+          if (name_ptr != nullptr)
+            CoTaskMemFree(name_ptr);
+          continue;
+        }
+        CoTaskMemFree(name_ptr);
+        std::string language = "en-us";
+        LPWSTR lang_ptr = nullptr;
+        if (SUCCEEDED(token->GetStringValue(_T("Language"), &lang_ptr)) &&
+            lang_ptr != nullptr) {
+          std::wstring_view lang_view{lang_ptr};
+          LANGID langid{};
+          std::string lang_narrow(lang_view.size(), '\0');
+          std::ranges::transform(lang_view, lang_narrow.begin(), [](wchar_t c) {
+            return static_cast<char>(c);
+          });
+          auto [ptr, ec] = std::from_chars(
+              lang_narrow.data(), lang_narrow.data() + lang_narrow.size(),
+              langid, 16);
+          CoTaskMemFree(lang_ptr);
+          if (ec == std::errc{}) {
+            std::array<wchar_t, LOCALE_NAME_MAX_LENGTH> locale_name{};
+            if (LCIDToLocaleName(MAKELCID(langid, SORT_DEFAULT),
+                                 locale_name.data(), LOCALE_NAME_MAX_LENGTH,
+                                 0) != 0) {
+              std::wstring_view locale_view{locale_name.data()};
+              language.resize(simdutf::utf8_length_from_utf16le(
+                  reinterpret_cast<const char16_t *>(locale_view.data()),
+                  locale_view.size()));
+              (void)simdutf::convert_valid_utf16_to_utf8(
+                  reinterpret_cast<const char16_t *>(locale_view.data()),
+                  locale_view.size(), language.data());
+              std::ranges::transform(
+                  language, language.begin(),
+                  [](unsigned char c) { return std::tolower(c); });
+            }
+          }
+        }
+        new_voices.emplace_back(VoiceInfo{
+            .token = std::move(token),
+            .name = std::move(name),
+            .language = std::move(language),
+        });
+      }
+    }
+    if (new_voices.empty())
+      return std::unexpected(BackendError::NoVoices);
+    {
+      std::unique_lock ul(voices_lock);
+      std::swap(voices, new_voices);
+    }
+    CComPtr<ISpObjectToken> current_token;
+    HRESULT hr = voice->GetVoice(&current_token);
+    if (FAILED(hr) || current_token == nullptr) {
+      return std::unexpected(BackendError::InternalBackendError);
+    }
+    {
+      std::shared_lock sl(voices_lock);
+      for (std::size_t i = 0; i < voices.size(); ++i) {
+        if (voices[i].token.IsEqualObject(current_token)) {
+          voice_idx.store(i, std::memory_order_release);
+          break;
+        }
+      }
+    }
+    return {};
+  }
+
+  void stop_worker() noexcept {
+    worker_thread.request_stop();
+    if (worker_thread.joinable())
+      worker_thread.join();
+  }
+
+  void reset_initialization_state_locked() {
+    initialized.clear(std::memory_order_release);
+    paused = false;
+    voice.Release();
+    audio_channels.store(0, std::memory_order_release);
+    audio_sample_rate.store(0, std::memory_order_release);
+    audio_bit_depth.store(0, std::memory_order_release);
+    voice_idx.store(0, std::memory_order_release);
+    {
+      std::unique_lock ul(voices_lock);
+      voices.clear();
+    }
+  }
+
 public:
   ~SapiBackend() override {
     {
       std::unique_lock vl(voice_lock);
       voice.Release();
+      initialized.clear(std::memory_order_release);
     }
+    stop_worker();
     {
       std::unique_lock ul(voices_lock);
       voices.clear();
@@ -358,37 +497,47 @@ public:
 
   BackendResult<> initialize() override {
     std::unique_lock vl(voice_lock);
-    std::unique_lock lock(init_mtx);
-    if (voice != nullptr) {
+    if (voice != nullptr || initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::AlreadyInitialized);
-    }
-    ready = std::nullopt;
-    worker_thread = std::jthread(
-        [this](const std::stop_token &st) { this->thread_proc(st); });
-    auto const success = init_cv.wait_for(lock, std::chrono::seconds(5),
-                                          [this] { return ready.has_value(); });
-    IStream *stream =
-        marshal_stream.exchange(nullptr, std::memory_order_acq_rel);
-    if (!success || !*ready || stream == nullptr) {
-      worker_thread.request_stop();
-      worker_thread.join();
-      return std::unexpected(BackendError::InternalBackendError);
+    stop_worker();
+    reset_initialization_state_locked();
+    IStream *stream = nullptr;
+    {
+      std::unique_lock lock(init_mtx);
+      ready.reset();
+      worker_thread = std::jthread(
+          [this](const std::stop_token &st) { this->thread_proc(st); });
+      const bool signaled = init_cv.wait_for(
+          lock, std::chrono::seconds(5), [this] { return ready.has_value(); });
+      if (signaled && ready.value_or(false))
+        stream = marshal_stream.exchange(nullptr, std::memory_order_acq_rel);
+      if (!signaled || !ready.value_or(false) || stream == nullptr) {
+        lock.unlock();
+        stop_worker();
+        reset_initialization_state_locked();
+        return std::unexpected(BackendError::InternalBackendError);
+      }
     }
     HRESULT hr = CoGetInterfaceAndReleaseStream(
         stream, __uuidof(ISpVoice), reinterpret_cast<void **>(&voice));
-    if (FAILED(hr)) {
-      worker_thread.request_stop();
-      worker_thread.join();
+    if (FAILED(hr) || voice == nullptr) {
+      stop_worker();
+      reset_initialization_state_locked();
       return std::unexpected(BackendError::InternalBackendError);
     }
-    if (auto const res = refresh_voices(); !res) {
-      worker_thread.request_stop();
-      worker_thread.join();
+    if (auto const res = refresh_voices_locked(); !res) {
+      stop_worker();
+      reset_initialization_state_locked();
       return res;
     }
     CComPtr<ISpObjectToken> current_token;
     hr = voice->GetVoice(&current_token);
-    if (SUCCEEDED(hr) && current_token != nullptr) {
+    if (FAILED(hr) || current_token == nullptr) {
+      stop_worker();
+      reset_initialization_state_locked();
+      return std::unexpected(BackendError::InternalBackendError);
+    }
+    {
       std::shared_lock sl(voices_lock);
       for (std::size_t i = 0; i < voices.size(); ++i) {
         if (voices[i].token.IsEqualObject(current_token)) {
@@ -396,17 +545,14 @@ public:
           break;
         }
       }
-    } else {
-      worker_thread.request_stop();
-      worker_thread.join();
-      return std::unexpected(BackendError::InternalBackendError);
     }
     if (auto const r = refresh_cached_output_params_locked(); !r) {
-      worker_thread.request_stop();
-      worker_thread.join();
-      return std::unexpected(BackendError::InternalBackendError);
+      const auto error = r.error();
+      stop_worker();
+      reset_initialization_state_locked();
+      return std::unexpected(error);
     }
-    initialized.test_and_set();
+    initialized.test_and_set(std::memory_order_release);
     return {};
   }
 
@@ -699,108 +845,10 @@ public:
   }
 
   BackendResult<> refresh_voices() override {
-    std::vector<VoiceInfo> new_voices;
-    for (const auto &category_id : VOICE_CATEGORIES) {
-      CComPtr<ISpObjectTokenCategory> category;
-      if (FAILED(category.CoCreateInstance(CLSID_SpObjectTokenCategory)))
-        continue;
-      if (FAILED(category->SetId(category_id, FALSE))) {
-        logger.debug(_T("voice category absent, skipping: {}"), category_id);
-        continue;
-      }
-      CComPtr<IEnumSpObjectTokens> enum_tokens;
-      if (FAILED(category->EnumTokens(nullptr, nullptr, &enum_tokens)))
-        continue;
-      ULONG count = 0;
-      if (FAILED(enum_tokens->GetCount(&count)))
-        continue;
-      new_voices.reserve(new_voices.size() + count);
-      HRESULT hr = S_OK;
-      for (ULONG i = 0; i < count; ++i) {
-        CComPtr<ISpObjectToken> token;
-        hr = enum_tokens->Next(1, &token, nullptr);
-        if (FAILED(hr))
-          break;
-        LPWSTR name_ptr = nullptr;
-        hr = token->GetStringValue(nullptr, &name_ptr);
-        if (FAILED(hr) || name_ptr == nullptr) {
-          if (name_ptr != nullptr)
-            CoTaskMemFree(name_ptr);
-          continue;
-        }
-        std::wstring_view name_view{name_ptr};
-        std::string name(
-            simdutf::utf8_length_from_utf16le(
-                reinterpret_cast<const char16_t *>(name_view.data()),
-                name_view.size()),
-            '\0');
-        (void)simdutf::convert_valid_utf16_to_utf8(
-            reinterpret_cast<const char16_t *>(name_view.data()),
-            name_view.size(), name.data()); // Deliberately ignored return value
-        if (name.empty()) {
-          if (name_ptr != nullptr)
-            CoTaskMemFree(name_ptr);
-          continue;
-        }
-        CoTaskMemFree(name_ptr);
-        std::string language = "en-us";
-        LPWSTR lang_ptr = nullptr;
-        if (SUCCEEDED(token->GetStringValue(_T("Language"), &lang_ptr)) &&
-            lang_ptr != nullptr) {
-          std::wstring_view lang_view{lang_ptr};
-          LANGID langid{};
-          std::string lang_narrow(lang_view.size(), '\0');
-          std::ranges::transform(lang_view, lang_narrow.begin(), [](wchar_t c) {
-            return static_cast<char>(c);
-          });
-          auto [ptr, ec] = std::from_chars(
-              lang_narrow.data(), lang_narrow.data() + lang_narrow.size(),
-              langid, 16);
-          CoTaskMemFree(lang_ptr);
-          if (ec == std::errc{}) {
-            std::array<wchar_t, LOCALE_NAME_MAX_LENGTH> locale_name{};
-            if (LCIDToLocaleName(MAKELCID(langid, SORT_DEFAULT),
-                                 locale_name.data(), LOCALE_NAME_MAX_LENGTH,
-                                 0) != 0) {
-              std::wstring_view locale_view{locale_name.data()};
-              language.resize(simdutf::utf8_length_from_utf16le(
-                  reinterpret_cast<const char16_t *>(locale_view.data()),
-                  locale_view.size()));
-              (void)simdutf::convert_valid_utf16_to_utf8(
-                  reinterpret_cast<const char16_t *>(locale_view.data()),
-                  locale_view.size(), language.data());
-              std::ranges::transform(
-                  language, language.begin(),
-                  [](unsigned char c) { return std::tolower(c); });
-            }
-          }
-        }
-        new_voices.emplace_back(VoiceInfo{.token = std::move(token),
-                                          .name = std::move(name),
-                                          .language = std::move(language)});
-      }
-    }
-    if (new_voices.empty())
-      return std::unexpected(BackendError::NoVoices);
-    {
-      std::unique_lock ul(voices_lock);
-      std::swap(voices, new_voices);
-    }
-    CComPtr<ISpObjectToken> current_token;
-    HRESULT hr = voice->GetVoice(&current_token);
-    if (FAILED(hr) || current_token == nullptr) {
-      return std::unexpected(BackendError::InternalBackendError);
-    }
-    {
-      std::shared_lock sl(voices_lock);
-      for (std::size_t i = 0; i < voices.size(); ++i) {
-        if (voices[i].token.IsEqualObject(current_token)) {
-          voice_idx.store(i, std::memory_order_release);
-          break;
-        }
-      }
-    }
-    return {};
+    std::unique_lock vl(voice_lock);
+    if (auto const r = require_ready_locked(); !r)
+      return r;
+    return refresh_voices_locked();
   }
 
   BackendResult<std::size_t> count_voices() override {

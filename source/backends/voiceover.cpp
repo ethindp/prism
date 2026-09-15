@@ -182,7 +182,7 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-#if TARGET_OS_WATCH
+#if TARGET_OS_WATCH || TARGET_OS_OSX
     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT;
 #else
     features |=
@@ -309,16 +309,12 @@ public:
   BackendResult<bool> is_speaking() override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-#if TARGET_OS_WATCH
+#if TARGET_OS_WATCH || TARGET_OS_OSX
     return std::unexpected(BackendError::NotImplemented);
 #else
     __block bool speaking = false;
     sync_on_main(^{
-#if TARGET_OS_OSX
-      speaking = pending_text.length > 0 || debounce_block != nullptr;
-#else
       speaking = is_speaking_flag || queue.count > 0;
-#endif
     });
     return speaking;
 #endif
@@ -327,18 +323,12 @@ public:
   BackendResult<> stop() override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-#if TARGET_OS_WATCH
+#if TARGET_OS_WATCH || TARGET_OS_OSX
     return std::unexpected(BackendError::NotImplemented);
 #else
     sync_on_main(^{
-#if TARGET_OS_OSX
-      cancel_debounce();
-      [pending_text setString:@""];
-      (void)try_invoke_legacy_handler(@"voStop", nil);
-#else
-    [queue removeAllObjects];
-    is_speaking_flag = false;
-#endif
+      [queue removeAllObjects];
+      is_speaking_flag = false;
     });
     return {};
 #endif

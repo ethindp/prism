@@ -11,7 +11,7 @@
 #include <tchar.h>
 #include <windows.h>
 
-class SenseReaderBackend final : public TextToSpeechBackend {
+class SenseReaderBackend final : public ComTextToSpeechBackend {
 private:
   CComPtr<IXVApplication> application;
   std::atomic_flag initialized;

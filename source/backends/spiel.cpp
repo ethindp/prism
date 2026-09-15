@@ -292,10 +292,24 @@ private:
     }
   }
 
+  void stop_worker() {
+    if (!thread.joinable())
+      return;
+    if (init_cancellable != nullptr)
+      g_cancellable_cancel(init_cancellable);
+    std::unique_lock lock(ready_mtx);
+    ready_cv.wait(lock, [this] { return ready.has_value(); });
+    const bool started = ready.value_or(false);
+    lock.unlock();
+    if (started)
+      post(ShutdownCommand{});
+    thread.join();
+    initialized.clear(std::memory_order_release);
+  }
+
 public:
   ~SpielBackend() override {
-    if (initialized.test(std::memory_order_acquire))
-      post(ShutdownCommand{});
+    stop_worker();
     if (init_cancellable != nullptr) {
       g_object_unref(init_cancellable);
       init_cancellable = nullptr;
@@ -353,7 +367,14 @@ public:
   BackendResult<> initialize() override {
     if (initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::AlreadyInitialized);
+    stop_worker();
+    if (init_cancellable != nullptr) {
+      g_object_unref(init_cancellable);
+      init_cancellable = nullptr;
+    }
     init_cancellable = g_cancellable_new();
+    if (init_cancellable == nullptr)
+      return std::unexpected(BackendError::MemoryFailure);
     std::unique_lock lock(ready_mtx);
     ready.reset();
     thread =
@@ -361,12 +382,15 @@ public:
     const bool got_signal = ready_cv.wait_for(
         lock, std::chrono::seconds(5), [this] { return ready.has_value(); });
     if (!got_signal) {
-      g_cancellable_cancel(init_cancellable);
-      ready_cv.wait(lock, [this] { return ready.has_value(); });
+      lock.unlock();
+      stop_worker();
       return std::unexpected(BackendError::InternalBackendError);
     }
-    if (ready && !*ready)
+    if (!ready.value_or(false)) {
+      lock.unlock();
+      stop_worker();
       return std::unexpected(BackendError::BackendNotAvailable);
+    }
     initialized.test_and_set(std::memory_order_release);
     return {};
   }

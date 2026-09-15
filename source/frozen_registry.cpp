@@ -151,7 +151,7 @@ std::shared_ptr<TextToSpeechBackend> FrozenRegistry::create_best() {
   for (auto &e : entries) {
     if (!e.reg.factory)
       continue;
-    if (auto b = e.reg.factory(); b && b->initialize()) {
+    if (auto b = e.reg.factory(); b && b->ensure_initialized()) {
       return b;
     }
   }
@@ -175,7 +175,6 @@ std::shared_ptr<TextToSpeechBackend> FrozenRegistry::acquire_entry(Entry *e) {
   if (auto cached = e->cached.lock(); cached != nullptr)
     return cached;
   e->cached = backend;
-  e->initialized = false;
   return backend;
 }
 
@@ -189,37 +188,42 @@ FrozenRegistry::acquire(std::string_view name) {
 }
 
 std::shared_ptr<TextToSpeechBackend> FrozenRegistry::acquire_best() {
-  {
-    std::shared_lock lock(cache_mutex);
-    for (const auto &e : entries) {
-      if (auto cached = e.cached.lock(); cached != nullptr && e.initialized) {
-        return cached;
-      }
-    }
-  }
   for (auto &e : entries) {
+    std::shared_ptr<TextToSpeechBackend> cached;
+    {
+      std::shared_lock lock(cache_mutex);
+      cached = e.cached.lock();
+    }
+    if (cached != nullptr) {
+      if (cached->ensure_initialized())
+        return cached;
+      continue;
+    }
     if (!e.reg.factory)
       continue;
-    auto backend = e.reg.factory();
-    if (backend == nullptr || !backend->initialize())
+    auto candidate = e.reg.factory();
+    if (candidate == nullptr || !candidate->ensure_initialized())
       continue;
-    std::unique_lock lock(cache_mutex);
-    if (auto cached = e.cached.lock(); cached != nullptr && e.initialized) {
-      return cached;
+    {
+      std::unique_lock lock(cache_mutex);
+      cached = e.cached.lock();
+      if (cached == nullptr) {
+        e.cached = candidate;
+        return candidate;
+      }
+      if (cached->is_initialized_for_cache())
+        return cached;
     }
-    e.cached = backend;
-    e.initialized = true;
-    return backend;
+    if (cached->ensure_initialized())
+      return cached;
   }
   return nullptr;
 }
 
 void FrozenRegistry::clear_cache() {
   std::unique_lock lock(cache_mutex);
-  for (auto &e : entries) {
+  for (auto &e : entries)
     e.cached.reset();
-    e.initialized = false;
-  }
 }
 
 RegistryBuilder::RegistryBuilder()

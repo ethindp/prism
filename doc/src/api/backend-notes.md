@@ -12,7 +12,7 @@ All `PRISM_BACKEND_AV_SPEECH` operations MUST execute in a context that can disp
 
 On macOS 14, iOS 17, and corresponding or later releases of other Apple platforms, initialization requests Personal Voice authorization. The request is asynchronous and waits up to 120 seconds for the user's response, during which `prism_backend_initialize` blocks. The outcome does not affect whether initialization succeeds: on denial or timeout the backend operates with system-installed voices, and Personal Voice voices are absent from the voice list. Consumers that wish to control the timing of the prompt SHOULD invoke `requestPersonalVoiceAuthorization` before initializing the backend.
 
-On systems supporting in-memory rendering (macOS 10.15 or later, iOS 13 or later, and corresponding releases of other Apple platforms), `prism_backend_speak_to_memory` is bounded by an internal 5-minute timeout. Utterances that exceed it are truncated.
+On systems supporting in-memory rendering (macOS 10.15 or later, iOS 13 or later, and corresponding releases of other Apple platforms), `prism_backend_speak_to_memory` is bounded by an internal 5-minute timeout. If synthesis does not complete within that interval, Prism stops the memory synthesizer and returns `PRISM_ERROR_INTERNAL`; partial audio is not delivered to the callback.
 
 ### VoiceOver
 
@@ -32,6 +32,8 @@ The backend has two delivery mechanisms for announcements: a legacy automation p
 
 * The helper script does not compile during initialization; or
 * The first Apple event, sent at the first speech request, is rejected because automation has not been permitted. This is the case both when the user denies the prompt and when the host process cannot request automation access at all, such as when it is not packaged as an application bundle or supplies no `NSAppleEventsUsageDescription`.
+
+The standard macOS accessibility-announcement API does not provide Prism with a completion notification or a way to cancel an announcement after it has been posted. Because the backend may fall back to that path on any speech request, the macOS backend does not advertise `PRISM_BACKEND_FEATURE_SUPPORTS_IS_SPEAKING` or `PRISM_BACKEND_FEATURE_SUPPORTS_STOP`; calls to the corresponding operations return `PRISM_ERROR_NOT_IMPLEMENTED`.
 
 #### iOS, iPadOS, MacCatalyst, tvOS, and visionOS
 

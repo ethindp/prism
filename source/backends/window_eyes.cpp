@@ -18,7 +18,7 @@
 #include <tchar.h>
 #include <windows.h>
 
-class WindowEyesBackend final : public TextToSpeechBackend {
+class WindowEyesBackend final : public ComTextToSpeechBackend {
 private:
   CComPtr<_Application> we_application;
   CComPtr<_Speech> speech_obj;
@@ -59,17 +59,24 @@ public:
     if (!FindWindow(_T("GWMExternalControl"), _T("External Control"))) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    switch (we_application.CoCreateInstance(CLSID_Application)) {
+    CComPtr<_Application> candidate_application;
+    switch (candidate_application.CoCreateInstance(CLSID_Application)) {
     case S_OK: {
-      if (SUCCEEDED(we_application->get_Speech(&speech_obj)) &&
-          SUCCEEDED(we_application->get_Braille(&braille_obj))) {
-        var_opt.vt = VT_ERROR;
-        var_opt.scode = DISP_E_PARAMNOTFOUND;
-        initialized.test_and_set();
-        return {};
-      } else {
+      CComPtr<_Speech> candidate_speech;
+      CComPtr<_Braille> candidate_braille;
+      if (FAILED(candidate_application->get_Speech(&candidate_speech)) ||
+          candidate_speech == nullptr ||
+          FAILED(candidate_application->get_Braille(&candidate_braille)) ||
+          candidate_braille == nullptr) {
         return std::unexpected(BackendError::BackendNotAvailable);
       }
+      we_application = candidate_application;
+      speech_obj = candidate_speech;
+      braille_obj = candidate_braille;
+      var_opt.vt = VT_ERROR;
+      var_opt.scode = DISP_E_PARAMNOTFOUND;
+      initialized.test_and_set();
+      return {};
     }
     case REGDB_E_CLASSNOTREG:
     case E_NOINTERFACE:

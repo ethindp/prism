@@ -15,6 +15,7 @@
 #include <limits>
 #include <objbase.h>
 #include <optional>
+#include <roapi.h>
 #include <simdutf.h>
 #include <span>
 #include <tchar.h>
@@ -31,10 +32,10 @@
 #include <winrt/base.h>
 
 using namespace winrt;
-using namespace Windows::Media::SpeechSynthesis;
-using namespace Windows::Storage::Streams;
-using namespace Windows::Media::Core;
-using namespace Windows::Media::Playback;
+using namespace winrt::Windows::Media::SpeechSynthesis;
+using namespace winrt::Windows::Storage::Streams;
+using namespace winrt::Windows::Media::Core;
+using namespace winrt::Windows::Media::Playback;
 using namespace winrt::Windows::Foundation::Metadata;
 
 [[nodiscard]] static std::string hstring_to_utf8(std::wstring_view w) {
@@ -52,6 +53,31 @@ struct fmt::formatter<winrt::hstring, char>
     const std::string utf8 = hstring_to_utf8(std::wstring_view{h});
     return fmt::formatter<std::string_view, char>::format(utf8, ctx);
   }
+};
+
+inline bool is_current_thread_sta() noexcept {
+  APTTYPE type{};
+  APTTYPEQUALIFIER qual{};
+  HRESULT hr = CoGetApartmentType(&type, &qual);
+  if (FAILED(hr))
+    return false;
+  return type == APTTYPE_STA || type == APTTYPE_MAINSTA;
+}
+
+struct WinrtApartmentGuard {
+  HRESULT hr;
+  explicit WinrtApartmentGuard(
+      RO_INIT_TYPE model = is_current_thread_sta()
+                               ? RO_INIT_SINGLETHREADED
+                               : RO_INIT_MULTITHREADED) noexcept
+      : hr(RoInitialize(model)) {}
+  ~WinrtApartmentGuard() noexcept {
+    if (SUCCEEDED(hr))
+      RoUninitialize();
+  }
+  WinrtApartmentGuard(const WinrtApartmentGuard &) = delete;
+  WinrtApartmentGuard &operator=(const WinrtApartmentGuard &) = delete;
+  explicit operator bool() const noexcept { return SUCCEEDED(hr); }
 };
 
 struct MtaEventGuard {
@@ -79,18 +105,11 @@ struct MtaContext {
   HANDLE event;
 };
 
-inline bool is_current_thread_sta() noexcept {
-  APTTYPE type{};
-  APTTYPEQUALIFIER qual{};
-  HRESULT hr = CoGetApartmentType(&type, &qual);
-  if (FAILED(hr))
-    return false;
-  return type == APTTYPE_STA || type == APTTYPE_MAINSTA;
-}
-
 template <std::invocable F> auto run_on_mta(F &&fn) -> std::invoke_result_t<F> {
   using R = std::invoke_result_t<F>;
   if (!is_current_thread_sta()) {
+    WinrtApartmentGuard apartment{RO_INIT_MULTITHREADED};
+    winrt::check_hresult(apartment.hr);
     if constexpr (std::is_void_v<R>) {
       fn();
       return;
@@ -106,6 +125,8 @@ template <std::invocable F> auto run_on_mta(F &&fn) -> std::invoke_result_t<F> {
       [](PTP_CALLBACK_INSTANCE, void *raw) noexcept {
         auto &c = *static_cast<MtaContext<F> *>(raw);
         try {
+          WinrtApartmentGuard apartment{RO_INIT_MULTITHREADED};
+          winrt::check_hresult(apartment.hr);
           if constexpr (std::is_void_v<R>)
             (*c.fn)();
           else
@@ -125,7 +146,7 @@ template <std::invocable F> auto run_on_mta(F &&fn) -> std::invoke_result_t<F> {
     return std::move(*ctx.result);
 }
 
-class OneCoreBackend final : public TextToSpeechBackend {
+class OneCoreBackend final : public ComTextToSpeechBackend {
 private:
   SpeechSynthesizer synth{nullptr};
   MediaPlayer player{nullptr};
@@ -137,10 +158,26 @@ private:
   bool format_cached = false;
   LogSource logger{"OneCore"};
 
+  void reset_audio_format_cache() noexcept {
+    cached_channels = 0;
+    cached_sample_rate = 0;
+    cached_bit_depth = 0;
+    format_cached = false;
+  }
+
+  void reset_state() noexcept {
+    state_changed_revoker.revoke();
+    state_changed_revoker = {};
+    player = nullptr;
+    synth = nullptr;
+    current_state.store(MediaPlaybackState::None, std::memory_order_release);
+    reset_audio_format_cache();
+  }
+
 public:
   ~OneCoreBackend() override {
-    synth = nullptr;
-    player = nullptr;
+    WinrtApartmentGuard apartment;
+    reset_state();
   }
 
   [[nodiscard]] std::string_view get_name() const override { return "OneCore"; }
@@ -148,7 +185,9 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    if (ApiInformation::IsTypePresent(
+    WinrtApartmentGuard apartment;
+    if (apartment &&
+        ApiInformation::IsTypePresent(
             _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) &&
         ApiInformation::IsTypePresent(
             _T("Windows.Media.Playback.MediaPlayer"))) {
@@ -167,31 +206,45 @@ public:
     return features;
   }
 
-  BackendResult<> initialize() override try {
-    if (!ApiInformation::IsTypePresent(
-            _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||
-        !ApiInformation::IsTypePresent(
-            _T("Windows.Media.Playback.MediaPlayer")))
-      return std::unexpected(BackendError::BackendNotAvailable);
-    if (synth || player)
-      return std::unexpected(BackendError::AlreadyInitialized);
-    synth = SpeechSynthesizer();
-    synth.Options().AppendedSilence(SpeechAppendedSilence::Min);
-    synth.Options().PunctuationSilence(SpeechPunctuationSilence::Min);
-    player = MediaPlayer();
-    state_changed_revoker = player.PlaybackSession().PlaybackStateChanged(
-        winrt::auto_revoke,
-        [this](MediaPlaybackSession const &session, auto const &) {
-          current_state = session.PlaybackState();
-        });
-    cache_audio_format();
-    return {};
-  } catch (const winrt::hresult_error &e) {
-    logger.error("Could not initialize OneCore backend: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
+  BackendResult<> initialize() override {
+    WinrtApartmentGuard apartment;
+    if (!apartment)
+      return std::unexpected(BackendError::InternalBackendError);
+    try {
+      if (!ApiInformation::IsTypePresent(
+              _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||
+          !ApiInformation::IsTypePresent(
+              _T("Windows.Media.Playback.MediaPlayer")))
+        return std::unexpected(BackendError::BackendNotAvailable);
+      if (synth || player)
+        return std::unexpected(BackendError::AlreadyInitialized);
+      synth = SpeechSynthesizer();
+      synth.Options().AppendedSilence(SpeechAppendedSilence::Min);
+      synth.Options().PunctuationSilence(SpeechPunctuationSilence::Min);
+      player = MediaPlayer();
+      state_changed_revoker = player.PlaybackSession().PlaybackStateChanged(
+          winrt::auto_revoke,
+          [this](MediaPlaybackSession const &session, auto const &) {
+            current_state = session.PlaybackState();
+          });
+      if (const auto format_result = cache_audio_format(); !format_result)
+        logger.warn(
+            "Could not cache OneCore audio format during initialization: {}",
+            std::to_underlying(format_result.error()));
+      return {};
+    } catch (const winrt::hresult_error &e) {
+      reset_state();
+      logger.error("Could not initialize OneCore backend: {}", e.message());
+      return std::unexpected(BackendError::Unknown);
+    } catch (...) {
+      reset_state();
+      return std::unexpected(BackendError::Unknown);
+    }
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     if (interrupt)
@@ -214,6 +267,8 @@ public:
 
   BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
                                   void *userdata) override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth)
       return std::unexpected(BackendError::NotInitialized);
     const auto wtext = to_hstring(text);
@@ -271,6 +326,8 @@ public:
   }
 
   BackendResult<bool> is_speaking() override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     return current_state == MediaPlaybackState::Playing;
@@ -280,6 +337,8 @@ public:
   }
 
   BackendResult<> stop() override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     const auto state = current_state.load();
@@ -296,6 +355,8 @@ public:
   }
 
   BackendResult<> pause() override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     const auto state = current_state.load();
@@ -312,6 +373,8 @@ public:
   }
 
   BackendResult<> resume() override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     const auto state = current_state.load();
@@ -326,6 +389,8 @@ public:
   }
 
   BackendResult<> set_volume(float volume) override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     synth.Options().AudioVolume(volume);
@@ -336,6 +401,8 @@ public:
   }
 
   BackendResult<float> get_volume() override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     return static_cast<float>(synth.Options().AudioVolume());
@@ -345,6 +412,8 @@ public:
   }
 
   BackendResult<> set_rate(float rate) override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     const auto val = exp_range_convert(rate, 0.5, 1.0, 6.0);
@@ -356,6 +425,8 @@ public:
   }
 
   BackendResult<float> get_rate() override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     return exp_range_convert_inv(synth.Options().SpeakingRate(), 0.5, 1.0, 6.0);
@@ -365,9 +436,12 @@ public:
   }
 
   BackendResult<> set_pitch(float pitch) override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    const auto val = exp_range_convert(pitch, 0.0, 1.0, 2.0);
+    const auto val =
+        range_convert(static_cast<double>(pitch), 0.0, 1.0, 0.0, 2.0);
     synth.Options().AudioPitch(val);
     return {};
   } catch (const winrt::hresult_error &e) {
@@ -376,15 +450,21 @@ public:
   }
 
   BackendResult<float> get_pitch() override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    return exp_range_convert_inv(synth.Options().AudioPitch(), 0.0, 1.0, 2.0);
+    return static_cast<float>(
+        range_convert(synth.Options().AudioPitch(), 0.0, 2.0, 0.0, 1.0));
   } catch (const winrt::hresult_error &e) {
     logger.error("get_pitch failed: {}", e.message());
     return std::unexpected(BackendError::Unknown);
   }
 
   BackendResult<> refresh_voices() override {
+    WinrtApartmentGuard apartment;
+    if (!apartment)
+      return std::unexpected(BackendError::InternalBackendError);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
 
@@ -392,6 +472,8 @@ public:
   }
 
   BackendResult<std::size_t> count_voices() override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     return SpeechSynthesizer::AllVoices().Size();
@@ -401,6 +483,8 @@ public:
   }
 
   BackendResult<std::string> get_voice_name(std::size_t id) override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
@@ -416,6 +500,8 @@ public:
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
@@ -430,6 +516,8 @@ public:
   }
 
   BackendResult<> set_voice(std::size_t id) override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     if (id >= std::numeric_limits<std::uint32_t>::max())
@@ -437,9 +525,16 @@ public:
     const auto voices = SpeechSynthesizer::AllVoices();
     if (id >= voices.Size())
       return std::unexpected(BackendError::RangeOutOfBounds);
+    const auto old = synth.Voice();
     synth.Voice(voices.GetAt(static_cast<std::uint32_t>(id)));
-    format_cached = false;
-    cache_audio_format();
+    reset_audio_format_cache();
+    if (const auto res = cache_audio_format(); !res) {
+      logger.warn("Could not retrieve voice audio format when setting voice to "
+                  "ID {}; reverting update",
+                  id);
+      synth.Voice(old);
+      return std::unexpected(BackendError::InternalBackendError);
+    }
     return {};
   } catch (const winrt::hresult_error &e) {
     logger.error("set_voice failed for id {}: {}", id, e.message());
@@ -447,6 +542,8 @@ public:
   }
 
   BackendResult<std::size_t> get_voice() override try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
     const auto voices = SpeechSynthesizer::AllVoices();
@@ -463,46 +560,51 @@ public:
   BackendResult<std::size_t> get_channels() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    if (!format_cached)
-      cache_audio_format();
+    if (!format_cached) {
+      if (const auto result = cache_audio_format(); !result)
+        return std::unexpected(result.error());
+    }
     return cached_channels;
   }
 
   BackendResult<std::size_t> get_sample_rate() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    if (!format_cached)
-      cache_audio_format();
+    if (!format_cached) {
+      if (const auto result = cache_audio_format(); !result)
+        return std::unexpected(result.error());
+    }
     return cached_sample_rate;
   }
 
   BackendResult<std::size_t> get_bit_depth() override {
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    if (!format_cached)
-      cache_audio_format();
+    if (!format_cached) {
+      if (const auto result = cache_audio_format(); !result)
+        return std::unexpected(result.error());
+    }
     return cached_bit_depth;
   }
 
-  void cache_audio_format() try {
-    if (format_cached) {
-      logger.info("cache_audio_format: audio format already cached; aborting");
-      return;
-    }
+  BackendResult<> cache_audio_format() try {
+    WinrtApartmentGuard apartment;
+    winrt::check_hresult(apartment.hr);
+    if (format_cached)
+      return {};
     const auto stream = run_on_mta(
         [&] { return synth.SynthesizeTextToStreamAsync(_T(" ")).get(); });
     if (stream.ContentType() != _T("audio/wav")) {
-      logger.error(
-          "cache_audio_format: unknown stream content type {}; aborting",
-          stream.ContentType());
-      return;
+      logger.error("cache_audio_format: unknown stream content type {}",
+                   stream.ContentType());
+      return std::unexpected(BackendError::InvalidAudioFormat);
     }
     const auto size64 = stream.Size();
     if (size64 > std::numeric_limits<uint32_t>::max()) {
-      logger.error("cache_audio_format: stream size of {} exceeds max size "
-                   "of {}; aborting",
-                   size64, std::numeric_limits<uint32_t>::max());
-      return;
+      logger.error(
+          "cache_audio_format: stream size of {} exceeds max size of {}",
+          size64, std::numeric_limits<uint32_t>::max());
+      return std::unexpected(BackendError::RangeOutOfBounds);
     }
     const auto cap = static_cast<uint32_t>(size64);
     Buffer buffer(cap);
@@ -520,28 +622,26 @@ public:
       total += got;
     }
     if (total == 0) {
-      logger.error("cache_audio_format: synthesis audio stream has no "
-                   "samples; aborting");
-      return;
+      logger.error("cache_audio_format: synthesis audio stream has no samples");
+      return std::unexpected(BackendError::InternalBackendError);
     }
     drwav wav{};
-    if (const auto res = drwav_init_memory(&wav, buffer.data(), total, nullptr);
-        res != 0) {
-      cached_channels = wav.channels;
-      cached_sample_rate = wav.sampleRate;
-      cached_bit_depth = wav.bitsPerSample;
-      format_cached = true;
-      drwav_uninit(&wav);
-    } else {
-      logger.error("cache_audio_format: WAV parse error: code {}", res);
-      return;
+    if (drwav_init_memory(&wav, buffer.data(), total, nullptr) == 0) {
+      logger.error("cache_audio_format: WAV parse error");
+      return std::unexpected(BackendError::InvalidAudioFormat);
     }
+    cached_channels = wav.channels;
+    cached_sample_rate = wav.sampleRate;
+    cached_bit_depth = wav.bitsPerSample;
+    format_cached = true;
+    drwav_uninit(&wav);
+    return {};
   } catch (const std::exception &e) {
-    logger.error("cache_audio_format failed:  {}", e.what());
-    return;
+    logger.error("cache_audio_format failed: {}", e.what());
+    return std::unexpected(BackendError::Unknown);
   } catch (...) {
     logger.error("cache_audio_format failed: unknown non-std exception");
-    return;
+    return std::unexpected(BackendError::Unknown);
   }
 };
 

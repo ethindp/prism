@@ -10,6 +10,7 @@
 #include <functional>
 #include <raw/pc_talker.h>
 #include <simdutf.h>
+#include <type_traits>
 #include <windows.h>
 
 class BrailleMarshaller {
@@ -20,6 +21,7 @@ private:
   CRITICAL_SECTION lock{};
   std::function<void()> work;
   std::atomic_flag quit;
+  bool lock_initialized = false;
 
   static DWORD WINAPI ThreadProc(void *self) {
     return static_cast<BrailleMarshaller *>(self)->Run();
@@ -27,27 +29,35 @@ private:
 
   DWORD Run() {
     PCTKPinStatus();
-    while (!quit.test(std::memory_order_relaxed)) {
-      if (WaitForSingleObject(request, 100) == WAIT_OBJECT_0) {
-        if (work)
-          work();
-        SetEvent(done);
-      }
+    while (true) {
+      if (WaitForSingleObject(request, INFINITE) != WAIT_OBJECT_0)
+        return 0;
+      if (quit.test(std::memory_order_acquire))
+        return 0;
+      if (work)
+        work();
+      SetEvent(done);
     }
-    return 0;
   }
 
 public:
   bool init() {
     shutdown();
+    quit.clear(std::memory_order_release);
     request = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     done = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    InitializeCriticalSection(&lock);
-    if (request == INVALID_HANDLE_VALUE || done == INVALID_HANDLE_VALUE ||
-        request == nullptr || done == nullptr)
+    if (request == nullptr || done == nullptr) {
+      shutdown();
       return false;
+    }
+    InitializeCriticalSection(&lock);
+    lock_initialized = true;
     thread = CreateThread(nullptr, 0, ThreadProc, this, 0, nullptr);
-    return thread != nullptr;
+    if (thread == nullptr) {
+      shutdown();
+      return false;
+    }
+    return true;
   }
 
   template <typename F> auto call(F &&fn) -> decltype(fn()) {
@@ -71,14 +81,19 @@ public:
   }
 
   void shutdown() {
-    if (thread == nullptr && request == nullptr && done == nullptr)
+    if (thread == nullptr && request == nullptr && done == nullptr &&
+        !lock_initialized)
       return;
-    quit.test_and_set(std::memory_order_relaxed);
+    quit.test_and_set(std::memory_order_release);
+    if (request != nullptr)
+      SetEvent(request);
     if (thread != nullptr) {
-      WaitForSingleObject(thread, 5000);
+      // Vendor calls must return before their events and lock are destroyed.
+      WaitForSingleObject(thread, INFINITE);
       CloseHandle(thread);
       thread = nullptr;
     }
+    work = nullptr;
     if (request != nullptr) {
       CloseHandle(request);
       request = nullptr;
@@ -87,7 +102,10 @@ public:
       CloseHandle(done);
       done = nullptr;
     }
-    DeleteCriticalSection(&lock);
+    if (lock_initialized) {
+      DeleteCriticalSection(&lock);
+      lock_initialized = false;
+    }
   }
 
   ~BrailleMarshaller() { shutdown(); }

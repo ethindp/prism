@@ -3,7 +3,6 @@
 #include "backend_enumerator.h"
 #include "backend.h"
 #include <algorithm>
-#include <cassert>
 #include <chrono>
 #include <cstdint>
 #include <iostream>
@@ -169,7 +168,6 @@ bool BackendEnumerator::poll_once(const SweepMode mode) {
       logger.debug("Creating instance {}", slot);
       try {
         instances[slot] = registry->create_at(slot);
-        assert(instances[slot]);
       } catch (...) {
         instances[slot] = nullptr;
       }

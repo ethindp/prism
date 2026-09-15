@@ -18,7 +18,8 @@
 namespace {
 BackendError from_prism_error(PrismError error) noexcept {
   const auto value = std::to_underlying(error);
-  if (std::cmp_greater_equal(value, std::to_underlying(PRISM_ERROR_COUNT)))
+  if (std::cmp_less(value, 0) ||
+      std::cmp_greater_equal(value, std::to_underlying(PRISM_ERROR_COUNT)))
     return BackendError::Unknown;
   return static_cast<BackendError>(value);
 }

@@ -85,6 +85,13 @@ impl Backend {
         Ok(BackendFeatures::from_bits_truncate(raw_features))
     }
 
+    /// Returns whether this backend supports the specified feature.
+    pub fn supports(&self, feature: BackendFeatures) -> bool {
+        self.features()
+            .map(|f| f.contains(feature))
+            .unwrap_or(false)
+    }
+
     /// Speaks the given text.
     ///
     /// If `interrupt` is true, ongoing speech is cancelled before this text is spoken.

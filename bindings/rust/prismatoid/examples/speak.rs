@@ -3,8 +3,6 @@
 //! Basic speech output example using Prism and Rust.
 
 use prismatoid::{init, Result};
-use std::thread;
-use std::time::Duration;
 
 fn main() -> Result<()> {
     println!("Initializing Prism speech context...");
@@ -25,8 +23,9 @@ fn main() -> Result<()> {
         true,
     )?;
 
-    // Allow time for asynchronous speech to play before process exits
-    thread::sleep(Duration::from_millis(2000));
+    println!("Speaking... Press Enter to exit.");
+    let mut line = String::new();
+    let _ = std::io::stdin().read_line(&mut line);
 
     Ok(())
 }

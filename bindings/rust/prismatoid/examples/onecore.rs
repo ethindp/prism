@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
-//! Windows OneCore speech output example with rate adjustment and speech wait.
+//! Windows OneCore speech output example.
 
 use prismatoid::{init, BackendId, Result};
-use std::thread;
-use std::time::Duration;
 
 fn main() -> Result<()> {
     println!("Initializing Prism speech context...");
@@ -25,13 +23,8 @@ fn main() -> Result<()> {
         println!(" - [{}] {} ({})", voice.id, voice.name, voice.language);
     }
 
-    // Set volume to 90%
-    backend.set_volume(0.9)?;
-    println!("Volume set to: {:.2}", backend.volume()?);
-
-    // Slow down speech rate (0.5 is normal, 0.0 is slowest, 1.0 is fastest)
-    backend.set_rate(0.3)?;
-    println!("Rate slowed down to: {:.2}", backend.rate()?);
+    backend.set_volume(1.0)?;
+    backend.set_rate(0.4)?;
 
     println!("\nSpeaking message via OneCore...");
     backend.speak(
@@ -39,12 +32,9 @@ fn main() -> Result<()> {
         true,
     )?;
 
-    // Wait briefly for playback to engage, then wait until speaking completes
-    thread::sleep(Duration::from_millis(100));
-    while backend.is_speaking()? {
-        thread::sleep(Duration::from_millis(50));
-    }
+    println!("Speaking... Press Enter to exit.");
+    let mut line = String::new();
+    let _ = std::io::stdin().read_line(&mut line);
 
-    println!("OneCore speech finished.");
     Ok(())
 }

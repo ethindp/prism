@@ -281,6 +281,9 @@ prism_declare_backend(
   window_eyes.cpp
   PLATFORM
   WINDOWS
+  ARCH
+  x86
+  x64
   DOC
   "Window-Eyes"
   DEFINES

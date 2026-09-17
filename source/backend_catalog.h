@@ -119,7 +119,7 @@ template <typename T> struct BackendRegistrar {
 // that object. The core carries a matching /include: directive for each one,
 // which is what makes the linker keep the object and run its registrar.
 #if defined(PRISM_BACKEND_ANCHOR)
-#define PRISM_EMIT_ANCHOR extern "C" void PRISM_BACKEND_ANCHOR(void) {}
+#define PRISM_EMIT_ANCHOR extern "C" void PRISM_BACKEND_ANCHOR() {}
 #else
 #define PRISM_EMIT_ANCHOR
 #endif

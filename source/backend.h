@@ -103,14 +103,14 @@ public:
   using AudioCallback = std::function<void(void *, const float *, std::size_t,
                                            std::size_t, std::size_t)>;
   virtual ~TextToSpeechBackend() = default;
-  virtual BackendResult<> initialize_tracked() final {
+  BackendResult<> initialize_tracked() {
     std::scoped_lock lock(initialization_mtx);
     const auto result = initialize();
     if (result || result.error() == BackendError::AlreadyInitialized)
       initialized_for_cache.test_and_set(std::memory_order_release);
     return result;
   }
-  [[nodiscard]] virtual bool ensure_initialized() final {
+  [[nodiscard]] bool ensure_initialized() {
     std::scoped_lock lock(initialization_mtx);
     if (initialized_for_cache.test(std::memory_order_relaxed))
       return true;
@@ -120,7 +120,7 @@ public:
     initialized_for_cache.test_and_set(std::memory_order_release);
     return true;
   }
-  [[nodiscard]] virtual bool is_initialized_for_cache() const noexcept final {
+  [[nodiscard]] inline bool is_initialized_for_cache() const noexcept {
     return initialized_for_cache.test(std::memory_order_acquire);
   }
   [[nodiscard]] virtual std::string_view get_name() const = 0;

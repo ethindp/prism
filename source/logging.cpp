@@ -41,9 +41,11 @@ PrismLogLevel Logger::set_level(PrismLogLevel level) noexcept {
 
 void Logger::submit(PrismLogLevel level, std::string source,
                     std::string message) {
-  Record record{.source = std::move(source),
-                .message = std::move(message),
-                .level = level};
+  Record record{
+      .source = std::move(source),
+      .message = std::move(message),
+      .level = level,
+  };
   std::scoped_lock lock(lifecycle_mtx);
   if (lifecycle != Lifecycle::Running)
     return;

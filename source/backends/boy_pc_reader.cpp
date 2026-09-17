@@ -35,8 +35,9 @@ template <int Slot> struct CallbackSlot {
 
 template <int Slot> BoyPCReaderBackend *CallbackSlot<Slot>::instance = nullptr;
 
+static std::mutex callback_slots_mtx;
+
 template <std::size_t... Is> struct SlotTableImpl {
-  static inline std::mutex mtx;
   struct Entry {
     BoyPCReaderBackend **instance;
     BoyCtrlSpeakCompleteFunc func;
@@ -47,7 +48,7 @@ template <std::size_t... Is> struct SlotTableImpl {
             .func = &CallbackSlot<Is>::callback}...};
 
   static BoyCtrlSpeakCompleteFunc acquire(BoyPCReaderBackend *obj) {
-    std::scoped_lock lock(mtx);
+    std::scoped_lock lock(callback_slots_mtx);
     for (auto &e : entries) {
       if (*e.instance == nullptr) {
         *e.instance = obj;
@@ -59,7 +60,7 @@ template <std::size_t... Is> struct SlotTableImpl {
 
   static void release(BoyPCReaderBackend *obj) {
     assert(obj != nullptr);
-    std::scoped_lock lock(mtx);
+    std::scoped_lock lock(callback_slots_mtx);
     for (auto &e : entries) {
       if (*e.instance == obj) {
         *e.instance = nullptr;
@@ -110,6 +111,8 @@ public:
       Slots::release(this);
       complete_callback = nullptr;
     }
+    if (initialized.test())
+      BoyCtrlUninitialize();
   }
 
   [[nodiscard]] std::string_view get_name() const override {
@@ -205,6 +208,7 @@ public:
 };
 
 template <int Slot> void __stdcall CallbackSlot<Slot>::callback(int reason) {
+  std::scoped_lock lock(callback_slots_mtx);
   if (instance != nullptr)
     instance->handle_speak_complete(reason);
 }

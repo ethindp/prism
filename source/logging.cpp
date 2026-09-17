@@ -14,12 +14,6 @@
 #include <simdutf.h>
 
 namespace {
-struct FlushSignal {
-  std::mutex m;
-  std::condition_variable cv;
-  bool done = false;
-};
-
 void PRISM_CALL stderr_sink([[maybe_unused]] void *ud, PrismLogLevel level,
                             const char *source, const char *message) {
   constexpr auto names = std::to_array<std::string_view>(
@@ -36,24 +30,8 @@ Logger::Logger() : drain([this](const std::stop_token &st) { run(st); }) {}
 Logger::~Logger() { shutdown(); }
 
 PrismLogHandler Logger::set_handler(PrismLogHandler next) noexcept {
-  try {
-    // NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks)
-    const Handler *fresh =
-        next.fn != nullptr
-            ? new Handler{.fn = next.fn, .userdata = next.userdata}
-            : nullptr;
-    const Handler *old =
-        this->current.exchange(fresh, std::memory_order_acq_rel);
-    // NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
-    PrismLogHandler previous{};
-    if (old != nullptr)
-      previous = PrismLogHandler{.fn = old->fn, .userdata = old->userdata};
-    // old is intentionally leaked since we can't know when the drain thread is
-    // done with it
-    return previous;
-  } catch (...) {
-    std::terminate(); // If this happens, we have bigger things to worry about
-  }
+  std::scoped_lock lock(handler_mtx);
+  return std::exchange(current, next.fn != nullptr ? next : PrismLogHandler{});
 }
 
 PrismLogLevel Logger::set_level(PrismLogLevel level) noexcept {
@@ -63,40 +41,48 @@ PrismLogLevel Logger::set_level(PrismLogLevel level) noexcept {
 
 void Logger::submit(PrismLogLevel level, std::string source,
                     std::string message) {
-  Record record{.source = std::move(source),
-                .message = std::move(message),
-                .flush_signal = nullptr,
-                .level = level,
+  Record record{
+      .source = std::move(source),
+      .message = std::move(message),
+      .level = level,
   };
-  if (!queue.try_enqueue(std::move(record)))
+  std::scoped_lock lock(lifecycle_mtx);
+  if (lifecycle != Lifecycle::Running)
+    return;
+  // One producer token preserves order across calling threads.
+  if (queue.try_enqueue(producer, std::move(record)))
+    ++submitted;
+  else
     dropped.fetch_add(1, std::memory_order_relaxed);
 }
 
-void Logger::deliver(Record &record, const Handler *pair) noexcept {
-  if (record.flush_signal != nullptr) {
-    auto *signal = static_cast<FlushSignal *>(record.flush_signal);
-    {
-      std::scoped_lock lock(signal->m);
-      signal->done = true;
-      signal->cv.notify_all();
-    }
-    return;
+void Logger::deliver(std::span<const Record> records) noexcept {
+  const auto pair = handler();
+  report_drops(pair);
+  for (const auto &record : records) {
+    if (pair.fn != nullptr)
+      pair.fn(pair.userdata, record.level, record.source.c_str(),
+              record.message.c_str());
   }
-  if (pair != nullptr && pair->fn != nullptr)
-    pair->fn(pair->userdata, record.level, record.source.c_str(),
-             record.message.c_str());
+  if (!records.empty()) {
+    {
+      std::scoped_lock lock(lifecycle_mtx);
+      completed += records.size();
+    }
+    lifecycle_cv.notify_all();
+  }
 }
 
-void Logger::report_drops(const Handler *pair) noexcept {
+void Logger::report_drops(const PrismLogHandler &pair) noexcept {
   const auto count = dropped.exchange(0, std::memory_order_relaxed);
-  if (count == 0 || pair == nullptr || pair->fn == nullptr)
+  if (count == 0 || pair.fn == nullptr)
     return;
   // The following absorbs exceptions because reporting them would potentially
   // cause infinite recursion
   // NOLINTBEGIN(bugprone-empty-catch)
   try {
     const auto line = fmt::format("{} log message(s) dropped", count);
-    pair->fn(pair->userdata, PRISM_LOG_LEVEL_WARN, "prism", line.c_str());
+    pair.fn(pair.userdata, PRISM_LOG_LEVEL_WARN, "prism", line.c_str());
   } catch (...) {
   }
   // NOLINTEND(bugprone-empty-catch)
@@ -108,38 +94,41 @@ void Logger::run(const std::stop_token &st) noexcept {
   while (!st.stop_requested()) {
     const std::size_t n = queue.wait_dequeue_bulk_timed(
         token, batch.begin(), drain_bulk, std::chrono::milliseconds(100));
-    const Handler *pair = handler();
-    report_drops(pair);
-    for (std::size_t i = 0; i < n; ++i)
-      Logger::deliver(batch[i], pair);
+    deliver(std::span{batch}.first(n));
   }
   std::size_t n;
-  while ((n = queue.try_dequeue_bulk(token, batch.begin(), drain_bulk)) != 0) {
-    const Handler *pair = handler();
-    for (std::size_t i = 0; i < n; ++i)
-      Logger::deliver(batch[i], pair);
-  }
+  while ((n = queue.try_dequeue_bulk(token, batch.begin(), drain_bulk)) != 0)
+    deliver(std::span{batch}.first(n));
 }
 
 void Logger::flush() {
-  if (handler() == nullptr)
+  std::unique_lock lock(lifecycle_mtx);
+  if (lifecycle == Lifecycle::Stopped || handler().fn == nullptr)
     return;
-  FlushSignal signal;
-  Record record{
-      .source = {},
-      .message = {},
-      .flush_signal = &signal,
-      .level = PRISM_LOG_LEVEL_NONE,
-  };
-  queue.enqueue(std::move(record)); // a flush is never dropped
-  std::unique_lock lock(signal.m);
-  signal.cv.wait(lock, [&signal] { return signal.done; });
+  const auto target = submitted;
+  lifecycle_cv.wait(lock, [this, target] { return completed >= target; });
 }
 
 void Logger::shutdown() noexcept {
+  {
+    std::unique_lock lock(lifecycle_mtx);
+    if (lifecycle == Lifecycle::Stopped)
+      return;
+    if (lifecycle == Lifecycle::Stopping) {
+      lifecycle_cv.wait(lock,
+                        [this] { return lifecycle == Lifecycle::Stopped; });
+      return;
+    }
+    lifecycle = Lifecycle::Stopping;
+  }
   drain.request_stop();
   if (drain.joinable())
     drain.join();
+  {
+    std::scoped_lock lock(lifecycle_mtx);
+    lifecycle = Lifecycle::Stopped;
+  }
+  lifecycle_cv.notify_all();
 }
 
 Logger &logger() noexcept {

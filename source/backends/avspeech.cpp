@@ -89,24 +89,26 @@ private:
     }
   }
 
-  static void wait_for_semaphore_pumping_main(dispatch_semaphore_t sema,
+  static bool wait_for_semaphore_pumping_main(dispatch_semaphore_t sema,
                                               double timeout_sec) {
     if ([NSThread isMainThread] == YES) {
       NSDate *start = [NSDate date];
-      while (dispatch_semaphore_wait(
-                 sema, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_MSEC)) !=
-             0) {
-        if ([[NSDate date] timeIntervalSinceDate:start] > timeout_sec)
-          break;
+      while (true) {
+        if (dispatch_semaphore_wait(
+                sema, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_MSEC)) ==
+            0)
+          return true;
+        if ([[NSDate date] timeIntervalSinceDate:start] >= timeout_sec)
+          return false;
         [[NSRunLoop currentRunLoop]
                runMode:NSDefaultRunLoopMode
             beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
       }
-    } else {
-      dispatch_semaphore_wait(
-          sema, dispatch_time(DISPATCH_TIME_NOW,
-                              (int64_t)(timeout_sec * NSEC_PER_SEC)));
     }
+    return dispatch_semaphore_wait(
+               sema, dispatch_time(DISPATCH_TIME_NOW,
+                                   static_cast<std::int64_t>(
+                                       timeout_sec * NSEC_PER_SEC))) == 0;
   }
 
 public:
@@ -172,7 +174,7 @@ public:
             auth_status = status;
             dispatch_semaphore_signal(auth_sema);
           }];
-      wait_for_semaphore_pumping_main(auth_sema, 120.0);
+      (void)wait_for_semaphore_pumping_main(auth_sema, 120.0);
     }
     if (auto const res = refresh_voices(); !res) {
       return res;
@@ -198,7 +200,7 @@ public:
               }
             }];
       });
-      wait_for_semaphore_pumping_main(probe_sema, 1.0);
+      (void)wait_for_semaphore_pumping_main(probe_sema, 1.0);
       if (probed_format != nullptr) {
         audio_channels.store(probed_format.channelCount,
                              std::memory_order_release);
@@ -325,7 +327,14 @@ public:
                    [acc.buffers addObject:pcm];
                  }];
       });
-      wait_for_semaphore_pumping_main(acc.done_sema, 60.0 * 5.0);
+      if (!wait_for_semaphore_pumping_main(acc.done_sema, 60.0 * 5.0)) {
+        sync_on_main(^{
+          if (memory_synthesizer != nullptr)
+            [memory_synthesizer
+                stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
+        });
+        return std::unexpected(BackendError::InternalBackendError);
+      }
       if (acc.buffers.count == 0 || acc.captured_format == nil)
         return {};
       const std::uint64_t channels = acc.captured_format.channelCount;

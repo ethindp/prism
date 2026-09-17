@@ -12,7 +12,7 @@
 #include <tchar.h>
 #include <windows.h>
 
-class JawsBackend final : public TextToSpeechBackend {
+class JawsBackend final : public ComTextToSpeechBackend {
 private:
   CComPtr<IJawsApi> controller;
   std::atomic_flag initialized;

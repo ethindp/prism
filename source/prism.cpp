@@ -6,6 +6,10 @@
 #include "logging.h"
 #include "plugin_loader.h"
 #include "power_notifier.h"
+#ifdef PRISM_HAVE_BACKEND_ANCHORS
+// Holds every backend object in the link; see the generated header.
+#include "backend_anchors.h"
+#endif
 #include <cmath>
 #include <cstdint>
 #include <limits>

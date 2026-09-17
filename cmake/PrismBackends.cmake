@@ -7,6 +7,7 @@ prism_require_vars(PRISM_SOURCE_ROOT PRISM_ARCH_CLASS PRISM_BACKEND_DEFAULT
 prism_require_targets(prism prism_common)
 set(PRISM_BACKEND_TARGETS "")
 set(PRISM_BACKEND_SUMMARY "")
+set(PRISM_BACKEND_ANCHORS "")
 
 function(prism_declare_backend NAME)
   cmake_parse_arguments(PB "LEGACY" "SOURCE;DOC;DEFAULT;LANGUAGE;FEATURE"
@@ -128,6 +129,10 @@ function(prism_declare_backend NAME)
   add_library(${_tgt} OBJECT
               "${PRISM_SOURCE_ROOT}/source/backends/${PB_SOURCE}")
   target_link_libraries(${_tgt} PRIVATE prism_common ${_libs})
+  # Names the anchor symbol this backend emits, so a static build can tell the
+  # linker to keep the object its registrar lives in.
+  target_compile_definitions(${_tgt}
+                             PRIVATE PRISM_BACKEND_ANCHOR=prism_anchor_${NAME})
   set_target_properties(
     ${_tgt}
     PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -144,6 +149,10 @@ function(prism_declare_backend NAME)
       ${_tgt} PROPERTIES COMPILE_OPTIONS "-x;objective-c++;-fobjc-arc")
   endif()
   target_sources(prism PRIVATE $<TARGET_OBJECTS:${_tgt}>)
+  list(APPEND PRISM_BACKEND_ANCHORS "${NAME}")
+  set(PRISM_BACKEND_ANCHORS
+      "${PRISM_BACKEND_ANCHORS}"
+      PARENT_SCOPE)
   if(_libs)
     target_link_libraries(prism PRIVATE ${_libs})
   endif()
@@ -366,3 +375,32 @@ if(NOT PRISM_BACKEND_TARGETS)
 endif()
 list(JOIN PRISM_BACKEND_SUMMARY " " _s)
 message(STATUS "Prism backends: ${_s}")
+# MSVC keeps an object only when something references it, and a backend's
+# registrar is referenced by nothing. One /include: per backend, compiled into
+# the core, is what holds them in a static build. GCC and Clang need none of
+# this: gnu::used and gnu::retain already say it.
+if(MSVC)
+  set(_anchors "")
+  foreach(_name IN LISTS PRISM_BACKEND_ANCHORS)
+    if(PRISM_ARCH_CLASS STREQUAL "x86")
+      # cdecl carries a leading underscore on x86 and nowhere else.
+      set(_sym "_prism_anchor_${_name}")
+    else()
+      set(_sym "prism_anchor_${_name}")
+    endif()
+    string(APPEND _anchors
+           "#pragma comment(linker, \"/include:${_sym}\")
+")
+  endforeach()
+  # PrismCodegen, which owns PRISM_GEN_DIR, is included after this file.
+  set(_gen "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  file(MAKE_DIRECTORY "${_gen}")
+  # A header rather than a source file on purpose: linker directives are only
+  # read from objects that are actually linked, so putting them in an object
+  # of their own would leave them to be dropped for the same reason the
+  # backends are. prism.cpp always ends up in the link, so they ride in there.
+  configure_file("${PRISM_SOURCE_ROOT}/cmake/backend_anchors.h.in"
+                 "${_gen}/backend_anchors.h" @ONLY)
+  target_include_directories(prism PRIVATE "${_gen}")
+  target_compile_definitions(prism PRIVATE PRISM_HAVE_BACKEND_ANCHORS)
+endif()

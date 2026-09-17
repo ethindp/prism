@@ -108,10 +108,22 @@ template <typename T> struct BackendRegistrar {
   }
 };
 
-#define REGISTER_BACKEND(cls, name, priority)                                  \
-  [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                    \
-  registrar_##cls##_(name, priority)
+// A backend registers itself through a file-scope static, so nothing outside
+// its own object refers to it. gnu::used and gnu::retain keep GCC and Clang
+// from dropping it, but MSVC honours neither: in a static build its linker
+// discards every backend object and the catalog comes out empty, which shows
+// up only at run time as "no backend available".
+//
+// PRISM_BACKEND_ANCHOR is defined per backend by the build (see
+// cmake/PrismBackends.cmake) and names an extern "C" function emitted into
+// that object. The core carries a matching /include: directive for each one,
+// which is what makes the linker keep the object and run its registrar.
+#if defined(PRISM_BACKEND_ANCHOR)
+#define PRISM_EMIT_ANCHOR extern "C" void PRISM_BACKEND_ANCHOR(void) {}
+#else
+#define PRISM_EMIT_ANCHOR
+#endif
 
-#define REGISTER_BACKEND_WITH_ID(cls, id, name, priority)                      \
-  [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                    \
-  registrar_##cls##_(id, name, priority)
+#define REGISTER_BACKEND(cls, name, priority)                                    [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                      registrar_##cls##_(name, priority);                                            PRISM_EMIT_ANCHOR
+
+#define REGISTER_BACKEND_WITH_ID(cls, id, name, priority)                        [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                      registrar_##cls##_(id, name, priority);                                        PRISM_EMIT_ANCHOR

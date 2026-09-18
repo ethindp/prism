@@ -12,7 +12,7 @@
 #ifdef _WIN32
 #define SC_VOLUME_MIN 0.0F
 #define SC_VOLUME_MAX 100.0F
-#define SC_RATE_MIN -10.0F
+#define SC_RATE_MIN (-10.0F)
 #define SC_RATE_MAX 10.0F
 #else
 #define SC_VOLUME_MIN 0.0F
@@ -293,10 +293,13 @@ bool Speech_Is_Speaking(void) {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   bool speaking = false;
-  const bool ok = backend != PRISM_SHIM_NULL &&
-                  prism_backend_is_speaking(backend, &speaking) == PRISM_OK;
+  PrismError error = PRISM_ERROR_BACKEND_NOT_AVAILABLE;
+  if (backend != PRISM_SHIM_NULL)
+    error = prism_backend_is_speaking(backend, &speaking);
   fast_lock_release(&sc_lock);
-  return ok && speaking;
+  if (error != PRISM_OK)
+    return false;
+  return speaking;
 }
 
 bool Speech_Output(const wchar_t *text, bool interrupt) {
@@ -320,10 +323,13 @@ float Speech_Get_Volume(void) {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   float value = 0.0F;
-  const bool ok = backend != PRISM_SHIM_NULL &&
-                  prism_backend_get_volume(backend, &value) == PRISM_OK;
+  PrismError error = PRISM_ERROR_BACKEND_NOT_AVAILABLE;
+  if (backend != PRISM_SHIM_NULL)
+    error = prism_backend_get_volume(backend, &value);
   fast_lock_release(&sc_lock);
-  return ok ? shim_from_unit(value, SC_VOLUME_MIN, SC_VOLUME_MAX) : -1.0F;
+  if (error != PRISM_OK)
+    return -1.0F;
+  return shim_from_unit(value, SC_VOLUME_MIN, SC_VOLUME_MAX);
 }
 
 void Speech_Set_Volume(float offset) {
@@ -339,10 +345,13 @@ float Speech_Get_Rate(void) {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   float value = 0.0F;
-  const bool ok = backend != PRISM_SHIM_NULL &&
-                  prism_backend_get_rate(backend, &value) == PRISM_OK;
+  PrismError error = PRISM_ERROR_BACKEND_NOT_AVAILABLE;
+  if (backend != PRISM_SHIM_NULL)
+    error = prism_backend_get_rate(backend, &value);
   fast_lock_release(&sc_lock);
-  return ok ? shim_from_unit(value, SC_RATE_MIN, SC_RATE_MAX) : -1.0F;
+  if (error != PRISM_OK)
+    return -1.0F;
+  return shim_from_unit(value, SC_RATE_MIN, SC_RATE_MAX);
 }
 
 void Speech_Set_Rate(float offset) {
@@ -358,10 +367,13 @@ float Speech_Get_Pitch(void) {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   float value = 0.0F;
-  const bool ok = backend != PRISM_SHIM_NULL &&
-                  prism_backend_get_pitch(backend, &value) == PRISM_OK;
+  PrismError error = PRISM_ERROR_BACKEND_NOT_AVAILABLE;
+  if (backend != PRISM_SHIM_NULL)
+    error = prism_backend_get_pitch(backend, &value);
   fast_lock_release(&sc_lock);
-  return ok ? value : -1.0F;
+  if (error != PRISM_OK)
+    return -1.0F;
+  return value;
 }
 
 void Speech_Set_Pitch(float offset) {
@@ -447,10 +459,13 @@ void Sapi_Release(void) {
 float Sapi_Voice_Get_Volume(void) {
   fast_lock_acquire(&sc_lock);
   float value = 0.0F;
-  const bool ok = sc_native != PRISM_SHIM_NULL &&
-                  prism_backend_get_volume(sc_native, &value) == PRISM_OK;
+  PrismError error = PRISM_ERROR_BACKEND_NOT_AVAILABLE;
+  if (sc_native != PRISM_SHIM_NULL)
+    error = prism_backend_get_volume(sc_native, &value);
   fast_lock_release(&sc_lock);
-  return ok ? shim_from_unit(value, 0.0F, 100.0F) : -1.0F;
+  if (error != PRISM_OK)
+    return -1.0F;
+  return shim_from_unit(value, 0.0F, 100.0F);
 }
 
 void Sapi_Voice_Set_Volume(float volume) {
@@ -464,10 +479,13 @@ void Sapi_Voice_Set_Volume(float volume) {
 float Sapi_Voice_Get_Rate(void) {
   fast_lock_acquire(&sc_lock);
   float value = 0.0F;
-  const bool ok = sc_native != PRISM_SHIM_NULL &&
-                  prism_backend_get_rate(sc_native, &value) == PRISM_OK;
+  PrismError error = PRISM_ERROR_BACKEND_NOT_AVAILABLE;
+  if (sc_native != PRISM_SHIM_NULL)
+    error = prism_backend_get_rate(sc_native, &value);
   fast_lock_release(&sc_lock);
-  return ok ? shim_from_unit(value, -10.0F, 10.0F) : -1.0F;
+  if (error != PRISM_OK)
+    return -1.0F;
+  return shim_from_unit(value, -10.0F, 10.0F);
 }
 
 void Sapi_Voice_Set_Rate(float rate) {

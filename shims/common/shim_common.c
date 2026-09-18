@@ -84,9 +84,11 @@ bool shim_error_means_lost(PrismError error) {
 }
 
 bool shim_backend_live(PrismBackend *backend) {
-  return backend != PRISM_SHIM_NULL &&
-         (prism_backend_get_features(backend) &
-          PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME) != 0;
+  if (backend == PRISM_SHIM_NULL) {
+    return false;
+  }
+  const uint64_t features = prism_backend_get_features(backend);
+  return (bool)((features & PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME) != 0);
 }
 
 PrismBackend *shim_create_live(PrismContext *ctx, PrismBackendId id) {
@@ -243,11 +245,11 @@ char *shim_strdup(const char *text) {
   if (length == SIZE_MAX) {
     return PRISM_SHIM_NULL;
   }
-  char *copy = malloc(length + 1);
+  char *copy = calloc(length + 1, sizeof(*copy));
   if (copy == PRISM_SHIM_NULL) {
     return PRISM_SHIM_NULL;
   }
-  for (size_t i = 0; i <= length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     copy[i] = text[i];
   }
   return copy;
@@ -629,10 +631,17 @@ bool shim_write_wav(const char *path, const ShimAudioBuffer *buffer) {
     return false;
   }
   const uint32_t data_size = (uint32_t)(buffer->sample_count * 2);
-  FILE *file = fopen(path, "wb");
+  FILE *file = PRISM_SHIM_NULL;
+#ifdef _WIN32
+  if (fopen_s(&file, path, "wb") != 0) {
+    return false;
+  }
+#else
+  file = fopen(path, "wb");
   if (file == PRISM_SHIM_NULL) {
     return false;
   }
+#endif
   const uint16_t channels = (uint16_t)buffer->channels;
   const uint32_t sample_rate = (uint32_t)buffer->sample_rate;
   const uint16_t block_align = (uint16_t)(channels * 2);

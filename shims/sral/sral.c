@@ -144,8 +144,8 @@ static PrismError sral_apply(PrismBackend *backend, SralOp op,
 }
 
 static bool sral_run(int engine, SralOp op, const char *text, bool interrupt) {
-  const bool needs_text =
-      op == SRAL_OP_SPEAK || op == SRAL_OP_BRAILLE || op == SRAL_OP_OUTPUT;
+  const bool needs_text = (bool)(op == SRAL_OP_SPEAK || op == SRAL_OP_BRAILLE ||
+                                 op == SRAL_OP_OUTPUT);
   if (needs_text && text == PRISM_SHIM_NULL) {
     return false;
   }
@@ -387,16 +387,20 @@ bool SRAL_IsSpeakingEx(int engine) {
     }
   }
   fast_lock_release(&sral_lock);
-  return error == PRISM_OK && speaking;
+  if (error != PRISM_OK) {
+    return false;
+  }
+  return speaking;
 }
 
 bool SRAL_IsSpeaking(void) { return SRAL_IsSpeakingEx(SRAL_ENGINE_NONE); }
 
 int SRAL_GetCurrentEngine(void) {
   fast_lock_acquire(&sral_lock);
-  const SralSlot *slot = sral_initialized
-                             ? sral_resolve_locked(SRAL_ENGINE_NONE)
-                             : PRISM_SHIM_NULL;
+  const SralSlot *slot = PRISM_SHIM_NULL;
+  if (sral_initialized) {
+    slot = sral_resolve_locked(SRAL_ENGINE_NONE);
+  }
   const int result =
       slot == PRISM_SHIM_NULL ? SRAL_ENGINE_NONE : slot->legacy_id;
   fast_lock_release(&sral_lock);
@@ -405,9 +409,10 @@ int SRAL_GetCurrentEngine(void) {
 
 int SRAL_GetEngineFeatures(int engine) {
   fast_lock_acquire(&sral_lock);
-  const int result = sral_initialized
-                         ? sral_features_locked(sral_resolve_locked(engine))
-                         : -1;
+  int result = -1;
+  if (sral_initialized) {
+    result = sral_features_locked(sral_resolve_locked(engine));
+  }
   fast_lock_release(&sral_lock);
   return result;
 }
@@ -430,8 +435,10 @@ static bool sral_set_parameter_locked(SralSlot *slot, int param,
                                                  slot->volume_max)) == PRISM_OK;
   case SRAL_PARAM_VOICE_INDEX: {
     const int index = *(const int *)value;
-    return index >= 0 &&
-           prism_backend_set_voice(backend, (size_t)index) == PRISM_OK;
+    if (index < 0) {
+      return false;
+    }
+    return prism_backend_set_voice(backend, (size_t)index) == PRISM_OK;
   }
   default:
     return false;
@@ -440,9 +447,11 @@ static bool sral_set_parameter_locked(SralSlot *slot, int param,
 
 bool SRAL_SetEngineParameter(int engine, int param, const void *value) {
   fast_lock_acquire(&sral_lock);
-  const bool result =
-      sral_initialized &&
-      sral_set_parameter_locked(sral_resolve_locked(engine), param, value);
+  bool result = false;
+  if (sral_initialized) {
+    result =
+        sral_set_parameter_locked(sral_resolve_locked(engine), param, value);
+  }
   fast_lock_release(&sral_lock);
   return result;
 }
@@ -514,9 +523,11 @@ static bool sral_get_parameter_locked(SralSlot *slot, int param, void *value) {
 
 bool SRAL_GetEngineParameter(int engine, int param, void *value) {
   fast_lock_acquire(&sral_lock);
-  const bool result =
-      sral_initialized &&
-      sral_get_parameter_locked(sral_resolve_locked(engine), param, value);
+  bool result = false;
+  if (sral_initialized) {
+    result =
+        sral_get_parameter_locked(sral_resolve_locked(engine), param, value);
+  }
   fast_lock_release(&sral_lock);
   return result;
 }
@@ -560,10 +571,11 @@ int SRAL_GetActiveEngines(void) {
 SRAL_EngineCategory SRAL_GetEngineCategory(int engine) {
   fast_lock_acquire(&sral_lock);
   const SralSlot *slot = sral_slot(engine);
-  const bool present = sral_initialized && slot != PRISM_SHIM_NULL &&
-                       prism_registry_exists(sral_ctx, slot->prism_id);
-  const SRAL_EngineCategory result =
-      present ? slot->category : SRAL_ENGINE_CATEGORY_UNKNOWN;
+  SRAL_EngineCategory result = SRAL_ENGINE_CATEGORY_UNKNOWN;
+  if (sral_initialized && slot != PRISM_SHIM_NULL &&
+      prism_registry_exists(sral_ctx, slot->prism_id)) {
+    result = slot->category;
+  }
   fast_lock_release(&sral_lock);
   return result;
 }
@@ -647,7 +659,10 @@ bool SRAL_SetEnginesExclude(int engines_exclude) {
 
 int SRAL_GetEnginesExclude(void) {
   fast_lock_acquire(&sral_lock);
-  const int result = sral_initialized ? sral_excluded : -1;
+  int result = -1;
+  if (sral_initialized) {
+    result = sral_excluded;
+  }
   fast_lock_release(&sral_lock);
   return result;
 }

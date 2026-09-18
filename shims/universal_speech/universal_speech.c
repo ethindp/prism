@@ -38,6 +38,10 @@ typedef struct UsSlot {
 } UsSlot;
 
 typedef enum UsOp { US_OP_SAY, US_OP_BRAILLE, US_OP_STOP } UsOp;
+typedef enum UsNarrowEncoding {
+  US_NARROW_ANSI,
+  US_NARROW_UTF8
+} UsNarrowEncoding;
 
 static UsSlot us_slots[] = {
     {L"Jaws", PRISM_BACKEND_JAWS, PRISM_SHIM_NULL, true, false},
@@ -69,11 +73,15 @@ static UsWaveCallback us_wave_callback;
 static void *us_wave_userdata;
 static int us_wave_sample_rate;
 
+static bool us_index_valid(int index) {
+  return (bool)(index >= 0 && index < US_ENGINE_COUNT);
+}
+
 static PrismBackendId us_slot_id(int index) {
+  if (!us_index_valid(index))
+    return PRISM_BACKEND_INVALID;
   if (index == US_NATIVE_INDEX)
     return shim_native_tts_id();
-  if (index < 0 || index >= US_ENGINE_COUNT)
-    return PRISM_BACKEND_INVALID;
   return us_slots[index].prism_id;
 }
 
@@ -84,13 +92,13 @@ static bool us_ensure_context_locked(void) {
 }
 
 static PrismBackend *us_backend_locked(int index) {
-  if (index < 0 || index >= US_ENGINE_COUNT || !us_ensure_context_locked())
+  if (!us_index_valid(index) || !us_ensure_context_locked())
     return PRISM_SHIM_NULL;
   return shim_slot_get(us_ctx, us_slot_id(index), &us_slots[index].backend);
 }
 
 static bool us_available_locked(int index) {
-  if (index < 0 || index >= US_ENGINE_COUNT ||
+  if (!us_index_valid(index) ||
       (index == US_NATIVE_INDEX && !us_native_enabled) ||
       !us_ensure_context_locked())
     return false;
@@ -98,6 +106,8 @@ static bool us_available_locked(int index) {
 }
 
 static void us_drop_locked(int index) {
+  if (!us_index_valid(index))
+    return;
   shim_slot_drop(&us_slots[index].backend);
   us_slots[index].paused = false;
 }
@@ -184,15 +194,18 @@ static int us_run_index(int index, UsOp op, const wchar_t *text,
   return error == PRISM_OK;
 }
 
-static const char *us_narrow(const wchar_t *value, bool utf8) {
+static const char *us_narrow(const wchar_t *value, UsNarrowEncoding encoding) {
   if (value == PRISM_SHIM_NULL)
     return PRISM_SHIM_NULL;
   char *encoded = shim_wchar_to_utf8(value);
   if (encoded == PRISM_SHIM_NULL)
     return PRISM_SHIM_NULL;
   fast_lock_acquire(&us_lock);
-  const char *result = utf8 ? shim_intern_utf8(&us_strings, encoded)
-                            : shim_intern_ansi(&us_strings, encoded);
+  const char *result = PRISM_SHIM_NULL;
+  if (encoding == US_NARROW_UTF8)
+    result = shim_intern_utf8(&us_strings, encoded);
+  else
+    result = shim_intern_ansi(&us_strings, encoded);
   fast_lock_release(&us_lock);
   free(encoded);
   return result;
@@ -266,7 +279,9 @@ static int us_get_value_locked(int what) {
   case SP_BUSY_SUPPORTED:
     return (features & PRISM_BACKEND_SUPPORTS_IS_SPEAKING) != 0;
   case SP_PAUSED:
-    return index >= 0 && us_slots[index].paused;
+    if (!us_index_valid(index))
+      return 0;
+    return (int)us_slots[index].paused;
   case SP_PAUSE_SUPPORTED:
     return (features & PRISM_BACKEND_SUPPORTS_PAUSE) != 0 &&
            (features & PRISM_BACKEND_SUPPORTS_RESUME) != 0;
@@ -294,9 +309,9 @@ static int us_get_value_locked(int what) {
   }
   default: {
     float value = 0.0F;
-    return us_get_float_locked(backend, what, &value)
-               ? (int)((shim_clamp01(value) * 100.0F) + 0.5F)
-               : 0;
+    if (!us_get_float_locked(backend, what, &value))
+      return 0;
+    return (int)((shim_clamp01(value) * 100.0F) + 0.5F);
   }
   }
 }
@@ -425,7 +440,7 @@ US_EXPORT(int) brailleDisplayA(const char *text) {
 }
 
 US_EXPORT(const char *) speechGetStringA(int what) {
-  return us_narrow(speechGetString(what), false);
+  return us_narrow(speechGetString(what), US_NARROW_ANSI);
 }
 
 US_EXPORT(int) speechSetStringA(int what, const char *value) {
@@ -452,7 +467,7 @@ US_EXPORT(int) brailleDisplayU(const char *text) {
 }
 
 US_EXPORT(const char *) speechGetStringU(int what) {
-  return us_narrow(speechGetString(what), true);
+  return us_narrow(speechGetString(what), US_NARROW_UTF8);
 }
 
 US_EXPORT(int) speechSetStringU(int what, const char *value) {
@@ -483,7 +498,7 @@ static int us_index_for_id(PrismBackendId id) {
 
 static int us_id_available(PrismBackendId id) {
   fast_lock_acquire(&us_lock);
-  const int result = us_available_locked(us_index_for_id(id));
+  const int result = (int)us_available_locked(us_index_for_id(id));
   fast_lock_release(&us_lock);
   return result;
 }
@@ -906,7 +921,7 @@ US_EXPORT(const wchar_t *) sapiGetVoiceNameW(int voice) {
 }
 
 US_EXPORT(const char *) sapiGetVoiceNameA(int voice) {
-  return us_narrow(sapiGetVoiceNameW(voice), false);
+  return us_narrow(sapiGetVoiceNameW(voice), US_NARROW_ANSI);
 }
 US_EXPORT(int) sapiGetValue(int what) {
   switch (what) {

@@ -2,9 +2,15 @@
 #define ____UNIVERSAL_SPEECH_H__
 #if defined(__WIN32) || defined(__WIN64) || defined(_WIN32) || defined(_WIN64)
 #define ____WINDOWS____
-#define export __declspec(dllexport) __cdecl
+#ifdef UNIVERSAL_SPEECH_BUILDING
+#define UNIVERSAL_SPEECH_API __declspec(dllexport)
 #else
-#define export __attribute__((visibility("default")))
+#define UNIVERSAL_SPEECH_API __declspec(dllimport)
+#endif
+#define UNIVERSAL_SPEECH_CALL __cdecl
+#else
+#define UNIVERSAL_SPEECH_API __attribute__((visibility("default")))
+#define UNIVERSAL_SPEECH_CALL
 #endif
 #include <wchar.h>
 typedef wchar_t ____wchar_t;
@@ -88,42 +94,42 @@ The second parameter controls if this message must interrupt the currently spoke
 + A value of 0 means false, i.e. this message is appended to the queue and will be spoken after all previous messages are finished.
 + Any value different than 0 means true, i.e. if something is currently spoken, it is interrupted and this message is immediately spoken, clearing the queue of messages still waiting.
 */
-export int speechSay (const ____wchar_t* str, int interrupt) ;
+UNIVERSAL_SPEECH_API int UNIVERSAL_SPEECH_CALL speechSay (const ____wchar_t* str, int interrupt) ;
 
 /** ANSI version of the function above, for those who don't support unicode. */
-export int speechSayA (const char* str, int interrupt) ;
+UNIVERSAL_SPEECH_API int UNIVERSAL_SPEECH_CALL speechSayA (const char* str, int interrupt) ;
 
 /** Send a message to be displayed on a braille display by the current engine, if supported
 All strings must be in unicode, i.e. use wchar_t, WCHAR, std::wstring
 */
-export int brailleDisplay (const ____wchar_t* str) ;
+UNIVERSAL_SPEECH_API int UNIVERSAL_SPEECH_CALL brailleDisplay (const ____wchar_t* str) ;
 
 /** ANSI version of the function above, for those who don't support unicode. */
-export int brailleDisplayA (const char* str) ;
+UNIVERSAL_SPEECH_API int UNIVERSAL_SPEECH_CALL brailleDisplayA (const char* str) ;
 
 
 /** Immediately stop speaking and clear the queue of pending messages */
-export int speechStop (void) ;
+UNIVERSAL_SPEECH_API int UNIVERSAL_SPEECH_CALL speechStop (void) ;
 
 /** Query for an integer parameter. Look at the list of all parameters in the enum above */
-export int speechGetValue (int what) ;
+UNIVERSAL_SPEECH_API int UNIVERSAL_SPEECH_CALL speechGetValue (int what) ;
 
 /** Request an integer parameter change. Look at the list of all parameters in the enum above. */
-export int speechSetValue (int what, int value) ;
+UNIVERSAL_SPEECH_API int UNIVERSAL_SPEECH_CALL speechSetValue (int what, int value) ;
 
 /** Query for a string parameter. Look at the list of all parameters in the enum above.
 All strings are returned in unicode and don't have to be free by the caller unless otherwise specified.
  */
-export const ____wchar_t* speechGetString (int what) ;
+UNIVERSAL_SPEECH_API const ____wchar_t* UNIVERSAL_SPEECH_CALL speechGetString (int what) ;
 
 /** Request a parameter change. Look at the list of all parameters in the enum above.
 All strings must be in unicode and don't have to be valid after the function has returned, unless otherwise specified.
 */
-export int speechSetString (int what, const ____wchar_t* str) ;
+UNIVERSAL_SPEECH_API int UNIVERSAL_SPEECH_CALL speechSetString (int what, const ____wchar_t* str) ;
 
 /** ANSI version of the functions above, for those who don't support unicode. */
-export const char* speechGetStringA (int what) ;
-export int speechSetStringA (int what, const char* value) ;
+UNIVERSAL_SPEECH_API const char* UNIVERSAL_SPEECH_CALL speechGetStringA (int what) ;
+UNIVERSAL_SPEECH_API int UNIVERSAL_SPEECH_CALL speechSetStringA (int what, const char* value) ;
 
 #ifdef __cplusplus
 } // extern "C"

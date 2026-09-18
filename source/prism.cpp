@@ -119,8 +119,9 @@ prism_init(PrismConfig *cfg) {
       cfg->availability_callback != nullptr) {
     try {
       ctx->enumerator = std::make_unique<BackendEnumerator>(
-          registry, cfg->availability_callback, cfg->availability_userdata,
-          cfg->availability_poll_interval_ms,
+          registry, cfg->availability_callback,
+          cfg->version >= 4 ? cfg->availability_baseline_callback : nullptr,
+          cfg->availability_userdata, cfg->availability_poll_interval_ms,
           cfg->availability_debounce_samples, cfg->availability_backoff_max_ms,
           cfg->availability_auto_power_manage);
     } catch (...) {

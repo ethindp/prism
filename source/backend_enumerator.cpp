@@ -23,12 +23,15 @@ inline PrismBackendId to_prism_id(BackendId id) noexcept {
 
 BackendEnumerator::BackendEnumerator(FrozenRegistry *registry,
                                      PrismAvailabilityCallback callback,
+                                     PrismAvailabilityBaselineCallback
+                                         baseline_callback,
                                      void *userdata,
                                      std::uint32_t poll_interval_ms,
                                      std::uint32_t debounce_samples,
                                      std::uint32_t backoff_max_ms,
                                      bool auto_power_manage)
-    : registry(registry), callback(callback), userdata(userdata),
+    : registry(registry), callback(callback),
+      baseline_callback(baseline_callback), userdata(userdata),
       interval_ms(poll_interval_ms == 0 ? default_interval : poll_interval_ms),
       debounce(debounce_samples == 0 ? default_debounce : debounce_samples),
       backoff_max_ms(backoff_max_ms), auto_power_manage(auto_power_manage) {
@@ -111,6 +114,10 @@ void BackendEnumerator::run(const std::stop_token &stop) {
     }
   });
   poll_once(SweepMode::Prime);
+  if (baseline_callback != nullptr && !stop.stop_requested()) {
+    logger.debug("Baseline established; notifying");
+    baseline_callback(userdata);
+  }
   const std::uint32_t base = interval_ms;
   const std::uint32_t cap = backoff_max_ms > base ? backoff_max_ms : base;
   std::uint32_t interval = base;

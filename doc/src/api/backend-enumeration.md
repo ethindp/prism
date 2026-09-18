@@ -11,7 +11,7 @@ The polling thread, the callback, and the sampling policy are all configured thr
 The polling thread performs a scan at a configurable interval. In each scan it samples the runtime availability of every backend in the registry and compares each sample against the last state it confirmed for that backend. The model has the following properties:
 
 1. The callback is invoked only when a backend's confirmed availability changes. A backend that remains available or remains unavailable across many scans produces no callbacks.
-2. The first scan after the thread starts establishes a baseline without invoking the callback. A backend that is already available when the context is created therefore does not produce a spurious notification. An application that needs to know the initial availability of a backend MUST query it directly.
+2. The first scan after the thread starts establishes a baseline without invoking the availability callback. A backend that is already available when the context is created therefore does not produce a spurious notification. An application that needs to know the initial availability of a backend MUST query it directly. The first scan runs on the poll thread after `prism_init` has returned, so it is not ordered with respect to such direct queries. A change that occurs between a direct query and the first scan's sample of the same backend becomes part of the baseline and is never reported. The section on `PrismAvailabilityBaselineCallback` describes how an application detects this condition.
 3. A transition is confirmed only after the new state has been observed on a configurable number of consecutive scans. This absorbs momentary glitches that would otherwise produce a pair of spurious notifications.
 4. When configured with an upper bound above the base interval, the sampling interval grows while availability is unchanging and returns to the base interval the instant any sample disagrees with the confirmed state or a transition is confirmed. Backoff reduces the frequency of wakeups during long periods of inactivity without delaying the detection of a change once one begins to occur.
 5. The interval between scans is realized using the most efficient timer facility the platform provides, and the thread permits the operating system to align its wakeups with other timer activity. This allows a mostly-idle poll to avoid forcing dedicated wakeups. Coalescing applies whether or not backoff is enabled.
@@ -57,6 +57,41 @@ The callback MUST NOT call `prism_shutdown` on the context that owns the poll th
 The `name` pointer is owned by Prism and is valid only for the duration of the call; therefore, a callback that needs to retain it MUST copy it. The value passed as `backend` is a stable identifier and MAY be retained freely.
 
 An application typically responds to a callback by discarding a backend instance it can no longer use and, when a preferred backend becomes available, acquiring it. The callback is a notification that the application's cached choice of backend may be stale, and does not itself change any backend instance the application holds.
+
+### `PrismAvailabilityBaselineCallback`
+
+The type of a function invoked once the poll thread has established its baseline.
+
+#### Syntax
+
+```c
+typedef void(PRISM_CALL *PrismAvailabilityBaselineCallback)(void *userdata);
+```
+
+#### Parameters
+
+`userdata`
+
+The opaque pointer supplied as `availability_userdata` in the `PrismConfig` that configured polling. Prism does not interpret this value.
+
+#### Remarks
+
+The baseline callback is invoked exactly once per context, on the poll thread, after the first scan has completed and before the first invocation of the availability callback. The first scan and the baseline callback occur even if polling is paused before the first scan begins. The baseline callback is not invoked if the context is shut down before the first scan completes.
+
+The baseline callback conveys no information about any backend. It identifies neither which backends were sampled nor the state observed for any of them. Its only meaning is that the baseline now exists, which fixes the point from which the availability callback reports changes.
+
+During the first scan, the poll thread samples each backend once, one backend after another, and records the sample as that backend's confirmed state. A backend that cannot be instantiated, or whose sample cannot be taken, retains a confirmed state of unavailable. After the baseline callback has been invoked, any change in a backend's availability relative to its confirmed state is reported through the availability callback, subject to the debouncing described in the section on the sampling model and to the rules described in the section on interaction with pausing. A change that occurred before the first scan sampled a particular backend is not reported, because the sample already reflects it.
+
+The baseline callback is therefore useful only to an application that meets both of the following conditions:
+
+1. Before the baseline callback is invoked, the application observes the availability of one or more backends directly, for example by testing `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` in the result of `prism_backend_get_features`, and retains a decision derived from that observation, such as which backend to use.
+2. The application relies on the availability callback, rather than on observations made each time the decision is used, to learn when that decision has become stale.
+
+Such an application cannot determine from the availability callback alone whether a backend changed state between its observation and the first scan's sample of that backend. When the baseline callback is invoked, the application SHOULD repeat every direct observation made before the callback that underlies a retained decision, and revise the decision accordingly. Because the callback does not identify any backend, no observation can be omitted on the grounds that the corresponding backend did not change. A repeated observation is made after the first scan sampled the backend in question, so any later change relative to the baseline is reported through the availability callback. The application MAY consequently receive a notification for a transition that it has already observed through a repeated observation, and SHOULD treat such a notification as harmless.
+
+An application that makes no direct observations before the baseline callback is invoked, or that does not retain decisions derived from them, or that observes availability each time it acts on it, has no use for the baseline callback and MAY leave `availability_baseline_callback` set to `NULL`. An application MAY also avoid the condition entirely by deferring its first direct observation until the baseline callback has been invoked, at the cost of waiting for the first scan to complete.
+
+The constraints that apply to the availability callback apply equally to the baseline callback: it MUST NOT block, it MUST synchronize any shared state that it accesses, and it MUST NOT call `prism_shutdown` on the owning context. Because the baseline callback runs on the poll thread, it MUST NOT repeat observations on a backend instance that is used from another thread without external synchronization, as described in the chapter on thread safety. An application typically records in the callback that its observations are to be repeated, and repeats them on the thread that owns the affected backend instances.
 
 ### Interaction with pausing
 

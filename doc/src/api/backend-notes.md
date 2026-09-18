@@ -49,6 +49,15 @@ The watchOS VoiceOver backend supports the speak and output operations. No other
 
 The UIA backend delivers announcements through Microsoft UI Automation notification events. Current versions of NVDA, JAWS, and Windows Narrator all observe these notifications.
 
+A notification event produces speech only when an assistive technology consumes it. The backend therefore reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` only when both of the following hold at the moment of the query:
+
+* The system screen reader flag, as retrieved through `SystemParametersInfo` with `SPI_GETSCREENREADER`, is set.
+* `UiaClientsAreListening` returns `TRUE`, indicating that at least one UI Automation client is listening for events.
+
+If `UiaClientsAreListening` cannot be resolved from `uiautomationcore.dll` at runtime, the bit is never reported. Neither check activates a COM object, and neither requires COM to be initialized on the calling thread.
+
+The bit remains advisory, as for every other backend. Neither condition establishes that the listening client consumes notification events, or that the software which set the system screen reader flag is still running; the bit MAY therefore be reported when no announcement will be heard. Conversely, an assistive technology that consumes notification events without setting the system screen reader flag is not detected. The bit also does not reflect the window requirements that `prism_backend_initialize` enforces, which follow.
+
 The host process MUST own at least one top-level window that, at the moment of initialization, satisfies all of the following:
 
 * `IsWindow` returns `TRUE`.

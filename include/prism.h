@@ -96,6 +96,8 @@ typedef void(PRISM_CALL *PrismAvailabilityCallback)(void *userdata,
                                                     const char *name,
                                                     bool available);
 
+typedef void(PRISM_CALL *PrismAvailabilityBaselineCallback)(void *userdata);
+
 typedef struct {
   uint8_t version;
   PrismRegistry *registry;
@@ -105,6 +107,7 @@ typedef struct {
   uint32_t availability_debounce_samples;
   uint32_t availability_backoff_max_ms;
   bool availability_auto_power_manage;
+  PrismAvailabilityBaselineCallback availability_baseline_callback;
 } PrismConfig;
 
 #ifdef _MSC_VER
@@ -270,7 +273,7 @@ typedef const PrismPluginBackend *(PRISM_CALL *PrismPluginQueryFn)(
 #define PRISM_BACKEND_SYSTEM_ACCESS UINT64_C(0x8380F2A37B2C3EB6)
 #define PRISM_BACKEND_WINDOW_EYES UINT64_C(0x9120D89908785C13)
 #define PRISM_BACKEND_SPIEL UINT64_C(0x478B44F14AD3D89C)
-#define PRISM_CONFIG_VERSION 3
+#define PRISM_CONFIG_VERSION 4
 #define PRISM_PLUGIN_ABI_VERSION UINT64_C(1)
 
 #ifdef _MSC_VER

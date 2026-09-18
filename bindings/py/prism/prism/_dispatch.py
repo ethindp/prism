@@ -13,8 +13,18 @@ if TYPE_CHECKING:
 
 
 AvailabilityCallback = Callable[[BackendId, str, bool], Awaitable[None] | None]
+BaselineCallback = Callable[[], Awaitable[None] | None]
 
 _log: Final[logging.Logger] = logging.getLogger("prism.dispatch")
+
+
+async def _await(awaitable: Awaitable[None]) -> None:
+    try:
+        await awaitable
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # noqa: BLE001
+        _log.exception("baseline callback raised an exception, which is not allowed")
 
 
 class _Dispatcher:
@@ -66,6 +76,25 @@ class _Dispatcher:
         if self._closed:
             return
         self._loop.call_soon_threadsafe(self._on_event, cb, backend, name, available)
+
+    def submit_baseline(self, cb: BaselineCallback) -> None:
+        if self._closed:
+            return
+        self._loop.call_soon_threadsafe(self._on_baseline, cb)
+
+    def _on_baseline(self, cb: BaselineCallback) -> None:
+        try:
+            result: Awaitable[None] | None = cb()
+        except Exception:  # noqa: BLE001
+            _log.exception(
+                "baseline callback raised an exception, which is not allowed"
+            )
+            return
+        if not inspect.isawaitable(result):
+            return
+        task: asyncio.Task[None] = self._loop.create_task(_await(result))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     def _on_event(
         self,

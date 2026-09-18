@@ -31,6 +31,7 @@
 
 using namespace belt::com;
 
+namespace {
 constexpr auto WM_UIA_EXECUTE_COMMAND = WM_USER + 1;
 constexpr auto WM_UIA_SHUTDOWN = WM_USER + 2;
 
@@ -57,6 +58,42 @@ struct SpeakCommand {
 struct StopCommand {};
 
 using Command = std::variant<SpeakCommand, StopCommand>;
+using ClientsAreListeningFn = BOOL(WINAPI *)();
+
+struct UiaRuntime final {
+  HMODULE module{};
+  ClientsAreListeningFn clients_are_listening{};
+
+  UiaRuntime() noexcept
+      : module(LoadLibraryExW(L"uiautomationcore.dll", nullptr,
+                              LOAD_LIBRARY_SEARCH_SYSTEM32)) {
+    if (module == nullptr) {
+      return;
+    }
+
+    clients_are_listening = reinterpret_cast<ClientsAreListeningFn>(
+        GetProcAddress(module, "UiaClientsAreListening"));
+  }
+
+  ~UiaRuntime() {
+    if (module != nullptr) {
+      FreeLibrary(module);
+    }
+  }
+
+  UiaRuntime(const UiaRuntime &) = delete;
+  UiaRuntime &operator=(const UiaRuntime &) = delete;
+  UiaRuntime(UiaRuntime &&) = delete;
+  UiaRuntime &operator=(UiaRuntime &&) = delete;
+
+  [[nodiscard]] bool available() const noexcept {
+    return clients_are_listening != nullptr;
+  }
+
+  [[nodiscard]] bool clients_active() const noexcept {
+    return available() && clients_are_listening() != FALSE;
+  }
+};
 
 class UiaNotificationProvider
     : public object<UiaNotificationProvider, IRawElementProviderSimple> {
@@ -164,6 +201,7 @@ public:
     return hr;
   }
 };
+} // namespace
 
 class UiaBackend final : public ComTextToSpeechBackend {
 private:
@@ -386,16 +424,19 @@ public:
 
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
-    std::bitset<64> features;
-    IUIAutomation *uia = nullptr;
-    HRESULT hr =
-        CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER,
-                         IID_IUIAutomation, reinterpret_cast<void **>(&uia));
-    if (SUCCEEDED(hr) && uia != nullptr) {
-      uia->Release();
+    std::bitset<64> features = SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    static const UiaRuntime uia_runtime;
+    if (!uia_runtime.available()) {
+      return features;
+    }
+    BOOL screen_reader = FALSE;
+    const bool screen_reader_enabled =
+        SystemParametersInfo(SPI_GETSCREENREADER, 0, &screen_reader, 0) !=
+            FALSE &&
+        screen_reader != FALSE;
+    if (screen_reader_enabled && uia_runtime.clients_active()) {
       features |= IS_SUPPORTED_AT_RUNTIME;
     }
-    features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
     return features;
   }
 

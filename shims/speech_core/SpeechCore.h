@@ -34,6 +34,11 @@
 #define SPEECH_C_API
 #endif // SPEECH_C_EXPORT
 #endif
+#ifdef __cplusplus
+#define SPEECH_C_DEFAULT(value) = value
+#else
+#define SPEECH_C_DEFAULT(value)
+#endif
 /*
 * @breif Defined macroes for speech flags
 */
@@ -127,7 +132,7 @@ extern "C" {
 	 * @param _interrupt Whether to interrupt the current speech segment. Default is false.
 	 * @return A bool indicating if the operation was successful.
 	 */
-	SPEECH_C_API bool Speech_Output(const wchar_t* text, bool _interrupt);
+	SPEECH_C_API bool Speech_Output(const wchar_t* text, bool _interrupt SPEECH_C_DEFAULT(false));
 
 
 	/**
@@ -137,7 +142,7 @@ extern "C" {
 	 * @param with_ssml Whether to enable ssml support if the current driver supports it. Disabled by default.
 	 * @return A bool indicating if the operation was successful.
 	 */
-	SPEECH_C_API bool Speech_Output_Text(const wchar_t* text, bool interrupt, bool with_ssml);
+	SPEECH_C_API bool Speech_Output_Text(const wchar_t* text, bool interrupt SPEECH_C_DEFAULT(false), bool with_ssml SPEECH_C_DEFAULT(false));
 
 	/**
 	 * @brief Outputs a given string to the braille display if supported.
@@ -230,6 +235,7 @@ extern "C" {
 	 */
 	SPEECH_C_API void Speech_Pause();
 
+#ifdef _WIN32
 	/**
 	 * @brief Sets the preference for using SAPI as the primary speech engine.
 	 * @param prefer_sapi A boolean indicating whether to prefer SAPI over other screen readers.
@@ -313,7 +319,7 @@ extern "C" {
 	 * @param _interrupt A boolean indicating whether to interrupt any ongoing speech. Default is false.
 	 * @param _xml A boolean indicating whether the input text contains SSML markup. Default is false.
 	 */
-	SPEECH_C_API void Sapi_Speak(const wchar_t* text, bool _interrupt, bool _xml);
+	SPEECH_C_API void Sapi_Speak(const wchar_t* text, bool _interrupt SPEECH_C_DEFAULT(false), bool _xml SPEECH_C_DEFAULT(false));
 
 	/**
 	 * @brief Outputs the given text to an audio file using the SAPI voice.
@@ -321,7 +327,7 @@ extern "C" {
 	 * @param text A const wchar_t string representing the text to be converted to speech.
 	 * @param _xml A boolean indicating whether the input text contains SSML markup. Default is false.
 	 */
-	SPEECH_C_API void Sapi_Output_File(const char* filename, const wchar_t* text, bool _xml);
+	SPEECH_C_API void Sapi_Output_File(const char* filename, const wchar_t* text, bool _xml SPEECH_C_DEFAULT(false));
 
 	/**
 	 * @brief Pauses the current SAPI speech output.
@@ -337,6 +343,7 @@ extern "C" {
 	 * @brief Stops the current SAPI speech output.
 	 */
 	SPEECH_C_API void Sapi_Stop();
+#endif // _WIN32
 
 
 

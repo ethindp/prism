@@ -25,6 +25,7 @@ private:
 
   FrozenRegistry *registry;
   PrismAvailabilityCallback callback;
+  PrismAvailabilityBaselineCallback baseline_callback;
   void *userdata;
   std::uint32_t interval_ms;
   std::uint32_t debounce;
@@ -47,8 +48,9 @@ private:
 
 public:
   BackendEnumerator(FrozenRegistry *registry,
-                    PrismAvailabilityCallback callback, void *userdata,
-                    std::uint32_t poll_interval_ms,
+                    PrismAvailabilityCallback callback,
+                    PrismAvailabilityBaselineCallback baseline_callback,
+                    void *userdata, std::uint32_t poll_interval_ms,
                     std::uint32_t debounce_samples,
                     std::uint32_t backoff_max_ms, bool auto_power_manage);
   ~BackendEnumerator();

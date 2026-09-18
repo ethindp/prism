@@ -16,6 +16,7 @@ typedef struct {
   uint32_t availability_debounce_samples;
   uint32_t availability_backoff_max_ms;
   bool availability_auto_power_manage;
+  PrismAvailabilityBaselineCallback availability_baseline_callback;
 } PrismConfig;
 ```
 
@@ -52,6 +53,10 @@ The upper bound, in milliseconds, for adaptive backoff of the sampling interval.
 `availability_auto_power_manage`
 
 When `true`, and when the library was built with power-management support, the poll thread is paused automatically when the operating system suspends and resumed when it wakes. When `false`, or on builds and platforms without power-management support, this field has no effect and the application MAY drive pausing itself. Use `prism_availability_auto_power_supported` to determine whether this field is honored. It is ignored when `availability_callback` is `NULL`. This field was added in version 3 of this structure.
+
+`availability_baseline_callback`
+
+A function invoked exactly once, after the poll thread has completed its first scan, or `NULL`. It receives `availability_userdata`. It notifies the application that the baseline against which the availability callback reports changes has been established, and carries no information about any backend. The chapter on background availability enumeration describes the conditions under which an application requires this notification. It is ignored when `availability_callback` is `NULL`. This field was added in version 4 of this structure.
 
 #### Remarks
 

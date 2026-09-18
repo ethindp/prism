@@ -9,6 +9,52 @@
 #include <windows.h>
 #endif
 
+struct ShimString {
+  ShimString *next;
+  char *utf8;
+  wchar_t *wide;
+  char *ansi;
+};
+
+void shim_flag_raise(ShimFlag *flag) {
+#ifdef _WIN32
+  (void)InterlockedExchange(&flag->value, 1);
+#else
+  __atomic_store_n(&flag->value, 1, __ATOMIC_RELEASE);
+#endif
+}
+
+bool shim_flag_take(ShimFlag *flag) {
+#ifdef _WIN32
+  return InterlockedExchange(&flag->value, 0) != 0;
+#else
+  return __atomic_exchange_n(&flag->value, 0, __ATOMIC_ACQ_REL) != 0;
+#endif
+}
+
+static void PRISM_CALL shim_on_availability(void *userdata,
+                                            PrismBackendId backend,
+                                            const char *name, bool available) {
+  (void)backend;
+  (void)name;
+  (void)available;
+  shim_flag_raise(userdata);
+}
+
+static void PRISM_CALL shim_on_baseline(void *userdata) {
+  shim_flag_raise(userdata);
+}
+
+PrismContext *shim_context_open(ShimFlag *stale) {
+  PrismConfig config = prism_config_init();
+  config.availability_callback = shim_on_availability;
+  config.availability_baseline_callback = shim_on_baseline;
+  config.availability_userdata = stale;
+  config.availability_backoff_max_ms = 10000;
+  config.availability_auto_power_manage = true;
+  return prism_init(&config);
+}
+
 PrismBackendId shim_native_tts_id(void) {
 #ifdef _WIN32
   return PRISM_BACKEND_SAPI;
@@ -23,13 +69,39 @@ PrismBackendId shim_native_tts_id(void) {
 #endif
 }
 
-PrismBackend *shim_create_initialized(PrismContext *ctx, PrismBackendId id) {
+bool shim_error_means_lost(PrismError error) {
+  switch (error) {
+  case PRISM_ERROR_NOT_INITIALIZED:
+  case PRISM_ERROR_SPEAK_FAILURE:
+  case PRISM_ERROR_INTERNAL:
+  case PRISM_ERROR_BACKEND_NOT_AVAILABLE:
+  case PRISM_ERROR_UNKNOWN:
+  case PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE:
+    return true;
+  default:
+    return false;
+  }
+}
+
+bool shim_backend_live(PrismBackend *backend) {
+  if (backend == PRISM_SHIM_NULL) {
+    return false;
+  }
+  const uint64_t features = prism_backend_get_features(backend);
+  return (bool)((features & PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME) != 0);
+}
+
+PrismBackend *shim_create_live(PrismContext *ctx, PrismBackendId id) {
   if (ctx == PRISM_SHIM_NULL || id == PRISM_BACKEND_INVALID ||
       !prism_registry_exists(ctx, id)) {
     return PRISM_SHIM_NULL;
   }
   PrismBackend *backend = prism_registry_create(ctx, id);
   if (backend == PRISM_SHIM_NULL) {
+    return PRISM_SHIM_NULL;
+  }
+  if (!shim_backend_live(backend)) {
+    prism_backend_free(backend);
     return PRISM_SHIM_NULL;
   }
   const PrismError error = prism_backend_initialize(backend);
@@ -40,6 +112,131 @@ PrismBackend *shim_create_initialized(PrismContext *ctx, PrismBackendId id) {
   return backend;
 }
 
+PrismBackend *shim_slot_get(PrismContext *ctx, PrismBackendId id,
+                            PrismBackend **slot) {
+  if (*slot == PRISM_SHIM_NULL) {
+    *slot = shim_create_live(ctx, id);
+  }
+  return *slot;
+}
+
+bool shim_slot_live(PrismContext *ctx, PrismBackendId id, PrismBackend **slot) {
+  if (*slot != PRISM_SHIM_NULL) {
+    if (shim_backend_live(*slot)) {
+      return true;
+    }
+    shim_slot_drop(slot);
+  }
+  *slot = shim_create_live(ctx, id);
+  return *slot != PRISM_SHIM_NULL;
+}
+
+void shim_slot_drop(PrismBackend **slot) {
+  if (*slot != PRISM_SHIM_NULL) {
+    prism_backend_free(*slot);
+    *slot = PRISM_SHIM_NULL;
+  }
+}
+
+void shim_selection_clear(ShimSelection *selection) {
+  shim_slot_drop(&selection->backend);
+  selection->id = PRISM_BACKEND_INVALID;
+}
+
+void shim_select(PrismContext *ctx, ShimSelection *selection,
+                 ShimAcceptFn accept, void *userdata) {
+  if (ctx == PRISM_SHIM_NULL) {
+    shim_selection_clear(selection);
+    return;
+  }
+  const size_t count = prism_registry_count(ctx);
+  for (size_t i = 0; i < count; ++i) {
+    const PrismBackendId id = prism_registry_id_at(ctx, i);
+    if (accept != PRISM_SHIM_NULL && !accept(id, userdata)) {
+      continue;
+    }
+    if (selection->backend != PRISM_SHIM_NULL && selection->id == id) {
+      if (shim_backend_live(selection->backend)) {
+        return;
+      }
+      shim_selection_clear(selection);
+      continue;
+    }
+    PrismBackend *backend = shim_create_live(ctx, id);
+    if (backend != PRISM_SHIM_NULL) {
+      shim_selection_clear(selection);
+      selection->backend = backend;
+      selection->id = id;
+      return;
+    }
+  }
+  shim_selection_clear(selection);
+}
+
+static ShimString *shim_intern(ShimStrings *strings, const char *utf8) {
+  if (strings == PRISM_SHIM_NULL || utf8 == PRISM_SHIM_NULL) {
+    return PRISM_SHIM_NULL;
+  }
+  for (ShimString *entry = strings->head; entry != PRISM_SHIM_NULL;
+       entry = entry->next) {
+    if (strcmp(entry->utf8, utf8) == 0) {
+      return entry;
+    }
+  }
+  ShimString *entry = calloc(1, sizeof(*entry));
+  if (entry == PRISM_SHIM_NULL) {
+    return PRISM_SHIM_NULL;
+  }
+  entry->utf8 = shim_strdup(utf8);
+  if (entry->utf8 == PRISM_SHIM_NULL) {
+    free(entry);
+    return PRISM_SHIM_NULL;
+  }
+  entry->next = strings->head;
+  strings->head = entry;
+  return entry;
+}
+
+const wchar_t *shim_intern_wide(ShimStrings *strings, const char *utf8) {
+  ShimString *entry = shim_intern(strings, utf8);
+  if (entry == PRISM_SHIM_NULL) {
+    return PRISM_SHIM_NULL;
+  }
+  if (entry->wide == PRISM_SHIM_NULL) {
+    entry->wide = shim_utf8_to_wchar(entry->utf8);
+  }
+  return entry->wide;
+}
+
+const char *shim_intern_utf8(ShimStrings *strings, const char *utf8) {
+  ShimString *entry = shim_intern(strings, utf8);
+  return entry == PRISM_SHIM_NULL ? PRISM_SHIM_NULL : entry->utf8;
+}
+
+const char *shim_intern_ansi(ShimStrings *strings, const char *utf8) {
+  ShimString *entry = shim_intern(strings, utf8);
+  if (entry == PRISM_SHIM_NULL) {
+    return PRISM_SHIM_NULL;
+  }
+  if (entry->ansi == PRISM_SHIM_NULL) {
+    entry->ansi = shim_utf8_to_ansi(entry->utf8);
+  }
+  return entry->ansi;
+}
+
+void shim_strings_free(ShimStrings *strings) {
+  ShimString *entry = strings->head;
+  while (entry != PRISM_SHIM_NULL) {
+    ShimString *next = entry->next;
+    free(entry->utf8);
+    free(entry->wide);
+    free(entry->ansi);
+    free(entry);
+    entry = next;
+  }
+  strings->head = PRISM_SHIM_NULL;
+}
+
 char *shim_strdup(const char *text) {
   if (text == PRISM_SHIM_NULL) {
     return PRISM_SHIM_NULL;
@@ -48,11 +245,11 @@ char *shim_strdup(const char *text) {
   if (length == SIZE_MAX) {
     return PRISM_SHIM_NULL;
   }
-  char *copy = malloc(length + 1);
+  char *copy = calloc(length + 1, sizeof(*copy));
   if (copy == PRISM_SHIM_NULL) {
     return PRISM_SHIM_NULL;
   }
-  for (size_t i = 0; i <= length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     copy[i] = text[i];
   }
   return copy;
@@ -79,32 +276,16 @@ char *shim_wchar_to_utf8(const wchar_t *src) {
   while (in_pos < in_len) {
     uint32_t cp = (uint32_t)src[in_pos];
     ++in_pos;
-    if (WCHAR_MAX <= 0xFFFF) {
-      if ((cp >= 0xD800) && (cp <= 0xDBFF)) {
-        if (in_pos >= in_len) {
-          free(buf);
-          return PRISM_SHIM_NULL;
-        }
-        const uint32_t low = (uint32_t)src[in_pos];
-        if ((low < 0xDC00) || (low > 0xDFFF)) {
-          free(buf);
-          return PRISM_SHIM_NULL;
-        }
+    if ((WCHAR_MAX <= 0xFFFF) && (cp >= 0xD800) && (cp <= 0xDBFF) &&
+        (in_pos < in_len)) {
+      const uint32_t low = (uint32_t)src[in_pos];
+      if ((low >= 0xDC00) && (low <= 0xDFFF)) {
         ++in_pos;
         cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
-      } else if ((cp >= 0xDC00) && (cp <= 0xDFFF)) {
-        free(buf);
-        return PRISM_SHIM_NULL;
-      }
-    } else {
-      if ((cp >= 0xD800) && (cp <= 0xDFFF)) {
-        free(buf);
-        return PRISM_SHIM_NULL;
       }
     }
-    if (cp > 0x10FFFF) {
-      free(buf);
-      return PRISM_SHIM_NULL;
+    if (((cp >= 0xD800) && (cp <= 0xDFFF)) || (cp > 0x10FFFF)) {
+      cp = 0xFFFD;
     }
     if ((cap - out_pos) < 5) {
       free(buf);
@@ -271,13 +452,21 @@ char *shim_utf8_to_ansi(const char *text) {
 }
 
 float shim_clamp01(float value) {
-  if (value < 0.0F) {
+  if (!(value >= 0.0F)) {
     return 0.0F;
   }
   if (value > 1.0F) {
     return 1.0F;
   }
   return value;
+}
+
+float shim_to_unit(float value, float min, float max) {
+  return shim_clamp01((value - min) / (max - min));
+}
+
+float shim_from_unit(float value, float min, float max) {
+  return min + (shim_clamp01(value) * (max - min));
 }
 
 void shim_audio_buffer_init(ShimAudioBuffer *buffer) {
@@ -294,7 +483,8 @@ void shim_audio_buffer_clear(ShimAudioBuffer *buffer) {
   *buffer = (ShimAudioBuffer){.samples = PRISM_SHIM_NULL};
 }
 
-void PRISM_CALL shim_audio_accumulate(void *userdata, const float *samples,
+void PRISM_CALL shim_audio_accumulate(void *userdata,
+                                      const float *PRISM_RESTRICT samples,
                                       size_t sample_count, size_t channels,
                                       size_t sample_rate) {
   ShimAudioBuffer *buffer = userdata;
@@ -436,15 +626,22 @@ bool shim_write_wav(const char *path, const ShimAudioBuffer *buffer) {
   if (path == PRISM_SHIM_NULL || buffer == PRISM_SHIM_NULL ||
       buffer->samples == PRISM_SHIM_NULL || buffer->channels == 0 ||
       buffer->sample_rate == 0 || buffer->channels > UINT16_MAX ||
-      buffer->sample_rate > UINT32_MAX ||
-      buffer->sample_count > UINT32_MAX / 2) {
+      buffer->sample_rate > UINT32_MAX / (buffer->channels * 2) ||
+      buffer->sample_count > (UINT32_MAX - 36) / 2) {
     return false;
   }
   const uint32_t data_size = (uint32_t)(buffer->sample_count * 2);
-  FILE *file = fopen(path, "wb");
+  FILE *file = PRISM_SHIM_NULL;
+#ifdef _WIN32
+  if (fopen_s(&file, path, "wb") != 0) {
+    return false;
+  }
+#else
+  file = fopen(path, "wb");
   if (file == PRISM_SHIM_NULL) {
     return false;
   }
+#endif
   const uint16_t channels = (uint16_t)buffer->channels;
   const uint32_t sample_rate = (uint32_t)buffer->sample_rate;
   const uint16_t block_align = (uint16_t)(channels * 2);

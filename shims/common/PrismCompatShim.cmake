@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: MPL-2.0
 include(GNUInstallDirs)
+include(CheckCCompilerFlag)
+
+check_c_compiler_flag(-Wthread-safety PRISM_SHIM_HAS_WTHREAD_SAFETY)
 
 function(prism_add_compat_shim target output_name public_header)
   add_library(
@@ -31,6 +34,10 @@ function(prism_add_compat_shim target output_name public_header)
   endif()
   if(NOT MSVC)
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+  endif()
+  if(PRISM_SHIM_HAS_WTHREAD_SAFETY)
+    target_compile_options(${target} PRIVATE -Wthread-safety
+                                             -Werror=thread-safety)
   endif()
   if(PRISM_ENABLE_LINTING)
     prism_enable_target_linting(${target})

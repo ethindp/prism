@@ -35,8 +35,8 @@ _Static_assert(sizeof(int) == 4,
 
 void fast_lock_acquire(fast_lock *lk) TSA_NO_THREAD_SAFETY_ANALYSIS {
 #ifdef _WIN32
-  fast_lock_state state = InterlockedCompareExchange(
-      &lk->state, FAST_LOCK_LOCKED, FAST_LOCK_UNLOCKED);
+  LONG state = InterlockedCompareExchange(&lk->state, FAST_LOCK_LOCKED,
+                                          FAST_LOCK_UNLOCKED);
   if (state == FAST_LOCK_UNLOCKED)
     return;
   while (true) {
@@ -44,7 +44,7 @@ void fast_lock_acquire(fast_lock *lk) TSA_NO_THREAD_SAFETY_ANALYSIS {
         (state == FAST_LOCK_LOCKED &&
          InterlockedCompareExchange(&lk->state, FAST_LOCK_CONTENDED,
                                     FAST_LOCK_LOCKED) != FAST_LOCK_UNLOCKED)) {
-      fast_lock_state compare = FAST_LOCK_CONTENDED;
+      LONG compare = FAST_LOCK_CONTENDED;
       (void)WaitOnAddress(&lk->state, &compare, sizeof(compare), INFINITE);
     }
     state = InterlockedCompareExchange(&lk->state, FAST_LOCK_CONTENDED,
@@ -80,10 +80,9 @@ void fast_lock_acquire(fast_lock *lk) TSA_NO_THREAD_SAFETY_ANALYSIS {
 
 void fast_lock_release(fast_lock *lk) TSA_NO_THREAD_SAFETY_ANALYSIS {
 #ifdef _WIN32
-  const fast_lock_state previous =
-      InterlockedExchange(&lk->state, FAST_LOCK_UNLOCKED);
+  const LONG previous = InterlockedExchange(&lk->state, FAST_LOCK_UNLOCKED);
   if (previous == FAST_LOCK_CONTENDED)
-    WakeByAddressSingle(&lk->state);
+    WakeByAddressSingle((PVOID)&lk->state);
 #elifdef __APPLE__
   os_unfair_lock_unlock(&lk->inner);
 #elifdef __linux__

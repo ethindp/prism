@@ -15,7 +15,7 @@ from .common import (
 )
 
 if TYPE_CHECKING:
-    from ._dispatch import AvailabilityCallback
+    from ._dispatch import AvailabilityCallback, BaselineCallback
     from .custom import Registry
 
 AudioCallback = Callable[[list[float], int, int], None]
@@ -228,6 +228,7 @@ class Context:
     _registry: Registry | None
     _dispatcher: _Dispatcher | None
     _availability_cb: ffi.CData | None
+    _baseline_cb: ffi.CData | None
     _on_availability: AvailabilityCallback | None
 
     def __init__(
@@ -235,6 +236,7 @@ class Context:
         registry: Registry | None = None,
         *,
         on_availability: AvailabilityCallback | None = None,
+        on_baseline: BaselineCallback | None = None,
         poll_interval_ms: int = 0,
         debounce_samples: int = 0,
         backoff_max_ms: int = 0,
@@ -244,6 +246,7 @@ class Context:
         self._registry = registry
         self._dispatcher = None
         self._availability_cb = None
+        self._baseline_cb = None
         self._on_availability = on_availability
         config = lib.prism_config_init()
         cfg = ffi.new("PrismConfig *", config)
@@ -277,6 +280,20 @@ class Context:
 
             self._availability_cb = _availability_trampoline
             cfg.availability_callback = _availability_trampoline
+            if on_baseline is not None:
+                baseline_user_cb: BaselineCallback = on_baseline
+
+                @ffi.callback("void(void*)")
+                def _baseline_trampoline(_userdata: ffi.CData) -> None:
+                    try:
+                        dispatcher.submit_baseline(baseline_user_cb)
+                    except BaseException:
+                        logging.getLogger("prism.dispatch").exception(
+                            "baseline trampoline failed"
+                        )
+
+                self._baseline_cb = _baseline_trampoline
+                cfg.availability_baseline_callback = _baseline_trampoline
             cfg.availability_userdata = ffi.NULL
             cfg.availability_poll_interval_ms = poll_interval_ms
             cfg.availability_debounce_samples = debounce_samples

@@ -81,6 +81,7 @@ public:
 class SystemAccessBackend final : public TextToSpeechBackend {
 private:
   std::atomic<HWND> window{nullptr};
+  std::atomic_flag initialized;
 
   static bool send_message(const HWND window, const List &message) {
     List batch;
@@ -113,15 +114,20 @@ public:
   }
 
   BackendResult<> initialize() override {
+    if (initialized.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::AlreadyInitialized);
     auto *const wh = FindWindow(_T("FBSAHiddenWindow"), nullptr);
     if (wh == nullptr) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     window.store(wh, std::memory_order_release);
+    initialized.test_and_set(std::memory_order_release);
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
+    if (!initialized.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::NotInitialized);
     auto *const w = window.load(std::memory_order_acquire);
     if (w == nullptr) {
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -141,6 +147,8 @@ public:
   }
 
   BackendResult<> braille(std::string_view text) override {
+    if (!initialized.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::NotInitialized);
     auto *const w = window.load(std::memory_order_acquire);
     if (w == nullptr) {
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -169,6 +177,8 @@ public:
   }
 
   BackendResult<> stop() override {
+    if (!initialized.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::NotInitialized);
     auto *const w = window.load(std::memory_order_acquire);
     if (w == nullptr) {
       return std::unexpected(BackendError::BackendNotAvailable);

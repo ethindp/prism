@@ -12,7 +12,7 @@
 #include <tchar.h>
 #include <windows.h>
 
-class ZoomTextBackend final : public TextToSpeechBackend {
+class ZoomTextBackend final : public ComTextToSpeechBackend {
 private:
   CComPtr<IZoomText2> controller{nullptr};
   CComPtr<ISpeech2> speech{nullptr};
@@ -50,11 +50,16 @@ public:
         nullptr) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    switch (controller.CoCreateInstance(CLSID_ZoomText)) {
+    CComPtr<IZoomText2> candidate_controller;
+    switch (candidate_controller.CoCreateInstance(CLSID_ZoomText)) {
     case S_OK: {
-      if (FAILED(controller->get_Speech(&speech))) {
+      CComPtr<ISpeech2> candidate_speech;
+      if (FAILED(candidate_controller->get_Speech(&candidate_speech)) ||
+          candidate_speech == nullptr) {
         return std::unexpected(BackendError::BackendNotAvailable);
       }
+      controller = candidate_controller;
+      speech = candidate_speech;
       initialized.test_and_set();
       return {};
     }

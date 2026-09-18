@@ -386,7 +386,9 @@ Note: A program that does not have a specific reason to share backend state with
 
 This function combines the automatic backend selection of `prism_registry_create_best` with the caching behavior of `prism_registry_acquire`.
 
-The function performs cache lookups against the registered backend identifiers in descending priority order. If any lookup yields a live instance, that instance is returned and no further operations are performed. Otherwise, the function performs unsynchronized operations in descending priority order: for each registered backend identifier, it invokes the registered factory and, if construction succeeds, calls prism_backend_initialize on the result. The first backend identifier for which initialization succeeds is associated with the constructed instance via a cache install, and the instance is returned. Backends whose construction or initialization fails contribute no observable effect to the cache.
+The function examines registered backend identifiers in descending priority order. If a cache entry contains a live instance, Prism ensures that retained instance is initialized before returning it. This includes an instance that was originally created by `prism_registry_acquire` and subsequently initialized through `prism_backend_initialize`. If the cached instance cannot be initialized, selection continues with the next backend.
+
+For an uncached identifier, construction MAY occur without holding the cache lock. If another caller installs a live instance for the same identifier while that construction or initialization is in progress, the cache entry determines the shared identity: Prism returns or initializes the retained cached instance rather than replacing it with a second live instance. Speculatively constructed instances that lose this race are destroyed when their references are released. Backends whose construction or initialization fails are not installed as new cache entries.
 
 The returned backend is always initialized. Applications SHOULD NOT call `prism_backend_initialize` on the returned backend.
 

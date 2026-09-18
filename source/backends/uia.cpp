@@ -165,8 +165,9 @@ public:
   }
 };
 
-class UiaBackend final : public TextToSpeechBackend {
+class UiaBackend final : public ComTextToSpeechBackend {
 private:
+  HWND hwnd_in;
   std::jthread thread;
   std::atomic<HWND> hwnd;
   std::atomic<HWND> host;
@@ -332,6 +333,7 @@ private:
       auto *prov = provider.exchange(nullptr, std::memory_order_acq_rel);
       if (prov != nullptr) {
         UiaDisconnectProvider(prov);
+        prov->Release();
       }
       if (HWND h = hwnd.exchange(nullptr, std::memory_order_acq_rel)) {
         DestroyWindow(h);
@@ -340,6 +342,18 @@ private:
       if (should_uninit)
         CoUninitialize();
     }
+  }
+
+  void stop_worker() noexcept {
+    thread.request_stop();
+    if (HWND w = hwnd.load(std::memory_order_acquire))
+      PostMessage(w, WM_UIA_SHUTDOWN, 0, 0);
+    if (thread.joinable())
+      thread.join();
+    if (HDESK desktop =
+            target_desktop.exchange(nullptr, std::memory_order_acq_rel);
+        desktop != nullptr)
+      CloseDesktop(desktop);
   }
 
   static bool is_good_window(HWND hwnd) {
@@ -366,11 +380,7 @@ private:
   }
 
 public:
-  ~UiaBackend() override {
-    if (HWND w = hwnd.load(std::memory_order_acquire)) {
-      PostMessage(w, WM_UIA_SHUTDOWN, 0, 0);
-    }
-  }
+  ~UiaBackend() override { stop_worker(); }
 
   std::string_view get_name() const override { return "UIA"; }
 
@@ -390,10 +400,11 @@ public:
   }
 
   BackendResult<> initialize() override {
-    std::unique_lock lock(ready_mtx);
     if (initialized.test())
       return std::unexpected(BackendError::AlreadyInitialized);
-    ready = std::nullopt;
+    stop_worker();
+    std::unique_lock lock(ready_mtx);
+    ready.reset();
     auto *fg = GetForegroundWindow();
     if (is_good_window(fg)) {
       hwnd_in = fg;
@@ -402,6 +413,7 @@ public:
       if (is_good_window(active)) {
         hwnd_in = active;
       } else {
+        hwnd_in = static_cast<HWND>(INVALID_HANDLE_VALUE);
         EnumWindows(
             [](HWND hwnd, LPARAM lparam) -> BOOL {
               if (is_good_window(hwnd)) {
@@ -435,12 +447,17 @@ public:
     }
     thread = std::jthread(
         [this](const std::stop_token &st) { this->thread_proc(st); });
-    bool success = ready_cv.wait_for(lock, std::chrono::seconds(5),
-                                     [this] { return ready.has_value(); });
+    const bool signaled = ready_cv.wait_for(
+        lock, std::chrono::seconds(5), [this] { return ready.has_value(); });
     const HWND w = hwnd.load(std::memory_order_acquire);
     const auto *p = provider.load(std::memory_order_acquire);
-    if (!success || !*ready || w == nullptr || p == nullptr)
+    const bool success =
+        signaled && ready.value_or(false) && w != nullptr && p != nullptr;
+    lock.unlock();
+    if (!success) {
+      stop_worker();
       return std::unexpected(BackendError::InternalBackendError);
+    }
     initialized.test_and_set();
     return {};
   }

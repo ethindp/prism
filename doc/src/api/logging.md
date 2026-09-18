@@ -224,9 +224,9 @@ This function does not return a value.
 
 #### Remarks
 
-`prism_log_flush` returns only after every message submitted before the call has been passed to the installed handler. It is useful before installing a new handler, before shutting the process down, or at any point where the application needs to be certain that pending diagnostics have been delivered.
+`prism_log_flush` returns only after every message successfully queued before the call has been processed by the logging thread. Processing includes completion of the handler call as long as a handler is installed. Messages dropped because the queue was full cannot be recovered by flushing. It is useful before installing a new handler, before shutting the process down, or at any point where the application needs to be certain that pending diagnostics have been delivered.
 
-A flush is never dropped, even when the message queue is otherwise full. This function MUST NOT be called from within a log handler.
+A flush requires no queue capacity and is never dropped, even when the message queue is otherwise full. A call concurrent with `prism_log_shutdown` waits for preceding queued messages to be processed; after shutdown has completed, it returns immediately. When no handler is installed, this function returns immediately. This function MUST NOT be called from within a log handler.
 
 ### prism_log_shutdown
 
@@ -250,7 +250,7 @@ This function does not return a value.
 
 `prism_log_shutdown` drains any remaining messages, stops the internal logging thread, and joins it. It is not ordinarily necessary to call this function, since the logger is torn down automatically when the process exits. It is provided for applications that must guarantee the logging thread has terminated at a specific point, for example before unloading the library.
 
-After this function returns, the logger is no longer running. Calls to `prism_log` after shutdown are accepted but their messages are not delivered. This function MUST NOT be called from within a log handler, and the application MUST ensure that no other thread is calling any logging function concurrently.
+After this function returns, the logger is no longer running. Calls to `prism_log` after shutdown are accepted but their messages are not delivered, and `prism_log_flush` returns immediately. The function is thread-safe with respect to the other logging functions: an operation concurrent with shutdown either completes before the logging thread terminates or observes the stopped logger. This function MUST NOT be called from within a log handler.
 
 #### Warning
 

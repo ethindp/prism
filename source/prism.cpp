@@ -27,14 +27,10 @@
 #include <giomm/init.h>
 #endif
 #endif
-#ifdef _WIN32
-#include <delayimp.h>
-#endif
 
 struct PrismContext {
   FrozenRegistry *registry;
   std::unique_ptr<BackendEnumerator> enumerator;
-  bool com_initialized = false;
 
   explicit PrismContext(FrozenRegistry *registry) : registry(registry) {
     registry->retain();
@@ -102,22 +98,6 @@ PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void) {
 PRISM_API PRISM_NODISCARD PrismContext *PRISM_CALL
 prism_init(PrismConfig *cfg) {
   init_logging_from_env();
-#ifdef _WIN32
-  bool owns_com = false;
-  switch (CoInitializeEx(nullptr,
-                         COINIT_APARTMENTTHREADED | COINIT_SPEED_OVER_MEMORY)) {
-  case E_INVALIDARG:
-  case E_OUTOFMEMORY:
-  case E_UNEXPECTED:
-    return nullptr;
-  case RPC_E_CHANGED_MODE:
-    owns_com = false;
-    break;
-  default:
-    owns_com = true;
-    break;
-  }
-#endif
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
      defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
     !defined(__ANDROID__)
@@ -127,27 +107,14 @@ prism_init(PrismConfig *cfg) {
 #endif
   FrozenRegistry *registry = FrozenRegistry::global();
   if (cfg != nullptr) {
-    if (cfg->version == 0 || cfg->version > PRISM_CONFIG_VERSION) {
-#ifdef _WIN32
-      if (owns_com)
-        CoUninitialize();
-#endif
+    if (cfg->version == 0 || cfg->version > PRISM_CONFIG_VERSION)
       return nullptr;
-    }
     if (cfg->version >= 3 && cfg->registry != nullptr)
       registry = reinterpret_cast<FrozenRegistry *>(cfg->registry);
   }
   auto *ctx = new (std::nothrow) PrismContext(registry);
-  if (ctx == nullptr) {
-#ifdef _WIN32
-    if (owns_com)
-      CoUninitialize();
-#endif
+  if (ctx == nullptr)
     return nullptr;
-  }
-#ifdef _WIN32
-  ctx->com_initialized = owns_com;
-#endif
   if (cfg != nullptr && cfg->version >= 3 &&
       cfg->availability_callback != nullptr) {
     try {
@@ -164,24 +131,7 @@ prism_init(PrismConfig *cfg) {
   return ctx;
 }
 
-PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) {
-  if (ctx == nullptr)
-    return;
-#ifdef _WIN32
-  if (ctx->com_initialized)
-    CoUninitialize();
-#endif
-  delete ctx;
-#ifdef _WIN32
-  (void)__FUnloadDelayLoadedDLL2("ZDSRAPI.dll");
-  (void)__FUnloadDelayLoadedDLL2("byctrl.dll");
-  (void)__FUnloadDelayLoadedDLL2("PCTKUSR.dll");
-  (void)__FUnloadDelayLoadedDLL2("prism_orca_bridge.dll");
-  (void)__FUnloadDelayLoadedDLL2("prism_speech_dispatcher_bridge.dll");
-  (void)__FUnloadDelayLoadedDLL2("ZDSRAPI_x64.dll");
-  (void)__FUnloadDelayLoadedDLL2("byctrl-x64.dll");
-#endif
-}
+PRISM_API void PRISM_CALL prism_shutdown(PrismContext *ctx) { delete ctx; }
 
 PRISM_API void PRISM_CALL prism_availability_poll_pause(PrismContext *ctx) {
   if (ctx != nullptr && ctx->enumerator)
@@ -200,7 +150,7 @@ prism_availability_auto_power_supported(void) {
 
 PRISM_API PRISM_NODISCARD size_t PRISM_CALL
 prism_registry_count(PrismContext *ctx) {
-  return ctx->registry->list().size();
+  return ctx->registry->count();
 }
 
 PRISM_API PRISM_NODISCARD PrismBackendId PRISM_CALL
@@ -353,7 +303,7 @@ prism_backend_get_features(PrismBackend *backend) {
 
 PRISM_API PRISM_NODISCARD PrismError PRISM_CALL
 prism_backend_initialize(PrismBackend *backend) {
-  const auto r = backend->impl->initialize();
+  const auto r = backend->impl->initialize_tracked();
   return r ? PRISM_OK : to_prism_error(r.error());
 }
 

@@ -7,6 +7,7 @@
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include <array>
+#include <atomic>
 #include <raw/zdsr.h>
 #include <simdutf.h>
 #include <string_view>
@@ -15,6 +16,26 @@
 #include <windows.h>
 
 class ZdsrBackend final : public TextToSpeechBackend {
+private:
+  std::atomic_flag initialized;
+
+  static BackendResult<bool> query_speaking() {
+    switch (GetSpeakState()) {
+    case 3:
+      return true;
+    case 4:
+      return false;
+    case 1:
+    case 2:
+      return std::unexpected(BackendError::BackendNotAvailable);
+    case 8:
+    case 9:
+      return std::unexpected(BackendError::InternalBackendError);
+    default:
+      return std::unexpected(BackendError::Unknown);
+    }
+  }
+
 public:
   ~ZdsrBackend() override = default;
 
@@ -49,14 +70,19 @@ public:
   }
 
   BackendResult<> initialize() override {
+    if (initialized.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::AlreadyInitialized);
     if (const auto res = InitTTS(0, nullptr, TRUE); res > 0)
       return std::unexpected(BackendError::BackendNotAvailable);
-    if (const auto state = GetSpeakState(); state == 1 || state == 2)
-      return std::unexpected(BackendError::BackendNotAvailable);
+    if (const auto state = query_speaking(); !state)
+      return std::unexpected(state.error());
+    initialized.test_and_set(std::memory_order_release);
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
+    if (!initialized.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::NotInitialized);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);
@@ -72,6 +98,8 @@ public:
   }
 
   BackendResult<> braille(std::string_view text) override {
+    if (!initialized.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::NotInitialized);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);
@@ -94,17 +122,16 @@ public:
   }
 
   BackendResult<> stop() override {
+    if (!initialized.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::NotInitialized);
     StopSpeak();
     return {};
   }
 
   BackendResult<bool> is_speaking() override {
-    switch (GetSpeakState()) {
-    case 3:
-      return true;
-    default:
-      return false;
-    }
+    if (!initialized.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::NotInitialized);
+    return query_speaking();
   }
 };
 

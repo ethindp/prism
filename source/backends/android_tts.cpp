@@ -115,6 +115,8 @@ public:
   }
 
   BackendResult<> initialize() override {
+    if (backend != nullptr)
+      return std::unexpected(BackendError::AlreadyInitialized);
     auto *jni_env = djinni::jniGetThreadEnv();
     if (jni_env == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -139,17 +141,18 @@ public:
       jni_env->DeleteLocalRef(java_class);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    backend = prism::jni::AbstractTextToSpeechBackend::toCpp(jni_env, instance);
+    auto candidate =
+        prism::jni::AbstractTextToSpeechBackend::toCpp(jni_env, instance);
     jni_env->DeleteLocalRef(java_class);
     jni_env->DeleteLocalRef(instance);
-    if (!backend) {
+    if (!candidate) {
       if (jni_env->ExceptionCheck() != 0)
         jni_env->ExceptionClear();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    if (const auto res = backend->initialize(); !res)
+    if (const auto res = candidate->initialize(); !res)
       return std::unexpected(static_cast<BackendError>(res.error()));
-
+    backend = std::move(candidate);
     return {};
   }
 

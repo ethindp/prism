@@ -18,6 +18,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <optional>
+#include <poll.h>
 #include <ranges>
 #include <shared_mutex>
 #include <simdutf.h>
@@ -40,6 +41,28 @@ struct ModulesGuard {
       free_spd_modules(m);
   }
 };
+
+constexpr int connect_timeout_ms = 100;
+
+bool nonblocking_connect_succeeded(int fd, int connect_result,
+                                   int connect_error) noexcept {
+  if (connect_result == 0)
+    return true;
+  if (connect_error != EINPROGRESS && connect_error != EWOULDBLOCK)
+    return false;
+  pollfd descriptor{.fd = fd, .events = POLLOUT, .revents = 0};
+  int result;
+  do {
+    result = poll(&descriptor, 1, connect_timeout_ms);
+  } while (result < 0 && errno == EINTR);
+  if (result <= 0)
+    return false;
+  int socket_error = 0;
+  socklen_t error_size = sizeof(socket_error);
+  return getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &error_size) ==
+             0 &&
+         socket_error == 0;
+}
 } // namespace
 
 class SpeechDispatcherBackend final : public TextToSpeechBackend {
@@ -81,9 +104,11 @@ public:
             auto len = std::min(path.size(), sizeof(sa.sun_path) - 1);
             std::ranges::copy_n(path.begin(), static_cast<std::ptrdiff_t>(len),
                                 sa.sun_path);
-            int result =
+            const int result =
                 connect(fd, reinterpret_cast<sockaddr *>(&sa), sizeof(sa));
-            available = (result == 0) || (result < 0 && errno == EINPROGRESS);
+            const int connect_error = result < 0 ? errno : 0;
+            available =
+                nonblocking_connect_succeeded(fd, result, connect_error);
             close(fd);
           }
         }
@@ -103,8 +128,11 @@ public:
                                  static_cast<unsigned>(SOCK_NONBLOCK));
             int fd = socket(result->ai_family, socktype, result->ai_protocol);
             if (fd >= 0) {
-              int status = connect(fd, result->ai_addr, result->ai_addrlen);
-              available = (status == 0) || (status < 0 && errno == EINPROGRESS);
+              const int status =
+                  connect(fd, result->ai_addr, result->ai_addrlen);
+              const int connect_error = status < 0 ? errno : 0;
+              available =
+                  nonblocking_connect_succeeded(fd, status, connect_error);
               close(fd);
             }
             freeaddrinfo(result);

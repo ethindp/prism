@@ -44,7 +44,6 @@ private:
   struct Entry {
     Registration reg;
     std::weak_ptr<TextToSpeechBackend> cached;
-    bool initialized = false;
   };
   explicit FrozenRegistry(std::vector<Registration> registrations);
   ~FrozenRegistry() = default;

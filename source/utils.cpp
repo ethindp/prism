@@ -328,6 +328,7 @@ compute_trim_bounds_rms_gate(std::span<const float> samples_interleaved,
             start_idx = onset;
             have_start = true;
           }
+          end_excl_idx = n;
           on_run = 0;
         }
       } else {

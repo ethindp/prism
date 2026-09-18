@@ -83,9 +83,9 @@ if(WIN32 AND PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${_imp}.lib" DESTINATION lib)
   endforeach()
   set(PRISM_WIN_STATIC_IMPORT_LIBS "${PRISM_WIN_IMPORT_LIBS}")
-  # For consumers that never see prism-config.cmake. The DLL name matters as
-  # much as the library: without delay loading, every screen reader becomes a
-  # hard dependency of anything that links prism statically.
+  # For consumers that never see prism-config.cmake. The DLL names are listed
+  # because a static consumer has to delay load them, or every screen reader
+  # becomes a hard dependency.
   set(_manifest "")
   list(LENGTH PRISM_WIN_IMPORT_LIBS _n)
   math(EXPR _last "${_n} - 1")

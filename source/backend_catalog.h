@@ -108,10 +108,21 @@ template <typename T> struct BackendRegistrar {
   }
 };
 
+// MSVC ignores gnu::used and gnu::retain, so a static build drops the object
+// a registrar lives in. The anchor gives PrismBackends.cmake a symbol to
+// force back in with /include:.
+#if defined(PRISM_BACKEND_ANCHOR)
+#define PRISM_EMIT_ANCHOR extern "C" void PRISM_BACKEND_ANCHOR() {}
+#else
+#define PRISM_EMIT_ANCHOR
+#endif
+
 #define REGISTER_BACKEND(cls, name, priority)                                  \
   [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                    \
-  registrar_##cls##_(name, priority)
+  registrar_##cls##_(name, priority);                                          \
+  PRISM_EMIT_ANCHOR
 
 #define REGISTER_BACKEND_WITH_ID(cls, id, name, priority)                      \
   [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                    \
-  registrar_##cls##_(id, name, priority)
+  registrar_##cls##_(id, name, priority);                                      \
+  PRISM_EMIT_ANCHOR

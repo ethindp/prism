@@ -7,6 +7,7 @@ prism_require_vars(PRISM_SOURCE_ROOT PRISM_ARCH_CLASS PRISM_BACKEND_DEFAULT
 prism_require_targets(prism prism_common)
 set(PRISM_BACKEND_TARGETS "")
 set(PRISM_BACKEND_SUMMARY "")
+set(PRISM_BACKEND_ANCHORS "")
 
 function(prism_declare_backend NAME)
   cmake_parse_arguments(PB "LEGACY" "SOURCE;DOC;DEFAULT;LANGUAGE;FEATURE"
@@ -128,6 +129,8 @@ function(prism_declare_backend NAME)
   add_library(${_tgt} OBJECT
               "${PRISM_SOURCE_ROOT}/source/backends/${PB_SOURCE}")
   target_link_libraries(${_tgt} PRIVATE prism_common ${_libs})
+  target_compile_definitions(${_tgt}
+                             PRIVATE PRISM_BACKEND_ANCHOR=prism_anchor_${NAME})
   set_target_properties(
     ${_tgt}
     PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -144,6 +147,10 @@ function(prism_declare_backend NAME)
       ${_tgt} PROPERTIES COMPILE_OPTIONS "-x;objective-c++;-fobjc-arc")
   endif()
   target_sources(prism PRIVATE $<TARGET_OBJECTS:${_tgt}>)
+  list(APPEND PRISM_BACKEND_ANCHORS "${NAME}")
+  set(PRISM_BACKEND_ANCHORS
+      "${PRISM_BACKEND_ANCHORS}"
+      PARENT_SCOPE)
   if(_libs)
     target_link_libraries(prism PRIVATE ${_libs})
   endif()
@@ -272,6 +279,9 @@ prism_declare_backend(
   window_eyes.cpp
   PLATFORM
   WINDOWS
+  ARCH
+  x86
+  x64
   DOC
   "Window-Eyes"
   DEFINES
@@ -366,3 +376,28 @@ if(NOT PRISM_BACKEND_TARGETS)
 endif()
 list(JOIN PRISM_BACKEND_SUMMARY " " _s)
 message(STATUS "Prism backends: ${_s}")
+# gnu::used covers GCC and Clang. MSVC has to be told per object.
+if(MSVC)
+  set(_anchors "")
+  foreach(_name IN LISTS PRISM_BACKEND_ANCHORS)
+    if(PRISM_ARCH_CLASS STREQUAL "x86")
+      # cdecl decorates with a leading underscore on x86 only.
+      set(_sym "_prism_anchor_${_name}")
+    else()
+      set(_sym "prism_anchor_${_name}")
+    endif()
+    string(APPEND _anchors
+           "#pragma comment(linker, \"/include:${_sym}\")
+")
+  endforeach()
+  # PrismCodegen, which owns PRISM_GEN_DIR, is included after this file.
+  set(_gen "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  file(MAKE_DIRECTORY "${_gen}")
+  # A header so the directives land in prism.cpp. The linker reads directives
+  # only from objects it already links, so a source file holding nothing else
+  # would be dropped before they were read.
+  configure_file("${PRISM_SOURCE_ROOT}/cmake/backend_anchors.h.in"
+                 "${_gen}/backend_anchors.h" @ONLY)
+  target_include_directories(prism PRIVATE "${_gen}")
+  target_compile_definitions(prism PRIVATE PRISM_HAVE_BACKEND_ANCHORS)
+endif()

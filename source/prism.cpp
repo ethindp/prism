@@ -6,6 +6,9 @@
 #include "logging.h"
 #include "plugin_loader.h"
 #include "power_notifier.h"
+#ifdef PRISM_HAVE_BACKEND_ANCHORS
+#include "backend_anchors.h"
+#endif
 #include <cmath>
 #include <cstdint>
 #include <limits>

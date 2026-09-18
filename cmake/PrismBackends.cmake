@@ -87,6 +87,9 @@ function(prism_declare_backend NAME)
     string(REPLACE ";" "/" _a "${PB_ARCH}")
     list(APPEND _missing "${_a} target (this is ${PRISM_ARCH_CLASS})")
   endif()
+  if(NOT COMMAND pkg_check_modules)
+    set(PB_PKG_CONFIG "")
+  endif()
   foreach(_mod IN LISTS PB_PKG_CONFIG)
     string(REGEX REPLACE "[><=].*$" "" _bare "${_mod}")
     string(MAKE_C_IDENTIFIER "${_bare}" _id)
@@ -313,6 +316,7 @@ prism_declare_backend(
   orca.cpp
   PLATFORM
   UNIX
+  WINDOWS
   DOC
   "Orca screen reader over D-Bus"
   FEATURE
@@ -326,6 +330,7 @@ prism_declare_backend(
   speech_dispatcher.cpp
   PLATFORM
   UNIX
+  WINDOWS
   DOC
   "speech-dispatcher"
   FEATURE

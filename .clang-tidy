@@ -17,8 +17,8 @@ Checks: '-*,
          -readability-else-after-return,
          -bugprone-suspicious-stringview-data-usage'
 WarningsAsErrors: '*'
-HeaderFilterRegex: '^(source|include)/.*'
+HeaderFilterRegex: '^(source|include|shims)/.*'
 FormatStyle: file
 CheckOptions:
   bugprone-signed-bitwise.IgnorePositiveIntegerLiterals: true
-  bugprone-reserved-identifier.AllowedIdentifiers: '_GNU_SOURCE'
+  bugprone-reserved-identifier.AllowedIdentifiers: '_GNU_SOURCE;__SPEECH_C_EXPORT;__SPEECH_C_STATIC'

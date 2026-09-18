@@ -293,7 +293,7 @@ TOLK_API const wchar_t *TOLK_CALL Tolk_DetectScreenReader() {
     fast_lock_release(&lock);
     return NULL_CONSTANT;
   }
-  const wchar_t *name = prefer_sapi ? sapi_backend_name : backend_name;
+  const wchar_t *name = (int)prefer_sapi ? sapi_backend_name : backend_name;
   if (name == NULL_CONSTANT) {
     fast_lock_release(&lock);
     return NULL_CONSTANT;
@@ -310,7 +310,7 @@ TOLK_API bool TOLK_CALL Tolk_HasSpeech() {
     fast_lock_release(&lock);
     return false;
   }
-  PrismBackend *b = prefer_sapi ? sapi_backend : backend;
+  PrismBackend *b = (int)prefer_sapi ? sapi_backend : backend;
   if (b == NULL_CONSTANT) {
     fast_lock_release(&lock);
     return false;
@@ -326,7 +326,7 @@ TOLK_API bool TOLK_CALL Tolk_HasBraille() {
     fast_lock_release(&lock);
     return false;
   }
-  PrismBackend *b = prefer_sapi ? sapi_backend : backend;
+  PrismBackend *b = (int)prefer_sapi ? sapi_backend : backend;
   if (b == NULL_CONSTANT) {
     fast_lock_release(&lock);
     return false;
@@ -348,7 +348,7 @@ TOLK_API bool TOLK_CALL Tolk_Output(const wchar_t *str, bool interrupt) {
     free(utf8);
     return false;
   }
-  PrismBackend *b = prefer_sapi ? sapi_backend : backend;
+  PrismBackend *b = (int)prefer_sapi ? sapi_backend : backend;
   PrismError err = PRISM_ERROR_NOT_INITIALIZED;
   if (b != NULL_CONSTANT)
     err = prism_backend_output(b, utf8, interrupt);
@@ -369,7 +369,7 @@ TOLK_API bool TOLK_CALL Tolk_Speak(const wchar_t *str, bool interrupt) {
     free(utf8);
     return false;
   }
-  PrismBackend *b = prefer_sapi ? sapi_backend : backend;
+  PrismBackend *b = (int)prefer_sapi ? sapi_backend : backend;
   PrismError err = PRISM_ERROR_NOT_INITIALIZED;
   if (b != NULL_CONSTANT)
     err = prism_backend_speak(b, utf8, interrupt);
@@ -390,7 +390,7 @@ TOLK_API bool TOLK_CALL Tolk_Braille(const wchar_t *str) {
     free(utf8);
     return false;
   }
-  PrismBackend *b = prefer_sapi ? sapi_backend : backend;
+  PrismBackend *b = (int)prefer_sapi ? sapi_backend : backend;
   PrismError err = PRISM_ERROR_NOT_INITIALIZED;
   if (b != NULL_CONSTANT)
     err = prism_backend_braille(b, utf8);
@@ -405,7 +405,7 @@ TOLK_API bool TOLK_CALL Tolk_IsSpeaking() {
     fast_lock_release(&lock);
     return false;
   }
-  PrismBackend *b = prefer_sapi ? sapi_backend : backend;
+  PrismBackend *b = (int)prefer_sapi ? sapi_backend : backend;
   if (b == NULL_CONSTANT) {
     fast_lock_release(&lock);
     return false;
@@ -424,7 +424,7 @@ TOLK_API bool TOLK_CALL Tolk_Silence() {
     fast_lock_release(&lock);
     return false;
   }
-  PrismBackend *b = prefer_sapi ? sapi_backend : backend;
+  PrismBackend *b = (int)prefer_sapi ? sapi_backend : backend;
   PrismError err = PRISM_ERROR_NOT_INITIALIZED;
   if (b != NULL_CONSTANT)
     err = prism_backend_stop(b);

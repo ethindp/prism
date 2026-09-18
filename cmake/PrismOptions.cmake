@@ -11,6 +11,12 @@ option(
   OFF)
 option(PRISM_ENABLE_TOLK_SHIM "Enable the Tolk compatibility shim"
        ${PRISM_ENABLE_SHIMS})
+option(PRISM_ENABLE_UNIVERSAL_SPEECH_SHIM
+       "Enable the UniversalSpeech compatibility shim" ${PRISM_ENABLE_SHIMS})
+option(PRISM_ENABLE_SPEECH_CORE_SHIM "Enable the SpeechCore compatibility shim"
+       ${PRISM_ENABLE_SHIMS})
+option(PRISM_ENABLE_SRAL_SHIM "Enable the SRAL compatibility shim"
+       ${PRISM_ENABLE_SHIMS})
 option(PRISM_ENABLE_LEGACY_BACKENDS
        "Build backends for discontinued screen readers" OFF)
 option(PRISM_ENABLE_POWER_MANAGEMENT

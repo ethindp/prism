@@ -42,35 +42,7 @@ if(NOT MSVC)
   endif()
 endif()
 if(PRISM_ENABLE_LINTING)
-  if(NOT CMAKE_C_COMPILER_ID MATCHES "MSVC")
-    find_program(CLANG_TIDY_EXE NAMES "clang-tidy-22" "clang-tidy-21"
-                                      "clang-tidy-20" "clang-tidy")
-    if(CLANG_TIDY_EXE)
-      set_target_properties(tolk PROPERTIES C_CLANG_TIDY "${CLANG_TIDY_EXE}")
-    endif()
-  else()
-    set(_MERGED_RULESET_PATH "${PRISM_MERGED_RULESET}")
-    if(NOT EXISTS "${_MERGED_RULESET_PATH}")
-      message(
-        FATAL_ERROR
-          "Prism combined ruleset not found at: ${_MERGED_RULESET_PATH}. Ensure the parent prism project is configured first."
-      )
-    endif()
-    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nativecodeanalysis/tolk")
-    set_property(TARGET tolk PROPERTY COMPILE_WARNING_AS_ERROR ON)
-    set_property(TARGET tolk PROPERTY COMPILE_WARNING_LEVEL 4)
-    target_compile_options(
-      tolk
-      PRIVATE /external:anglebrackets
-              /external:W0
-              /analyze
-              /analyze:external-
-              /analyze:log
-              "${CMAKE_BINARY_DIR}/nativecodeanalysis/tolk/"
-              /analyze:log:format:sarif
-              /analyze:ruleset
-              "${_MERGED_RULESET_PATH}")
-  endif()
+  prism_enable_target_linting(tolk)
 endif()
 set_target_properties(tolk PROPERTIES VERSION ${PROJECT_VERSION}
                                       SOVERSION ${PROJECT_VERSION_MAJOR})

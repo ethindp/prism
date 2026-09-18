@@ -41,8 +41,16 @@ if(NOT MSVC)
         "PRISM_ENABLE_LINTING is ON but no clang-tidy was found. Install one or "
         "set -DPRISM_ENABLE_LINTING=OFF.")
   endif()
+  function(prism_enable_target_linting target)
+    if(NOT TARGET ${target})
+      message(FATAL_ERROR "Cannot enable linting for missing target: ${target}")
+    endif()
+    set_target_properties(
+      ${target} PROPERTIES C_CLANG_TIDY "${CLANG_TIDY_EXE}" CXX_CLANG_TIDY
+                                                            "${CLANG_TIDY_EXE}")
+  endfunction()
   foreach(_t prism ${PRISM_BACKEND_TARGETS})
-    set_target_properties(${_t} PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
+    prism_enable_target_linting(${_t})
   endforeach()
   return()
 endif()
@@ -101,3 +109,23 @@ foreach(_src IN LISTS PRISM_UNLINTABLE)
     APPEND
     PROPERTY COMPILE_OPTIONS /analyze- /WX- /W0)
 endforeach()
+
+function(prism_enable_target_linting target)
+  if(NOT TARGET ${target})
+    message(FATAL_ERROR "Cannot enable linting for missing target: ${target}")
+  endif()
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nativecodeanalysis/${target}")
+  set_property(TARGET ${target} PROPERTY COMPILE_WARNING_AS_ERROR ON)
+  set_property(TARGET ${target} PROPERTY COMPILE_WARNING_LEVEL 4)
+  target_compile_options(
+    ${target}
+    PRIVATE /external:anglebrackets
+            /external:W0
+            /analyze
+            /analyze:external-
+            /analyze:log
+            "${CMAKE_BINARY_DIR}/nativecodeanalysis/${target}/"
+            /analyze:log:format:sarif
+            /analyze:ruleset
+            "${PRISM_MERGED_RULESET}")
+endfunction()

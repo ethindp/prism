@@ -87,11 +87,12 @@ template <typename T> struct BackendRegistrar {
   BackendRegistrar(BackendId id, const char *name, int priority) noexcept {
     // NOLINTBEGIN(bugprone-empty-catch)
     try {
-      BackendCatalog::instance().add(
-          Registration{.id = id,
-                       .name = std::string{name},
-                       .priority = priority,
-                       .factory = []() { return std::make_shared<T>(); }});
+      BackendCatalog::instance().add(Registration{
+          .id = id,
+          .name = std::string{name},
+          .priority = priority,
+          .factory = [] { return std::make_shared<T>(); },
+      });
     } catch (...) {
     }
     // NOLINTEND(bugprone-empty-catch)
@@ -101,11 +102,12 @@ template <typename T> struct BackendRegistrar {
     try {
       std::string owned{name};
       const auto id = make_backend_id(owned);
-      BackendCatalog::instance().add(
-          Registration{.id = id,
-                       .name = std::move(owned),
-                       .priority = priority,
-                       .factory = []() { return std::make_shared<T>(); }});
+      BackendCatalog::instance().add(Registration{
+          .id = id,
+          .name = std::move(owned),
+          .priority = priority,
+          .factory = [] { return std::make_shared<T>(); },
+      });
     } catch (...) {
     }
     // NOLINTEND(bugprone-empty-catch)

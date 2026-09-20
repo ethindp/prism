@@ -42,7 +42,7 @@ enum class BackendError : std::uint8_t {
   BackendEnteredUndefinedState,
   LibraryLoadFailed,
   LibraryInvalid,
-  IncompatibleAbi
+  IncompatibleAbi,
 };
 
 template <typename T = void>

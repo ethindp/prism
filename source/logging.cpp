@@ -132,14 +132,11 @@ void Logger::shutdown() noexcept {
 }
 
 Logger *logger() noexcept {
-  static Logger *const instance = []() noexcept -> Logger * {
-    try {
-      return new Logger;
-    } catch (...) {
-      return nullptr;
-    }
-  }();
-  return instance;
+  try {
+    return new Logger;
+  } catch (...) {
+    return nullptr;
+  }
 }
 
 std::string LogSource::to_utf8(std::wstring_view w) {

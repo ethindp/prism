@@ -41,7 +41,7 @@ using namespace winrt::Windows::Foundation::Metadata;
 [[nodiscard]] static std::string hstring_to_utf8(std::wstring_view w) {
   const auto *src = reinterpret_cast<const char16_t *>(w.data());
   std::string out(simdutf::utf8_length_from_utf16le(src, w.size()), '\0');
-  (void)simdutf::convert_utf16le_to_utf8(src, w.size(), out.data());
+  out.resize(simdutf::convert_utf16le_to_utf8(src, w.size(), out.data()));
   return out;
 }
 

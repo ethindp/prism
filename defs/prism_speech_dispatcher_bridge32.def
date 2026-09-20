@@ -1,7 +1,22 @@
 LIBRARY "prism_speech_dispatcher_bridge.dll"
 EXPORTS
+    prism_speechd_abi_version
     prism_speechd_available
     prism_speechd_create
     prism_speechd_destroy
     prism_speechd_speak
     prism_speechd_stop
+    prism_speechd_pause
+    prism_speechd_resume
+    prism_speechd_set_volume
+    prism_speechd_get_volume
+    prism_speechd_set_rate
+    prism_speechd_get_rate
+    prism_speechd_set_pitch
+    prism_speechd_get_pitch
+    prism_speechd_refresh_voices
+    prism_speechd_count_voices
+    prism_speechd_get_voice_name
+    prism_speechd_get_voice_language
+    prism_speechd_set_voice
+    prism_speechd_get_voice

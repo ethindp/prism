@@ -1,6 +1,7 @@
 # Summary
 
 - [Introduction](./introduction.md)
+- [Wine Bridges](./wine-bridges.md)
 
 # API Reference
 

@@ -32,8 +32,8 @@ constexpr BackendId operator""_bid(const char *str, std::size_t len) {
 
 constexpr BackendId make_backend_id(std::string_view str) {
   std::uint64_t hash = 0xCBF29CE484222325;
-  for (std::size_t i = 0; i < str.size(); ++i) {
-    hash ^= static_cast<std::uint64_t>(str[i]);
+  for (const char c : str) {
+    hash ^= static_cast<std::uint64_t>(c);
     hash *= 0x100000001B3;
   }
   return static_cast<BackendId>(hash);
@@ -85,6 +85,7 @@ private:
 
 template <typename T> struct BackendRegistrar {
   BackendRegistrar(BackendId id, const char *name, int priority) noexcept {
+    // NOLINTBEGIN(bugprone-empty-catch)
     try {
       BackendCatalog::instance().add(
           Registration{.id = id,
@@ -93,8 +94,10 @@ template <typename T> struct BackendRegistrar {
                        .factory = []() { return std::make_shared<T>(); }});
     } catch (...) {
     }
+    // NOLINTEND(bugprone-empty-catch)
   }
   BackendRegistrar(const char *name, int priority) noexcept {
+    // NOLINTBEGIN(bugprone-empty-catch)
     try {
       std::string owned{name};
       const auto id = make_backend_id(owned);
@@ -105,24 +108,28 @@ template <typename T> struct BackendRegistrar {
                        .factory = []() { return std::make_shared<T>(); }});
     } catch (...) {
     }
+    // NOLINTEND(bugprone-empty-catch)
   }
 };
 
 // MSVC ignores gnu::used and gnu::retain, so a static build drops the object
 // a registrar lives in. The anchor gives PrismBackends.cmake a symbol to
 // force back in with /include:.
-#if defined(PRISM_BACKEND_ANCHOR)
-#define PRISM_EMIT_ANCHOR extern "C" void PRISM_BACKEND_ANCHOR() {}
+#ifdef PRISM_BACKEND_ANCHOR
+#define PRISM_EMIT_ANCHOR                                                      \
+  extern "C" void PRISM_BACKEND_ANCHOR() {}
 #else
 #define PRISM_EMIT_ANCHOR
 #endif
 
 #define REGISTER_BACKEND(cls, name, priority)                                  \
-  [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                    \
-  registrar_##cls##_(name, priority);                                          \
+  [[gnu::used,                                                                 \
+    gnu::retain]] static ::BackendRegistrar<cls> registrar_##cls##_(name,      \
+                                                                    priority); \
   PRISM_EMIT_ANCHOR
 
 #define REGISTER_BACKEND_WITH_ID(cls, id, name, priority)                      \
-  [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                    \
-  registrar_##cls##_(id, name, priority);                                      \
+  [[gnu::used,                                                                 \
+    gnu::retain]] static ::BackendRegistrar<cls> registrar_##cls##_(id, name,  \
+                                                                    priority); \
   PRISM_EMIT_ANCHOR

@@ -11,13 +11,13 @@
 #include <mutex>
 #include <thread>
 #include <vector>
-#if defined(PRISM_ENABLE_POWER_MANAGEMENT)
+#ifdef PRISM_ENABLE_POWER_MANAGEMENT
 #include "power_notifier.h"
 #endif
 
 class BackendEnumerator {
 private:
-  enum class SweepMode {
+  enum class SweepMode : std::uint8_t {
     Prime,
     Normal,
     Resync,
@@ -37,14 +37,14 @@ private:
   std::mutex mtx;
   bool paused = false;
   std::unique_ptr<PollWaiter> waiter;
-#if defined(PRISM_ENABLE_POWER_MANAGEMENT)
+#ifdef PRISM_ENABLE_POWER_MANAGEMENT
   std::unique_ptr<PowerNotifier> power_notifier;
 #endif
   std::jthread thread;
   LogSource logger{"Backend Enumerator"};
 
   void run(const std::stop_token &stop);
-  bool poll_once(const SweepMode mode);
+  bool poll_once(SweepMode mode);
 
 public:
   BackendEnumerator(FrozenRegistry *registry,

@@ -131,17 +131,23 @@ void Logger::shutdown() noexcept {
   lifecycle_cv.notify_all();
 }
 
-Logger &logger() noexcept {
-  static auto *instance = new (std::nothrow) Logger;
-  return *instance;
+Logger *logger() noexcept {
+  static Logger *const instance = []() noexcept -> Logger * {
+    try {
+      return new Logger;
+    } catch (...) {
+      return nullptr;
+    }
+  }();
+  return instance;
 }
 
 std::string LogSource::to_utf8(std::wstring_view w) {
   std::string out(simdutf::utf8_length_from_utf16le(
                       reinterpret_cast<const char16_t *>(w.data()), w.size()),
                   '\0');
-  (void)simdutf::convert_utf16le_to_utf8(
-      reinterpret_cast<const char16_t *>(w.data()), w.size(), out.data());
+  out.resize(simdutf::convert_utf16le_to_utf8(
+      reinterpret_cast<const char16_t *>(w.data()), w.size(), out.data()));
   return out;
 }
 
@@ -177,8 +183,10 @@ void init_logging_from_env() noexcept {
       level = PRISM_LOG_LEVEL_INFO;
     else if (value == "none")
       level = PRISM_LOG_LEVEL_NONE;
-    Logger &lg = logger();
-    lg.set_handler(PrismLogHandler{.fn = &stderr_sink, .userdata = nullptr});
-    lg.set_level(level);
+    Logger *const lg = logger();
+    if (lg == nullptr)
+      return;
+    lg->set_handler(PrismLogHandler{.fn = &stderr_sink, .userdata = nullptr});
+    lg->set_level(level);
   });
 }

@@ -6,9 +6,12 @@
 #include <windows.h>
 #include <array>
 #include <cstring>
+#include <cstdint>
 #include <cwchar>
 #include <delayimp.h>
 #include <filesystem>
+#include <raw/prism_winelib_status.h>
+#include <span>
 #include <tchar.h>
 #include <utility>
 // clang-format on
@@ -40,6 +43,7 @@ static constexpr const char *PCTK_DLL = "PCTKUSR.dll";
 static constexpr const char *PRISM_ORCA_BRIDGE_DLL = "prism_orca_bridge.dll";
 static constexpr const char *PRISM_SPEECH_DISPATCHER_BRIDGE_DLL =
     "prism_speech_dispatcher_bridge.dll";
+static constexpr const char *PRISM_SPIEL_BRIDGE_DLL = "prism_spiel_bridge.dll";
 
 namespace zdsr {
 static int WINAPI stub_zdsr_InitTTS([[maybe_unused]] int type,
@@ -413,36 +417,161 @@ bool __cdecl prism_orca_stop_stub([[maybe_unused]] PrismOrcaDBusInstance *h) {
 }
 } // namespace prism_orca_bridge
 
-namespace prism_speech_dispatcher_bridge {
-using PrismSpeechDispatcherInstance = void *;
+namespace prism_winelib_bridge {
+std::uint32_t __cdecl abi_version_stub(void) { return 0; }
 
-bool __cdecl prism_speechd_available_stub(void) { return false; }
-
-bool __cdecl prism_speechd_create_stub(
-    [[maybe_unused]] PrismSpeechDispatcherInstance **out) {
-  return false;
+PrismWinelibStatus __cdecl status_stub(void) {
+  return PRISM_WINELIB_NOT_AVAILABLE;
 }
 
-void __cdecl
-prism_speechd_destroy_stub([[maybe_unused]] PrismSpeechDispatcherInstance *h) {}
-
-bool __cdecl
-prism_speechd_speak_stub([[maybe_unused]] PrismSpeechDispatcherInstance *h,
-                         [[maybe_unused]] const char *text) {
-  return false;
-}
-
-bool __cdecl
-prism_speechd_stop_stub([[maybe_unused]] PrismSpeechDispatcherInstance *h) {
-  return false;
-}
-} // namespace prism_speech_dispatcher_bridge
+void __cdecl destroy_stub(void) {}
+} // namespace prism_winelib_bridge
 
 static std::atomic_unsigned_lock_free dummy_count = 0;
 
 static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
                                            PDelayLoadInfo pdli) {
   static const LogSource log{"prism/delayimp"};
+  static const auto bridge_stubs = std::to_array<StubEntry>({
+      {.dll = PRISM_ORCA_BRIDGE_DLL,
+       .func = "prism_orca_available",
+       .stub = stub_cast(prism_orca_bridge::prism_orca_available_stub)},
+      {.dll = PRISM_ORCA_BRIDGE_DLL,
+       .func = "prism_orca_create",
+       .stub = stub_cast(prism_orca_bridge::prism_orca_create_stub)},
+      {.dll = PRISM_ORCA_BRIDGE_DLL,
+       .func = "prism_orca_destroy",
+       .stub = stub_cast(prism_orca_bridge::prism_orca_destroy_stub)},
+      {.dll = PRISM_ORCA_BRIDGE_DLL,
+       .func = "prism_orca_speak",
+       .stub = stub_cast(prism_orca_bridge::prism_orca_speak_stub)},
+      {.dll = PRISM_ORCA_BRIDGE_DLL,
+       .func = "prism_orca_stop",
+       .stub = stub_cast(prism_orca_bridge::prism_orca_stop_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_abi_version",
+       .stub = stub_cast(prism_winelib_bridge::abi_version_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_available",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_create",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_destroy",
+       .stub = stub_cast(prism_winelib_bridge::destroy_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_speak",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_stop",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_pause",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_resume",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_set_volume",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_get_volume",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_set_rate",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_get_rate",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_set_pitch",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_get_pitch",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_refresh_voices",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_count_voices",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_get_voice_name",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_get_voice_language",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_set_voice",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
+       .func = "prism_speechd_get_voice",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_abi_version",
+       .stub = stub_cast(prism_winelib_bridge::abi_version_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_available",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_create",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_destroy",
+       .stub = stub_cast(prism_winelib_bridge::destroy_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_speak",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_stop",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_pause",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_resume",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_is_speaking",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_set_volume",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_get_volume",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_set_rate",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_get_rate",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_set_pitch",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_get_pitch",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_refresh_voices",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_count_voices",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_get_voice_name",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_get_voice_language",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_set_voice",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+      {.dll = PRISM_SPIEL_BRIDGE_DLL,
+       .func = "prism_spiel_get_voice",
+       .stub = stub_cast(prism_winelib_bridge::status_stub)},
+  });
   static const
 #if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
@@ -718,80 +847,9 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
           {.dll = PCTK_DLL,
            .func = "PCTKGETVOICELOG",
            .stub = stub_cast(pctalker::stub_PCTKGetVoiceLog)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_available",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_available_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_create",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_create_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_destroy",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_destroy_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_speak",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_speak_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_stop",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_stop_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_available",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_available_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_create",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_create_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_destroy",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_destroy_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_speak",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_speak_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_stop",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_stop_stub)},
       });
 #else
-      auto stubs = std::to_array<StubEntry>({
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_available",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_available_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_create",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_create_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_destroy",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_destroy_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_speak",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_speak_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_stop",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_stop_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_available",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_available_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_create",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_create_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_destroy",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_destroy_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_speak",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_speak_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_stop",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_stop_stub)},
-      });
+      auto stubs = std::array<StubEntry, 0>{};
 #endif
   switch (dliNotify) {
   case dliFailLoadLib: {
@@ -997,28 +1055,32 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
       }
     }
 #endif
-    for (const auto &e : stubs) {
-      if (_stricmp(pdli->szDll, e.dll) == 0) {
+    for (const std::span<const StubEntry> table :
+         {std::span<const StubEntry>{stubs},
+          std::span<const StubEntry>{bridge_stubs}}) {
+      for (const auto &e : table) {
+        if (_stricmp(pdli->szDll, e.dll) == 0) {
 #if defined(_M_IX86) || defined(__i386__)
-        auto procName = std::string_view(pdli->dlp.szProcName);
-        auto stubName = std::string_view(e.func);
-        const auto procAt = procName.find('@');
-        const auto stubAt = stubName.find('@');
-        if (procAt != std::string_view::npos)
-          procName = procName.substr(0, procAt);
-        if (stubAt != std::string_view::npos)
-          stubName = stubName.substr(0, stubAt);
-        if (procName == stubName) {
-          log.trace("substituting stub for '{}!{}'", pdli->szDll, e.func);
-          return e.stub;
-        }
+          auto procName = std::string_view(pdli->dlp.szProcName);
+          auto stubName = std::string_view(e.func);
+          const auto procAt = procName.find('@');
+          const auto stubAt = stubName.find('@');
+          if (procAt != std::string_view::npos)
+            procName = procName.substr(0, procAt);
+          if (stubAt != std::string_view::npos)
+            stubName = stubName.substr(0, stubAt);
+          if (procName == stubName) {
+            log.trace("substituting stub for '{}!{}'", pdli->szDll, e.func);
+            return e.stub;
+          }
 #else
-        if (std::string_view{pdli->dlp.szProcName} ==
-            std::string_view{e.func}) {
-          log.trace("substituting stub for '{}!{}'", pdli->szDll, e.func);
-          return e.stub;
-        }
+          if (std::string_view{pdli->dlp.szProcName} ==
+              std::string_view{e.func}) {
+            log.trace("substituting stub for '{}!{}'", pdli->szDll, e.func);
+            return e.stub;
+          }
 #endif
+        }
       }
     }
     if (pdli->dlp.fImportByName != 0)

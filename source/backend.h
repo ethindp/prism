@@ -120,7 +120,7 @@ public:
     initialized_for_cache.test_and_set(std::memory_order_release);
     return true;
   }
-  [[nodiscard]] inline bool is_initialized_for_cache() const noexcept {
+  [[nodiscard]] bool is_initialized_for_cache() const noexcept {
     return initialized_for_cache.test(std::memory_order_acquire);
   }
   [[nodiscard]] virtual std::string_view get_name() const = 0;
@@ -134,6 +134,7 @@ public:
   }
   virtual BackendResult<>
   speak_to_memory([[maybe_unused]] std::string_view text,
+                  // NOLINTNEXTLINE(performance-unnecessary-value-param)
                   [[maybe_unused]] AudioCallback callback,
                   [[maybe_unused]] void *userdata) {
     return std::unexpected(BackendError::NotImplemented);

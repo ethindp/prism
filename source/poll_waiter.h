@@ -3,12 +3,13 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <optional>
 
 class PollWaiter {
 public:
-  enum class Wake { Timer, Signal };
+  enum class Wake : std::uint8_t { Timer, Signal };
 
   virtual ~PollWaiter() = default;
   virtual Wake wait(std::optional<std::chrono::milliseconds> timeout,

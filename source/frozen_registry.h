@@ -5,6 +5,7 @@
 #include "logging.h"
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <shared_mutex>
 #include <string_view>
@@ -12,6 +13,8 @@
 
 class FrozenRegistry {
 public:
+  FrozenRegistry(const FrozenRegistry &) = delete;
+  FrozenRegistry &operator=(const FrozenRegistry &) = delete;
   [[nodiscard]] static FrozenRegistry *
   create(std::vector<Registration> registrations);
   [[nodiscard]] static FrozenRegistry *global();
@@ -47,8 +50,6 @@ private:
   };
   explicit FrozenRegistry(std::vector<Registration> registrations);
   ~FrozenRegistry() = default;
-  FrozenRegistry(const FrozenRegistry &) = delete;
-  FrozenRegistry &operator=(const FrozenRegistry &) = delete;
   [[nodiscard]] Entry *find(BackendId id) noexcept;
   [[nodiscard]] Entry *find(std::string_view name) noexcept;
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend> acquire_entry(Entry *e);
@@ -57,7 +58,7 @@ private:
   mutable std::shared_mutex cache_mutex;
 };
 
-enum class BuilderResult {
+enum class BuilderResult : std::uint8_t {
   Ok,
   Spent,
   EmptyName,

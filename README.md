@@ -67,6 +67,7 @@ Currently bindings are an in-progress effort. The following Bindings exist:
 | .NET | [prismatoid](https://www.nuget.org/packages/prismatoid) |
 | Python | [Prismatoid](https://pypi.org/project/prismatoid) |
 | Godot | Prismatoid (in-tree) |
+| Rust | [prismer](https://crates.io/crates/prismer) |
 
 We welcome future bindings. If you write bindings and want them added here, please submit a PR!
 

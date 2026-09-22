@@ -35,8 +35,8 @@ static constexpr const char *BOY_PC_READER_DLL = "byctrl-x64.dll";
 static constexpr const char *ZDSR_DLL = "ZDSRAPI.dll";
 static constexpr const char *BOY_PC_READER_DLL = "byctrl.dll";
 #endif
-static constexpr const char *PCTK_DLL = "PCTKUSR.dll";
 #endif
+static constexpr const char *PCTK_DLL = "PCTKUSR.dll";
 static constexpr const char *PRISM_ORCA_BRIDGE_DLL = "prism_orca_bridge.dll";
 static constexpr const char *PRISM_SPEECH_DISPATCHER_BRIDGE_DLL =
     "prism_speech_dispatcher_bridge.dll";
@@ -444,10 +444,10 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
                                            PDelayLoadInfo pdli) {
   static const LogSource log{"prism/delayimp"};
   static const
+      auto stubs = std::to_array<StubEntry>({
 #if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
     defined(__i386__)
-      auto stubs = std::to_array<StubEntry>({
           {.dll = ZDSR_DLL,
            .func = "InitTTS",
            .stub = stub_cast(zdsr::stub_zdsr_InitTTS)},
@@ -520,6 +520,7 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
           {.dll = BOY_PC_READER_DLL,
            .func = "BoyCtrlActivateYTApp",
            .stub = stub_cast(boy_pc_reader::stub_BoyCtrlActivateYTApp)},
+#endif
           {.dll = PCTK_DLL,
            .func = "PCTKStatus",
            .stub = stub_cast(pctalker::stub_PCTKStatus)},
@@ -754,45 +755,6 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
            .stub = stub_cast(
                prism_speech_dispatcher_bridge::prism_speechd_stop_stub)},
       });
-#else
-      auto stubs = std::to_array<StubEntry>({
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_available",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_available_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_create",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_create_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_destroy",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_destroy_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_speak",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_speak_stub)},
-          {.dll = PRISM_ORCA_BRIDGE_DLL,
-           .func = "prism_orca_stop",
-           .stub = stub_cast(prism_orca_bridge::prism_orca_stop_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_available",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_available_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_create",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_create_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_destroy",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_destroy_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_speak",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_speak_stub)},
-          {.dll = PRISM_SPEECH_DISPATCHER_BRIDGE_DLL,
-           .func = "prism_speechd_stop",
-           .stub = stub_cast(
-               prism_speech_dispatcher_bridge::prism_speechd_stop_stub)},
-      });
-#endif
   switch (dliNotify) {
   case dliFailLoadLib: {
     log.trace("delay-load of '{}' failed (LastError={}); attempting recovery",

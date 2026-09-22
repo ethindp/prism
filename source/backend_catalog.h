@@ -108,9 +108,9 @@ template <typename T> struct BackendRegistrar {
   }
 };
 
-// MSVC ignores gnu::used and gnu::retain, so a static build drops the object
-// a registrar lives in. The anchor gives PrismBackends.cmake a symbol to
-// force back in with /include:.
+// gnu::used and gnu::retain keep a registrar within its object, but a static
+// link still drops the whole object, since nothing references it. The anchor
+// gives PrismBackends.cmake a symbol for prism.cpp to reference.
 #if defined(PRISM_BACKEND_ANCHOR)
 #define PRISM_EMIT_ANCHOR extern "C" void PRISM_BACKEND_ANCHOR() {}
 #else

@@ -381,9 +381,11 @@ if(NOT PRISM_BACKEND_TARGETS)
 endif()
 list(JOIN PRISM_BACKEND_SUMMARY " " _s)
 message(STATUS "Prism backends: ${_s}")
-# gnu::used covers GCC and Clang. MSVC has to be told per object.
+# A static link only pulls an archive member in when something references it,
+# and nothing references a backend's object, so prism.cpp does. MSVC is told
+# per object with /include:; elsewhere prism.cpp takes each anchor's address.
+set(_anchors "")
 if(MSVC)
-  set(_anchors "")
   foreach(_name IN LISTS PRISM_BACKEND_ANCHORS)
     if(PRISM_ARCH_CLASS STREQUAL "x86")
       # cdecl decorates with a leading underscore on x86 only.
@@ -395,14 +397,26 @@ if(MSVC)
            "#pragma comment(linker, \"/include:${_sym}\")
 ")
   endforeach()
-  # PrismCodegen, which owns PRISM_GEN_DIR, is included after this file.
-  set(_gen "${CMAKE_CURRENT_BINARY_DIR}/generated")
-  file(MAKE_DIRECTORY "${_gen}")
-  # A header so the directives land in prism.cpp. The linker reads directives
-  # only from objects it already links, so a source file holding nothing else
-  # would be dropped before they were read.
-  configure_file("${PRISM_SOURCE_ROOT}/cmake/backend_anchors.h.in"
-                 "${_gen}/backend_anchors.h" @ONLY)
-  target_include_directories(prism PRIVATE "${_gen}")
-  target_compile_definitions(prism PRIVATE PRISM_HAVE_BACKEND_ANCHORS)
+else()
+  set(_refs "")
+  foreach(_name IN LISTS PRISM_BACKEND_ANCHORS)
+    string(APPEND _anchors "extern \"C\" void prism_anchor_${_name}();
+")
+    string(APPEND _refs "    prism_anchor_${_name},
+")
+  endforeach()
+  string(APPEND _anchors
+         "[[gnu::used]] static void (*const prism_backend_anchors[])() = {
+${_refs}};
+")
 endif()
+# PrismCodegen, which owns PRISM_GEN_DIR, is included after this file.
+set(_gen "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${_gen}")
+# A header so the references land in prism.cpp. The linker reads them only
+# from objects it already links, so a source file holding nothing else would be
+# dropped before they were read.
+configure_file("${PRISM_SOURCE_ROOT}/cmake/backend_anchors.h.in"
+               "${_gen}/backend_anchors.h" @ONLY)
+target_include_directories(prism PRIVATE "${_gen}")
+target_compile_definitions(prism PRIVATE PRISM_HAVE_BACKEND_ANCHORS)

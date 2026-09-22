@@ -5,7 +5,7 @@ include(PrismGuards)
 prism_require_targets(prism prism_common)
 if(PRISM_ENABLE_POWER_MANAGEMENT)
   find_package(PkgConfig REQUIRED)
-  pkg_check_modules(PRISM_PM QUIET IMPORTED_TARGET "giomm-2.68>=2.68.0")
+  pkg_check_modules(PRISM_PM QUIET IMPORTED_TARGET "gio-2.0")
   if(PRISM_PM_FOUND)
     target_compile_definitions(prism_common
                                INTERFACE PRISM_ENABLE_POWER_MANAGEMENT)
@@ -14,14 +14,14 @@ if(PRISM_ENABLE_POWER_MANAGEMENT)
     list(
       APPEND
       _pcd
-      "pkg_check_modules(PRISM_PM REQUIRED IMPORTED_TARGET \"giomm-2.68>=2.68.0\")"
+      "pkg_check_modules(PRISM_PM REQUIRED IMPORTED_TARGET \"gio-2.0\")"
     )
     set(PRISM_PKGCONFIG_FIND_DEPENDS
         "${_pcd}"
         CACHE INTERNAL "")
   else()
     message(
-      STATUS "Prism: giomm not found; power-aware availability polling disabled"
+      STATUS "Prism: gio not found; power-aware availability polling disabled"
     )
   endif()
 endif()

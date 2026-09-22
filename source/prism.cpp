@@ -20,13 +20,6 @@
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
-#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
-     defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
-    !defined(__ANDROID__)
-#ifdef PRISM_HAVE_ORCA
-#include <giomm/init.h>
-#endif
-#endif
 
 struct PrismContext {
   FrozenRegistry *registry;
@@ -98,13 +91,6 @@ PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void) {
 PRISM_API PRISM_NODISCARD PrismContext *PRISM_CALL
 prism_init(PrismConfig *cfg) {
   init_logging_from_env();
-#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
-     defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
-    !defined(__ANDROID__)
-#ifdef PRISM_HAVE_ORCA
-  Gio::init();
-#endif
-#endif
   FrozenRegistry *registry = FrozenRegistry::global();
   if (cfg != nullptr) {
     if (cfg->version == 0 || cfg->version > PRISM_CONFIG_VERSION)

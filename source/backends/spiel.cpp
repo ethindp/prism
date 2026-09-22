@@ -7,12 +7,12 @@
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../logging.h"
+#include "../shared_library.h"
 #include "../utils.h"
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
-#include <dlfcn.h>
 #include <gio/gio.h>
 #include <memory>
 #include <moodycamel/concurrentqueue.h>
@@ -27,58 +27,70 @@
 #include <vector>
 
 namespace {
-#define PRISM_SPIEL_FUNCTIONS(X)                                               \
-  X(spiel_speaker_new)                                                         \
-  X(spiel_speaker_new_finish)                                                  \
-  X(spiel_speaker_get_voices)                                                  \
-  X(spiel_speaker_speak)                                                       \
-  X(spiel_speaker_cancel)                                                      \
-  X(spiel_speaker_pause)                                                       \
-  X(spiel_speaker_resume)                                                      \
-  X(spiel_utterance_new)                                                       \
-  X(spiel_utterance_set_rate)                                                  \
-  X(spiel_utterance_set_pitch)                                                 \
-  X(spiel_utterance_set_volume)                                                \
-  X(spiel_utterance_set_language)                                              \
-  X(spiel_utterance_set_voice)                                                 \
-  X(spiel_voice_get_type)                                                      \
-  X(spiel_voice_get_identifier)                                                \
-  X(spiel_voice_get_name)                                                      \
-  X(spiel_voice_get_languages)
-
 struct Spiel {
-// NOLINTNEXTLINE(bugprone-macro-parentheses)
-#define PRISM_SPIEL_MEMBER(name) decltype(&::name) name;
-  PRISM_SPIEL_FUNCTIONS(PRISM_SPIEL_MEMBER)
-#undef PRISM_SPIEL_MEMBER
+  SharedLibrary library;
+  decltype(&::spiel_speaker_new) spiel_speaker_new;
+  decltype(&::spiel_speaker_new_finish) spiel_speaker_new_finish;
+  decltype(&::spiel_speaker_get_voices) spiel_speaker_get_voices;
+  decltype(&::spiel_speaker_speak) spiel_speaker_speak;
+  decltype(&::spiel_speaker_cancel) spiel_speaker_cancel;
+  decltype(&::spiel_speaker_pause) spiel_speaker_pause;
+  decltype(&::spiel_speaker_resume) spiel_speaker_resume;
+  decltype(&::spiel_utterance_new) spiel_utterance_new;
+  decltype(&::spiel_utterance_set_rate) spiel_utterance_set_rate;
+  decltype(&::spiel_utterance_set_pitch) spiel_utterance_set_pitch;
+  decltype(&::spiel_utterance_set_volume) spiel_utterance_set_volume;
+  decltype(&::spiel_utterance_set_language) spiel_utterance_set_language;
+  decltype(&::spiel_utterance_set_voice) spiel_utterance_set_voice;
+  decltype(&::spiel_voice_get_type) spiel_voice_get_type;
+  decltype(&::spiel_voice_get_identifier) spiel_voice_get_identifier;
+  decltype(&::spiel_voice_get_name) spiel_voice_get_name;
+  decltype(&::spiel_voice_get_languages) spiel_voice_get_languages;
 };
 
+std::optional<Spiel> load_spiel() {
+  static const LogSource log{"Spiel"};
+  Spiel api{.library = SharedLibrary{"libspiel-1.0.so.1"}};
+  if (!api.library) {
+    log.debug("libspiel-1.0.so.1 could not be loaded");
+    return std::nullopt;
+  }
+  const SharedLibrary &library = api.library;
+  const bool complete =
+      library.bind(api.spiel_speaker_new, "spiel_speaker_new") &&
+      library.bind(api.spiel_speaker_new_finish, "spiel_speaker_new_finish") &&
+      library.bind(api.spiel_speaker_get_voices, "spiel_speaker_get_voices") &&
+      library.bind(api.spiel_speaker_speak, "spiel_speaker_speak") &&
+      library.bind(api.spiel_speaker_cancel, "spiel_speaker_cancel") &&
+      library.bind(api.spiel_speaker_pause, "spiel_speaker_pause") &&
+      library.bind(api.spiel_speaker_resume, "spiel_speaker_resume") &&
+      library.bind(api.spiel_utterance_new, "spiel_utterance_new") &&
+      library.bind(api.spiel_utterance_set_rate, "spiel_utterance_set_rate") &&
+      library.bind(api.spiel_utterance_set_pitch,
+                   "spiel_utterance_set_pitch") &&
+      library.bind(api.spiel_utterance_set_volume,
+                   "spiel_utterance_set_volume") &&
+      library.bind(api.spiel_utterance_set_language,
+                   "spiel_utterance_set_language") &&
+      library.bind(api.spiel_utterance_set_voice,
+                   "spiel_utterance_set_voice") &&
+      library.bind(api.spiel_voice_get_type, "spiel_voice_get_type") &&
+      library.bind(api.spiel_voice_get_identifier,
+                   "spiel_voice_get_identifier") &&
+      library.bind(api.spiel_voice_get_name, "spiel_voice_get_name") &&
+      library.bind(api.spiel_voice_get_languages, "spiel_voice_get_languages");
+  if (!complete) {
+    log.debug("libspiel-1.0.so.1 is missing a function prism needs");
+    return std::nullopt;
+  }
+  return api;
+}
+
+// Opened on the first call, then kept for the life of the process, so the
+// calls below cost one null check each.
 const Spiel *spiel() {
-  static const std::optional<Spiel> loaded = []() -> std::optional<Spiel> {
-    static const LogSource log{"Spiel"};
-    void *lib = dlopen("libspiel-1.0.so.1", RTLD_NOW | RTLD_LOCAL);
-    if (lib == nullptr) {
-      // NOLINTNEXTLINE(concurrency-mt-unsafe)
-      const char *error = dlerror();
-      log.debug("libspiel-1.0.so.1 could not be loaded: {}",
-                error != nullptr ? error : "unknown error");
-      return std::nullopt;
-    }
-    Spiel api{};
-    bool complete = true;
-#define PRISM_SPIEL_RESOLVE(name)                                              \
-  api.name = reinterpret_cast<decltype(api.name)>(dlsym(lib, #name));          \
-  complete = complete && api.name != nullptr;
-    PRISM_SPIEL_FUNCTIONS(PRISM_SPIEL_RESOLVE)
-#undef PRISM_SPIEL_RESOLVE
-    if (!complete) {
-      log.debug("libspiel-1.0.so.1 is missing a function prism needs");
-      dlclose(lib);
-      return std::nullopt;
-    }
-    return api;
-  }();
-  return loaded ? &*loaded : nullptr;
+  static const std::optional<Spiel> api = load_spiel();
+  return api ? &*api : nullptr;
 }
 
 constexpr std::string_view PROVIDER_SUFFIX = ".Speech.Provider";

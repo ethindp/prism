@@ -7,13 +7,13 @@
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../logging.h"
+#include "../shared_library.h"
 #include "../utils.h"
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
 #include <cmath>
 #include <cstdlib>
-#include <dlfcn.h>
 #include <fmt/format.h>
 #include <libspeechd.h>
 #include <memory>
@@ -30,62 +30,76 @@
 #include <vector>
 
 namespace {
-#define PRISM_SPEECHD_FUNCTIONS(X)                                             \
-  X(spd_get_default_address)                                                   \
-  X(SPDConnectionAddress__free)                                                \
-  X(spd_open2)                                                                 \
-  X(spd_close)                                                                 \
-  X(spd_get_output_module)                                                     \
-  X(spd_stop)                                                                  \
-  X(spd_say)                                                                   \
-  X(spd_pause)                                                                 \
-  X(spd_resume)                                                                \
-  X(spd_set_volume)                                                            \
-  X(spd_get_volume)                                                            \
-  X(spd_set_voice_rate)                                                        \
-  X(spd_get_voice_rate)                                                        \
-  X(spd_set_voice_pitch)                                                       \
-  X(spd_get_voice_pitch)                                                       \
-  X(spd_list_modules)                                                          \
-  X(free_spd_modules)                                                          \
-  X(spd_set_output_module)                                                     \
-  X(spd_list_synthesis_voices)                                                 \
-  X(free_spd_voices)                                                           \
-  X(spd_set_synthesis_voice)
-
 struct Speechd {
-// NOLINTNEXTLINE(bugprone-macro-parentheses)
-#define PRISM_SPEECHD_MEMBER(name) decltype(&::name) name;
-  PRISM_SPEECHD_FUNCTIONS(PRISM_SPEECHD_MEMBER)
-#undef PRISM_SPEECHD_MEMBER
+  SharedLibrary library;
+  // Named for the library's own function, except the one whose name is
+  // reserved to the implementation.
+  decltype(&::SPDConnectionAddress__free) address_free;
+  decltype(&::spd_get_default_address) spd_get_default_address;
+  decltype(&::spd_open2) spd_open2;
+  decltype(&::spd_close) spd_close;
+  decltype(&::spd_get_output_module) spd_get_output_module;
+  decltype(&::spd_stop) spd_stop;
+  decltype(&::spd_say) spd_say;
+  decltype(&::spd_pause) spd_pause;
+  decltype(&::spd_resume) spd_resume;
+  decltype(&::spd_set_volume) spd_set_volume;
+  decltype(&::spd_get_volume) spd_get_volume;
+  decltype(&::spd_set_voice_rate) spd_set_voice_rate;
+  decltype(&::spd_get_voice_rate) spd_get_voice_rate;
+  decltype(&::spd_set_voice_pitch) spd_set_voice_pitch;
+  decltype(&::spd_get_voice_pitch) spd_get_voice_pitch;
+  decltype(&::spd_list_modules) spd_list_modules;
+  decltype(&::free_spd_modules) free_spd_modules;
+  decltype(&::spd_set_output_module) spd_set_output_module;
+  decltype(&::spd_list_synthesis_voices) spd_list_synthesis_voices;
+  decltype(&::free_spd_voices) free_spd_voices;
+  decltype(&::spd_set_synthesis_voice) spd_set_synthesis_voice;
 };
 
-const Speechd *load_speechd() {
-  static const std::optional<Speechd> loaded = []() -> std::optional<Speechd> {
-    static const LogSource log{"Speech Dispatcher"};
-    void *lib = dlopen("libspeechd.so.2", RTLD_NOW | RTLD_LOCAL);
-    if (lib == nullptr) {
-      // NOLINTNEXTLINE(concurrency-mt-unsafe)
-      const char *error = dlerror();
-      log.debug("libspeechd.so.2 could not be loaded: {}",
-                error != nullptr ? error : "unknown error");
-      return std::nullopt;
-    }
-    Speechd api{};
-    bool complete = true;
-#define PRISM_SPEECHD_RESOLVE(name)                                            \
-  api.name = reinterpret_cast<decltype(api.name)>(dlsym(lib, #name));          \
-  complete = complete && api.name != nullptr;
-    PRISM_SPEECHD_FUNCTIONS(PRISM_SPEECHD_RESOLVE)
-#undef PRISM_SPEECHD_RESOLVE
-    if (!complete) {
-      log.debug("libspeechd.so.2 is missing a function prism needs");
-      dlclose(lib);
-      return std::nullopt;
-    }
-    return api;
-  }();
-  return loaded ? &*loaded : nullptr;
+std::optional<Speechd> load_speechd() {
+  static const LogSource log{"Speech Dispatcher"};
+  Speechd api{.library = SharedLibrary{"libspeechd.so.2"}};
+  if (!api.library) {
+    log.debug("libspeechd.so.2 could not be loaded");
+    return std::nullopt;
+  }
+  const SharedLibrary &library = api.library;
+  const bool complete =
+      library.bind(api.address_free, "SPDConnectionAddress__free") &&
+      library.bind(api.spd_get_default_address, "spd_get_default_address") &&
+      library.bind(api.spd_open2, "spd_open2") &&
+      library.bind(api.spd_close, "spd_close") &&
+      library.bind(api.spd_get_output_module, "spd_get_output_module") &&
+      library.bind(api.spd_stop, "spd_stop") &&
+      library.bind(api.spd_say, "spd_say") &&
+      library.bind(api.spd_pause, "spd_pause") &&
+      library.bind(api.spd_resume, "spd_resume") &&
+      library.bind(api.spd_set_volume, "spd_set_volume") &&
+      library.bind(api.spd_get_volume, "spd_get_volume") &&
+      library.bind(api.spd_set_voice_rate, "spd_set_voice_rate") &&
+      library.bind(api.spd_get_voice_rate, "spd_get_voice_rate") &&
+      library.bind(api.spd_set_voice_pitch, "spd_set_voice_pitch") &&
+      library.bind(api.spd_get_voice_pitch, "spd_get_voice_pitch") &&
+      library.bind(api.spd_list_modules, "spd_list_modules") &&
+      library.bind(api.free_spd_modules, "free_spd_modules") &&
+      library.bind(api.spd_set_output_module, "spd_set_output_module") &&
+      library.bind(api.spd_list_synthesis_voices,
+                   "spd_list_synthesis_voices") &&
+      library.bind(api.free_spd_voices, "free_spd_voices") &&
+      library.bind(api.spd_set_synthesis_voice, "spd_set_synthesis_voice");
+  if (!complete) {
+    log.debug("libspeechd.so.2 is missing a function prism needs");
+    return std::nullopt;
+  }
+  return api;
+}
+
+// Opened on the first call, then kept for the life of the process, so a
+// backend can hold the returned pointer without reopening anything.
+const Speechd *speechd() {
+  static const std::optional<Speechd> api = load_speechd();
+  return api ? &*api : nullptr;
 }
 
 struct VoiceInfo {
@@ -94,13 +108,9 @@ struct VoiceInfo {
   std::string language;
 };
 
-struct ModulesGuard {
+struct FreeModules {
   const Speechd *sd;
-  char **m;
-  ~ModulesGuard() {
-    if (m != nullptr)
-      sd->free_spd_modules(m);
-  }
+  void operator()(char **modules) const { sd->free_spd_modules(modules); }
 };
 
 constexpr int connect_timeout_ms = 100;
@@ -128,7 +138,7 @@ bool nonblocking_connect_succeeded(int fd, int connect_result,
 
 class SpeechDispatcherBackend final : public TextToSpeechBackend {
 private:
-  const Speechd *sd{load_speechd()};
+  const Speechd *sd{nullptr};
   SPDConnection *conn{nullptr};
   std::atomic_flag initialized;
   std::vector<VoiceInfo> voices;
@@ -152,7 +162,9 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    auto *addr = sd != nullptr ? sd->spd_get_default_address(nullptr) : nullptr;
+    const Speechd *api = speechd();
+    auto *addr =
+        api != nullptr ? api->spd_get_default_address(nullptr) : nullptr;
     if (addr != nullptr) {
       bool available = false;
       switch (addr->method) {
@@ -202,7 +214,7 @@ public:
         }
       } break;
       }
-      sd->SPDConnectionAddress__free(addr);
+      api->address_free(addr);
       if (available)
         features |= IS_SUPPORTED_AT_RUNTIME;
     }
@@ -219,6 +231,7 @@ public:
   BackendResult<> initialize() override {
     if (conn != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
+    sd = speechd();
     if (sd == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
     char *err = nullptr;
@@ -388,7 +401,8 @@ public:
     char **modules = sd->spd_list_modules(conn);
     if (modules == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
-    ModulesGuard modules_guard{.sd = sd, .m = modules};
+    const std::unique_ptr<char *, FreeModules> owned_modules(modules,
+                                                             FreeModules{sd});
     std::vector<VoiceInfo> new_voices;
     std::vector<std::string> probed_ok;
     for (char **m = modules; *m != nullptr; ++m) {

@@ -18,10 +18,10 @@ typedef struct PrismOrcaDBusInstance PrismOrcaDBusInstance;
 
 PRISM_WINELIB_ABI bool prism_orca_available(void);
 PRISM_WINELIB_ABI bool prism_orca_create(PrismOrcaDBusInstance **out);
-PRISM_WINELIB_ABI void prism_orca_destroy(PrismOrcaDBusInstance *h);
-PRISM_WINELIB_ABI bool prism_orca_speak(PrismOrcaDBusInstance *h,
+PRISM_WINELIB_ABI void prism_orca_destroy(PrismOrcaDBusInstance *instance);
+PRISM_WINELIB_ABI bool prism_orca_speak(PrismOrcaDBusInstance *instance,
                                         const char *text);
-PRISM_WINELIB_ABI bool prism_orca_stop(PrismOrcaDBusInstance *h);
+PRISM_WINELIB_ABI bool prism_orca_stop(PrismOrcaDBusInstance *instance);
 
 #ifdef __cplusplus
 }

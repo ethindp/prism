@@ -6,7 +6,6 @@ plugins {
 layout.buildDirectory.set(layout.projectDirectory.dir("build/android/gradle"))
 dependencies {
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
-    implementation "com.ibm.icu:icu4j:78.3"
 }
 allprojects {
     plugins.withId('java-base') {

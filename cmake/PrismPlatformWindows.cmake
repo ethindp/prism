@@ -34,7 +34,8 @@ function(prism_add_import_library target def_file dll_name)
       DEPENDS "${def_file}"
       COMMENT "Import library ${target}.lib")
   else()
-    find_program(PRISM_LIB_TOOL NAMES lib llvm-lib)
+    get_filename_component(_linker_dir "${CMAKE_LINKER}" DIRECTORY)
+    find_program(PRISM_LIB_TOOL NAMES lib llvm-lib HINTS "${_linker_dir}")
     if(NOT PRISM_LIB_TOOL)
       message(
         FATAL_ERROR

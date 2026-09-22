@@ -95,14 +95,14 @@ private:
                         [[maybe_unused]] const gchar *interface_name,
                         [[maybe_unused]] const gchar *signal_name,
                         GVariant *params, gpointer user_data) {
-    if (!g_variant_is_of_type(params, G_VARIANT_TYPE("(b)")))
+    if (g_variant_is_of_type(params, G_VARIANT_TYPE("(b)")) == FALSE)
       return;
     gboolean suspending = FALSE;
     g_variant_get(params, "(b)", &suspending);
     auto *const self = static_cast<LinuxPowerNotifier *>(user_data);
     // NOLINTBEGIN(bugprone-empty-catch)
     try {
-      if (suspending) {
+      if (suspending != FALSE) {
         if (self->on_suspend)
           self->on_suspend();
       } else {

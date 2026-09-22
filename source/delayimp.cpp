@@ -921,8 +921,8 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
       }
     }
 #endif
-    if (dummy_count <
-        std::numeric_limits<std::atomic_unsigned_lock_free>::max()) {
+    if (dummy_count < std::numeric_limits<
+                          std::atomic_unsigned_lock_free::value_type>::max()) {
       log.debug("no installation of '{}' found; substituting stubs",
                 pdli->szDll);
       // NOLINTNEXTLINE(performance-no-int-to-ptr)
@@ -931,10 +931,11 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
       dummy_count++;
       return reinterpret_cast<FARPROC>(dummy);
     }
-    log.warn("delay-load dummy handle pool exhausted after {} modules; '{}' "
-             "left unresolved",
-             std::numeric_limits<std::atomic_unsigned_lock_free>::max().load(),
-             pdli->szDll);
+    log.warn(
+        "delay-load dummy handle pool exhausted after {} modules; '{}' "
+        "left unresolved",
+        std::numeric_limits<std::atomic_unsigned_lock_free::value_type>::max(),
+        pdli->szDll);
     return reinterpret_cast<FARPROC>(reinterpret_cast<HMODULE>(1));
   } break;
   case dliFailGetProc: {

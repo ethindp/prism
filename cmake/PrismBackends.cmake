@@ -322,8 +322,14 @@ prism_declare_backend(
   FEATURE
   PRISM_HAVE_ORCA
   PKG_CONFIG
-  "glibmm-2.68>=2.68.0"
-  "giomm-2.68>=2.68.0")
+  "gio-2.0")
+if(TARGET prism_backend_orca AND NOT WIN32)
+  target_sources(prism_backend_orca
+                 PRIVATE "${PRISM_SOURCE_ROOT}/winelibs/orca/bridge.c")
+  target_include_directories(prism_backend_orca
+                             PRIVATE "${PRISM_SOURCE_ROOT}/winelibs/orca")
+  target_compile_definitions(prism_backend_orca PRIVATE PRISM_ORCA_BRIDGE_NATIVE)
+endif()
 prism_declare_backend(
   speech_dispatcher
   SOURCE

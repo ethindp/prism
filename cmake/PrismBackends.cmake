@@ -361,6 +361,8 @@ prism_declare_backend(
   FEATURE
   PRISM_HAVE_SPIEL
   PKG_CONFIG
+  "gio-2.0"
+  RUNTIME_PKG_CONFIG
   "spiel-1.0")
 prism_declare_backend(
   android_tts

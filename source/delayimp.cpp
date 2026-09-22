@@ -1001,5 +1001,10 @@ static FARPROC WINAPI DelayLoadFailureHook(unsigned dliNotify,
 
 const PfnDliHook __pfnDliFailureHook2 = DelayLoadFailureHook;
 const BOOL __bChangeProtectionOfWholeDloadSection = TRUE;
+
+// Nothing refers to the hooks above, so a static build drops this object and
+// the delay-load helper raises where the hook would have returned a stub.
+// prism.cpp forces the object back in through this anchor.
+void prism_anchor_delayimp() {}
 }
 #endif

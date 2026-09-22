@@ -54,6 +54,7 @@ namespace {
   X(spd_set_synthesis_voice)
 
 struct Speechd {
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #define PRISM_SPEECHD_MEMBER(name) decltype(&::name) name;
   PRISM_SPEECHD_FUNCTIONS(PRISM_SPEECHD_MEMBER)
 #undef PRISM_SPEECHD_MEMBER
@@ -64,6 +65,7 @@ const Speechd *load_speechd() {
     static const LogSource log{"Speech Dispatcher"};
     void *lib = dlopen("libspeechd.so.2", RTLD_NOW | RTLD_LOCAL);
     if (lib == nullptr) {
+      // NOLINTNEXTLINE(concurrency-mt-unsafe)
       const char *error = dlerror();
       log.debug("libspeechd.so.2 could not be loaded: {}",
                 error != nullptr ? error : "unknown error");
@@ -386,7 +388,7 @@ public:
     char **modules = sd->spd_list_modules(conn);
     if (modules == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
-    ModulesGuard modules_guard{sd, modules};
+    ModulesGuard modules_guard{.sd = sd, .m = modules};
     std::vector<VoiceInfo> new_voices;
     std::vector<std::string> probed_ok;
     for (char **m = modules; *m != nullptr; ++m) {

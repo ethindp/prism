@@ -47,6 +47,7 @@ namespace {
   X(spiel_voice_get_languages)
 
 struct Spiel {
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #define PRISM_SPIEL_MEMBER(name) decltype(&::name) name;
   PRISM_SPIEL_FUNCTIONS(PRISM_SPIEL_MEMBER)
 #undef PRISM_SPIEL_MEMBER
@@ -57,6 +58,7 @@ const Spiel *spiel() {
     static const LogSource log{"Spiel"};
     void *lib = dlopen("libspiel-1.0.so.1", RTLD_NOW | RTLD_LOCAL);
     if (lib == nullptr) {
+      // NOLINTNEXTLINE(concurrency-mt-unsafe)
       const char *error = dlerror();
       log.debug("libspiel-1.0.so.1 could not be loaded: {}",
                 error != nullptr ? error : "unknown error");

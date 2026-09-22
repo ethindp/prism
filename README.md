@@ -68,6 +68,7 @@ Currently bindings are an in-progress effort. The following Bindings exist:
 | Python | [Prismatoid](https://pypi.org/project/prismatoid) |
 | Godot | Prismatoid (in-tree) |
 | Rust | [prismer](https://crates.io/crates/prismer) |
+| Tauri (TypeScript) | [tauri-plugin-prism](https://github.com/cartertemm/tauri-plugin-prism) ([crates.io](https://crates.io/crates/tauri-plugin-prism), [npm](https://www.npmjs.com/package/tauri-plugin-prism-api)) |
 
 We welcome future bindings. If you write bindings and want them added here, please submit a PR!
 

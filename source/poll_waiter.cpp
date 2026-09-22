@@ -287,9 +287,9 @@ public:
   MacWaiter() {
     kq = kqueue();
     if (kq >= 0) {
-      struct kevent ev{};
-      EV_SET(&ev, user_id, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, nullptr);
-      kevent(kq, &ev, 1, nullptr, 0, nullptr);
+      struct kevent64_s ev{};
+      EV_SET64(&ev, user_id, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, 0, 0, 0);
+      kevent64(kq, &ev, 1, nullptr, 0, 0, nullptr);
     }
   }
 
@@ -311,14 +311,14 @@ public:
               std::max<std::chrono::milliseconds::rep>(leeway.count(), 0)));
       kevent64(kq, &tev, 1, nullptr, 0, 0, nullptr);
     }
-    struct kevent out{};
+    struct kevent64_s out{};
     int r;
     do {
-      r = kevent(kq, nullptr, 0, &out, 1, nullptr);
+      r = kevent64(kq, nullptr, 0, &out, 1, 0, nullptr);
     } while (r < 0 && errno == EINTR);
-    struct kevent del{};
-    EV_SET(&del, timer_id, EVFILT_TIMER, EV_DELETE, 0, 0, nullptr);
-    kevent(kq, &del, 1, nullptr, 0, nullptr);
+    struct kevent64_s del{};
+    EV_SET64(&del, timer_id, EVFILT_TIMER, EV_DELETE, 0, 0, 0, 0, 0);
+    kevent64(kq, &del, 1, nullptr, 0, 0, nullptr);
     if (r > 0 && out.filter == EVFILT_TIMER)
       return Wake::Timer;
     return Wake::Signal;
@@ -329,9 +329,9 @@ public:
       woken.test_and_set();
       return;
     }
-    struct kevent ev{};
-    EV_SET(&ev, user_id, EVFILT_USER, 0, NOTE_TRIGGER, 0, nullptr);
-    kevent(kq, &ev, 1, nullptr, 0, nullptr);
+    struct kevent64_s ev{};
+    EV_SET64(&ev, user_id, EVFILT_USER, 0, NOTE_TRIGGER, 0, 0, 0, 0);
+    kevent64(kq, &ev, 1, nullptr, 0, 0, nullptr);
   }
 };
 } // namespace

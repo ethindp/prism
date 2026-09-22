@@ -64,11 +64,7 @@ bool PowerNotifier::supported() noexcept { return true; }
 
 #elif defined(PRISM_ENABLE_POWER_MANAGEMENT) && defined(__linux__) &&          \
     !defined(__ANDROID__)
-#include <giomm/dbusconnection.h>
-#include <giomm/init.h>
-#include <glibmm/main.h>
-#include <glibmm/refptr.h>
-#include <glibmm/variant.h>
+#include <gio/gio.h>
 #include <thread>
 
 namespace {
@@ -76,72 +72,69 @@ class LinuxPowerNotifier final : public PowerNotifier {
 private:
   std::function<void()> on_suspend;
   std::function<void()> on_resume;
-  Glib::RefPtr<Glib::MainContext> context;
-  Glib::RefPtr<Glib::MainLoop> loop;
-  Glib::RefPtr<Gio::DBus::Connection> connection;
-  guint sub_id = 0;
+  GMainContext *context;
+  GMainLoop *loop;
+  GDBusConnection *connection;
   std::thread thread;
 
   void thread_main() {
-    context->push_thread_default();
-    // NOLINTBEGIN(bugprone-empty-catch)
-    try {
-      sub_id = connection->signal_subscribe(
-          sigc::mem_fun(*this, &LinuxPowerNotifier::on_signal),
-          "org.freedesktop.login1", "org.freedesktop.login1.Manager",
-          "PrepareForSleep", "/org/freedesktop/login1");
-      loop->run();
-    } catch (...) {
-    }
-    // NOLINTEND(bugprone-empty-catch)
-    if (sub_id != 0)
-      connection->signal_unsubscribe(sub_id);
-    context->pop_thread_default();
+    g_main_context_push_thread_default(context);
+    const guint sub_id = g_dbus_connection_signal_subscribe(
+        connection, "org.freedesktop.login1", "org.freedesktop.login1.Manager",
+        "PrepareForSleep", "/org/freedesktop/login1", nullptr,
+        G_DBUS_SIGNAL_FLAGS_NONE, &LinuxPowerNotifier::on_signal, this,
+        nullptr);
+    g_main_loop_run(loop);
+    g_dbus_connection_signal_unsubscribe(connection, sub_id);
+    g_main_context_pop_thread_default(context);
   }
 
-  void on_signal([[maybe_unused]] const Glib::RefPtr<Gio::DBus::Connection>
-                     &connection_unused,
-                 [[maybe_unused]] const Glib::ustring &sender_name,
-                 [[maybe_unused]] const Glib::ustring &object_path,
-                 [[maybe_unused]] const Glib::ustring &interface_name,
-                 [[maybe_unused]] const Glib::ustring &signal_name,
-                 const Glib::VariantContainerBase &params) {
-    if (params.get_n_children() < 1)
+  static void on_signal([[maybe_unused]] GDBusConnection *connection,
+                        [[maybe_unused]] const gchar *sender_name,
+                        [[maybe_unused]] const gchar *object_path,
+                        [[maybe_unused]] const gchar *interface_name,
+                        [[maybe_unused]] const gchar *signal_name,
+                        GVariant *params, gpointer user_data) {
+    if (!g_variant_is_of_type(params, G_VARIANT_TYPE("(b)")))
       return;
-    Glib::Variant<bool> arg;
-    params.get_child(arg, 0);
+    gboolean suspending = FALSE;
+    g_variant_get(params, "(b)", &suspending);
+    auto *const self = static_cast<LinuxPowerNotifier *>(user_data);
     // NOLINTBEGIN(bugprone-empty-catch)
     try {
-      if (arg.get()) {
-        if (on_suspend)
-          on_suspend();
+      if (suspending) {
+        if (self->on_suspend)
+          self->on_suspend();
       } else {
-        if (on_resume)
-          on_resume();
+        if (self->on_resume)
+          self->on_resume();
       }
     } catch (...) {
     }
     // NOLINTEND(bugprone-empty-catch)
   }
 
+  static gboolean quit_loop(gpointer data) {
+    g_main_loop_quit(static_cast<GMainLoop *>(data));
+    return G_SOURCE_REMOVE;
+  }
+
 public:
   LinuxPowerNotifier(std::function<void()> on_suspend,
-                     std::function<void()> on_resume,
-                     Glib::RefPtr<Gio::DBus::Connection> conn)
+                     std::function<void()> on_resume, GDBusConnection *conn)
       : on_suspend(std::move(on_suspend)), on_resume(std::move(on_resume)),
-        context(Glib::MainContext::create()),
-        loop(Glib::MainLoop::create(context, false)),
-        connection(std::move(conn)) {
+        context(g_main_context_new()), loop(g_main_loop_new(context, FALSE)),
+        connection(conn) {
     thread = std::thread([this] { thread_main(); });
   }
 
   ~LinuxPowerNotifier() override {
-    context->invoke([this] {
-      loop->quit();
-      return false;
-    });
+    g_main_context_invoke(context, &LinuxPowerNotifier::quit_loop, loop);
     if (thread.joinable())
       thread.join();
+    g_main_loop_unref(loop);
+    g_main_context_unref(context);
+    g_object_unref(connection);
   }
 };
 } // namespace
@@ -149,16 +142,13 @@ public:
 std::unique_ptr<PowerNotifier>
 PowerNotifier::create(const std::function<void()> &on_suspend,
                       const std::function<void()> &on_resume) {
-  Gio::init();
-  try {
-    auto conn = Gio::DBus::Connection::get_sync(Gio::DBus::BusType::SYSTEM);
-    if (!conn)
-      return nullptr;
-    return std::make_unique<LinuxPowerNotifier>(on_suspend, on_resume,
-                                                std::move(conn));
-  } catch (const Glib::Error &) {
+  GError *error = nullptr;
+  GDBusConnection *conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, nullptr, &error);
+  if (error != nullptr)
+    g_error_free(error);
+  if (conn == nullptr)
     return nullptr;
-  }
+  return std::make_unique<LinuxPowerNotifier>(on_suspend, on_resume, conn);
 }
 
 bool PowerNotifier::supported() noexcept { return true; }

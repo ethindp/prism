@@ -4,7 +4,7 @@
 #define PRISM_ORCA_BRIDGE_H
 #include <stdbool.h>
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) && !defined(PRISM_ORCA_BRIDGE_NATIVE)
 #define PRISM_WINELIB_ABI __attribute__((ms_abi))
 #else
 #define PRISM_WINELIB_ABI

@@ -93,8 +93,6 @@
         pkgs: with pkgs; [
           speechd
           glib
-          glibmm_2_68
-          libsigcxx30
           dbus
           gst_all_1.gstreamer
           gst_all_1.gst-plugins-base

@@ -11,7 +11,8 @@ set(PRISM_BACKEND_ANCHORS "")
 
 function(prism_declare_backend NAME)
   cmake_parse_arguments(PB "LEGACY" "SOURCE;DOC;DEFAULT;LANGUAGE;FEATURE"
-                        "PLATFORM;ARCH;PKG_CONFIG;DEFINES" ${ARGN})
+                        "PLATFORM;ARCH;PKG_CONFIG;RUNTIME_PKG_CONFIG;DEFINES"
+                        ${ARGN})
   if(PB_UNPARSED_ARGUMENTS)
     message(
       FATAL_ERROR
@@ -41,6 +42,7 @@ function(prism_declare_backend NAME)
   endif()
   set(_missing "")
   set(_libs "")
+  set(_headers "")
   if(PB_PLATFORM)
     set(_this "")
     if(WIN32)
@@ -89,15 +91,20 @@ function(prism_declare_backend NAME)
   endif()
   if(NOT COMMAND pkg_check_modules)
     set(PB_PKG_CONFIG "")
+    set(PB_RUNTIME_PKG_CONFIG "")
   endif()
-  foreach(_mod IN LISTS PB_PKG_CONFIG)
+  # A RUNTIME_PKG_CONFIG module is only compiled against. The backend loads it
+  # itself, so a machine without it still loads prism.
+  foreach(_mod IN LISTS PB_PKG_CONFIG PB_RUNTIME_PKG_CONFIG)
     string(REGEX REPLACE "[><=].*$" "" _bare "${_mod}")
     string(MAKE_C_IDENTIFIER "${_bare}" _id)
     string(TOUPPER "${_id}" _id)
     if(NOT TARGET PkgConfig::PRISM_PC_${_id})
       pkg_check_modules(PRISM_PC_${_id} QUIET IMPORTED_TARGET "${_mod}")
     endif()
-    if(PRISM_PC_${_id}_FOUND)
+    if(PRISM_PC_${_id}_FOUND AND _mod IN_LIST PB_RUNTIME_PKG_CONFIG)
+      list(APPEND _headers PkgConfig::PRISM_PC_${_id})
+    elseif(PRISM_PC_${_id}_FOUND)
       list(APPEND _libs PkgConfig::PRISM_PC_${_id})
       set(_pcd "${PRISM_PKGCONFIG_FIND_DEPENDS}")
       list(
@@ -132,6 +139,12 @@ function(prism_declare_backend NAME)
   add_library(${_tgt} OBJECT
               "${PRISM_SOURCE_ROOT}/source/backends/${PB_SOURCE}")
   target_link_libraries(${_tgt} PRIVATE prism_common ${_libs})
+  foreach(_h IN LISTS _headers)
+    target_include_directories(
+      ${_tgt} PRIVATE $<TARGET_PROPERTY:${_h},INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_options(${_tgt}
+                           PRIVATE $<TARGET_PROPERTY:${_h},INTERFACE_COMPILE_OPTIONS>)
+  endforeach()
   target_compile_definitions(${_tgt}
                              PRIVATE PRISM_BACKEND_ANCHOR=prism_anchor_${NAME})
   set_target_properties(
@@ -335,7 +348,7 @@ prism_declare_backend(
   "speech-dispatcher"
   FEATURE
   PRISM_HAVE_SPEECHD
-  PKG_CONFIG
+  RUNTIME_PKG_CONFIG
   "speech-dispatcher")
 prism_declare_backend(
   spiel

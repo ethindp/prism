@@ -6,12 +6,14 @@
 #ifdef PRISM_HAVE_SPEECHD
 #include "../backend.h"
 #include "../backend_catalog.h"
+#include "../logging.h"
 #include "../utils.h"
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
 #include <cmath>
 #include <cstdlib>
+#include <dlfcn.h>
 #include <fmt/format.h>
 #include <libspeechd.h>
 #include <memory>
@@ -28,6 +30,62 @@
 #include <vector>
 
 namespace {
+#define PRISM_SPEECHD_FUNCTIONS(X)                                             \
+  X(spd_get_default_address)                                                   \
+  X(SPDConnectionAddress__free)                                                \
+  X(spd_open2)                                                                 \
+  X(spd_close)                                                                 \
+  X(spd_get_output_module)                                                     \
+  X(spd_stop)                                                                  \
+  X(spd_say)                                                                   \
+  X(spd_pause)                                                                 \
+  X(spd_resume)                                                                \
+  X(spd_set_volume)                                                            \
+  X(spd_get_volume)                                                            \
+  X(spd_set_voice_rate)                                                        \
+  X(spd_get_voice_rate)                                                        \
+  X(spd_set_voice_pitch)                                                       \
+  X(spd_get_voice_pitch)                                                       \
+  X(spd_list_modules)                                                          \
+  X(free_spd_modules)                                                          \
+  X(spd_set_output_module)                                                     \
+  X(spd_list_synthesis_voices)                                                 \
+  X(free_spd_voices)                                                           \
+  X(spd_set_synthesis_voice)
+
+struct Speechd {
+#define PRISM_SPEECHD_MEMBER(name) decltype(&::name) name;
+  PRISM_SPEECHD_FUNCTIONS(PRISM_SPEECHD_MEMBER)
+#undef PRISM_SPEECHD_MEMBER
+};
+
+const Speechd *load_speechd() {
+  static const std::optional<Speechd> loaded = []() -> std::optional<Speechd> {
+    static const LogSource log{"Speech Dispatcher"};
+    void *lib = dlopen("libspeechd.so.2", RTLD_NOW | RTLD_LOCAL);
+    if (lib == nullptr) {
+      const char *error = dlerror();
+      log.debug("libspeechd.so.2 could not be loaded: {}",
+                error != nullptr ? error : "unknown error");
+      return std::nullopt;
+    }
+    Speechd api{};
+    bool complete = true;
+#define PRISM_SPEECHD_RESOLVE(name)                                            \
+  api.name = reinterpret_cast<decltype(api.name)>(dlsym(lib, #name));          \
+  complete = complete && api.name != nullptr;
+    PRISM_SPEECHD_FUNCTIONS(PRISM_SPEECHD_RESOLVE)
+#undef PRISM_SPEECHD_RESOLVE
+    if (!complete) {
+      log.debug("libspeechd.so.2 is missing a function prism needs");
+      dlclose(lib);
+      return std::nullopt;
+    }
+    return api;
+  }();
+  return loaded ? &*loaded : nullptr;
+}
+
 struct VoiceInfo {
   std::string module;
   std::string name;
@@ -35,10 +93,11 @@ struct VoiceInfo {
 };
 
 struct ModulesGuard {
+  const Speechd *sd;
   char **m;
   ~ModulesGuard() {
     if (m != nullptr)
-      free_spd_modules(m);
+      sd->free_spd_modules(m);
   }
 };
 
@@ -67,6 +126,7 @@ bool nonblocking_connect_succeeded(int fd, int connect_result,
 
 class SpeechDispatcherBackend final : public TextToSpeechBackend {
 private:
+  const Speechd *sd{load_speechd()};
   SPDConnection *conn{nullptr};
   std::atomic_flag initialized;
   std::vector<VoiceInfo> voices;
@@ -78,7 +138,7 @@ private:
 public:
   ~SpeechDispatcherBackend() override {
     if (conn != nullptr) {
-      spd_close(conn);
+      sd->spd_close(conn);
       conn = nullptr;
     }
   }
@@ -90,7 +150,7 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    auto *addr = spd_get_default_address(nullptr);
+    auto *addr = sd != nullptr ? sd->spd_get_default_address(nullptr) : nullptr;
     if (addr != nullptr) {
       bool available = false;
       switch (addr->method) {
@@ -140,7 +200,7 @@ public:
         }
       } break;
       }
-      SPDConnectionAddress__free(addr);
+      sd->SPDConnectionAddress__free(addr);
       if (available)
         features |= IS_SUPPORTED_AT_RUNTIME;
     }
@@ -157,19 +217,21 @@ public:
   BackendResult<> initialize() override {
     if (conn != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
+    if (sd == nullptr)
+      return std::unexpected(BackendError::BackendNotAvailable);
     char *err = nullptr;
-    conn = spd_open2("PRISM", nullptr, nullptr, SPD_MODE_THREADED, nullptr, 1,
-                     &err);
+    conn = sd->spd_open2("PRISM", nullptr, nullptr, SPD_MODE_THREADED, nullptr,
+                         1, &err);
     if (conn == nullptr) {
       std::free(err);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (const auto res = refresh_voices(); !res) {
-      spd_close(conn);
+      sd->spd_close(conn);
       conn = nullptr;
       return res;
     }
-    char *raw_module = spd_get_output_module(conn);
+    char *raw_module = sd->spd_get_output_module(conn);
     if (raw_module != nullptr) {
       current_module = raw_module;
       std::free(raw_module);
@@ -185,11 +247,11 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
     if (interrupt) {
-      if (spd_stop(conn) != 0)
+      if (sd->spd_stop(conn) != 0)
         return std::unexpected(BackendError::InternalBackendError);
       paused.clear();
     }
-    if (const auto res = spd_say(conn, SPD_MESSAGE, text.data()); res < 0) {
+    if (const auto res = sd->spd_say(conn, SPD_MESSAGE, text.data()); res < 0) {
       return std::unexpected(BackendError::SpeakFailure);
     }
     return {};
@@ -203,7 +265,7 @@ public:
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_stop(conn); res != 0)
+    if (const auto res = sd->spd_stop(conn); res != 0)
       return std::unexpected(BackendError::InternalBackendError);
     paused.clear();
     return {};
@@ -215,7 +277,7 @@ public:
     if (paused.test_and_set())
       return std::unexpected(BackendError::AlreadyPaused);
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_pause(conn); res != 0) {
+    if (const auto res = sd->spd_pause(conn); res != 0) {
       paused.clear();
       return std::unexpected(BackendError::InternalBackendError);
     }
@@ -228,7 +290,7 @@ public:
     if (!paused.test())
       return std::unexpected(BackendError::NotPaused);
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_resume(conn); res != 0)
+    if (const auto res = sd->spd_resume(conn); res != 0)
       return std::unexpected(BackendError::InternalBackendError);
     paused.clear();
     return {};
@@ -244,7 +306,7 @@ public:
     auto const v = static_cast<std::int32_t>(std::round(
         range_convert(static_cast<double>(volume), 0.0, 1.0, -100.0, 100.0)));
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_set_volume(conn, v); res != 0) {
+    if (const auto res = sd->spd_set_volume(conn, v); res != 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     return {};
@@ -254,7 +316,7 @@ public:
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
-    auto const raw = spd_get_volume(conn);
+    auto const raw = sd->spd_get_volume(conn);
     if (raw < -100 || raw > 100)
       return std::unexpected(BackendError::InternalBackendError);
     return static_cast<float>(range_convert(raw, -100.0, 100.0, 0.0, 1.0));
@@ -270,7 +332,7 @@ public:
     auto const r = static_cast<std::int32_t>(std::round(
         range_convert(static_cast<double>(rate), 0.0, 1.0, -100.0, 100.0)));
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_set_voice_rate(conn, r); res != 0) {
+    if (const auto res = sd->spd_set_voice_rate(conn, r); res != 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     return {};
@@ -280,7 +342,7 @@ public:
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
-    auto const raw = spd_get_voice_rate(conn);
+    auto const raw = sd->spd_get_voice_rate(conn);
     if (raw < -100 || raw > 100)
       return std::unexpected(BackendError::InternalBackendError);
     return static_cast<float>(range_convert(raw, -100.0, 100.0, 0.0, 1.0));
@@ -296,7 +358,7 @@ public:
     auto const p = static_cast<std::int32_t>(std::round(
         range_convert(static_cast<double>(pitch), 0.0, 1.0, -100.0, 100.0)));
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_set_voice_pitch(conn, p); res != 0) {
+    if (const auto res = sd->spd_set_voice_pitch(conn, p); res != 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     return {};
@@ -306,7 +368,7 @@ public:
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
-    auto const raw = spd_get_voice_pitch(conn);
+    auto const raw = sd->spd_get_voice_pitch(conn);
     if (raw < -100 || raw > 100)
       return std::unexpected(BackendError::InternalBackendError);
     return static_cast<float>(range_convert(raw, -100.0, 100.0, 0.0, 1.0));
@@ -316,22 +378,22 @@ public:
     if (conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::unique_lock ul(state_lock);
-    char *saved_raw = spd_get_output_module(conn);
+    char *saved_raw = sd->spd_get_output_module(conn);
     if (saved_raw == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
     std::unique_ptr<char, decltype(&std::free)> saved_module(saved_raw,
                                                              std::free);
-    char **modules = spd_list_modules(conn);
+    char **modules = sd->spd_list_modules(conn);
     if (modules == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
-    ModulesGuard modules_guard{modules};
+    ModulesGuard modules_guard{sd, modules};
     std::vector<VoiceInfo> new_voices;
     std::vector<std::string> probed_ok;
     for (char **m = modules; *m != nullptr; ++m) {
-      if (spd_set_output_module(conn, *m) != 0)
+      if (sd->spd_set_output_module(conn, *m) != 0)
         continue;
       probed_ok.emplace_back(*m);
-      SPDVoice **vs = spd_list_synthesis_voices(conn);
+      SPDVoice **vs = sd->spd_list_synthesis_voices(conn);
       if (vs == nullptr)
         continue;
       for (SPDVoice **v = vs; *v != nullptr; ++v) {
@@ -341,18 +403,18 @@ public:
             .language = (*v)->language != nullptr ? (*v)->language : "",
         });
       }
-      free_spd_voices(vs);
+      sd->free_spd_voices(vs);
     }
     bool fully_restored = false;
     std::string restored_to;
-    if (spd_set_output_module(conn, saved_module.get()) == 0) {
+    if (sd->spd_set_output_module(conn, saved_module.get()) == 0) {
       fully_restored = true;
       restored_to = saved_module.get();
     } else {
       for (const auto &it : std::ranges::reverse_view(probed_ok)) {
         if (it == saved_module.get())
           continue;
-        if (spd_set_output_module(conn, it.data()) == 0) {
+        if (sd->spd_set_output_module(conn, it.data()) == 0) {
           restored_to = it;
           break;
         }
@@ -409,12 +471,12 @@ public:
     std::unique_lock ul(state_lock);
     if (id >= voices.size())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    if (spd_set_output_module(conn, voices[id].module.data()) != 0) {
+    if (sd->spd_set_output_module(conn, voices[id].module.data()) != 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
-    if (spd_set_synthesis_voice(conn, voices[id].name.data()) != 0) {
+    if (sd->spd_set_synthesis_voice(conn, voices[id].name.data()) != 0) {
       if (!current_module.empty() &&
-          spd_set_output_module(conn, current_module.data()) != 0) {
+          sd->spd_set_output_module(conn, current_module.data()) != 0) {
         current_module.clear();
         return std::unexpected(BackendError::BackendEnteredUndefinedState);
       }

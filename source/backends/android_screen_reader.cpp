@@ -61,8 +61,10 @@ public:
     if (env == nullptr) {
       return {};
     }
-    auto *cls =
-        env->FindClass("com/github/ethindp/prism/AndroidScreenReaderBackend");
+    auto *cls = static_cast<jclass>(env->NewLocalRef(
+        djinni::jniFindClass(
+            "com/github/ethindp/prism/AndroidScreenReaderBackend")
+            .get()));
     if (cls == nullptr) {
       if (env->ExceptionCheck() != 0)
         env->ExceptionClear();
@@ -95,14 +97,16 @@ public:
     return {};
   }
 
-  BackendResult<> initialize() override {
+  BackendResult<> initialize() override try {
     if (backend != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
     auto *jni_env = djinni::jniGetThreadEnv();
     if (jni_env == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
-    auto *java_class = jni_env->FindClass(
-        "com/github/ethindp/prism/AndroidScreenReaderBackend");
+    auto *java_class = static_cast<jclass>(jni_env->NewLocalRef(
+        djinni::jniFindClass(
+            "com/github/ethindp/prism/AndroidScreenReaderBackend")
+            .get()));
     if (java_class == nullptr) {
       if (jni_env->ExceptionCheck() != 0)
         jni_env->ExceptionClear();
@@ -135,6 +139,8 @@ public:
       return std::unexpected(static_cast<BackendError>(res.error()));
     backend = std::move(candidate);
     return {};
+  } catch (...) {
+    return std::unexpected(BackendError::BackendNotAvailable);
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {

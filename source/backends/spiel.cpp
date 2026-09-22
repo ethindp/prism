@@ -52,7 +52,8 @@ std::optional<Spiel> load_spiel() {
   static const LogSource log{"Spiel"};
   Spiel api{.library = SharedLibrary{"libspiel-1.0.so.1"}};
   if (!api.library) {
-    log.debug("libspiel-1.0.so.1 could not be loaded");
+    log.debug("libspiel-1.0.so.1 could not be loaded: {}",
+              SharedLibrary::last_error());
     return std::nullopt;
   }
   const SharedLibrary &library = api.library;

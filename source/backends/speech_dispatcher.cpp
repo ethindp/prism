@@ -61,7 +61,8 @@ std::optional<Speechd> load_speechd() {
   static const LogSource log{"Speech Dispatcher"};
   Speechd api{.library = SharedLibrary{"libspeechd.so.2"}};
   if (!api.library) {
-    log.debug("libspeechd.so.2 could not be loaded");
+    log.debug("libspeechd.so.2 could not be loaded: {}",
+              SharedLibrary::last_error());
     return std::nullopt;
   }
   const SharedLibrary &library = api.library;

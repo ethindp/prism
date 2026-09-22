@@ -13,6 +13,14 @@ public:
 
   explicit operator bool() const noexcept { return handle != nullptr; }
 
+  // The message belongs to the calling thread, so the thread safety the check
+  // asks about is not in question here.
+  [[nodiscard]] static const char *last_error() noexcept {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    const char *error = dlerror();
+    return error != nullptr ? error : "unknown error";
+  }
+
   // Binds one function, typed by the declaration the library's own header
   // gives it, so a changed signature fails to compile.
   template <class Function>

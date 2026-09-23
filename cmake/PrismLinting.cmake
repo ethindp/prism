@@ -25,6 +25,7 @@ file(
   "${PRISM_SOURCE_ROOT}/source/backends/raw/*.c"
   "${PRISM_SOURCE_ROOT}/source/backends/raw/*.cpp"
   "${PRISM_SOURCE_ROOT}/source/backends/raw/*.h")
+list(APPEND PRISM_UNLINTABLE "${PRISM_SOURCE_ROOT}/include/prism.h")
 if(ANDROID)
   file(GLOB_RECURSE _gen CONFIGURE_DEPENDS
        "${PRISM_SOURCE_ROOT}/source/backends/android/*.cpp"

@@ -80,19 +80,20 @@ private:
   std::condition_variable ready_cv;
   std::optional<bool> ready;
   moodycamel::ConcurrentQueue<Command> command_queue;
-  std::atomic_bool wake_pending;
+  std::atomic_flag wake_pending;
   std::atomic_flag initialized;
-  std::atomic_bool speaking;
-  std::atomic_bool paused;
+  std::atomic_flag speaking;
+  std::atomic_flag paused;
   std::atomic_size_t voice_idx{0};
   std::atomic<float> rate{0.5};
   std::atomic<float> pitch{0.5};
   std::atomic<float> volume{1.0}; // libspiel default is max (1.0)
   std::atomic<VoiceListPtr> voices_snapshot;
+  std::atomic_flag voices_stale;
 
   static gboolean on_drain_queue(gpointer ud) {
     auto *self = static_cast<SpielBackend *>(ud);
-    self->wake_pending.store(false);
+    self->wake_pending.clear(std::memory_order_release);
     Command cmd;
     while (self->command_queue.try_dequeue(cmd))
       self->dispatch(cmd);
@@ -160,23 +161,23 @@ private:
     return nullptr;
   }
 
-  void rebuild_voice_snapshot() {
+  void rebuild_voice_snapshot() noexcept try {
     if (speaker == nullptr)
       return;
     auto new_list = std::make_shared<VoiceList>();
     GListModel *model = spiel_speaker_get_voices(speaker);
     const guint n = g_list_model_get_n_items(model);
     for (guint i = 0; i < n; ++i) {
-      auto *v = SPIEL_VOICE(g_list_model_get_object(model, i));
-      const char *id = spiel_voice_get_identifier(v);
-      const char *name = spiel_voice_get_name(v);
-      const char *const *langs = spiel_voice_get_languages(v);
+      const std::unique_ptr<SpielVoice, decltype(&g_object_unref)> v(
+          SPIEL_VOICE(g_list_model_get_object(model, i)), g_object_unref);
+      const char *id = spiel_voice_get_identifier(v.get());
+      const char *name = spiel_voice_get_name(v.get());
+      const char *const *langs = spiel_voice_get_languages(v.get());
       if (id != nullptr && name != nullptr && langs != nullptr) {
         for (const char *const *lp = langs; *lp != nullptr; ++lp) {
           new_list->push_back({.id = id, .name = name, .language = *lp});
         }
       }
-      g_object_unref(v);
     }
     std::optional<std::pair<std::string, std::string>> preserve;
     if (auto old = voices_snapshot.load(std::memory_order_acquire); old) {
@@ -187,6 +188,7 @@ private:
     VoiceListPtr new_ptr =
         std::shared_ptr<const VoiceList>(std::move(new_list));
     voices_snapshot.store(new_ptr);
+    voices_stale.clear(std::memory_order_release);
     if (preserve.has_value()) {
       for (size_t i = 0; i < new_ptr->size(); ++i) {
         if ((*new_ptr)[i].id == preserve->first &&
@@ -198,6 +200,8 @@ private:
     }
     if (voice_idx.load(std::memory_order_acquire) >= new_ptr->size())
       voice_idx.store(0, std::memory_order_release);
+  } catch (...) {
+    voices_stale.test_and_set(std::memory_order_release);
   }
 
   static void on_notify_speaking(GObject *obj,
@@ -205,16 +209,22 @@ private:
                                  gpointer ud) {
     gboolean v = FALSE;
     g_object_get(obj, "speaking", &v, nullptr);
-    static_cast<SpielBackend *>(ud)->speaking.store(static_cast<bool>(v),
-                                                    std::memory_order_release);
+    auto &flag = static_cast<SpielBackend *>(ud)->speaking;
+    if (v != FALSE)
+      flag.test_and_set(std::memory_order_release);
+    else
+      flag.clear(std::memory_order_release);
   }
 
   static void on_notify_paused(GObject *obj, [[maybe_unused]] GParamSpec *spec,
                                gpointer ud) {
     gboolean v = FALSE;
     g_object_get(obj, "paused", &v, nullptr);
-    static_cast<SpielBackend *>(ud)->paused.store(static_cast<bool>(v),
-                                                  std::memory_order_release);
+    auto &flag = static_cast<SpielBackend *>(ud)->paused;
+    if (v != FALSE)
+      flag.test_and_set(std::memory_order_release);
+    else
+      flag.clear(std::memory_order_release);
   }
 
   static void on_voices_items_changed([[maybe_unused]] GListModel *model,
@@ -286,7 +296,7 @@ private:
 
   void post(Command cmd) {
     command_queue.enqueue(std::move(cmd));
-    if (!wake_pending.exchange(true, std::memory_order_acq_rel) &&
+    if (!wake_pending.test_and_set(std::memory_order_acq_rel) &&
         worker_ctx != nullptr) {
       g_main_context_invoke(worker_ctx, &SpielBackend::on_drain_queue, this);
     }
@@ -438,9 +448,9 @@ public:
   BackendResult<> pause() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    if (!speaking.load())
+    if (!speaking.test())
       return std::unexpected(BackendError::NotSpeaking);
-    if (paused.load())
+    if (paused.test())
       return std::unexpected(BackendError::AlreadyPaused);
     post(PauseCommand{});
     return {};
@@ -449,7 +459,7 @@ public:
   BackendResult<> resume() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    if (!paused.load())
+    if (!paused.test())
       return std::unexpected(BackendError::NotPaused);
     post(ResumeCommand{});
     return {};
@@ -458,7 +468,7 @@ public:
   BackendResult<bool> is_speaking() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    return speaking.load();
+    return speaking.test();
   }
 
   BackendResult<> set_rate(float v) override {
@@ -516,6 +526,8 @@ public:
   BackendResult<std::size_t> count_voices() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
+    if (voices_stale.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::MemoryFailure);
     const auto snap = voices_snapshot.load();
     return snap ? snap->size() : std::size_t{0};
   }
@@ -523,6 +535,8 @@ public:
   BackendResult<std::string> get_voice_name(std::size_t id) override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
+    if (voices_stale.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::MemoryFailure);
     const auto snap = voices_snapshot.load();
     if (snap == nullptr || id >= snap->size())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -532,6 +546,8 @@ public:
   BackendResult<std::string> get_voice_language(std::size_t id) override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
+    if (voices_stale.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::MemoryFailure);
     const auto snap = voices_snapshot.load(std::memory_order_acquire);
     if (snap == nullptr || id >= snap->size())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -541,6 +557,8 @@ public:
   BackendResult<> set_voice(std::size_t id) override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
+    if (voices_stale.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::MemoryFailure);
     const auto snap = voices_snapshot.load(std::memory_order_acquire);
     if (snap == nullptr || id >= snap->size())
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -551,6 +569,8 @@ public:
   BackendResult<std::size_t> get_voice() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
+    if (voices_stale.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::MemoryFailure);
     const auto snap = voices_snapshot.load(std::memory_order_acquire);
     if (snap == nullptr || snap->empty())
       return std::unexpected(BackendError::InternalBackendError);
@@ -563,4 +583,206 @@ public:
 
 REGISTER_BACKEND_WITH_ID(SpielBackend, Backends::Spiel, "Spiel", 96);
 #endif
+#elifdef _WIN32
+#include "../backend.h"
+#include "../backend_catalog.h"
+#include "../winelib_bridge.h"
+#include <atomic>
+#include <raw/prism_spiel_bridge.h>
+#include <utility>
+
+class SpielBackend final : public TextToSpeechBackend {
+private:
+  std::atomic<PrismSpielInstance *> instance{nullptr};
+
+public:
+  ~SpielBackend() override {
+    if (auto *const h = instance.exchange(nullptr); h != nullptr)
+      prism_spiel_destroy(h);
+  }
+
+  [[nodiscard]] std::string_view get_name() const override { return "Spiel"; }
+
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features;
+    if (running_under_wine() &&
+        prism_spiel_abi_version() == PRISM_SPIEL_BRIDGE_ABI_VERSION &&
+        prism_spiel_available() == PRISM_WINELIB_OK)
+      features |= IS_SUPPORTED_AT_RUNTIME;
+    features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP |
+                SUPPORTS_PAUSE | SUPPORTS_RESUME | SUPPORTS_IS_SPEAKING |
+                SUPPORTS_SET_RATE | SUPPORTS_GET_RATE | SUPPORTS_SET_PITCH |
+                SUPPORTS_GET_PITCH | SUPPORTS_SET_VOLUME | SUPPORTS_GET_VOLUME |
+                SUPPORTS_REFRESH_VOICES | SUPPORTS_COUNT_VOICES |
+                SUPPORTS_GET_VOICE_NAME | SUPPORTS_GET_VOICE_LANGUAGE |
+                SUPPORTS_GET_VOICE | SUPPORTS_SET_VOICE;
+    return features;
+  }
+
+  BackendResult<> initialize() override {
+    if (instance.load() != nullptr)
+      return std::unexpected(BackendError::AlreadyInitialized);
+    if (!running_under_wine())
+      return std::unexpected(BackendError::BackendNotAvailable);
+    if (prism_spiel_abi_version() != PRISM_SPIEL_BRIDGE_ABI_VERSION)
+      return std::unexpected(BackendError::IncompatibleAbi);
+    if (const auto r = winelib_result(prism_spiel_available()); !r)
+      return r;
+    PrismSpielInstance *h = nullptr;
+    if (const auto r = winelib_result(prism_spiel_create(&h)); !r)
+      return r;
+    if (h == nullptr)
+      return std::unexpected(BackendError::InternalBackendError);
+    instance.store(h);
+    return {};
+  }
+
+  BackendResult<> speak(std::string_view text, bool interrupt) override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_result(prism_spiel_speak(h, text.data(), interrupt ? 1 : 0));
+  }
+
+  BackendResult<> output(std::string_view text, bool interrupt) override {
+    return speak(text, interrupt);
+  }
+
+  BackendResult<> stop() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_result(prism_spiel_stop(h));
+  }
+
+  BackendResult<> pause() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_result(prism_spiel_pause(h));
+  }
+
+  BackendResult<> resume() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_result(prism_spiel_resume(h));
+  }
+
+  BackendResult<bool> is_speaking() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    std::int32_t speaking = 0;
+    if (const auto r = winelib_result(prism_spiel_is_speaking(h, &speaking));
+        !r)
+      return std::unexpected(r.error());
+    return speaking != 0;
+  }
+
+  BackendResult<> set_volume(float volume) override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_result(prism_spiel_set_volume(h, volume));
+  }
+
+  BackendResult<float> get_volume() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    float value = 0.0F;
+    if (const auto r = winelib_result(prism_spiel_get_volume(h, &value)); !r)
+      return std::unexpected(r.error());
+    return value;
+  }
+
+  BackendResult<> set_rate(float rate) override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_result(prism_spiel_set_rate(h, rate));
+  }
+
+  BackendResult<float> get_rate() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    float value = 0.0F;
+    if (const auto r = winelib_result(prism_spiel_get_rate(h, &value)); !r)
+      return std::unexpected(r.error());
+    return value;
+  }
+
+  BackendResult<> set_pitch(float pitch) override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_result(prism_spiel_set_pitch(h, pitch));
+  }
+
+  BackendResult<float> get_pitch() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    float value = 0.0F;
+    if (const auto r = winelib_result(prism_spiel_get_pitch(h, &value)); !r)
+      return std::unexpected(r.error());
+    return value;
+  }
+
+  BackendResult<> refresh_voices() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_result(prism_spiel_refresh_voices(h));
+  }
+
+  BackendResult<std::size_t> count_voices() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    std::uint32_t count = 0;
+    if (const auto r = winelib_result(prism_spiel_count_voices(h, &count)); !r)
+      return std::unexpected(r.error());
+    return count;
+  }
+
+  BackendResult<std::string> get_voice_name(std::size_t id) override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_fetch_string(prism_spiel_get_voice_name, h, id);
+  }
+
+  BackendResult<std::string> get_voice_language(std::size_t id) override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    return winelib_fetch_string(prism_spiel_get_voice_language, h, id);
+  }
+
+  BackendResult<> set_voice(std::size_t id) override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    if (!std::in_range<std::uint32_t>(id))
+      return std::unexpected(BackendError::RangeOutOfBounds);
+    return winelib_result(
+        prism_spiel_set_voice(h, static_cast<std::uint32_t>(id)));
+  }
+
+  BackendResult<std::size_t> get_voice() override {
+    auto *const h = instance.load();
+    if (h == nullptr)
+      return std::unexpected(BackendError::NotInitialized);
+    std::uint32_t idx = 0;
+    if (const auto r = winelib_result(prism_spiel_get_voice(h, &idx)); !r)
+      return std::unexpected(r.error());
+    return idx;
+  }
+};
+
+REGISTER_BACKEND_WITH_ID(SpielBackend, Backends::Spiel, "Spiel", 96);
 #endif

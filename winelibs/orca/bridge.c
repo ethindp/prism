@@ -237,7 +237,7 @@ PRISM_WINELIB_ABI bool prism_orca_speak(PrismOrcaDBusInstance *h,
   gboolean ok = FALSE;
   g_variant_get(reply, "(b)", &ok);
   g_variant_unref(reply);
-  return ok ? true : false;
+  return ok != FALSE;
 }
 
 PRISM_WINELIB_ABI bool prism_orca_stop(PrismOrcaDBusInstance *h) {
@@ -267,5 +267,5 @@ PRISM_WINELIB_ABI bool prism_orca_stop(PrismOrcaDBusInstance *h) {
   gboolean ok = FALSE;
   g_variant_get(reply, "(b)", &ok);
   g_variant_unref(reply);
-  return ok ? true : false;
+  return ok != FALSE;
 }

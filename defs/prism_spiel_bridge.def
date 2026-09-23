@@ -1,0 +1,23 @@
+LIBRARY "prism_spiel_bridge.dll"
+EXPORTS
+    prism_spiel_abi_version
+    prism_spiel_available
+    prism_spiel_create
+    prism_spiel_destroy
+    prism_spiel_speak
+    prism_spiel_stop
+    prism_spiel_pause
+    prism_spiel_resume
+    prism_spiel_is_speaking
+    prism_spiel_set_volume
+    prism_spiel_get_volume
+    prism_spiel_set_rate
+    prism_spiel_get_rate
+    prism_spiel_set_pitch
+    prism_spiel_get_pitch
+    prism_spiel_refresh_voices
+    prism_spiel_count_voices
+    prism_spiel_get_voice_name
+    prism_spiel_get_voice_language
+    prism_spiel_set_voice
+    prism_spiel_get_voice

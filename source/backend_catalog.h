@@ -32,8 +32,8 @@ constexpr BackendId operator""_bid(const char *str, std::size_t len) {
 
 constexpr BackendId make_backend_id(std::string_view str) {
   std::uint64_t hash = 0xCBF29CE484222325;
-  for (std::size_t i = 0; i < str.size(); ++i) {
-    hash ^= static_cast<std::uint64_t>(str[i]);
+  for (const char c : str) {
+    hash ^= static_cast<std::uint64_t>(c);
     hash *= 0x100000001B3;
   }
   return static_cast<BackendId>(hash);
@@ -85,26 +85,32 @@ private:
 
 template <typename T> struct BackendRegistrar {
   BackendRegistrar(BackendId id, const char *name, int priority) noexcept {
+    // NOLINTBEGIN(bugprone-empty-catch)
     try {
-      BackendCatalog::instance().add(
-          Registration{.id = id,
-                       .name = std::string{name},
-                       .priority = priority,
-                       .factory = []() { return std::make_shared<T>(); }});
+      BackendCatalog::instance().add(Registration{
+          .id = id,
+          .name = std::string{name},
+          .priority = priority,
+          .factory = [] { return std::make_shared<T>(); },
+      });
     } catch (...) {
     }
+    // NOLINTEND(bugprone-empty-catch)
   }
   BackendRegistrar(const char *name, int priority) noexcept {
+    // NOLINTBEGIN(bugprone-empty-catch)
     try {
       std::string owned{name};
       const auto id = make_backend_id(owned);
-      BackendCatalog::instance().add(
-          Registration{.id = id,
-                       .name = std::move(owned),
-                       .priority = priority,
-                       .factory = []() { return std::make_shared<T>(); }});
+      BackendCatalog::instance().add(Registration{
+          .id = id,
+          .name = std::move(owned),
+          .priority = priority,
+          .factory = [] { return std::make_shared<T>(); },
+      });
     } catch (...) {
     }
+    // NOLINTEND(bugprone-empty-catch)
   }
 };
 
@@ -118,11 +124,13 @@ template <typename T> struct BackendRegistrar {
 #endif
 
 #define REGISTER_BACKEND(cls, name, priority)                                  \
-  [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                    \
-  registrar_##cls##_(name, priority);                                          \
+  [[gnu::used,                                                                 \
+    gnu::retain]] static ::BackendRegistrar<cls> registrar_##cls##_(name,      \
+                                                                    priority); \
   PRISM_EMIT_ANCHOR
 
 #define REGISTER_BACKEND_WITH_ID(cls, id, name, priority)                      \
-  [[gnu::used, gnu::retain]] static ::BackendRegistrar<cls>                    \
-  registrar_##cls##_(id, name, priority);                                      \
+  [[gnu::used,                                                                 \
+    gnu::retain]] static ::BackendRegistrar<cls> registrar_##cls##_(id, name,  \
+                                                                    priority); \
   PRISM_EMIT_ANCHOR

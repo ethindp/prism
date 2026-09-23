@@ -56,9 +56,9 @@ A notification event produces speech only when an assistive technology consumes 
 
 If `UiaClientsAreListening` cannot be resolved from `uiautomationcore.dll` at runtime, the bit is never reported. Neither check activates a COM object, and neither requires COM to be initialized on the calling thread.
 
-The bit remains advisory, as for every other backend. Neither condition establishes that the listening client consumes notification events, or that the software which set the system screen reader flag is still running; the bit MAY therefore be reported when no announcement will be heard. Conversely, an assistive technology that consumes notification events without setting the system screen reader flag is not detected. The bit also does not reflect the window requirements that `prism_backend_initialize` enforces, which follow.
+The bit remains advisory, as for every other backend. Neither condition establishes that the listening client consumes notification events, or that the software which set the system screen reader flag is still running; the bit MAY therefore be reported when no announcement will be heard. Conversely, an assistive technology that consumes notification events without setting the system screen reader flag is not detected.
 
-The host process MUST own at least one top-level window that, at the moment of initialization, satisfies all of the following:
+In order for UIA to function, the host process MUST own at least one top-level window that, at the moment of initialization, satisfies all of the following:
 
 * `IsWindow` returns `TRUE`.
 * `IsWindowVisible` returns `TRUE`.
@@ -119,33 +119,29 @@ The Window Eyes backend is a legacy backend. The backend communicates with Windo
 
 ### Speech Dispatcher
 
-The speech dispatcher backend is registered in two variants:
+The Speech Dispatcher backend is available natively on Linux and BSD and through a Wine bridge to Windows applications running under Wine or Proton. The native and bridged variants use the same backend identifier and expose the same public Prism API. For more information about using the wine bridges, see the Wine Bridges chapter for build, deployment, and selection requirements.
 
-* The native variant is registered on Linux and BSD builds, links against `libspeechd`, and connects directly to a local speech-dispatcher daemon over its SSIP protocol. It reports the full feature set: speech output, voice management, pause and resume, and rate, pitch, and volume controls.
-* The Wine bridge variant is registered on Win32 builds with `PRISM_BUILD_WINELIBS` set, and is runtime-supported only when the host process is running under Wine. It bridges from the Win32 host through a Winelib component into a Linux-side speech-dispatcher reachable from the host process's WINE prefix. It reports only speech output and stop.
+The native variant's runtime-supported probe is a non-blocking connection attempt to the configured Speech Dispatcher socket address. The probe does not perform an SSIP handshake. The connection address is taken from the `SPEECHD_ADDRESS` environment variable if set, and from the platform default address otherwise. Most current Linux distributions configure their service manager to spawn Speech Dispatcher on first client connection. On systems without automatic spawning, the daemon MUST be started before the backend is initialized.
 
-The native variant's runtime-supported probe is a non-blocking connection attempt to the configured speech-dispatcher socket address. The probe does not perform an SSIP handshake. The connection address is taken from the `SPEECHD_ADDRESS` environment variable if set, and from the platform default address otherwise. Most current Linux distributions configure their service manager to spawn speech-dispatcher on first client connection. On systems without automatic spawning, the daemon MUST be started before the backend is initialized.
+For the Wine variant, Speech Dispatcher MUST be reachable from the Unix session in which Wine is running. A Wine or Proton environment that cannot reach the user's Speech Dispatcher service does not satisfy this requirement, even if the service is running elsewhere on the host.
 
 ### Orca
 
-The Orca backend is registered in two variants:
-
-* The native variant is registered on Linux and BSD builds, links against GIO, and connects directly to an Orca service on the session bus.
-* The Wine bridge variant is registered on Win32 builds with `PRISM_BUILD_WINELIBS` set, and is runtime-supported only when the host process is running under Wine. It bridges from the Win32 host through a Winelib component into a Linux-side session bus reachable from the host process's WINE prefix.
+The Orca backend is available natively on Linux and BSD and through a Wine bridge to Windows applications running under Wine or Proton. The native and bridged variants use the same backend identifier and expose the same public Prism API. For more information about using the wine bridges, see the Wine Bridges chapter for build, deployment, and selection requirements.
 
 The native variant's runtime-supported probe issues a `NameHasOwner` query against the session bus for the well-known names `org.gnome.Orca1.Service` and `org.gnome.Orca.Service`, in that order. For the first name that is owned, the probe issues a further method call on the matching speech-control interface to confirm that the remote-control interface is actually present. A process that owns one of the well-known names but does not answer on the speech-control interface is not reported as runtime-supported, and `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE` against it. The probe requires that the session bus be available to the host process. Headless environments and minimal SSH sessions that do not provide a session bus do not satisfy this requirement.
 
-The backend supports two variants of the Orca remote-control interface, the current one and an earlier one, and uses whichever the running Orca exposes. The remote-control interface is a recent addition to Orca; against an Orca that predates it, neither well-known name answers on the speech-control interface and initialization fails as described above.
+The backend supports two variants of the Orca remote-control interface: the current one, available in Orca 50 onwards, and a legacy one, which Orca used when the remote control feature was first introduced. The backend will automatically select whichever version the running Orca instance exposes. Backend initialization SHALL fail on an Orca release which does not implement the interface according to the semantics of D-bus. The Wine variant has the same requirement that the Orca service and its speech-control interface be reachable from the Unix session in which Wine is running.
 
 ### Spiel
 
-The Spiel backend is registered on Linux and BSD builds and communicates with Spiel speech providers through the session bus. The backend does not itself synthesize audio; synthesis is performed by whichever speech provider handles the utterance.
+The Spiel backend is available natively on Linux and BSD and through a Wine bridge to Windows applications running under Wine or Proton. In either form, Spiel communicates with speech providers associated with the user's session rather than synthesizing audio itself. The native and bridged versions of the backend support the same API. For more information about using the wine bridges, see the Wine Bridges chapter for build, deployment, and selection requirements.
 
-The runtime-supported probe requires a session D-Bus connection and at least one currently owned or activatable D-Bus service whose name ends in `.Speech.Provider`. Initialization will require that any speech providers be genuinely reachable. Headless environments and minimal SSH sessions that do not provide a session bus do not satisfy this requirement.
+The runtime-supported probe requires a session D-Bus connection and at least one currently owned or activatable D-Bus service whose name ends in `.Speech.Provider`. Initialization will require that any speech providers be genuinely reachable. Headless environments and minimal SSH sessions that do not provide a session bus do not satisfy this requirement. For the Wine variant, the same session services MUST be reachable from the Unix session in which Wine is running.
 
 A single Spiel voice that declares support for multiple languages appears in the backend's voice list as one entry per language, sharing the same name but with distinct language strings. The voice index selected through `prism_backend_set_voice` therefore identifies a `(voice, language)` pair, not a voice alone.
 
-Note: the Spiel backend is not currently enabled in release packages or the Python wheels because it is not in any distribution package repositories at this time. As such, enabling it would break loading of the library for apps. Once this situation is resolved, it will be re-enabled. If you wish to have access to the backend on your machine, you will need to build Prism and Spiel from source by hand or using a tool such as [vcpkg](https://github.com/microsoft/vcpkg).
+Note: the native Spiel backend is not currently enabled in release packages or the Python wheels because Spiel is not in the distribution package repositories used to build those artifacts at this time. If you wish to use the native backend on a system where it is not packaged, you will need to build Prism and Spiel from source by hand or using a tool such as [vcpkg](https://github.com/microsoft/vcpkg). Wine bridge availability is determined separately by whether the bridge supplied with the build contains Spiel and whether a compatible provider is reachable at run time.
 
 ### Android Text to Speech
 

@@ -57,15 +57,14 @@ static_assert(offsetof(HostBlock, host) == 0);
 
 void submit(PrismLogLevel level, const std::string &source,
             const char *message) noexcept {
-  Logger &lg = logger();
-  if (!lg.wants(level))
+  Logger *const lg = logger();
+  if (lg == nullptr || !lg->wants(level))
     return;
-  // NOLINTBEGIN(bugprone-empty-catch)
   try {
-    lg.submit(level, source, std::string{message});
+    lg->submit(level, source, std::string{message});
   } catch (...) {
+    lg->note_dropped();
   }
-  // NOLINTEND(bugprone-empty-catch)
 }
 
 void PRISM_CALL plugin_log(const PrismPluginServices *self, PrismLogLevel level,

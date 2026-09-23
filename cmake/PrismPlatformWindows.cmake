@@ -74,6 +74,8 @@ if(PRISM_ARCH_CLASS STREQUAL "x86")
   prism_add_import_library(
     PrismSpeechDispatcherBridge "${_defs}/prism_speech_dispatcher_bridge32.def"
     prism_speech_dispatcher_bridge.dll)
+  prism_add_import_library(PrismSpielBridge "${_defs}/prism_spiel_bridge32.def"
+                           prism_spiel_bridge.dll)
 elseif(PRISM_ARCH_CLASS STREQUAL "x64")
   prism_add_import_library(ZDSR "${_defs}/zdsr.def" ZDSRAPI_x64.dll)
   prism_add_import_library(byctrl "${_defs}/boy_pc_reader.def" byctrl-x64.dll)
@@ -83,6 +85,8 @@ elseif(PRISM_ARCH_CLASS STREQUAL "x64")
   prism_add_import_library(
     PrismSpeechDispatcherBridge "${_defs}/prism_speech_dispatcher_bridge.def"
     prism_speech_dispatcher_bridge.dll)
+  prism_add_import_library(PrismSpielBridge "${_defs}/prism_spiel_bridge.def"
+                           prism_spiel_bridge.dll)
 else()
   prism_add_import_library(PCTalker "${_defs}/pc_talker.def" PCTKUSR.dll)
   prism_add_import_library(PrismOrcaBridge "${_defs}/prism_orca_bridge.def"
@@ -90,6 +94,8 @@ else()
   prism_add_import_library(
     PrismSpeechDispatcherBridge "${_defs}/prism_speech_dispatcher_bridge.def"
     prism_speech_dispatcher_bridge.dll)
+  prism_add_import_library(PrismSpielBridge "${_defs}/prism_spiel_bridge.def"
+                           prism_spiel_bridge.dll)
 endif()
 if(MINGW)
   message(

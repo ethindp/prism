@@ -26,6 +26,7 @@ using std::hardware_destructive_interference_size;
 constexpr std::size_t hardware_destructive_interference_size = 64;
 #endif
 
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 class Logger {
 private:
   struct Record {
@@ -34,7 +35,7 @@ private:
     PrismLogLevel level = PRISM_LOG_LEVEL_INFO;
   };
 
-  enum class Lifecycle {
+  enum class Lifecycle : std::uint8_t {
     Running,
     Stopping,
     Stopped,
@@ -88,12 +89,16 @@ public:
 
   void submit(PrismLogLevel level, std::string source, std::string message);
 
+  void note_dropped() noexcept {
+    dropped.fetch_add(1, std::memory_order_relaxed);
+  }
+
   void flush();
 
   void shutdown() noexcept;
 };
 
-[[nodiscard]] Logger &logger() noexcept;
+[[nodiscard]] Logger *logger() noexcept;
 
 class LogSource {
 private:
@@ -102,28 +107,27 @@ private:
   template <typename... Args>
   void write(PrismLogLevel level, fmt::format_string<Args...> fmt,
              Args &&...args) const noexcept {
-    Logger &lg = logger();
-    if (!lg.wants(level))
+    Logger *const lg = logger();
+    if (lg == nullptr || !lg->wants(level))
       return;
     try {
-      lg.submit(level, name, fmt::format(fmt, std::forward<Args>(args)...));
+      lg->submit(level, name, fmt::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
-      // We swallow all exceptions here; they cannot be allowed to escape into a
-      // backends path.
+      lg->note_dropped();
     }
   }
 
   template <typename... Args>
   void write(PrismLogLevel level, fmt::wformat_string<Args...> fmt,
              Args &&...args) const noexcept {
-    Logger &lg = logger();
-    if (!lg.wants(level))
+    Logger *const lg = logger();
+    if (lg == nullptr || !lg->wants(level))
       return;
     try {
-      lg.submit(level, name,
-                to_utf8(fmt::format(fmt, std::forward<Args>(args)...)));
+      lg->submit(level, name,
+                 to_utf8(fmt::format(fmt, std::forward<Args>(args)...)));
     } catch (...) {
-      // Diddo for this overload as above
+      lg->note_dropped();
     }
   }
 

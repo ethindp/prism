@@ -548,24 +548,43 @@ prism_error_string(PrismError error) {
 
 PRISM_API PrismLogHandler PRISM_CALL
 prism_set_log_handler(PrismLogHandler handler) {
-  return logger().set_handler(handler);
+  Logger *const lg = logger();
+  return lg != nullptr ? lg->set_handler(handler) : PrismLogHandler{};
 }
 
 PRISM_API PrismLogLevel PRISM_CALL prism_set_log_level(PrismLogLevel level) {
-  return logger().set_level(level);
+  Logger *const lg = logger();
+  return lg != nullptr ? lg->set_level(level) : PRISM_LOG_LEVEL_NONE;
 }
 
 PRISM_API void PRISM_CALL prism_log(PrismLogLevel level, const char *source,
                                     const char *message) {
-  Logger &lg = logger();
-  if (!lg.wants(level))
+  Logger *const lg = logger();
+  if (lg == nullptr || !lg->wants(level))
     return;
-  lg.submit(level, source, message);
+  try {
+    lg->submit(level, source, message);
+  } catch (...) {
+    lg->note_dropped();
+  }
 }
 
-PRISM_API void PRISM_CALL prism_log_flush(void) { logger().flush(); }
+PRISM_API void PRISM_CALL prism_log_flush(void) {
+  Logger *const lg = logger();
+  if (lg == nullptr)
+    return;
+  // NOLINTBEGIN(bugprone-empty-catch)
+  try {
+    lg->flush();
+  } catch (...) {
+  }
+  // NOLINTEND(bugprone-empty-catch)
+}
 
-PRISM_API void PRISM_CALL prism_log_shutdown(void) { logger().shutdown(); }
+PRISM_API void PRISM_CALL prism_log_shutdown(void) {
+  if (Logger *const lg = logger(); lg != nullptr)
+    lg->shutdown();
+}
 
 PRISM_API PRISM_NODISCARD uint32_t PRISM_CALL prism_version(void) {
   return version;

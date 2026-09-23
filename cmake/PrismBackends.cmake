@@ -343,6 +343,7 @@ prism_declare_backend(
   spiel.cpp
   PLATFORM
   UNIX
+  WINDOWS
   DOC
   "Spiel speech framework"
   FEATURE
@@ -393,8 +394,7 @@ if(MSVC)
     else()
       set(_sym "prism_anchor_${_name}")
     endif()
-    string(APPEND _anchors
-           "#pragma comment(linker, \"/include:${_sym}\")
+    string(APPEND _anchors "#pragma comment(linker, \"/include:${_sym}\")
 ")
   endforeach()
 else()

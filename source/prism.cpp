@@ -9,6 +9,13 @@
 #ifdef PRISM_HAVE_BACKEND_ANCHORS
 #include "backend_anchors.h"
 #endif
+#ifdef _MSC_VER
+#if defined(_M_IX86)
+#pragma comment(linker, "/include:_prism_anchor_delayimp")
+#else
+#pragma comment(linker, "/include:prism_anchor_delayimp")
+#endif
+#endif
 #include <cmath>
 #include <cstdint>
 #include <limits>

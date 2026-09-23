@@ -114,10 +114,8 @@ template <typename T> struct BackendRegistrar {
   }
 };
 
-// gnu::used and gnu::retain keep a registrar within its object, but a static
-// link still drops the whole object, since nothing references it. The anchor
-// gives PrismBackends.cmake a symbol for prism.cpp to reference.
-#if defined(PRISM_BACKEND_ANCHOR)
+// Gives PrismBackends.cmake a symbol for prism.cpp to reference so the linker doesn't obliterate backends at LTO time.
+#ifdef PRISM_BACKEND_ANCHOR
 #define PRISM_EMIT_ANCHOR extern "C" void PRISM_BACKEND_ANCHOR() {}
 #else
 #define PRISM_EMIT_ANCHOR

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 package com.github.ethindp.prism;
 
-import com.ibm.icu.text.BreakIterator;
-import com.ibm.icu.util.ULocale;
+import android.icu.text.BreakIterator;
+import android.icu.util.ULocale;
 import java.nio.CharBuffer;
 import java.text.CharacterIterator;
 import java.util.ArrayList;

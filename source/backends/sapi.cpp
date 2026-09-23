@@ -157,6 +157,7 @@ private:
   std::atomic<std::size_t> audio_sample_rate{0};
   std::atomic<std::size_t> audio_bit_depth{0};
   std::atomic<IStream *> marshal_stream{nullptr};
+  std::atomic<ISpVoice *> raw_voice{nullptr};
   mutable std::mutex init_mtx;
   mutable std::condition_variable init_cv;
   std::optional<bool> ready = std::nullopt;
@@ -192,8 +193,19 @@ private:
       IStream *stream = nullptr;
       hr = CoMarshalInterThreadInterfaceInStream(__uuidof(ISpVoice),
                                                  local_voice, &stream);
-      if (FAILED(hr))
-        return;
+      if (FAILED(hr)) {
+        // No proxy/stub for ISpVoice (Wine's sapi lacks one, so this is the
+        // normal path there). Hand the caller the raw interface instead: the
+        // voice stays alive on this thread for as long as we pump, and the
+        // environments that reach this path use apartment-agnostic SAPI
+        // objects, so cross-thread calls on the raw pointer are safe.
+        logger.debug("marshaling ISpVoice failed ({:#010x}); handing out the "
+                     "raw interface",
+                     static_cast<std::uint32_t>(hr));
+        local_voice.p->AddRef();
+        raw_voice.store(local_voice.p, std::memory_order_release);
+        stream = nullptr;
+      }
       handshake.succeed(stream);
       while (true) {
         auto const r = MsgWaitForMultipleObjectsEx(
@@ -212,6 +224,11 @@ private:
           (void)CoReleaseMarshalData(stream);
         stream->Release();
       }
+      // If the raw-interface fallback published a voice that initialize()
+      // never claimed (e.g. it timed out), drop that reference too.
+      if (ISpVoice *unclaimed =
+              raw_voice.exchange(nullptr, std::memory_order_acq_rel))
+        unclaimed->Release();
     }
   }
 
@@ -502,6 +519,7 @@ public:
     stop_worker();
     reset_initialization_state_locked();
     IStream *stream = nullptr;
+    ISpVoice *raw = nullptr;
     {
       std::unique_lock lock(init_mtx);
       ready.reset();
@@ -509,21 +527,29 @@ public:
           [this](const std::stop_token &st) { this->thread_proc(st); });
       const bool signaled = init_cv.wait_for(
           lock, std::chrono::seconds(5), [this] { return ready.has_value(); });
-      if (signaled && ready.value_or(false))
+      if (signaled && ready.value_or(false)) {
         stream = marshal_stream.exchange(nullptr, std::memory_order_acq_rel);
-      if (!signaled || !ready.value_or(false) || stream == nullptr) {
+        raw = raw_voice.exchange(nullptr, std::memory_order_acq_rel);
+      }
+      if (!signaled || !ready.value_or(false) ||
+          (stream == nullptr && raw == nullptr)) {
         lock.unlock();
         stop_worker();
         reset_initialization_state_locked();
         return std::unexpected(BackendError::InternalBackendError);
       }
     }
-    HRESULT hr = CoGetInterfaceAndReleaseStream(
-        stream, __uuidof(ISpVoice), reinterpret_cast<void **>(&voice));
-    if (FAILED(hr) || voice == nullptr) {
-      stop_worker();
-      reset_initialization_state_locked();
-      return std::unexpected(BackendError::InternalBackendError);
+    HRESULT hr = S_OK;
+    if (stream != nullptr) {
+      hr = CoGetInterfaceAndReleaseStream(stream, __uuidof(ISpVoice),
+                                          reinterpret_cast<void **>(&voice));
+      if (FAILED(hr) || voice == nullptr) {
+        stop_worker();
+        reset_initialization_state_locked();
+        return std::unexpected(BackendError::InternalBackendError);
+      }
+    } else {
+      voice.Attach(raw); // worker already AddRef'd on our behalf
     }
     if (auto const res = refresh_voices_locked(); !res) {
       stop_worker();
@@ -546,12 +572,13 @@ public:
         }
       }
     }
-    if (auto const r = refresh_cached_output_params_locked(); !r) {
-      const auto error = r.error();
-      stop_worker();
-      reset_initialization_state_locked();
-      return std::unexpected(error);
-    }
+    // Cached output params only serve the get_channels/sample_rate/bit_depth
+    // queries, and some SAPI implementations (Wine) stub the underlying
+    // GetOutputStream; speech works without knowing the format, so a failure
+    // here is not worth failing initialization over.
+    if (auto const r = refresh_cached_output_params_locked(); !r)
+      logger.warn("output format unavailable; channel/rate/depth queries "
+                  "will report zero");
     initialized.test_and_set(std::memory_order_release);
     return {};
   }

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MPL-2.0
-name: Build iOS
+name: Build tvOS
 on:
   workflow_call:
 

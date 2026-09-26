@@ -329,6 +329,7 @@ if(TARGET prism_backend_orca AND NOT WIN32)
   target_include_directories(prism_backend_orca
                              PRIVATE "${PRISM_SOURCE_ROOT}/winelibs/orca")
   target_compile_definitions(prism_backend_orca PRIVATE PRISM_ORCA_BRIDGE_NATIVE)
+  set_property(TARGET prism_backend_orca PROPERTY C_STANDARD 17)
 endif()
 prism_declare_backend(
   speech_dispatcher

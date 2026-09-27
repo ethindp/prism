@@ -6,6 +6,8 @@
 #ifdef PRISM_HAVE_SPEECHD
 #include "../backend.h"
 #include "../backend_catalog.h"
+#include "../logging.h"
+#include "../shared_library.h"
 #include "../utils.h"
 #include <algorithm>
 #include <atomic>
@@ -28,18 +30,88 @@
 #include <vector>
 
 namespace {
+struct Speechd {
+  SharedLibrary library;
+  // Named for the library's own function, except the one whose name is
+  // reserved to the implementation.
+  decltype(&::SPDConnectionAddress__free) address_free;
+  decltype(&::spd_get_default_address) spd_get_default_address;
+  decltype(&::spd_open2) spd_open2;
+  decltype(&::spd_close) spd_close;
+  decltype(&::spd_get_output_module) spd_get_output_module;
+  decltype(&::spd_stop) spd_stop;
+  decltype(&::spd_say) spd_say;
+  decltype(&::spd_pause) spd_pause;
+  decltype(&::spd_resume) spd_resume;
+  decltype(&::spd_set_volume) spd_set_volume;
+  decltype(&::spd_get_volume) spd_get_volume;
+  decltype(&::spd_set_voice_rate) spd_set_voice_rate;
+  decltype(&::spd_get_voice_rate) spd_get_voice_rate;
+  decltype(&::spd_set_voice_pitch) spd_set_voice_pitch;
+  decltype(&::spd_get_voice_pitch) spd_get_voice_pitch;
+  decltype(&::spd_list_modules) spd_list_modules;
+  decltype(&::free_spd_modules) free_spd_modules;
+  decltype(&::spd_set_output_module) spd_set_output_module;
+  decltype(&::spd_list_synthesis_voices) spd_list_synthesis_voices;
+  decltype(&::free_spd_voices) free_spd_voices;
+  decltype(&::spd_set_synthesis_voice) spd_set_synthesis_voice;
+};
+
+std::optional<Speechd> load_speechd() {
+  static const LogSource log{"Speech Dispatcher"};
+  Speechd api{.library = SharedLibrary{"libspeechd.so.2"}};
+  if (!api.library) {
+    log.debug("libspeechd.so.2 could not be loaded: {}",
+              SharedLibrary::last_error());
+    return std::nullopt;
+  }
+  const SharedLibrary &library = api.library;
+  const bool complete =
+      library.bind(api.address_free, "SPDConnectionAddress__free") &&
+      library.bind(api.spd_get_default_address, "spd_get_default_address") &&
+      library.bind(api.spd_open2, "spd_open2") &&
+      library.bind(api.spd_close, "spd_close") &&
+      library.bind(api.spd_get_output_module, "spd_get_output_module") &&
+      library.bind(api.spd_stop, "spd_stop") &&
+      library.bind(api.spd_say, "spd_say") &&
+      library.bind(api.spd_pause, "spd_pause") &&
+      library.bind(api.spd_resume, "spd_resume") &&
+      library.bind(api.spd_set_volume, "spd_set_volume") &&
+      library.bind(api.spd_get_volume, "spd_get_volume") &&
+      library.bind(api.spd_set_voice_rate, "spd_set_voice_rate") &&
+      library.bind(api.spd_get_voice_rate, "spd_get_voice_rate") &&
+      library.bind(api.spd_set_voice_pitch, "spd_set_voice_pitch") &&
+      library.bind(api.spd_get_voice_pitch, "spd_get_voice_pitch") &&
+      library.bind(api.spd_list_modules, "spd_list_modules") &&
+      library.bind(api.free_spd_modules, "free_spd_modules") &&
+      library.bind(api.spd_set_output_module, "spd_set_output_module") &&
+      library.bind(api.spd_list_synthesis_voices,
+                   "spd_list_synthesis_voices") &&
+      library.bind(api.free_spd_voices, "free_spd_voices") &&
+      library.bind(api.spd_set_synthesis_voice, "spd_set_synthesis_voice");
+  if (!complete) {
+    log.debug("libspeechd.so.2 is missing a function prism needs");
+    return std::nullopt;
+  }
+  return api;
+}
+
+// Opened on the first call, then kept for the life of the process, so a
+// backend can hold the returned pointer without reopening anything.
+const Speechd *speechd() {
+  static const std::optional<Speechd> api = load_speechd();
+  return api ? &*api : nullptr;
+}
+
 struct VoiceInfo {
   std::string module;
   std::string name;
   std::string language;
 };
 
-struct ModulesGuard {
-  char **m;
-  ~ModulesGuard() {
-    if (m != nullptr)
-      free_spd_modules(m);
-  }
+struct FreeModules {
+  const Speechd *sd;
+  void operator()(char **modules) const { sd->free_spd_modules(modules); }
 };
 
 constexpr int connect_timeout_ms = 100;
@@ -67,6 +139,7 @@ bool nonblocking_connect_succeeded(int fd, int connect_result,
 
 class SpeechDispatcherBackend final : public TextToSpeechBackend {
 private:
+  const Speechd *sd{nullptr};
   SPDConnection *conn{nullptr};
   std::atomic_flag initialized;
   std::vector<VoiceInfo> voices;
@@ -78,7 +151,7 @@ private:
 public:
   ~SpeechDispatcherBackend() override {
     if (conn != nullptr) {
-      spd_close(conn);
+      sd->spd_close(conn);
       conn = nullptr;
     }
   }
@@ -90,7 +163,9 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    auto *addr = spd_get_default_address(nullptr);
+    const Speechd *api = speechd();
+    auto *addr =
+        api != nullptr ? api->spd_get_default_address(nullptr) : nullptr;
     if (addr != nullptr) {
       bool available = false;
       switch (addr->method) {
@@ -140,7 +215,7 @@ public:
         }
       } break;
       }
-      SPDConnectionAddress__free(addr);
+      api->address_free(addr);
       if (available)
         features |= IS_SUPPORTED_AT_RUNTIME;
     }
@@ -157,19 +232,22 @@ public:
   BackendResult<> initialize() override {
     if (conn != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
+    sd = speechd();
+    if (sd == nullptr)
+      return std::unexpected(BackendError::BackendNotAvailable);
     char *err = nullptr;
-    conn = spd_open2("PRISM", nullptr, nullptr, SPD_MODE_THREADED, nullptr, 1,
-                     &err);
+    conn = sd->spd_open2("PRISM", nullptr, nullptr, SPD_MODE_THREADED, nullptr,
+                         1, &err);
     if (conn == nullptr) {
       std::free(err);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (const auto res = refresh_voices(); !res) {
-      spd_close(conn);
+      sd->spd_close(conn);
       conn = nullptr;
       return res;
     }
-    char *raw_module = spd_get_output_module(conn);
+    char *raw_module = sd->spd_get_output_module(conn);
     if (raw_module != nullptr) {
       current_module = raw_module;
       std::free(raw_module);
@@ -185,11 +263,11 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
     if (interrupt) {
-      if (spd_stop(conn) != 0)
+      if (sd->spd_stop(conn) != 0)
         return std::unexpected(BackendError::InternalBackendError);
       paused.clear();
     }
-    if (const auto res = spd_say(conn, SPD_MESSAGE, text.data()); res < 0) {
+    if (const auto res = sd->spd_say(conn, SPD_MESSAGE, text.data()); res < 0) {
       return std::unexpected(BackendError::SpeakFailure);
     }
     return {};
@@ -203,7 +281,7 @@ public:
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_stop(conn); res != 0)
+    if (const auto res = sd->spd_stop(conn); res != 0)
       return std::unexpected(BackendError::InternalBackendError);
     paused.clear();
     return {};
@@ -215,7 +293,7 @@ public:
     if (paused.test_and_set())
       return std::unexpected(BackendError::AlreadyPaused);
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_pause(conn); res != 0) {
+    if (const auto res = sd->spd_pause(conn); res != 0) {
       paused.clear();
       return std::unexpected(BackendError::InternalBackendError);
     }
@@ -228,7 +306,7 @@ public:
     if (!paused.test())
       return std::unexpected(BackendError::NotPaused);
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_resume(conn); res != 0)
+    if (const auto res = sd->spd_resume(conn); res != 0)
       return std::unexpected(BackendError::InternalBackendError);
     paused.clear();
     return {};
@@ -244,7 +322,7 @@ public:
     auto const v = static_cast<std::int32_t>(std::round(
         range_convert(static_cast<double>(volume), 0.0, 1.0, -100.0, 100.0)));
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_set_volume(conn, v); res != 0) {
+    if (const auto res = sd->spd_set_volume(conn, v); res != 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     return {};
@@ -254,7 +332,7 @@ public:
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
-    auto const raw = spd_get_volume(conn);
+    auto const raw = sd->spd_get_volume(conn);
     if (raw < -100 || raw > 100)
       return std::unexpected(BackendError::InternalBackendError);
     return static_cast<float>(range_convert(raw, -100.0, 100.0, 0.0, 1.0));
@@ -270,7 +348,7 @@ public:
     auto const r = static_cast<std::int32_t>(std::round(
         range_convert(static_cast<double>(rate), 0.0, 1.0, -100.0, 100.0)));
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_set_voice_rate(conn, r); res != 0) {
+    if (const auto res = sd->spd_set_voice_rate(conn, r); res != 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     return {};
@@ -280,7 +358,7 @@ public:
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
-    auto const raw = spd_get_voice_rate(conn);
+    auto const raw = sd->spd_get_voice_rate(conn);
     if (raw < -100 || raw > 100)
       return std::unexpected(BackendError::InternalBackendError);
     return static_cast<float>(range_convert(raw, -100.0, 100.0, 0.0, 1.0));
@@ -296,7 +374,7 @@ public:
     auto const p = static_cast<std::int32_t>(std::round(
         range_convert(static_cast<double>(pitch), 0.0, 1.0, -100.0, 100.0)));
     std::shared_lock sl(state_lock);
-    if (const auto res = spd_set_voice_pitch(conn, p); res != 0) {
+    if (const auto res = sd->spd_set_voice_pitch(conn, p); res != 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     return {};
@@ -306,7 +384,7 @@ public:
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
-    auto const raw = spd_get_voice_pitch(conn);
+    auto const raw = sd->spd_get_voice_pitch(conn);
     if (raw < -100 || raw > 100)
       return std::unexpected(BackendError::InternalBackendError);
     return static_cast<float>(range_convert(raw, -100.0, 100.0, 0.0, 1.0));
@@ -316,22 +394,23 @@ public:
     if (conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::unique_lock ul(state_lock);
-    char *saved_raw = spd_get_output_module(conn);
+    char *saved_raw = sd->spd_get_output_module(conn);
     if (saved_raw == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
     std::unique_ptr<char, decltype(&std::free)> saved_module(saved_raw,
                                                              std::free);
-    char **modules = spd_list_modules(conn);
+    char **modules = sd->spd_list_modules(conn);
     if (modules == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
-    ModulesGuard modules_guard{modules};
+    const std::unique_ptr<char *, FreeModules> owned_modules(modules,
+                                                             FreeModules{sd});
     std::vector<VoiceInfo> new_voices;
     std::vector<std::string> probed_ok;
     for (char **m = modules; *m != nullptr; ++m) {
-      if (spd_set_output_module(conn, *m) != 0)
+      if (sd->spd_set_output_module(conn, *m) != 0)
         continue;
       probed_ok.emplace_back(*m);
-      SPDVoice **vs = spd_list_synthesis_voices(conn);
+      SPDVoice **vs = sd->spd_list_synthesis_voices(conn);
       if (vs == nullptr)
         continue;
       for (SPDVoice **v = vs; *v != nullptr; ++v) {
@@ -341,18 +420,18 @@ public:
             .language = (*v)->language != nullptr ? (*v)->language : "",
         });
       }
-      free_spd_voices(vs);
+      sd->free_spd_voices(vs);
     }
     bool fully_restored = false;
     std::string restored_to;
-    if (spd_set_output_module(conn, saved_module.get()) == 0) {
+    if (sd->spd_set_output_module(conn, saved_module.get()) == 0) {
       fully_restored = true;
       restored_to = saved_module.get();
     } else {
       for (const auto &it : std::ranges::reverse_view(probed_ok)) {
         if (it == saved_module.get())
           continue;
-        if (spd_set_output_module(conn, it.data()) == 0) {
+        if (sd->spd_set_output_module(conn, it.data()) == 0) {
           restored_to = it;
           break;
         }
@@ -409,12 +488,12 @@ public:
     std::unique_lock ul(state_lock);
     if (id >= voices.size())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    if (spd_set_output_module(conn, voices[id].module.data()) != 0) {
+    if (sd->spd_set_output_module(conn, voices[id].module.data()) != 0) {
       return std::unexpected(BackendError::InternalBackendError);
     }
-    if (spd_set_synthesis_voice(conn, voices[id].name.data()) != 0) {
+    if (sd->spd_set_synthesis_voice(conn, voices[id].name.data()) != 0) {
       if (!current_module.empty() &&
-          spd_set_output_module(conn, current_module.data()) != 0) {
+          sd->spd_set_output_module(conn, current_module.data()) != 0) {
         current_module.clear();
         return std::unexpected(BackendError::BackendEnteredUndefinedState);
       }

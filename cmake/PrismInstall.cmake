@@ -78,29 +78,6 @@ if(PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
         "find_package(PkgConfig REQUIRED)\n${_pkgconfig_joined}")
   endif()
 endif()
-if(WIN32 AND PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
-  foreach(_imp IN LISTS PRISM_WIN_IMPORT_LIBS)
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${_imp}.lib" DESTINATION lib)
-  endforeach()
-  set(PRISM_WIN_STATIC_IMPORT_LIBS "${PRISM_WIN_IMPORT_LIBS}")
-  # For consumers that never see prism-config.cmake. The DLL names are listed
-  # because a static consumer has to delay load them, or every screen reader
-  # becomes a hard dependency.
-  set(_manifest "")
-  list(LENGTH PRISM_WIN_IMPORT_LIBS _n)
-  math(EXPR _last "${_n} - 1")
-  foreach(_i RANGE ${_last})
-    list(GET PRISM_WIN_IMPORT_LIBS ${_i} _imp)
-    list(GET PRISM_WIN_DELAYLOAD ${_i} _dll)
-    string(APPEND _manifest "${_imp} ${_dll}
-")
-  endforeach()
-  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/prism-static-windows.txt" "${_manifest}")
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/prism-static-windows.txt"
-          DESTINATION lib)
-else()
-  set(PRISM_WIN_STATIC_IMPORT_LIBS "")
-endif()
 write_basic_package_version_file(
   "${CMAKE_CURRENT_BINARY_DIR}/prism-config-version.cmake"
   VERSION ${PROJECT_VERSION}

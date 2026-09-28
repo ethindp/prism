@@ -8,6 +8,8 @@
     defined(__i386__)
 #include "../backend.h"
 #include "../backend_catalog.h"
+#include "../logging.h"
+#include "../optional_library.h"
 #include <array>
 #include <atomic>
 #include <bitset>
@@ -15,6 +17,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <optional>
 #include <raw/boy_pc_reader.h>
 #include <shared_mutex>
 #include <simdutf.h>
@@ -24,6 +27,59 @@
 #include <tlhelp32.h>
 #include <utility>
 #include <windows.h>
+
+namespace {
+#if defined(_M_X64) || defined(__x86_64__)
+constexpr const wchar_t *boy_pc_reader_dll = L"byctrl-x64.dll";
+constexpr InstallLocation boy_pc_reader_install{
+    .subkey =
+        L"SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninst"
+        L"all\\{1F0FDAE0-3E94-4B86-8F08-C68E70D5D87D}_is1",
+    .value = L"InstallLocation"};
+#else
+constexpr const wchar_t *boy_pc_reader_dll = L"byctrl.dll";
+constexpr InstallLocation boy_pc_reader_install{
+    .subkey = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{"
+              L"1F0FDAE0-3E94-4B86-8F08-C68E70D5D87D}_is1",
+    .value = L"InstallLocation"};
+#endif
+
+struct BoyCtrl {
+  SharedLibrary library;
+  decltype(&::BoyCtrlInitializeU8) BoyCtrlInitializeU8;
+  decltype(&::BoyCtrlUninitialize) BoyCtrlUninitialize;
+  decltype(&::BoyCtrlIsReaderRunning) BoyCtrlIsReaderRunning;
+  decltype(&::BoyCtrlSpeak) BoyCtrlSpeak;
+  decltype(&::BoyCtrlStopSpeaking) BoyCtrlStopSpeaking;
+};
+
+std::optional<BoyCtrl> load_boy_ctrl() {
+  static const LogSource log{"BoyPCReader"};
+  BoyCtrl api{.library = open_optional_library(boy_pc_reader_dll,
+                                                    &boy_pc_reader_install)};
+  if (!api.library) {
+    log.debug(L"{} could not be loaded", boy_pc_reader_dll);
+    return std::nullopt;
+  }
+  const SharedLibrary &library = api.library;
+  const bool complete =
+      library.bind(api.BoyCtrlInitializeU8, "BoyCtrlInitializeU8") &&
+      library.bind(api.BoyCtrlUninitialize, "BoyCtrlUninitialize") &&
+      library.bind(api.BoyCtrlIsReaderRunning, "BoyCtrlIsReaderRunning") &&
+      library.bind(api.BoyCtrlSpeak, "BoyCtrlSpeak") &&
+      library.bind(api.BoyCtrlStopSpeaking, "BoyCtrlStopSpeaking");
+  if (!complete) {
+    log.debug(L"{} is missing a function prism needs", boy_pc_reader_dll);
+    return std::nullopt;
+  }
+  return api;
+}
+
+const BoyCtrl *boy_ctrl() {
+  static const std::optional<BoyCtrl> api = load_boy_ctrl();
+  return api ? &*api : nullptr;
+}
+} // namespace
 
 // Whoever designed this screen reader API needs to learn how to properly design
 // C callbacks...
@@ -90,6 +146,7 @@ private:
   std::atomic_flag initialized;
   std::atomic_flag speaking;
   BoyCtrlSpeakCompleteFunc complete_callback{nullptr};
+  const BoyCtrl *api = nullptr;
 
   static BackendError map_error(BoyCtrlError err) {
     switch (err) {
@@ -112,7 +169,7 @@ public:
       complete_callback = nullptr;
     }
     if (initialized.test())
-      BoyCtrlUninitialize();
+      api->BoyCtrlUninitialize();
   }
 
   [[nodiscard]] std::string_view get_name() const override {
@@ -151,15 +208,19 @@ public:
   BackendResult<> initialize() override {
     if (initialized.test())
       return std::unexpected(BackendError::AlreadyInitialized);
+    api = boy_ctrl();
+    if (api == nullptr)
+      return std::unexpected(BackendError::BackendNotAvailable);
     if (complete_callback == nullptr) {
       complete_callback = Slots::acquire(this);
       if (complete_callback == nullptr)
         return std::unexpected(BackendError::InternalBackendLimitExceeded);
     }
-    if (const auto res = BoyCtrlInitializeU8(nullptr); res != e_bcerr_success)
+    if (const auto res = api->BoyCtrlInitializeU8(nullptr);
+        res != e_bcerr_success)
       return std::unexpected(map_error(res));
-    if (!BoyCtrlIsReaderRunning()) {
-      BoyCtrlUninitialize();
+    if (!api->BoyCtrlIsReaderRunning()) {
+      api->BoyCtrlUninitialize();
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     initialized.test_and_set();
@@ -178,7 +239,7 @@ public:
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
     if (const auto res =
-            BoyCtrlSpeak(wstr.c_str(), !interrupt, complete_callback);
+            api->BoyCtrlSpeak(wstr.c_str(), !interrupt, complete_callback);
         res != e_bcerr_success)
       return std::unexpected(map_error(res));
     speaking.test_and_set();
@@ -192,7 +253,7 @@ public:
   BackendResult<bool> is_speaking() override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (!BoyCtrlIsReaderRunning())
+    if (!api->BoyCtrlIsReaderRunning())
       return std::unexpected(BackendError::BackendNotAvailable);
     return speaking.test();
   }
@@ -200,7 +261,7 @@ public:
   BackendResult<> stop() override {
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
-    if (const auto res = BoyCtrlStopSpeaking(); res != e_bcerr_success)
+    if (const auto res = api->BoyCtrlStopSpeaking(); res != e_bcerr_success)
       return std::unexpected(map_error(res));
     speaking.clear();
     return {};

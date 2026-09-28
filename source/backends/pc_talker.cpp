@@ -3,15 +3,62 @@
 #ifdef _WIN32
 #include "../backend.h"
 #include "../backend_catalog.h"
+#include "../logging.h"
+#include "../optional_library.h"
 #include <atomic>
 #include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <raw/pc_talker.h>
 #include <simdutf.h>
 #include <type_traits>
 #include <windows.h>
+
+namespace {
+constexpr const wchar_t *pc_talker_dll = L"PCTKUSR.dll";
+
+struct PcTalker {
+  SharedLibrary library;
+  decltype(&::PCTKStatus) PCTKStatus;
+  decltype(&::PCTKPReadW) PCTKPReadW;
+  decltype(&::PCTKVReset) PCTKVReset;
+  decltype(&::PCTKGetVStatus) PCTKGetVStatus;
+  decltype(&::PCTKPinStatus) PCTKPinStatus;
+  decltype(&::PCTKPinFocusW) PCTKPinFocusW;
+  decltype(&::PCTKPinIsFocus) PCTKPinIsFocus;
+  decltype(&::PCTKPinWriteW) PCTKPinWriteW;
+};
+
+std::optional<PcTalker> load_pc_talker() {
+  static const LogSource log{"PCTalker"};
+  PcTalker api{.library = open_optional_library(pc_talker_dll, nullptr)};
+  if (!api.library) {
+    log.debug(L"{} could not be loaded", pc_talker_dll);
+    return std::nullopt;
+  }
+  const SharedLibrary &library = api.library;
+  const bool complete = library.bind(api.PCTKStatus, "PCTKStatus") &&
+                        library.bind(api.PCTKPReadW, "PCTKPReadW") &&
+                        library.bind(api.PCTKVReset, "PCTKVReset") &&
+                        library.bind(api.PCTKGetVStatus, "PCTKGetVStatus") &&
+                        library.bind(api.PCTKPinStatus, "PCTKPinStatus") &&
+                        library.bind(api.PCTKPinFocusW, "PCTKPinFocusW") &&
+                        library.bind(api.PCTKPinIsFocus, "PCTKPinIsFocus") &&
+                        library.bind(api.PCTKPinWriteW, "PCTKPinWriteW");
+  if (!complete) {
+    log.debug(L"{} is missing a function prism needs", pc_talker_dll);
+    return std::nullopt;
+  }
+  return api;
+}
+
+const PcTalker *pc_talker() {
+  static const std::optional<PcTalker> api = load_pc_talker();
+  return api ? &*api : nullptr;
+}
+} // namespace
 
 class BrailleMarshaller {
 private:
@@ -22,13 +69,14 @@ private:
   std::function<void()> work;
   std::atomic_flag quit;
   bool lock_initialized = false;
+  const PcTalker *api = nullptr;
 
   static DWORD WINAPI ThreadProc(void *self) {
     return static_cast<BrailleMarshaller *>(self)->Run();
   }
 
   DWORD Run() {
-    PCTKPinStatus();
+    api->PCTKPinStatus();
     while (true) {
       if (WaitForSingleObject(request, INFINITE) != WAIT_OBJECT_0)
         return 0;
@@ -41,8 +89,9 @@ private:
   }
 
 public:
-  bool init() {
+  bool init(const PcTalker *library) {
     shutdown();
+    api = library;
     quit.clear(std::memory_order_release);
     request = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     done = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -116,6 +165,7 @@ private:
   std::atomic_unsigned_lock_free braille_context;
   std::atomic_flag initialized;
   BrailleMarshaller braille_marshaller;
+  const PcTalker *api = nullptr;
 
 public:
   ~PCTalkerBackend() override = default;
@@ -128,7 +178,8 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    if (PCTKStatus() != 0) {
+    if (const auto *library = pc_talker();
+        library != nullptr && library->PCTKStatus() != 0) {
       features |= IS_SUPPORTED_AT_RUNTIME;
     }
     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_BRAILLE |
@@ -140,10 +191,11 @@ public:
     if (initialized.test()) {
       return std::unexpected(BackendError::AlreadyInitialized);
     }
-    if (PCTKStatus() == 0) {
+    api = pc_talker();
+    if (api == nullptr || api->PCTKStatus() == 0) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    if (!braille_marshaller.init()) {
+    if (!braille_marshaller.init(api)) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     ULONGLONG it;
@@ -165,9 +217,9 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (PCTKPReadW(wstr.c_str(),
-                   interrupt ? PCTK_PRIORITY_OVERRIDE : PCTK_PRIORITY_LOW,
-                   TRUE) == 0) {
+    if (api->PCTKPReadW(wstr.c_str(),
+                        interrupt ? PCTK_PRIORITY_OVERRIDE : PCTK_PRIORITY_LOW,
+                        TRUE) == 0) {
       return std::unexpected(BackendError::SpeakFailure);
     }
     return {};
@@ -177,7 +229,7 @@ public:
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
     }
-    if (braille_marshaller.call([] { return PCTKPinStatus(); }) == 0) {
+    if (braille_marshaller.call([this] { return api->PCTKPinStatus(); }) == 0) {
       return std::unexpected(BackendError::InvalidOperation);
     }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
@@ -190,8 +242,9 @@ public:
       return std::unexpected(BackendError::InvalidUtf8);
     const auto ctx_val = braille_context.load();
     return braille_marshaller.call([&]() -> BackendResult<> {
-      if (ctx_val != 0 && PCTKPinIsFocus(static_cast<LONG_PTR>(ctx_val)) != 0) {
-        if (PCTKPinWriteW(wstr.c_str(), 0, 0) == 0) {
+      if (ctx_val != 0 &&
+          api->PCTKPinIsFocus(static_cast<LONG_PTR>(ctx_val)) != 0) {
+        if (api->PCTKPinWriteW(wstr.c_str(), 0, 0) == 0) {
           return std::unexpected(BackendError::InternalBackendError);
         }
         return {};
@@ -199,8 +252,8 @@ public:
         ULONGLONG it;
         QueryUnbiasedInterruptTime(&it);
         braille_context.store(it);
-        if (PCTKPinFocusW(static_cast<LONG_PTR>(it), wstr.c_str(),
-                          PCTK_PIN_MODE_DEFAULT, nullptr, 0) == 0) {
+        if (api->PCTKPinFocusW(static_cast<LONG_PTR>(it), wstr.c_str(),
+                               PCTK_PIN_MODE_DEFAULT, nullptr, 0) == 0) {
           return std::unexpected(BackendError::InternalBackendError);
         }
         return {};
@@ -213,14 +266,14 @@ public:
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
     }
-    return PCTKGetVStatus() != 0;
+    return api->PCTKGetVStatus() != 0;
   }
 
   BackendResult<> stop() override {
     if (!initialized.test()) {
       return std::unexpected(BackendError::NotInitialized);
     }
-    PCTKVReset();
+    api->PCTKVReset();
     return {};
   }
 
@@ -228,7 +281,7 @@ public:
     if (const auto res = speak(text, interrupt); !res) {
       return std::unexpected(res.error());
     }
-    if (braille_marshaller.call([] { return PCTKPinStatus(); }) != 0) {
+    if (braille_marshaller.call([this] { return api->PCTKPinStatus(); }) != 0) {
       if (const auto res = braille(text); !res) {
         return std::unexpected(res.error());
       }

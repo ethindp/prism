@@ -239,10 +239,52 @@ public:
 REGISTER_BACKEND_WITH_ID(OrcaBackend, Backends::Orca, "Orca", 100);
 #endif
 #elifdef _WIN32
+#include "../logging.h"
+#include "../optional_library.h"
 #include <atomic>
+#include <optional>
 #include <raw/prism_orca_bridge.h>
 #include <tchar.h>
 #include <windows.h>
+
+namespace {
+constexpr const wchar_t *orca_bridge_dll = L"prism_orca_bridge.dll";
+
+struct OrcaBridge {
+  SharedLibrary library;
+  decltype(&::prism_orca_available) prism_orca_available;
+  decltype(&::prism_orca_create) prism_orca_create;
+  decltype(&::prism_orca_destroy) prism_orca_destroy;
+  decltype(&::prism_orca_speak) prism_orca_speak;
+  decltype(&::prism_orca_stop) prism_orca_stop;
+};
+
+std::optional<OrcaBridge> load_orca_bridge() {
+  static const LogSource log{"Orca"};
+  OrcaBridge api{.library = open_optional_library(orca_bridge_dll, nullptr)};
+  if (!api.library) {
+    log.debug(L"{} could not be loaded", orca_bridge_dll);
+    return std::nullopt;
+  }
+  const SharedLibrary &library = api.library;
+  const bool complete =
+      library.bind(api.prism_orca_available, "prism_orca_available") &&
+      library.bind(api.prism_orca_create, "prism_orca_create") &&
+      library.bind(api.prism_orca_destroy, "prism_orca_destroy") &&
+      library.bind(api.prism_orca_speak, "prism_orca_speak") &&
+      library.bind(api.prism_orca_stop, "prism_orca_stop");
+  if (!complete) {
+    log.debug(L"{} is missing a function prism needs", orca_bridge_dll);
+    return std::nullopt;
+  }
+  return api;
+}
+
+const OrcaBridge *orca_bridge() {
+  static const std::optional<OrcaBridge> api = load_orca_bridge();
+  return api ? &*api : nullptr;
+}
+} // namespace
 
 class OrcaBackend final : public TextToSpeechBackend {
 private:
@@ -251,7 +293,7 @@ private:
 public:
   ~OrcaBackend() override {
     if (instance != nullptr) {
-      prism_orca_destroy(instance);
+      orca_bridge()->prism_orca_destroy(instance);
       instance = nullptr;
     }
   }
@@ -266,7 +308,7 @@ public:
       if (auto *const wgv_addr =
               GetProcAddress(ntdll_handle, "wine_get_version");
           wgv_addr != nullptr) {
-        if (prism_orca_available()) {
+        if (orca_bridge() != nullptr && orca_bridge()->prism_orca_available()) {
           features |= IS_SUPPORTED_AT_RUNTIME;
         }
       }
@@ -288,13 +330,14 @@ public:
           wgv_addr == nullptr) {
         return std::unexpected(BackendError::BackendNotAvailable);
       } else {
-        if (!prism_orca_available()) {
+        if (orca_bridge() == nullptr ||
+            !orca_bridge()->prism_orca_available()) {
           return std::unexpected(BackendError::BackendNotAvailable);
         }
       }
     }
     PrismOrcaDBusInstance *h = nullptr;
-    if (!prism_orca_create(&h)) {
+    if (!orca_bridge()->prism_orca_create(&h)) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (h == nullptr) {
@@ -311,7 +354,8 @@ public:
     if (interrupt)
       if (const auto res = stop(); !res)
         return res;
-    if (const auto res = prism_orca_speak(instance, text.data()); !res) {
+    if (const auto res = orca_bridge()->prism_orca_speak(instance, text.data());
+        !res) {
       return std::unexpected(BackendError::SpeakFailure);
     }
     return {};
@@ -325,7 +369,7 @@ public:
     if (instance == nullptr) {
       return std::unexpected(BackendError::NotInitialized);
     }
-    if (const auto res = prism_orca_stop(instance); !res) {
+    if (const auto res = orca_bridge()->prism_orca_stop(instance); !res) {
       return std::unexpected(BackendError::InternalBackendError);
     }
     return {};

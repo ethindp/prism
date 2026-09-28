@@ -30,35 +30,35 @@
 
 namespace {
 #if defined(_M_X64) || defined(__x86_64__)
-constexpr const wchar_t *boy_pc_reader_dll = L"byctrl-x64.dll";
+constexpr const TCHAR *boy_pc_reader_dll = _T("byctrl-x64.dll");
 constexpr InstallLocation boy_pc_reader_install{
     .subkey =
-        L"SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninst"
-        L"all\\{1F0FDAE0-3E94-4B86-8F08-C68E70D5D87D}_is1",
-    .value = L"InstallLocation"};
+        _T("SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninst")
+        _T("all\\{1F0FDAE0-3E94-4B86-8F08-C68E70D5D87D}_is1"),
+    .value = _T("InstallLocation")};
 #else
-constexpr const wchar_t *boy_pc_reader_dll = L"byctrl.dll";
+constexpr const TCHAR *boy_pc_reader_dll = _T("byctrl.dll");
 constexpr InstallLocation boy_pc_reader_install{
-    .subkey = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{"
-              L"1F0FDAE0-3E94-4B86-8F08-C68E70D5D87D}_is1",
-    .value = L"InstallLocation"};
+    .subkey = _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{")
+              _T("1F0FDAE0-3E94-4B86-8F08-C68E70D5D87D}_is1"),
+    .value = _T("InstallLocation")};
 #endif
 
 struct BoyCtrl {
   SharedLibrary library;
-  decltype(&::BoyCtrlInitializeU8) BoyCtrlInitializeU8;
-  decltype(&::BoyCtrlUninitialize) BoyCtrlUninitialize;
-  decltype(&::BoyCtrlIsReaderRunning) BoyCtrlIsReaderRunning;
-  decltype(&::BoyCtrlSpeak) BoyCtrlSpeak;
-  decltype(&::BoyCtrlStopSpeaking) BoyCtrlStopSpeaking;
+  decltype(&BoyCtrlInitializeU8) BoyCtrlInitializeU8;
+  decltype(&BoyCtrlUninitialize) BoyCtrlUninitialize;
+  decltype(&BoyCtrlIsReaderRunning) BoyCtrlIsReaderRunning;
+  decltype(&BoyCtrlSpeak) BoyCtrlSpeak;
+  decltype(&BoyCtrlStopSpeaking) BoyCtrlStopSpeaking;
 };
 
 std::optional<BoyCtrl> load_boy_ctrl() {
   static const LogSource log{"BoyPCReader"};
   BoyCtrl api{.library = open_optional_library(boy_pc_reader_dll,
-                                                    &boy_pc_reader_install)};
+                                               &boy_pc_reader_install)};
   if (!api.library) {
-    log.debug(L"{} could not be loaded", boy_pc_reader_dll);
+    log.debug(_T("{} could not be loaded"), boy_pc_reader_dll);
     return std::nullopt;
   }
   const SharedLibrary &library = api.library;
@@ -69,7 +69,7 @@ std::optional<BoyCtrl> load_boy_ctrl() {
       library.bind(api.BoyCtrlSpeak, "BoyCtrlSpeak") &&
       library.bind(api.BoyCtrlStopSpeaking, "BoyCtrlStopSpeaking");
   if (!complete) {
-    log.debug(L"{} is missing a function prism needs", boy_pc_reader_dll);
+    log.debug(_T("{} is missing a function prism needs"), boy_pc_reader_dll);
     return std::nullopt;
   }
   return api;

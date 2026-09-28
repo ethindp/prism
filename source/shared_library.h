@@ -14,8 +14,8 @@
 class SharedLibrary {
 public:
 #ifdef _WIN32
-  explicit SharedLibrary(const wchar_t *path) noexcept
-      : handle(LoadLibraryW(path)) {}
+  explicit SharedLibrary(const TCHAR *path) noexcept
+      : handle(LoadLibrary(path)) {}
 #else
   explicit SharedLibrary(const char *name) noexcept
       : handle(dlopen(name, RTLD_NOW | RTLD_LOCAL)) {}

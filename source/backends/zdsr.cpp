@@ -20,29 +20,29 @@
 
 namespace {
 #if defined(_M_X64) || defined(__x86_64__)
-constexpr const wchar_t *zdsr_dll = L"ZDSRAPI_x64.dll";
+constexpr const TCHAR *zdsr_dll = _T("ZDSRAPI_x64.dll");
 constexpr InstallLocation zdsr_install{
-    .subkey = L"SOFTWARE\\WOW6432Node\\zhiduo\\zdsr", .value = L"path"};
+    .subkey = _T("SOFTWARE\\WOW6432Node\\zhiduo\\zdsr"), .value = _T("path")};
 #else
-constexpr const wchar_t *zdsr_dll = L"ZDSRAPI.dll";
-constexpr InstallLocation zdsr_install{.subkey = L"SOFTWARE\\zhiduo\\zdsr",
-                                       .value = L"path"};
+constexpr const TCHAR *zdsr_dll = _T("ZDSRAPI.dll");
+constexpr InstallLocation zdsr_install{.subkey = _T("SOFTWARE\\zhiduo\\zdsr"),
+                                       .value = _T("path")};
 #endif
 
 struct Zdsr {
   SharedLibrary library;
-  decltype(&::InitTTS) InitTTS;
-  decltype(&::Speak) Speak;
-  decltype(&::GetSpeakState) GetSpeakState;
-  decltype(&::StopSpeak) StopSpeak;
-  decltype(&::Braille) Braille;
+  decltype(&InitTTS) InitTTS;
+  decltype(&Speak) Speak;
+  decltype(&GetSpeakState) GetSpeakState;
+  decltype(&StopSpeak) StopSpeak;
+  decltype(&Braille) Braille;
 };
 
 std::optional<Zdsr> load_zdsr() {
   static const LogSource log{"ZDSR"};
   Zdsr api{.library = open_optional_library(zdsr_dll, &zdsr_install)};
   if (!api.library) {
-    log.debug(L"{} could not be loaded", zdsr_dll);
+    log.debug(_T("{} could not be loaded"), zdsr_dll);
     return std::nullopt;
   }
   const SharedLibrary &library = api.library;
@@ -52,7 +52,7 @@ std::optional<Zdsr> load_zdsr() {
                         library.bind(api.StopSpeak, "StopSpeak") &&
                         library.bind(api.Braille, "Braille");
   if (!complete) {
-    log.debug(L"{} is missing a function prism needs", zdsr_dll);
+    log.debug(_T("{} is missing a function prism needs"), zdsr_dll);
     return std::nullopt;
   }
   return api;

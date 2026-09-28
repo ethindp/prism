@@ -13,29 +13,30 @@
 #include <optional>
 #include <raw/pc_talker.h>
 #include <simdutf.h>
+#include <tchar.h>
 #include <type_traits>
 #include <windows.h>
 
 namespace {
-constexpr const wchar_t *pc_talker_dll = L"PCTKUSR.dll";
+constexpr const TCHAR *pc_talker_dll = _T("PCTKUSR.dll");
 
 struct PcTalker {
   SharedLibrary library;
-  decltype(&::PCTKStatus) PCTKStatus;
-  decltype(&::PCTKPReadW) PCTKPReadW;
-  decltype(&::PCTKVReset) PCTKVReset;
-  decltype(&::PCTKGetVStatus) PCTKGetVStatus;
-  decltype(&::PCTKPinStatus) PCTKPinStatus;
-  decltype(&::PCTKPinFocusW) PCTKPinFocusW;
-  decltype(&::PCTKPinIsFocus) PCTKPinIsFocus;
-  decltype(&::PCTKPinWriteW) PCTKPinWriteW;
+  decltype(&PCTKStatus) PCTKStatus;
+  decltype(&PCTKPReadW) PCTKPReadW;
+  decltype(&PCTKVReset) PCTKVReset;
+  decltype(&PCTKGetVStatus) PCTKGetVStatus;
+  decltype(&PCTKPinStatus) PCTKPinStatus;
+  decltype(&PCTKPinFocusW) PCTKPinFocusW;
+  decltype(&PCTKPinIsFocus) PCTKPinIsFocus;
+  decltype(&PCTKPinWriteW) PCTKPinWriteW;
 };
 
 std::optional<PcTalker> load_pc_talker() {
   static const LogSource log{"PCTalker"};
   PcTalker api{.library = open_optional_library(pc_talker_dll, nullptr)};
   if (!api.library) {
-    log.debug(L"{} could not be loaded", pc_talker_dll);
+    log.debug(_T("{} could not be loaded"), pc_talker_dll);
     return std::nullopt;
   }
   const SharedLibrary &library = api.library;
@@ -48,7 +49,7 @@ std::optional<PcTalker> load_pc_talker() {
                         library.bind(api.PCTKPinIsFocus, "PCTKPinIsFocus") &&
                         library.bind(api.PCTKPinWriteW, "PCTKPinWriteW");
   if (!complete) {
-    log.debug(L"{} is missing a function prism needs", pc_talker_dll);
+    log.debug(_T("{} is missing a function prism needs"), pc_talker_dll);
     return std::nullopt;
   }
   return api;

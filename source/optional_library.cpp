@@ -6,20 +6,21 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <tchar.h>
 #include <windows.h>
 
 namespace {
 std::optional<std::filesystem::path> prism_folder() {
   static const int anchor = 0;
   HMODULE module = nullptr;
-  if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                             GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                         reinterpret_cast<LPCWSTR>(&anchor), &module) == 0)
+  if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                        reinterpret_cast<LPCTSTR>(&anchor), &module) == 0)
     return std::nullopt;
-  std::wstring path(MAX_PATH, L'\0');
+  std::basic_string<TCHAR> path(MAX_PATH, _T('\0'));
   while (true) {
-    const DWORD length = GetModuleFileNameW(module, path.data(),
-                                            static_cast<DWORD>(path.size()));
+    const DWORD length =
+        GetModuleFileName(module, path.data(), static_cast<DWORD>(path.size()));
     if (length == 0)
       return std::nullopt;
     if (length < path.size()) {
@@ -33,47 +34,47 @@ std::optional<std::filesystem::path> prism_folder() {
 std::optional<std::filesystem::path>
 install_folder(const InstallLocation &install) {
   DWORD size = 0;
-  if (RegGetValueW(HKEY_LOCAL_MACHINE, install.subkey, install.value,
-                   RRF_RT_REG_SZ, nullptr, nullptr, &size) != ERROR_SUCCESS)
+  if (RegGetValue(HKEY_LOCAL_MACHINE, install.subkey, install.value,
+                  RRF_RT_REG_SZ, nullptr, nullptr, &size) != ERROR_SUCCESS)
     return std::nullopt;
-  std::wstring folder(size / sizeof(wchar_t), L'\0');
-  if (RegGetValueW(HKEY_LOCAL_MACHINE, install.subkey, install.value,
-                   RRF_RT_REG_SZ, nullptr, folder.data(),
-                   &size) != ERROR_SUCCESS)
+  std::basic_string<TCHAR> folder(size / sizeof(TCHAR), _T('\0'));
+  if (RegGetValue(HKEY_LOCAL_MACHINE, install.subkey, install.value,
+                  RRF_RT_REG_SZ, nullptr, folder.data(),
+                  &size) != ERROR_SUCCESS)
     return std::nullopt;
-  folder.resize(folder.find(L'\0'));
+  folder.resize(folder.find(_T('\0')));
   if (folder.empty())
     return std::nullopt;
   return std::filesystem::path(folder);
 }
 } // namespace
 
-SharedLibrary open_optional_library(const wchar_t *dll,
+SharedLibrary open_optional_library(const TCHAR *dll,
                                     const InstallLocation *install) {
   static const LogSource log{"prism/optional_library"};
   SharedLibrary library{dll};
   if (library)
     return library;
-  log.trace(L"{} is not on the DLL search path (LastError={})", dll,
+  log.trace(_T("{} is not on the DLL search path (LastError={})"), dll,
             SharedLibrary::last_error());
   if (const auto folder = prism_folder()) {
     const auto path = *folder / dll;
-    library = SharedLibrary{path.c_str()};
+    library = SharedLibrary{path.string<TCHAR>().c_str()};
     if (library)
       return library;
-    log.trace(L"{} is not in {} (LastError={})", dll, folder->wstring(),
-              SharedLibrary::last_error());
+    log.trace(_T("{} is not in {} (LastError={})"), dll,
+              folder->string<TCHAR>(), SharedLibrary::last_error());
   }
   if (install != nullptr) {
     if (const auto folder = install_folder(*install)) {
       const auto path = *folder / dll;
-      library = SharedLibrary{path.c_str()};
+      library = SharedLibrary{path.string<TCHAR>().c_str()};
       if (library)
         return library;
-      log.trace(L"{} is not in {} (LastError={})", dll, folder->wstring(),
-                SharedLibrary::last_error());
+      log.trace(_T("{} is not in {} (LastError={})"), dll,
+                folder->string<TCHAR>(), SharedLibrary::last_error());
     } else {
-      log.trace(L"no install folder for {} in the registry", dll);
+      log.trace(_T("no install folder for {} in the registry"), dll);
     }
   }
   return library;

@@ -5,10 +5,10 @@
 #include "shared_library.h"
 
 struct InstallLocation {
-  const wchar_t *subkey;
-  const wchar_t *value;
+  const TCHAR *subkey;
+  const TCHAR *value;
 };
 
-SharedLibrary open_optional_library(const wchar_t *dll,
+SharedLibrary open_optional_library(const TCHAR *dll,
                                     const InstallLocation *install);
 #endif

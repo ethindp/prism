@@ -35,26 +35,26 @@ struct Speechd {
   // Named for the library's own function, except the one whose name is
   // reserved to the implementation.
   decltype(&SPDConnectionAddress__free) address_free;
-  decltype(&spd_get_default_address) spd_get_default_address;
-  decltype(&spd_open2) spd_open2;
-  decltype(&spd_close) spd_close;
-  decltype(&spd_get_output_module) spd_get_output_module;
-  decltype(&spd_stop) spd_stop;
-  decltype(&spd_say) spd_say;
-  decltype(&spd_pause) spd_pause;
-  decltype(&spd_resume) spd_resume;
-  decltype(&spd_set_volume) spd_set_volume;
-  decltype(&spd_get_volume) spd_get_volume;
-  decltype(&spd_set_voice_rate) spd_set_voice_rate;
-  decltype(&spd_get_voice_rate) spd_get_voice_rate;
-  decltype(&spd_set_voice_pitch) spd_set_voice_pitch;
-  decltype(&spd_get_voice_pitch) spd_get_voice_pitch;
-  decltype(&spd_list_modules) spd_list_modules;
-  decltype(&free_spd_modules) free_spd_modules;
-  decltype(&spd_set_output_module) spd_set_output_module;
-  decltype(&spd_list_synthesis_voices) spd_list_synthesis_voices;
-  decltype(&free_spd_voices) free_spd_voices;
-  decltype(&spd_set_synthesis_voice) spd_set_synthesis_voice;
+  decltype(&::spd_get_default_address) spd_get_default_address;
+  decltype(&::spd_open2) spd_open2;
+  decltype(&::spd_close) spd_close;
+  decltype(&::spd_get_output_module) spd_get_output_module;
+  decltype(&::spd_stop) spd_stop;
+  decltype(&::spd_say) spd_say;
+  decltype(&::spd_pause) spd_pause;
+  decltype(&::spd_resume) spd_resume;
+  decltype(&::spd_set_volume) spd_set_volume;
+  decltype(&::spd_get_volume) spd_get_volume;
+  decltype(&::spd_set_voice_rate) spd_set_voice_rate;
+  decltype(&::spd_get_voice_rate) spd_get_voice_rate;
+  decltype(&::spd_set_voice_pitch) spd_set_voice_pitch;
+  decltype(&::spd_get_voice_pitch) spd_get_voice_pitch;
+  decltype(&::spd_list_modules) spd_list_modules;
+  decltype(&::free_spd_modules) free_spd_modules;
+  decltype(&::spd_set_output_module) spd_set_output_module;
+  decltype(&::spd_list_synthesis_voices) spd_list_synthesis_voices;
+  decltype(&::free_spd_voices) free_spd_voices;
+  decltype(&::spd_set_synthesis_voice) spd_set_synthesis_voice;
 };
 
 std::optional<Speechd> load_speechd() {
@@ -536,26 +536,27 @@ constexpr const TCHAR *speechd_bridge_dll =
 
 struct SpeechdBridge {
   SharedLibrary library;
-  decltype(&prism_speechd_abi_version) prism_speechd_abi_version;
-  decltype(&prism_speechd_available) prism_speechd_available;
-  decltype(&prism_speechd_create) prism_speechd_create;
-  decltype(&prism_speechd_destroy) prism_speechd_destroy;
-  decltype(&prism_speechd_speak) prism_speechd_speak;
-  decltype(&prism_speechd_stop) prism_speechd_stop;
-  decltype(&prism_speechd_pause) prism_speechd_pause;
-  decltype(&prism_speechd_resume) prism_speechd_resume;
-  decltype(&prism_speechd_set_volume) prism_speechd_set_volume;
-  decltype(&prism_speechd_get_volume) prism_speechd_get_volume;
-  decltype(&prism_speechd_set_rate) prism_speechd_set_rate;
-  decltype(&prism_speechd_get_rate) prism_speechd_get_rate;
-  decltype(&prism_speechd_set_pitch) prism_speechd_set_pitch;
-  decltype(&prism_speechd_get_pitch) prism_speechd_get_pitch;
-  decltype(&prism_speechd_refresh_voices) prism_speechd_refresh_voices;
-  decltype(&prism_speechd_count_voices) prism_speechd_count_voices;
-  decltype(&prism_speechd_get_voice_name) prism_speechd_get_voice_name;
-  decltype(&prism_speechd_get_voice_language) prism_speechd_get_voice_language;
-  decltype(&prism_speechd_set_voice) prism_speechd_set_voice;
-  decltype(&prism_speechd_get_voice) prism_speechd_get_voice;
+  decltype(&::prism_speechd_abi_version) prism_speechd_abi_version;
+  decltype(&::prism_speechd_available) prism_speechd_available;
+  decltype(&::prism_speechd_create) prism_speechd_create;
+  decltype(&::prism_speechd_destroy) prism_speechd_destroy;
+  decltype(&::prism_speechd_speak) prism_speechd_speak;
+  decltype(&::prism_speechd_stop) prism_speechd_stop;
+  decltype(&::prism_speechd_pause) prism_speechd_pause;
+  decltype(&::prism_speechd_resume) prism_speechd_resume;
+  decltype(&::prism_speechd_set_volume) prism_speechd_set_volume;
+  decltype(&::prism_speechd_get_volume) prism_speechd_get_volume;
+  decltype(&::prism_speechd_set_rate) prism_speechd_set_rate;
+  decltype(&::prism_speechd_get_rate) prism_speechd_get_rate;
+  decltype(&::prism_speechd_set_pitch) prism_speechd_set_pitch;
+  decltype(&::prism_speechd_get_pitch) prism_speechd_get_pitch;
+  decltype(&::prism_speechd_refresh_voices) prism_speechd_refresh_voices;
+  decltype(&::prism_speechd_count_voices) prism_speechd_count_voices;
+  decltype(&::prism_speechd_get_voice_name) prism_speechd_get_voice_name;
+  decltype(&::prism_speechd_get_voice_language)
+      prism_speechd_get_voice_language;
+  decltype(&::prism_speechd_set_voice) prism_speechd_set_voice;
+  decltype(&::prism_speechd_get_voice) prism_speechd_get_voice;
 };
 
 std::optional<SpeechdBridge> load_speechd_bridge() {

@@ -29,23 +29,23 @@
 namespace {
 struct Spiel {
   SharedLibrary library;
-  decltype(&spiel_speaker_new) spiel_speaker_new;
-  decltype(&spiel_speaker_new_finish) spiel_speaker_new_finish;
-  decltype(&spiel_speaker_get_voices) spiel_speaker_get_voices;
-  decltype(&spiel_speaker_speak) spiel_speaker_speak;
-  decltype(&spiel_speaker_cancel) spiel_speaker_cancel;
-  decltype(&spiel_speaker_pause) spiel_speaker_pause;
-  decltype(&spiel_speaker_resume) spiel_speaker_resume;
-  decltype(&spiel_utterance_new) spiel_utterance_new;
-  decltype(&spiel_utterance_set_rate) spiel_utterance_set_rate;
-  decltype(&spiel_utterance_set_pitch) spiel_utterance_set_pitch;
-  decltype(&spiel_utterance_set_volume) spiel_utterance_set_volume;
-  decltype(&spiel_utterance_set_language) spiel_utterance_set_language;
-  decltype(&spiel_utterance_set_voice) spiel_utterance_set_voice;
-  decltype(&spiel_voice_get_type) spiel_voice_get_type;
-  decltype(&spiel_voice_get_identifier) spiel_voice_get_identifier;
-  decltype(&spiel_voice_get_name) spiel_voice_get_name;
-  decltype(&spiel_voice_get_languages) spiel_voice_get_languages;
+  decltype(&::spiel_speaker_new) spiel_speaker_new;
+  decltype(&::spiel_speaker_new_finish) spiel_speaker_new_finish;
+  decltype(&::spiel_speaker_get_voices) spiel_speaker_get_voices;
+  decltype(&::spiel_speaker_speak) spiel_speaker_speak;
+  decltype(&::spiel_speaker_cancel) spiel_speaker_cancel;
+  decltype(&::spiel_speaker_pause) spiel_speaker_pause;
+  decltype(&::spiel_speaker_resume) spiel_speaker_resume;
+  decltype(&::spiel_utterance_new) spiel_utterance_new;
+  decltype(&::spiel_utterance_set_rate) spiel_utterance_set_rate;
+  decltype(&::spiel_utterance_set_pitch) spiel_utterance_set_pitch;
+  decltype(&::spiel_utterance_set_volume) spiel_utterance_set_volume;
+  decltype(&::spiel_utterance_set_language) spiel_utterance_set_language;
+  decltype(&::spiel_utterance_set_voice) spiel_utterance_set_voice;
+  decltype(&::spiel_voice_get_type) spiel_voice_get_type;
+  decltype(&::spiel_voice_get_identifier) spiel_voice_get_identifier;
+  decltype(&::spiel_voice_get_name) spiel_voice_get_name;
+  decltype(&::spiel_voice_get_languages) spiel_voice_get_languages;
 };
 
 std::optional<Spiel> load_spiel() {
@@ -677,27 +677,27 @@ constexpr const TCHAR *spiel_bridge_dll = _T("prism_spiel_bridge.dll");
 
 struct SpielBridge {
   SharedLibrary library;
-  decltype(&prism_spiel_abi_version) prism_spiel_abi_version;
-  decltype(&prism_spiel_available) prism_spiel_available;
-  decltype(&prism_spiel_create) prism_spiel_create;
-  decltype(&prism_spiel_destroy) prism_spiel_destroy;
-  decltype(&prism_spiel_speak) prism_spiel_speak;
-  decltype(&prism_spiel_stop) prism_spiel_stop;
-  decltype(&prism_spiel_pause) prism_spiel_pause;
-  decltype(&prism_spiel_resume) prism_spiel_resume;
-  decltype(&prism_spiel_is_speaking) prism_spiel_is_speaking;
-  decltype(&prism_spiel_set_volume) prism_spiel_set_volume;
-  decltype(&prism_spiel_get_volume) prism_spiel_get_volume;
-  decltype(&prism_spiel_set_rate) prism_spiel_set_rate;
-  decltype(&prism_spiel_get_rate) prism_spiel_get_rate;
-  decltype(&prism_spiel_set_pitch) prism_spiel_set_pitch;
-  decltype(&prism_spiel_get_pitch) prism_spiel_get_pitch;
-  decltype(&prism_spiel_refresh_voices) prism_spiel_refresh_voices;
-  decltype(&prism_spiel_count_voices) prism_spiel_count_voices;
-  decltype(&prism_spiel_get_voice_name) prism_spiel_get_voice_name;
-  decltype(&prism_spiel_get_voice_language) prism_spiel_get_voice_language;
-  decltype(&prism_spiel_set_voice) prism_spiel_set_voice;
-  decltype(&prism_spiel_get_voice) prism_spiel_get_voice;
+  decltype(&::prism_spiel_abi_version) prism_spiel_abi_version;
+  decltype(&::prism_spiel_available) prism_spiel_available;
+  decltype(&::prism_spiel_create) prism_spiel_create;
+  decltype(&::prism_spiel_destroy) prism_spiel_destroy;
+  decltype(&::prism_spiel_speak) prism_spiel_speak;
+  decltype(&::prism_spiel_stop) prism_spiel_stop;
+  decltype(&::prism_spiel_pause) prism_spiel_pause;
+  decltype(&::prism_spiel_resume) prism_spiel_resume;
+  decltype(&::prism_spiel_is_speaking) prism_spiel_is_speaking;
+  decltype(&::prism_spiel_set_volume) prism_spiel_set_volume;
+  decltype(&::prism_spiel_get_volume) prism_spiel_get_volume;
+  decltype(&::prism_spiel_set_rate) prism_spiel_set_rate;
+  decltype(&::prism_spiel_get_rate) prism_spiel_get_rate;
+  decltype(&::prism_spiel_set_pitch) prism_spiel_set_pitch;
+  decltype(&::prism_spiel_get_pitch) prism_spiel_get_pitch;
+  decltype(&::prism_spiel_refresh_voices) prism_spiel_refresh_voices;
+  decltype(&::prism_spiel_count_voices) prism_spiel_count_voices;
+  decltype(&::prism_spiel_get_voice_name) prism_spiel_get_voice_name;
+  decltype(&::prism_spiel_get_voice_language) prism_spiel_get_voice_language;
+  decltype(&::prism_spiel_set_voice) prism_spiel_set_voice;
+  decltype(&::prism_spiel_get_voice) prism_spiel_get_voice;
 };
 
 std::optional<SpielBridge> load_spiel_bridge() {

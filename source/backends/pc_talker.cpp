@@ -22,14 +22,14 @@ constexpr const TCHAR *pc_talker_dll = _T("PCTKUSR.dll");
 
 struct PcTalker {
   SharedLibrary library;
-  decltype(&PCTKStatus) PCTKStatus;
-  decltype(&PCTKPReadW) PCTKPReadW;
-  decltype(&PCTKVReset) PCTKVReset;
-  decltype(&PCTKGetVStatus) PCTKGetVStatus;
-  decltype(&PCTKPinStatus) PCTKPinStatus;
-  decltype(&PCTKPinFocusW) PCTKPinFocusW;
-  decltype(&PCTKPinIsFocus) PCTKPinIsFocus;
-  decltype(&PCTKPinWriteW) PCTKPinWriteW;
+  decltype(&::PCTKStatus) PCTKStatus;
+  decltype(&::PCTKPReadW) PCTKPReadW;
+  decltype(&::PCTKVReset) PCTKVReset;
+  decltype(&::PCTKGetVStatus) PCTKGetVStatus;
+  decltype(&::PCTKPinStatus) PCTKPinStatus;
+  decltype(&::PCTKPinFocusW) PCTKPinFocusW;
+  decltype(&::PCTKPinIsFocus) PCTKPinIsFocus;
+  decltype(&::PCTKPinWriteW) PCTKPinWriteW;
 };
 
 std::optional<PcTalker> load_pc_talker() {

@@ -252,11 +252,11 @@ constexpr const TCHAR *orca_bridge_dll = _T("prism_orca_bridge.dll");
 
 struct OrcaBridge {
   SharedLibrary library;
-  decltype(&prism_orca_available) prism_orca_available;
-  decltype(&prism_orca_create) prism_orca_create;
-  decltype(&prism_orca_destroy) prism_orca_destroy;
-  decltype(&prism_orca_speak) prism_orca_speak;
-  decltype(&prism_orca_stop) prism_orca_stop;
+  decltype(&::prism_orca_available) prism_orca_available;
+  decltype(&::prism_orca_create) prism_orca_create;
+  decltype(&::prism_orca_destroy) prism_orca_destroy;
+  decltype(&::prism_orca_speak) prism_orca_speak;
+  decltype(&::prism_orca_stop) prism_orca_stop;
 };
 
 std::optional<OrcaBridge> load_orca_bridge() {

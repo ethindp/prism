@@ -663,19 +663,98 @@ REGISTER_BACKEND_WITH_ID(SpielBackend, Backends::Spiel, "Spiel", 96);
 #elifdef _WIN32
 #include "../backend.h"
 #include "../backend_catalog.h"
+#include "../logging.h"
+#include "../optional_library.h"
 #include "../winelib_bridge.h"
 #include <atomic>
+#include <optional>
 #include <raw/prism_spiel_bridge.h>
+#include <tchar.h>
 #include <utility>
+
+namespace {
+constexpr const TCHAR *spiel_bridge_dll = _T("prism_spiel_bridge.dll");
+
+struct SpielBridge {
+  SharedLibrary library;
+  decltype(&::prism_spiel_abi_version) prism_spiel_abi_version;
+  decltype(&::prism_spiel_available) prism_spiel_available;
+  decltype(&::prism_spiel_create) prism_spiel_create;
+  decltype(&::prism_spiel_destroy) prism_spiel_destroy;
+  decltype(&::prism_spiel_speak) prism_spiel_speak;
+  decltype(&::prism_spiel_stop) prism_spiel_stop;
+  decltype(&::prism_spiel_pause) prism_spiel_pause;
+  decltype(&::prism_spiel_resume) prism_spiel_resume;
+  decltype(&::prism_spiel_is_speaking) prism_spiel_is_speaking;
+  decltype(&::prism_spiel_set_volume) prism_spiel_set_volume;
+  decltype(&::prism_spiel_get_volume) prism_spiel_get_volume;
+  decltype(&::prism_spiel_set_rate) prism_spiel_set_rate;
+  decltype(&::prism_spiel_get_rate) prism_spiel_get_rate;
+  decltype(&::prism_spiel_set_pitch) prism_spiel_set_pitch;
+  decltype(&::prism_spiel_get_pitch) prism_spiel_get_pitch;
+  decltype(&::prism_spiel_refresh_voices) prism_spiel_refresh_voices;
+  decltype(&::prism_spiel_count_voices) prism_spiel_count_voices;
+  decltype(&::prism_spiel_get_voice_name) prism_spiel_get_voice_name;
+  decltype(&::prism_spiel_get_voice_language) prism_spiel_get_voice_language;
+  decltype(&::prism_spiel_set_voice) prism_spiel_set_voice;
+  decltype(&::prism_spiel_get_voice) prism_spiel_get_voice;
+};
+
+std::optional<SpielBridge> load_spiel_bridge() {
+  static const LogSource log{"Spiel"};
+  SpielBridge api{.library = open_optional_library(spiel_bridge_dll, nullptr)};
+  if (!api.library) {
+    log.debug(_T("{} could not be loaded"), spiel_bridge_dll);
+    return std::nullopt;
+  }
+  const SharedLibrary &library = api.library;
+  const bool complete =
+      library.bind(api.prism_spiel_abi_version, "prism_spiel_abi_version") &&
+      library.bind(api.prism_spiel_available, "prism_spiel_available") &&
+      library.bind(api.prism_spiel_create, "prism_spiel_create") &&
+      library.bind(api.prism_spiel_destroy, "prism_spiel_destroy") &&
+      library.bind(api.prism_spiel_speak, "prism_spiel_speak") &&
+      library.bind(api.prism_spiel_stop, "prism_spiel_stop") &&
+      library.bind(api.prism_spiel_pause, "prism_spiel_pause") &&
+      library.bind(api.prism_spiel_resume, "prism_spiel_resume") &&
+      library.bind(api.prism_spiel_is_speaking, "prism_spiel_is_speaking") &&
+      library.bind(api.prism_spiel_set_volume, "prism_spiel_set_volume") &&
+      library.bind(api.prism_spiel_get_volume, "prism_spiel_get_volume") &&
+      library.bind(api.prism_spiel_set_rate, "prism_spiel_set_rate") &&
+      library.bind(api.prism_spiel_get_rate, "prism_spiel_get_rate") &&
+      library.bind(api.prism_spiel_set_pitch, "prism_spiel_set_pitch") &&
+      library.bind(api.prism_spiel_get_pitch, "prism_spiel_get_pitch") &&
+      library.bind(api.prism_spiel_refresh_voices,
+                   "prism_spiel_refresh_voices") &&
+      library.bind(api.prism_spiel_count_voices, "prism_spiel_count_voices") &&
+      library.bind(api.prism_spiel_get_voice_name,
+                   "prism_spiel_get_voice_name") &&
+      library.bind(api.prism_spiel_get_voice_language,
+                   "prism_spiel_get_voice_language") &&
+      library.bind(api.prism_spiel_set_voice, "prism_spiel_set_voice") &&
+      library.bind(api.prism_spiel_get_voice, "prism_spiel_get_voice");
+  if (!complete) {
+    log.debug(_T("{} is missing a function prism needs"), spiel_bridge_dll);
+    return std::nullopt;
+  }
+  return api;
+}
+
+const SpielBridge *spiel_bridge() {
+  static const std::optional<SpielBridge> api = load_spiel_bridge();
+  return api ? &*api : nullptr;
+}
+} // namespace
 
 class SpielBackend final : public TextToSpeechBackend {
 private:
   std::atomic<PrismSpielInstance *> instance{nullptr};
+  const SpielBridge *api = nullptr;
 
 public:
   ~SpielBackend() override {
     if (auto *const h = instance.exchange(nullptr); h != nullptr)
-      prism_spiel_destroy(h);
+      api->prism_spiel_destroy(h);
   }
 
   [[nodiscard]] std::string_view get_name() const override { return "Spiel"; }
@@ -683,10 +762,13 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    if (running_under_wine() &&
-        prism_spiel_abi_version() == PRISM_SPIEL_BRIDGE_ABI_VERSION &&
-        prism_spiel_available() == PRISM_WINELIB_OK)
-      features |= IS_SUPPORTED_AT_RUNTIME;
+    if (running_under_wine()) {
+      if (const auto *bridge = spiel_bridge();
+          bridge != nullptr &&
+          bridge->prism_spiel_abi_version() == PRISM_SPIEL_BRIDGE_ABI_VERSION &&
+          bridge->prism_spiel_available() == PRISM_WINELIB_OK)
+        features |= IS_SUPPORTED_AT_RUNTIME;
+    }
     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP |
                 SUPPORTS_PAUSE | SUPPORTS_RESUME | SUPPORTS_IS_SPEAKING |
                 SUPPORTS_SET_RATE | SUPPORTS_GET_RATE | SUPPORTS_SET_PITCH |
@@ -702,12 +784,15 @@ public:
       return std::unexpected(BackendError::AlreadyInitialized);
     if (!running_under_wine())
       return std::unexpected(BackendError::BackendNotAvailable);
-    if (prism_spiel_abi_version() != PRISM_SPIEL_BRIDGE_ABI_VERSION)
+    api = spiel_bridge();
+    if (api == nullptr)
+      return std::unexpected(BackendError::BackendNotAvailable);
+    if (api->prism_spiel_abi_version() != PRISM_SPIEL_BRIDGE_ABI_VERSION)
       return std::unexpected(BackendError::IncompatibleAbi);
-    if (const auto r = winelib_result(prism_spiel_available()); !r)
+    if (const auto r = winelib_result(api->prism_spiel_available()); !r)
       return r;
     PrismSpielInstance *h = nullptr;
-    if (const auto r = winelib_result(prism_spiel_create(&h)); !r)
+    if (const auto r = winelib_result(api->prism_spiel_create(&h)); !r)
       return r;
     if (h == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
@@ -719,7 +804,8 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_spiel_speak(h, text.data(), interrupt ? 1 : 0));
+    return winelib_result(
+        api->prism_spiel_speak(h, text.data(), interrupt ? 1 : 0));
   }
 
   BackendResult<> output(std::string_view text, bool interrupt) override {
@@ -730,21 +816,21 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_spiel_stop(h));
+    return winelib_result(api->prism_spiel_stop(h));
   }
 
   BackendResult<> pause() override {
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_spiel_pause(h));
+    return winelib_result(api->prism_spiel_pause(h));
   }
 
   BackendResult<> resume() override {
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_spiel_resume(h));
+    return winelib_result(api->prism_spiel_resume(h));
   }
 
   BackendResult<bool> is_speaking() override {
@@ -752,7 +838,8 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::int32_t speaking = 0;
-    if (const auto r = winelib_result(prism_spiel_is_speaking(h, &speaking));
+    if (const auto r =
+            winelib_result(api->prism_spiel_is_speaking(h, &speaking));
         !r)
       return std::unexpected(r.error());
     return speaking != 0;
@@ -762,7 +849,7 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_spiel_set_volume(h, volume));
+    return winelib_result(api->prism_spiel_set_volume(h, volume));
   }
 
   BackendResult<float> get_volume() override {
@@ -770,7 +857,8 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     float value = 0.0F;
-    if (const auto r = winelib_result(prism_spiel_get_volume(h, &value)); !r)
+    if (const auto r = winelib_result(api->prism_spiel_get_volume(h, &value));
+        !r)
       return std::unexpected(r.error());
     return value;
   }
@@ -779,7 +867,7 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_spiel_set_rate(h, rate));
+    return winelib_result(api->prism_spiel_set_rate(h, rate));
   }
 
   BackendResult<float> get_rate() override {
@@ -787,7 +875,7 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     float value = 0.0F;
-    if (const auto r = winelib_result(prism_spiel_get_rate(h, &value)); !r)
+    if (const auto r = winelib_result(api->prism_spiel_get_rate(h, &value)); !r)
       return std::unexpected(r.error());
     return value;
   }
@@ -796,7 +884,7 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_spiel_set_pitch(h, pitch));
+    return winelib_result(api->prism_spiel_set_pitch(h, pitch));
   }
 
   BackendResult<float> get_pitch() override {
@@ -804,7 +892,8 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     float value = 0.0F;
-    if (const auto r = winelib_result(prism_spiel_get_pitch(h, &value)); !r)
+    if (const auto r = winelib_result(api->prism_spiel_get_pitch(h, &value));
+        !r)
       return std::unexpected(r.error());
     return value;
   }
@@ -813,7 +902,7 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_spiel_refresh_voices(h));
+    return winelib_result(api->prism_spiel_refresh_voices(h));
   }
 
   BackendResult<std::size_t> count_voices() override {
@@ -821,7 +910,8 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::uint32_t count = 0;
-    if (const auto r = winelib_result(prism_spiel_count_voices(h, &count)); !r)
+    if (const auto r = winelib_result(api->prism_spiel_count_voices(h, &count));
+        !r)
       return std::unexpected(r.error());
     return count;
   }
@@ -830,14 +920,14 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_fetch_string(prism_spiel_get_voice_name, h, id);
+    return winelib_fetch_string(api->prism_spiel_get_voice_name, h, id);
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override {
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_fetch_string(prism_spiel_get_voice_language, h, id);
+    return winelib_fetch_string(api->prism_spiel_get_voice_language, h, id);
   }
 
   BackendResult<> set_voice(std::size_t id) override {
@@ -847,7 +937,7 @@ public:
     if (!std::in_range<std::uint32_t>(id))
       return std::unexpected(BackendError::RangeOutOfBounds);
     return winelib_result(
-        prism_spiel_set_voice(h, static_cast<std::uint32_t>(id)));
+        api->prism_spiel_set_voice(h, static_cast<std::uint32_t>(id)));
   }
 
   BackendResult<std::size_t> get_voice() override {
@@ -855,7 +945,7 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::uint32_t idx = 0;
-    if (const auto r = winelib_result(prism_spiel_get_voice(h, &idx)); !r)
+    if (const auto r = winelib_result(api->prism_spiel_get_voice(h, &idx)); !r)
       return std::unexpected(r.error());
     return idx;
   }

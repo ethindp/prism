@@ -34,7 +34,7 @@ struct Speechd {
   SharedLibrary library;
   // Named for the library's own function, except the one whose name is
   // reserved to the implementation.
-  decltype(&::SPDConnectionAddress__free) address_free;
+  decltype(&SPDConnectionAddress__free) address_free;
   decltype(&::spd_get_default_address) spd_get_default_address;
   decltype(&::spd_open2) spd_open2;
   decltype(&::spd_close) spd_close;
@@ -521,19 +521,101 @@ REGISTER_BACKEND_WITH_ID(SpeechDispatcherBackend, Backends::SpeechDispatcher,
 #elifdef _WIN32
 #include "../backend.h"
 #include "../backend_catalog.h"
+#include "../logging.h"
+#include "../optional_library.h"
 #include "../winelib_bridge.h"
 #include <atomic>
+#include <optional>
 #include <raw/prism_speech_dispatcher_bridge.h>
+#include <tchar.h>
 #include <utility>
+
+namespace {
+constexpr const TCHAR *speechd_bridge_dll =
+    _T("prism_speech_dispatcher_bridge.dll");
+
+struct SpeechdBridge {
+  SharedLibrary library;
+  decltype(&::prism_speechd_abi_version) prism_speechd_abi_version;
+  decltype(&::prism_speechd_available) prism_speechd_available;
+  decltype(&::prism_speechd_create) prism_speechd_create;
+  decltype(&::prism_speechd_destroy) prism_speechd_destroy;
+  decltype(&::prism_speechd_speak) prism_speechd_speak;
+  decltype(&::prism_speechd_stop) prism_speechd_stop;
+  decltype(&::prism_speechd_pause) prism_speechd_pause;
+  decltype(&::prism_speechd_resume) prism_speechd_resume;
+  decltype(&::prism_speechd_set_volume) prism_speechd_set_volume;
+  decltype(&::prism_speechd_get_volume) prism_speechd_get_volume;
+  decltype(&::prism_speechd_set_rate) prism_speechd_set_rate;
+  decltype(&::prism_speechd_get_rate) prism_speechd_get_rate;
+  decltype(&::prism_speechd_set_pitch) prism_speechd_set_pitch;
+  decltype(&::prism_speechd_get_pitch) prism_speechd_get_pitch;
+  decltype(&::prism_speechd_refresh_voices) prism_speechd_refresh_voices;
+  decltype(&::prism_speechd_count_voices) prism_speechd_count_voices;
+  decltype(&::prism_speechd_get_voice_name) prism_speechd_get_voice_name;
+  decltype(&::prism_speechd_get_voice_language)
+      prism_speechd_get_voice_language;
+  decltype(&::prism_speechd_set_voice) prism_speechd_set_voice;
+  decltype(&::prism_speechd_get_voice) prism_speechd_get_voice;
+};
+
+std::optional<SpeechdBridge> load_speechd_bridge() {
+  static const LogSource log{"Speech Dispatcher"};
+  SpeechdBridge api{.library =
+                        open_optional_library(speechd_bridge_dll, nullptr)};
+  if (!api.library) {
+    log.debug(_T("{} could not be loaded"), speechd_bridge_dll);
+    return std::nullopt;
+  }
+  const SharedLibrary &library = api.library;
+  const bool complete =
+      library.bind(api.prism_speechd_abi_version,
+                   "prism_speechd_abi_version") &&
+      library.bind(api.prism_speechd_available, "prism_speechd_available") &&
+      library.bind(api.prism_speechd_create, "prism_speechd_create") &&
+      library.bind(api.prism_speechd_destroy, "prism_speechd_destroy") &&
+      library.bind(api.prism_speechd_speak, "prism_speechd_speak") &&
+      library.bind(api.prism_speechd_stop, "prism_speechd_stop") &&
+      library.bind(api.prism_speechd_pause, "prism_speechd_pause") &&
+      library.bind(api.prism_speechd_resume, "prism_speechd_resume") &&
+      library.bind(api.prism_speechd_set_volume, "prism_speechd_set_volume") &&
+      library.bind(api.prism_speechd_get_volume, "prism_speechd_get_volume") &&
+      library.bind(api.prism_speechd_set_rate, "prism_speechd_set_rate") &&
+      library.bind(api.prism_speechd_get_rate, "prism_speechd_get_rate") &&
+      library.bind(api.prism_speechd_set_pitch, "prism_speechd_set_pitch") &&
+      library.bind(api.prism_speechd_get_pitch, "prism_speechd_get_pitch") &&
+      library.bind(api.prism_speechd_refresh_voices,
+                   "prism_speechd_refresh_voices") &&
+      library.bind(api.prism_speechd_count_voices,
+                   "prism_speechd_count_voices") &&
+      library.bind(api.prism_speechd_get_voice_name,
+                   "prism_speechd_get_voice_name") &&
+      library.bind(api.prism_speechd_get_voice_language,
+                   "prism_speechd_get_voice_language") &&
+      library.bind(api.prism_speechd_set_voice, "prism_speechd_set_voice") &&
+      library.bind(api.prism_speechd_get_voice, "prism_speechd_get_voice");
+  if (!complete) {
+    log.debug(_T("{} is missing a function prism needs"), speechd_bridge_dll);
+    return std::nullopt;
+  }
+  return api;
+}
+
+const SpeechdBridge *speechd_bridge() {
+  static const std::optional<SpeechdBridge> api = load_speechd_bridge();
+  return api ? &*api : nullptr;
+}
+} // namespace
 
 class SpeechDispatcherBackend final : public TextToSpeechBackend {
 private:
   std::atomic<PrismSpeechDispatcherInstance *> instance{nullptr};
+  const SpeechdBridge *api = nullptr;
 
 public:
   ~SpeechDispatcherBackend() override {
     if (auto *const h = instance.exchange(nullptr); h != nullptr)
-      prism_speechd_destroy(h);
+      api->prism_speechd_destroy(h);
   }
 
   [[nodiscard]] std::string_view get_name() const override {
@@ -543,10 +625,14 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    if (running_under_wine() &&
-        prism_speechd_abi_version() == PRISM_SPEECHD_BRIDGE_ABI_VERSION &&
-        prism_speechd_available() == PRISM_WINELIB_OK)
-      features |= IS_SUPPORTED_AT_RUNTIME;
+    if (running_under_wine()) {
+      if (const auto *bridge = speechd_bridge();
+          bridge != nullptr &&
+          bridge->prism_speechd_abi_version() ==
+              PRISM_SPEECHD_BRIDGE_ABI_VERSION &&
+          bridge->prism_speechd_available() == PRISM_WINELIB_OK)
+        features |= IS_SUPPORTED_AT_RUNTIME;
+    }
     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP |
                 SUPPORTS_SET_VOLUME | SUPPORTS_GET_VOLUME | SUPPORTS_SET_RATE |
                 SUPPORTS_GET_RATE | SUPPORTS_SET_PITCH | SUPPORTS_GET_PITCH |
@@ -562,12 +648,15 @@ public:
       return std::unexpected(BackendError::AlreadyInitialized);
     if (!running_under_wine())
       return std::unexpected(BackendError::BackendNotAvailable);
-    if (prism_speechd_abi_version() != PRISM_SPEECHD_BRIDGE_ABI_VERSION)
+    api = speechd_bridge();
+    if (api == nullptr)
+      return std::unexpected(BackendError::BackendNotAvailable);
+    if (api->prism_speechd_abi_version() != PRISM_SPEECHD_BRIDGE_ABI_VERSION)
       return std::unexpected(BackendError::IncompatibleAbi);
-    if (const auto r = winelib_result(prism_speechd_available()); !r)
+    if (const auto r = winelib_result(api->prism_speechd_available()); !r)
       return r;
     PrismSpeechDispatcherInstance *h = nullptr;
-    if (const auto r = winelib_result(prism_speechd_create(&h)); !r)
+    if (const auto r = winelib_result(api->prism_speechd_create(&h)); !r)
       return r;
     if (h == nullptr)
       return std::unexpected(BackendError::InternalBackendError);
@@ -580,7 +669,7 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     return winelib_result(
-        prism_speechd_speak(h, text.data(), interrupt ? 1 : 0));
+        api->prism_speechd_speak(h, text.data(), interrupt ? 1 : 0));
   }
 
   BackendResult<> output(std::string_view text, bool interrupt) override {
@@ -591,28 +680,28 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_speechd_stop(h));
+    return winelib_result(api->prism_speechd_stop(h));
   }
 
   BackendResult<> pause() override {
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_speechd_pause(h));
+    return winelib_result(api->prism_speechd_pause(h));
   }
 
   BackendResult<> resume() override {
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_speechd_resume(h));
+    return winelib_result(api->prism_speechd_resume(h));
   }
 
   BackendResult<> set_volume(float volume) override {
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_speechd_set_volume(h, volume));
+    return winelib_result(api->prism_speechd_set_volume(h, volume));
   }
 
   BackendResult<float> get_volume() override {
@@ -620,7 +709,8 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     float value = 0.0F;
-    if (const auto r = winelib_result(prism_speechd_get_volume(h, &value)); !r)
+    if (const auto r = winelib_result(api->prism_speechd_get_volume(h, &value));
+        !r)
       return std::unexpected(r.error());
     return value;
   }
@@ -629,7 +719,7 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_speechd_set_rate(h, rate));
+    return winelib_result(api->prism_speechd_set_rate(h, rate));
   }
 
   BackendResult<float> get_rate() override {
@@ -637,7 +727,8 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     float value = 0.0F;
-    if (const auto r = winelib_result(prism_speechd_get_rate(h, &value)); !r)
+    if (const auto r = winelib_result(api->prism_speechd_get_rate(h, &value));
+        !r)
       return std::unexpected(r.error());
     return value;
   }
@@ -646,7 +737,7 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_speechd_set_pitch(h, pitch));
+    return winelib_result(api->prism_speechd_set_pitch(h, pitch));
   }
 
   BackendResult<float> get_pitch() override {
@@ -654,7 +745,8 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     float value = 0.0F;
-    if (const auto r = winelib_result(prism_speechd_get_pitch(h, &value)); !r)
+    if (const auto r = winelib_result(api->prism_speechd_get_pitch(h, &value));
+        !r)
       return std::unexpected(r.error());
     return value;
   }
@@ -663,7 +755,7 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_result(prism_speechd_refresh_voices(h));
+    return winelib_result(api->prism_speechd_refresh_voices(h));
   }
 
   BackendResult<std::size_t> count_voices() override {
@@ -671,7 +763,8 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::uint32_t count = 0;
-    if (const auto r = winelib_result(prism_speechd_count_voices(h, &count));
+    if (const auto r =
+            winelib_result(api->prism_speechd_count_voices(h, &count));
         !r)
       return std::unexpected(r.error());
     return count;
@@ -681,14 +774,14 @@ public:
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_fetch_string(prism_speechd_get_voice_name, h, id);
+    return winelib_fetch_string(api->prism_speechd_get_voice_name, h, id);
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override {
     auto *const h = instance.load();
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
-    return winelib_fetch_string(prism_speechd_get_voice_language, h, id);
+    return winelib_fetch_string(api->prism_speechd_get_voice_language, h, id);
   }
 
   BackendResult<> set_voice(std::size_t id) override {
@@ -698,7 +791,7 @@ public:
     if (!std::in_range<std::uint32_t>(id))
       return std::unexpected(BackendError::RangeOutOfBounds);
     return winelib_result(
-        prism_speechd_set_voice(h, static_cast<std::uint32_t>(id)));
+        api->prism_speechd_set_voice(h, static_cast<std::uint32_t>(id)));
   }
 
   BackendResult<std::size_t> get_voice() override {
@@ -706,7 +799,8 @@ public:
     if (h == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::uint32_t idx = 0;
-    if (const auto r = winelib_result(prism_speechd_get_voice(h, &idx)); !r)
+    if (const auto r = winelib_result(api->prism_speechd_get_voice(h, &idx));
+        !r)
       return std::unexpected(r.error());
     return idx;
   }

@@ -110,13 +110,10 @@ Adding a new backend is a bit tricky and more involved than adding a dependency 
 
 If your backend depends on third-party libraries (e.g., proprietary DLLs), and the backend runs on Windows, additional steps are required:
 
-1. Update defs/ with the module-definition file which corresponds to your backend. This should match the original DLL's symbols. Write both a 32-bit and 64-bit DEF file. Additionally, drop a header for the library under source/backends/raw, with the exact calling convention of the original library. If you are legally allowed to redistribute the header (which is usually the case for interfaces reproduced for interoperability), drop the official header there; otherwise, write your own.
-2. Update source/delayimp.cpp with every function defined by the original DLL, as stubs, returning error codes indicating unavailability of the library, or the equivalent, in their own namespace, and the DLL stubs table with each symbol which needs to be stubbed. Ensure your stubs have the exact calling convention of the original library! For the stubs table, use stub_cast to launder the function pointer so that it is safe to call at run-time.
-3. Update the DelayLoadFailureHook function with the appropriate logic to find and load the DLL, preferably using the registry or some other mechanism, so that an end-user needn't place the library next to Prism and it can be auto-loaded.
-4. Update PrismPlatformWindows.cmake to include the delay-loaded DLL.
-5. Update prism_shutdown to call __FUnloadDelayLoadedDLL2 to unload the delay-loaded DLL when the Prism context is destroyed.
+1. Drop a header for the library under source/backends/raw, with the exact calling convention of the original library. If you are legally allowed to redistribute the header (which is usually the case for interfaces reproduced for interoperability), drop the official header there; otherwise, write your own.
+2. Don't link the DLL. Load it at run time instead: give the backend a struct holding a `SharedLibrary` and one `decltype(&function)` pointer for each function it calls, open the DLL with `open_optional_library`, and bind each function by name. `open_optional_library` looks on the DLL search path, then next to Prism, then in an install folder the screen reader records in the registry, if you give it one. If the DLL or any function is missing, the backend should report itself unavailable. The ZDSR backend is a short example to copy.
 
-If your backend can be directly implemented into Prism, all of the additional above steps can mostly be skipped, and the general process for adding any backend can be followed. We strongly prefer backends that can be directly implemented into Prism without delay loading, as delay loading is complex and easy to break, and implementing the backend directly into Prism means that Prism can stand in for the original DLL.
+If your backend can be directly implemented into Prism, the additional steps above can be skipped, and the general process for adding any backend can be followed. We strongly prefer backends that can be directly implemented into Prism, since that means Prism can stand in for the original DLL.
 
 Your backends MUST always be self-contained translation units. No backend TU should ever depend on any other backend's TU. Ever.
 

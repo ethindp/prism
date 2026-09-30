@@ -38,7 +38,6 @@ set(_prism_sources
     source/backend_catalog.cpp
     source/backend_check.cpp
     source/backend_enumerator.cpp
-    source/delayimp.cpp
     source/simd_kernels.cpp
     source/frozen_registry.cpp
     source/logging.cpp
@@ -50,7 +49,7 @@ set(_prism_sources
     source/backends/custom_backend.cpp)
 if(WIN32)
   list(APPEND _prism_sources source/backends/raw/fsapi.c
-       source/backends/raw/wineyes.c)
+       source/backends/raw/wineyes.c source/optional_library.cpp)
 endif()
 if(ANDROID)
   file(GLOB_RECURSE _android_srcs CONFIGURE_DEPENDS

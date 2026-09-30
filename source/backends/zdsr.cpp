@@ -6,8 +6,11 @@
     defined(__i386__)
 #include "../backend.h"
 #include "../backend_catalog.h"
+#include "../logging.h"
+#include "../optional_library.h"
 #include <array>
 #include <atomic>
+#include <optional>
 #include <raw/zdsr.h>
 #include <simdutf.h>
 #include <string_view>
@@ -15,12 +18,59 @@
 #include <tlhelp32.h>
 #include <windows.h>
 
+namespace {
+#if defined(_M_X64) || defined(__x86_64__)
+constexpr const TCHAR *zdsr_dll = _T("ZDSRAPI_x64.dll");
+constexpr InstallLocation zdsr_install{
+    .subkey = _T("SOFTWARE\\WOW6432Node\\zhiduo\\zdsr"), .value = _T("path")};
+#else
+constexpr const TCHAR *zdsr_dll = _T("ZDSRAPI.dll");
+constexpr InstallLocation zdsr_install{.subkey = _T("SOFTWARE\\zhiduo\\zdsr"),
+                                       .value = _T("path")};
+#endif
+
+struct Zdsr {
+  SharedLibrary library;
+  decltype(&::InitTTS) InitTTS;
+  decltype(&::Speak) Speak;
+  decltype(&::GetSpeakState) GetSpeakState;
+  decltype(&::StopSpeak) StopSpeak;
+  decltype(&::Braille) Braille;
+};
+
+std::optional<Zdsr> load_zdsr() {
+  static const LogSource log{"ZDSR"};
+  Zdsr api{.library = open_optional_library(zdsr_dll, &zdsr_install)};
+  if (!api.library) {
+    log.debug(_T("{} could not be loaded"), zdsr_dll);
+    return std::nullopt;
+  }
+  const SharedLibrary &library = api.library;
+  const bool complete = library.bind(api.InitTTS, "InitTTS") &&
+                        library.bind(api.Speak, "Speak") &&
+                        library.bind(api.GetSpeakState, "GetSpeakState") &&
+                        library.bind(api.StopSpeak, "StopSpeak") &&
+                        library.bind(api.Braille, "Braille");
+  if (!complete) {
+    log.debug(_T("{} is missing a function prism needs"), zdsr_dll);
+    return std::nullopt;
+  }
+  return api;
+}
+
+const Zdsr *zdsr() {
+  static const std::optional<Zdsr> api = load_zdsr();
+  return api ? &*api : nullptr;
+}
+} // namespace
+
 class ZdsrBackend final : public TextToSpeechBackend {
 private:
   std::atomic_flag initialized;
+  const Zdsr *api = nullptr;
 
-  static BackendResult<bool> query_speaking() {
-    switch (GetSpeakState()) {
+  [[nodiscard]] BackendResult<bool> query_speaking() const {
+    switch (api->GetSpeakState()) {
     case 3:
       return true;
     case 4:
@@ -72,7 +122,10 @@ public:
   BackendResult<> initialize() override {
     if (initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::AlreadyInitialized);
-    if (const auto res = InitTTS(0, nullptr, TRUE); res > 0)
+    api = zdsr();
+    if (api == nullptr)
+      return std::unexpected(BackendError::BackendNotAvailable);
+    if (const auto res = api->InitTTS(0, nullptr, TRUE); res > 0)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (const auto state = query_speaking(); !state)
       return std::unexpected(state.error());
@@ -91,7 +144,7 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (const auto res = Speak(wstr.c_str(), static_cast<BOOL>(interrupt));
+    if (const auto res = api->Speak(wstr.c_str(), static_cast<BOOL>(interrupt));
         res > 0)
       return std::unexpected(BackendError::InternalBackendError);
     return {};
@@ -108,7 +161,7 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (const auto res = Braille(wstr.c_str(), FALSE); res > 0)
+    if (const auto res = api->Braille(wstr.c_str(), FALSE); res > 0)
       return std::unexpected(BackendError::InternalBackendError);
     return {};
   }
@@ -124,7 +177,7 @@ public:
   BackendResult<> stop() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    StopSpeak();
+    api->StopSpeak();
     return {};
   }
 

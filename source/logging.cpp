@@ -14,6 +14,7 @@
 #include <simdutf.h>
 
 namespace {
+#ifndef PRISM_CONSOLE
 void PRISM_CALL stderr_sink([[maybe_unused]] void *ud, PrismLogLevel level,
                             const char *source, const char *message) {
   constexpr auto names = std::to_array<std::string_view>(
@@ -23,6 +24,7 @@ void PRISM_CALL stderr_sink([[maybe_unused]] void *ud, PrismLogLevel level,
 }
 
 std::once_flag logging_initializer;
+#endif
 } // namespace
 
 Logger::Logger() : drain([this](const std::stop_token &st) { run(st); }) {}
@@ -152,6 +154,7 @@ std::string LogSource::to_utf8(std::wstring_view w) {
 }
 
 void init_logging_from_env() noexcept {
+#ifndef PRISM_CONSOLE
   std::call_once(logging_initializer, [] {
 #ifdef _WIN32
     char *env_raw = nullptr;
@@ -189,4 +192,5 @@ void init_logging_from_env() noexcept {
     lg->set_handler(PrismLogHandler{.fn = &stderr_sink, .userdata = nullptr});
     lg->set_level(level);
   });
+#endif
 }

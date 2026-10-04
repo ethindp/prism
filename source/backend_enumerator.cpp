@@ -8,7 +8,7 @@
 #include <iostream>
 #include <stop_token>
 #include <utility>
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(PRISM_CONSOLE)
 #include <objbase.h>
 #endif
 
@@ -100,7 +100,7 @@ void BackendEnumerator::resume() {
 }
 
 void BackendEnumerator::run(const std::stop_token &stop) {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(PRISM_CONSOLE)
   const bool com_ok = SUCCEEDED(
       CoInitializeEx(nullptr, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
 #endif
@@ -155,7 +155,7 @@ void BackendEnumerator::run(const std::stop_token &stop) {
                      : base;
   }
   instances.clear();
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(PRISM_CONSOLE)
   if (com_ok)
     CoUninitialize();
 #endif

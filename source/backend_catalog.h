@@ -60,6 +60,7 @@ inline constexpr auto SenseReader = "SenseReader"_bid;
 inline constexpr auto SystemAccess = "SystemAccess"_bid;
 inline constexpr auto WindowEyes = "WindowEyes"_bid;
 inline constexpr auto Spiel = "Spiel"_bid;
+inline constexpr auto XboxSpeech = "XboxSpeech"_bid;
 } // namespace Backends
 
 using BackendFactory = std::function<std::shared_ptr<TextToSpeechBackend>()>;

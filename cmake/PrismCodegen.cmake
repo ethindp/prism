@@ -3,7 +3,7 @@
 include_guard(GLOBAL)
 include(PrismGuards)
 prism_require_targets(prism prism_common)
-if(WIN32)
+if(WIN32 AND NOT PRISM_XBOX)
   prism_require_vars(PRISM_MIDL_HOST_DIR PRISM_MIDL_ENV)
   if(NOT DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
     get_filename_component(

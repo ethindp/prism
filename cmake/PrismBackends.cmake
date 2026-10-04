@@ -10,9 +10,9 @@ set(PRISM_BACKEND_SUMMARY "")
 set(PRISM_BACKEND_ANCHORS "")
 
 function(prism_declare_backend NAME)
-  cmake_parse_arguments(PB "LEGACY" "SOURCE;DOC;DEFAULT;LANGUAGE;FEATURE"
-                        "PLATFORM;ARCH;PKG_CONFIG;RUNTIME_PKG_CONFIG;DEFINES"
-                        ${ARGN})
+  cmake_parse_arguments(
+    PB "LEGACY" "SOURCE;DOC;DEFAULT;LANGUAGE;FEATURE"
+    "PLATFORM;ARCH;PKG_CONFIG;RUNTIME_PKG_CONFIG;DEFINES" ${ARGN})
   if(PB_UNPARSED_ARGUMENTS)
     message(
       FATAL_ERROR
@@ -45,7 +45,9 @@ function(prism_declare_backend NAME)
   set(_headers "")
   if(PB_PLATFORM)
     set(_this "")
-    if(WIN32)
+    if(PRISM_XBOX)
+      set(_this XBOX CONSOLE)
+    elseif(WIN32)
       set(_this WINDOWS)
     elseif(ANDROID)
       set(_this ANDROID)
@@ -142,8 +144,8 @@ function(prism_declare_backend NAME)
   foreach(_h IN LISTS _headers)
     target_include_directories(
       ${_tgt} PRIVATE $<TARGET_PROPERTY:${_h},INTERFACE_INCLUDE_DIRECTORIES>)
-    target_compile_options(${_tgt}
-                           PRIVATE $<TARGET_PROPERTY:${_h},INTERFACE_COMPILE_OPTIONS>)
+    target_compile_options(
+      ${_tgt} PRIVATE $<TARGET_PROPERTY:${_h},INTERFACE_COMPILE_OPTIONS>)
   endforeach()
   target_compile_definitions(${_tgt}
                              PRIVATE PRISM_BACKEND_ANCHOR=prism_anchor_${NAME})
@@ -187,7 +189,8 @@ endfunction()
 if(UNIX
    AND NOT APPLE
    AND NOT ANDROID
-   AND NOT EMSCRIPTEN)
+   AND NOT EMSCRIPTEN
+   AND NOT PRISM_CONSOLE)
   find_package(PkgConfig REQUIRED)
 endif()
 prism_declare_backend(
@@ -366,6 +369,14 @@ prism_declare_backend(
   RUNTIME_PKG_CONFIG
   "spiel-1.0")
 prism_declare_backend(
+  xbox_speech
+  SOURCE
+  xbox_speech.cpp
+  PLATFORM
+  XBOX
+  DOC
+  "Microsoft GDK XSpeechSynthesizer")
+prism_declare_backend(
   android_tts
   SOURCE
   android_tts.cpp
@@ -390,16 +401,23 @@ prism_declare_backend(
   DOC
   "Web Speech API")
 if(NOT PRISM_BACKEND_TARGETS)
-  message(
-    FATAL_ERROR
-      "No backends will be built. Prism would compile but do nothing at runtime."
-  )
+  if(PRISM_CONSOLE)
+    message(
+      STATUS
+        "Prism: no built-in console backend selected; custom/static backend registration remains available"
+    )
+  else()
+    message(
+      FATAL_ERROR
+        "No backends will be built. Prism would compile but do nothing at runtime."
+    )
+  endif()
 endif()
 list(JOIN PRISM_BACKEND_SUMMARY " " _s)
 message(STATUS "Prism backends: ${_s}")
 # A static link only pulls an archive member in when something references it,
-# and nothing references a backend's object, so prism.cpp does. MSVC is told
-# per object with /include:; elsewhere prism.cpp takes each anchor's address.
+# and nothing references a backend's object, so prism.cpp does. MSVC is told per
+# object with /include:; elsewhere prism.cpp takes each anchor's address.
 set(_anchors "")
 if(MSVC)
   foreach(_name IN LISTS PRISM_BACKEND_ANCHORS)
@@ -420,16 +438,19 @@ else()
     string(APPEND _refs "    prism_anchor_${_name},
 ")
   endforeach()
-  string(APPEND _anchors
-         "[[gnu::used]] static void (*const prism_backend_anchors[])() = {
+  string(
+    APPEND
+    _anchors
+    "// NOLINTNEXTLINE(modernize-avoid-c-arrays)
+[[gnu::used]] static void (*const prism_backend_anchors[])() = {
 ${_refs}};
 ")
 endif()
 # PrismCodegen, which owns PRISM_GEN_DIR, is included after this file.
 set(_gen "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${_gen}")
-# A header so the references land in prism.cpp. The linker reads them only
-# from objects it already links, so a source file holding nothing else would be
+# A header so the references land in prism.cpp. The linker reads them only from
+# objects it already links, so a source file holding nothing else would be
 # dropped before they were read.
 configure_file("${PRISM_SOURCE_ROOT}/cmake/backend_anchors.h.in"
                "${_gen}/backend_anchors.h" @ONLY)

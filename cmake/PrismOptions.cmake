@@ -45,6 +45,11 @@ set(PRISM_BACKEND_DEFAULT
     CACHE STRING "Default state for every backend (AUTO, ON or OFF)")
 set_property(CACHE PRISM_BACKEND_DEFAULT PROPERTY STRINGS AUTO ON OFF)
 prism_require_enum(PRISM_BACKEND_DEFAULT AUTO ON OFF)
+set(PRISM_CONSOLE_TARGET
+    "AUTO"
+    CACHE STRING "Console target override (AUTO, NONE or XBOX)")
+set_property(CACHE PRISM_CONSOLE_TARGET PROPERTY STRINGS AUTO NONE XBOX)
+prism_require_enum(PRISM_CONSOLE_TARGET AUTO NONE XBOX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -60,7 +65,12 @@ set(PRISM_IPO
     CACHE STRING "Interprocedural (link-time) optimization (AUTO, ON or OFF)")
 set_property(CACHE PRISM_IPO PROPERTY STRINGS AUTO ON OFF)
 prism_require_enum(PRISM_IPO AUTO ON OFF)
-if(WIN32)
+set(_prism_xbox_requested OFF)
+if(PRISM_CONSOLE_TARGET STREQUAL "XBOX"
+   OR (DEFINED XBOX_CONSOLE_TARGET AND NOT XBOX_CONSOLE_TARGET STREQUAL ""))
+  set(_prism_xbox_requested ON)
+endif()
+if(WIN32 AND NOT _prism_xbox_requested)
   if(PRISM_ENABLE_GDEXTENSION)
     set(CMAKE_MSVC_RUNTIME_LIBRARY
         "MultiThreadedDLL"
@@ -71,6 +81,7 @@ if(WIN32)
         CACHE STRING "MSVC CRT library type")
   endif()
 endif()
+unset(_prism_xbox_requested)
 if(PRISM_BUILD_WINELIBS
    AND (WIN32
         OR APPLE

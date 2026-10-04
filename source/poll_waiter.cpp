@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(PRISM_CONSOLE)
 #include <windows.h>
 
 namespace {
@@ -353,7 +353,7 @@ private:
 
 public:
   Wake wait(std::optional<std::chrono::milliseconds> timeout,
-            [[maybe_unused]] std::chrono::milliseconds) override {
+            [[maybe_unused]] std::chrono::milliseconds lag) override {
     std::unique_lock lock(mutex);
     if (timeout) {
       cv.wait_for(lock, *timeout, [this] { return signaled; });

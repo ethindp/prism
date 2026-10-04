@@ -41,13 +41,17 @@ set(_prism_sources
     source/simd_kernels.cpp
     source/frozen_registry.cpp
     source/logging.cpp
-    source/plugin_loader.cpp
     source/poll_waiter.cpp
     source/power_notifier.cpp
     source/prism.cpp
     source/utils.cpp
     source/backends/custom_backend.cpp)
-if(WIN32)
+if(PRISM_CONSOLE)
+  list(APPEND _prism_sources source/plugin_loader_stub.cpp)
+else()
+  list(APPEND _prism_sources source/plugin_loader.cpp)
+endif()
+if(WIN32 AND NOT PRISM_XBOX)
   list(APPEND _prism_sources source/backends/raw/fsapi.c
        source/backends/raw/wineyes.c source/optional_library.cpp)
 endif()
@@ -68,7 +72,7 @@ else()
   add_library(prism ${_prism_sources} ${_prism_headers})
 endif()
 target_link_libraries(prism PRIVATE "$<BUILD_INTERFACE:prism_common>")
-if(NOT WIN32)
+if(NOT WIN32 AND NOT PRISM_CONSOLE)
   target_link_libraries(prism PRIVATE ${CMAKE_DL_LIBS})
 endif()
 foreach(_cd IN LISTS PRISM_COMPILED_DEP_TARGETS)

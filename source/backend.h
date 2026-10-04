@@ -13,7 +13,7 @@
 #ifdef __ANDROID__
 #include <jni.h>
 #endif
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(PRISM_CONSOLE)
 #include <objbase.h>
 #include <windows.h>
 #endif
@@ -207,7 +207,7 @@ public:
   }
 };
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(PRISM_CONSOLE)
 class ComTextToSpeechBackend : public TextToSpeechBackend {
 private:
   CO_MTA_USAGE_COOKIE mta_cookie{};

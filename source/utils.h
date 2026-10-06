@@ -26,6 +26,8 @@
 #include <utility>
 #include <vector>
 
+namespace prism::detail {
+
 struct TrimParams {
   float frame_ms = 20.0F;
   float hop_ms = 10.0F;
@@ -71,3 +73,14 @@ TrimView trim_silence_rms_gate_inplace(std::span<float> interleaved,
                                        std::size_t channels,
                                        std::size_t sample_rate,
                                        const TrimParams &P = {});
+
+} // namespace prism::detail
+
+using prism::detail::exp_range_convert;
+using prism::detail::exp_range_convert_inv;
+using prism::detail::range_convert;
+using prism::detail::range_convert_midpoint;
+using prism::detail::trim_silence_rms_gate;
+using prism::detail::trim_silence_rms_gate_inplace;
+using prism::detail::TrimParams;
+using prism::detail::TrimView;

@@ -27,6 +27,8 @@ void fill_frame_db(std::span<const float> interleaved, std::size_t channels,
                    std::size_t frame_len, std::size_t hop,
                    std::size_t total_frames, std::span<float> db);
 
+namespace prism::detail {
+
 // Begin NVGT code
 double range_convert(double v, double a0, double a1, double b0, double b1) {
   const double t = (v - a0) / (a1 - a0);
@@ -433,3 +435,5 @@ TrimView trim_silence_rms_gate_inplace(std::span<float> interleaved,
   apply_fade_out(r.view, channels, fade_frames);
   return r;
 }
+
+} // namespace prism::detail

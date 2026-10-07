@@ -7,7 +7,7 @@
 
 #include "fmt/fmt-c.h"
 
-#include <fmt/base.h>
+#include <fmt/core.h>
 
 constexpr size_t max_c_format_args = 16;
 

@@ -163,7 +163,7 @@ public:
 
 class PCTalkerBackend final : public TextToSpeechBackend {
 private:
-  std::atomic_unsigned_lock_free braille_context;
+  std::atomic<ULONGLONG> braille_context;
   std::atomic_flag initialized;
   BrailleMarshaller braille_marshaller;
   const PcTalker *api = nullptr;

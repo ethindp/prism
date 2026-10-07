@@ -53,7 +53,7 @@ private:
   [[nodiscard]] Entry *find(BackendId id) noexcept;
   [[nodiscard]] Entry *find(std::string_view name) noexcept;
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend> acquire_entry(Entry *e);
-  std::atomic_unsigned_lock_free refcount;
+  std::atomic<unsigned> refcount;
   std::vector<Entry> entries;
   mutable std::shared_mutex cache_mutex;
 };

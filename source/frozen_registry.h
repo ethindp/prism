@@ -10,6 +10,7 @@
 #include <shared_mutex>
 #include <string_view>
 #include <vector>
+#include <version>
 
 class FrozenRegistry {
 public:

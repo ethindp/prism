@@ -39,7 +39,7 @@ struct Speechd {
   decltype(&::spd_open2) spd_open2;
   decltype(&::spd_close) spd_close;
   decltype(&::spd_get_output_module) spd_get_output_module;
-  decltype(&::spd_stop) spd_stop;
+  decltype(&::spd_cancel) spd_cancel;
   decltype(&::spd_say) spd_say;
   decltype(&::spd_pause) spd_pause;
   decltype(&::spd_resume) spd_resume;
@@ -72,7 +72,7 @@ std::optional<Speechd> load_speechd() {
       library.bind(api.spd_open2, "spd_open2") &&
       library.bind(api.spd_close, "spd_close") &&
       library.bind(api.spd_get_output_module, "spd_get_output_module") &&
-      library.bind(api.spd_stop, "spd_stop") &&
+      library.bind(api.spd_cancel, "spd_cancel") &&
       library.bind(api.spd_say, "spd_say") &&
       library.bind(api.spd_pause, "spd_pause") &&
       library.bind(api.spd_resume, "spd_resume") &&
@@ -263,7 +263,7 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
     if (interrupt) {
-      if (sd->spd_stop(conn) != 0)
+      if (sd->spd_cancel(conn) != 0)
         return std::unexpected(BackendError::InternalBackendError);
       paused.clear();
     }
@@ -281,7 +281,7 @@ public:
     if (!initialized.test() || conn == nullptr)
       return std::unexpected(BackendError::NotInitialized);
     std::shared_lock sl(state_lock);
-    if (const auto res = sd->spd_stop(conn); res != 0)
+    if (const auto res = sd->spd_cancel(conn); res != 0)
       return std::unexpected(BackendError::InternalBackendError);
     paused.clear();
     return {};

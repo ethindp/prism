@@ -285,7 +285,7 @@ prism_speechd_speak(PrismSpeechDispatcherInstance *h, const char *text,
     return PRISM_WINELIB_INVALID_ARGUMENT;
   std::shared_lock sl(h->lock);
   if (interrupt != 0) {
-    if (spd_stop(h->conn) != 0)
+    if (spd_cancel(h->conn) != 0)
       return PRISM_WINELIB_INTERNAL;
     h->paused.clear();
   }
@@ -298,7 +298,7 @@ prism_speechd_stop(PrismSpeechDispatcherInstance *h) noexcept {
   if (h == nullptr || h->conn == nullptr)
     return PRISM_WINELIB_INVALID_ARGUMENT;
   std::shared_lock sl(h->lock);
-  if (spd_stop(h->conn) != 0)
+  if (spd_cancel(h->conn) != 0)
     return PRISM_WINELIB_INTERNAL;
   h->paused.clear();
   return PRISM_WINELIB_OK;

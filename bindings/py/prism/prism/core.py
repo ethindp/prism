@@ -90,7 +90,7 @@ class Backend:
         self._active_callback = audio_callback_shim
         res = lib.prism_backend_speak_to_memory(
             self._raw,
-            text,
+            text.encode("utf-8"),
             audio_callback_shim,
             ffi.NULL,
         )

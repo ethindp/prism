@@ -219,6 +219,7 @@ max-args = 8
 
 [tool.ruff.lint.per-file-ignores]
 "demos/**" = ["T201"]
+"tests/**" = ["S101"]
 
 [tool.cibuildwheel.android]
 environment = { SKBUILD_WHEEL_PY_API = "", CMAKE_BUILD_PARALLEL_LEVEL = "4" }

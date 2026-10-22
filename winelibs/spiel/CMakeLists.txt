@@ -6,7 +6,11 @@ prism_add_winelib(
   spiel
   SOURCES
   bridge.cpp
+  ../../source/dbus/client.cpp
+  ../../source/dbus/bus.cpp
+  ../../source/dbus/spiel.cpp
   SPEC
   ${CMAKE_CURRENT_SOURCE_DIR}/exports.spec
   DEPS
-  PkgConfig::SPIEL)
+  PkgConfig::SPIEL
+  PkgConfig::DBUS)

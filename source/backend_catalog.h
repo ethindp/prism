@@ -60,7 +60,7 @@ inline constexpr auto SenseReader = "SenseReader"_bid;
 inline constexpr auto SystemAccess = "SystemAccess"_bid;
 inline constexpr auto WindowEyes = "WindowEyes"_bid;
 inline constexpr auto Spiel = "Spiel"_bid;
-inline constexpr auto XboxSpeech = "XboxSpeech"_bid;
+inline constexpr auto GdkSpeech = "GdkSpeech"_bid;
 } // namespace Backends
 
 using BackendFactory = std::function<std::shared_ptr<TextToSpeechBackend>()>;
@@ -115,9 +115,11 @@ template <typename T> struct BackendRegistrar {
   }
 };
 
-// Gives PrismBackends.cmake a symbol for prism.cpp to reference so the linker doesn't obliterate backends at LTO time.
+// Gives PrismBackends.cmake a symbol for prism.cpp to reference so the linker
+// doesn't obliterate backends at LTO time.
 #ifdef PRISM_BACKEND_ANCHOR
-#define PRISM_EMIT_ANCHOR extern "C" void PRISM_BACKEND_ANCHOR() {}
+#define PRISM_EMIT_ANCHOR                                                      \
+  extern "C" void PRISM_BACKEND_ANCHOR() {}
 #else
 #define PRISM_EMIT_ANCHOR
 #endif

@@ -137,30 +137,6 @@ before-all = [
     cd ..
     rm -rf "glib-${GLIB_VERSION}"
     export PKG_CONFIG_PATH=/opt/prism/lib64/pkgconfig:/opt/prism/lib/pkgconfig:${PKG_CONFIG_PATH:-}
-    SIGCPP_VERSION=3.6.0
-SIGCPP_SERIES="${SIGCPP_VERSION%.*}"
-curl -fL "https://download.gnome.org/sources/libsigc++/${SIGCPP_SERIES}/libsigc++-${SIGCPP_VERSION}.tar.xz" -o libsigc++-${SIGCPP_VERSION}.tar.xz
-curl -fL "https://download.gnome.org/sources/libsigc++/${SIGCPP_SERIES}/libsigc++-${SIGCPP_VERSION}.sha256sum" -o sigcpp.sha256sum
-sha256sum --ignore-missing -c sigcpp.sha256sum
-tar xJf libsigc++-${SIGCPP_VERSION}.tar.xz
-cd "libsigc++-${SIGCPP_VERSION}"
-meson setup build --prefix=/opt/prism --buildtype=release -Dbuild-documentation=false -Dbuild-examples=false -Dbuild-tests=false
-meson compile -C build
-meson install -C build
-cd ..
-rm -rf "libsigc++-${SIGCPP_VERSION}"
-GLIBMM_VERSION=2.88.0
-GLIBMM_SERIES="${GLIBMM_VERSION%.*}"
-curl -fL "https://download.gnome.org/sources/glibmm/${GLIBMM_SERIES}/glibmm-${GLIBMM_VERSION}.tar.xz" -o glibmm-${GLIBMM_VERSION}.tar.xz
-curl -fL "https://download.gnome.org/sources/glibmm/${GLIBMM_SERIES}/glibmm-${GLIBMM_VERSION}.sha256sum" -o glibmm.sha256sum
-sha256sum --ignore-missing -c glibmm.sha256sum
-tar xJf glibmm-${GLIBMM_VERSION}.tar.xz
-cd "glibmm-${GLIBMM_VERSION}"
-meson setup build --prefix=/opt/prism --buildtype=release -Dbuild-documentation=false -Dbuild-examples=false -Dmaintainer-mode=false
-meson compile -C build
-meson install -C build
-cd ..
-rm -rf "glibmm-${GLIBMM_VERSION}"
     """,
 ]
 environment = { CMAKE_BUILD_PARALLEL_LEVEL = "4", PKG_CONFIG_PATH = "/opt/prism/lib64/pkgconfig:/opt/prism/lib/pkgconfig", LD_LIBRARY_PATH = "/opt/prism/lib64:/opt/prism/lib" }

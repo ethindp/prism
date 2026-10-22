@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#ifdef PRISM_XBOX
+#ifdef PRISM_HAVE_GDK_SPEECH
 #include "../backend_catalog.h"
 #include "../utils.h"
+#include <XGameRuntimeInit.h>
 #include <XPackage.h>
 #include <XSpeechSynthesizer.h>
-#ifndef PRISM_STATIC
-#include <XGameRuntimeInit.h>
+#ifndef PRISM_XBOX
+#include "../shared_library.h"
 #endif
 #include <algorithm>
 #include <array>
@@ -22,17 +23,166 @@
 #include <fmt/format.h>
 #include <limits>
 #include <mutex>
+#include <objidl.h>
+#include <simdutf.h>
 #include <string>
 #include <string_view>
+#include <tchar.h>
 #include <thread>
 #include <utility>
 #include <vector>
+#include <wrl/client.h>
 #include <xaudio2.h>
+#include <xmllite.h>
 
 namespace {
+using tstring = std::basic_string<TCHAR>;
+using tstring_view = std::basic_string_view<TCHAR>;
 constexpr float DEFAULT_PARAMETER = 0.5F;
 constexpr std::size_t NO_VOICE = std::numeric_limits<std::size_t>::max();
 constexpr auto PLAYBACK_POLL = std::chrono::milliseconds{5};
+
+static_assert(sizeof(TCHAR) == sizeof(char16_t),
+              "GDK XmlLite integration requires Unicode TCHAR");
+
+std::string format_hresult(HRESULT hr) {
+  std::array<TCHAR, 1024> buffer{};
+  const DWORD code = static_cast<DWORD>(hr);
+  const DWORD written = FormatMessage(
+      FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, code,
+      0, buffer.data(), static_cast<DWORD>(buffer.size()), nullptr);
+  if (written == 0)
+    return fmt::format("HRESULT {:#010x} (message unavailable, Win32 error {})",
+                       code, GetLastError());
+  tstring_view message(buffer.data(), written);
+  while (!message.empty() &&
+         (message.back() == _T('\r') || message.back() == _T('\n')))
+    message.remove_suffix(1);
+  std::string utf8(
+      simdutf::utf8_length_from_utf16le(
+          reinterpret_cast<const char16_t *>(message.data()), message.size()),
+      '\0');
+  utf8.resize(simdutf::convert_utf16le_to_utf8(
+      reinterpret_cast<const char16_t *>(message.data()), message.size(),
+      utf8.data()));
+  return fmt::format("HRESULT {:#010x}: {}", code, utf8);
+}
+
+// This is such a bad hack
+// Todo: fix this so there's no duplication
+bool failed(HRESULT hr, std::string_view operation) noexcept {
+  if (SUCCEEDED(hr))
+    return false;
+  try {
+    LogSource{"GdkSpeech"}.error("{}: {}", operation, format_hresult(hr));
+  } catch (...) {
+    LogSource{"GdkSpeech"}.error("{}: HRESULT {:#010x}", operation,
+                                 static_cast<unsigned>(hr));
+  }
+  return true;
+}
+
+struct GdkApi {
+#ifndef PRISM_XBOX
+  SharedLibrary library{TEXT("xgameruntime.dll")};
+#endif
+  decltype(&::XGameRuntimeInitialize) XGameRuntimeInitialize = nullptr;
+  decltype(&::XGameRuntimeUninitialize) XGameRuntimeUninitialize = nullptr;
+  decltype(&::XPackageGetUserLocale) XPackageGetUserLocale = nullptr;
+  decltype(&::XSpeechSynthesizerCloseHandle) XSpeechSynthesizerCloseHandle =
+      nullptr;
+  decltype(&::XSpeechSynthesizerCloseStreamHandle)
+      XSpeechSynthesizerCloseStreamHandle = nullptr;
+  decltype(&::XSpeechSynthesizerCreate) XSpeechSynthesizerCreate = nullptr;
+  decltype(&::XSpeechSynthesizerCreateStreamFromSsml)
+      XSpeechSynthesizerCreateStreamFromSsml = nullptr;
+  decltype(&::XSpeechSynthesizerCreateStreamFromText)
+      XSpeechSynthesizerCreateStreamFromText = nullptr;
+  decltype(&::XSpeechSynthesizerEnumerateInstalledVoices)
+      XSpeechSynthesizerEnumerateInstalledVoices = nullptr;
+  decltype(&::XSpeechSynthesizerGetStreamData) XSpeechSynthesizerGetStreamData =
+      nullptr;
+  decltype(&::XSpeechSynthesizerGetStreamDataSize)
+      XSpeechSynthesizerGetStreamDataSize = nullptr;
+  decltype(&::XSpeechSynthesizerSetCustomVoice)
+      XSpeechSynthesizerSetCustomVoice = nullptr;
+  decltype(&::XSpeechSynthesizerSetDefaultVoice)
+      XSpeechSynthesizerSetDefaultVoice = nullptr;
+  bool available = false;
+
+  GdkApi() noexcept {
+#ifdef PRISM_XBOX
+    XGameRuntimeInitialize = &::XGameRuntimeInitialize;
+    XGameRuntimeUninitialize = &::XGameRuntimeUninitialize;
+    XPackageGetUserLocale = &::XPackageGetUserLocale;
+    XSpeechSynthesizerCloseHandle = &::XSpeechSynthesizerCloseHandle;
+    XSpeechSynthesizerCloseStreamHandle =
+        &::XSpeechSynthesizerCloseStreamHandle;
+    XSpeechSynthesizerCreate = &::XSpeechSynthesizerCreate;
+    XSpeechSynthesizerCreateStreamFromSsml =
+        &::XSpeechSynthesizerCreateStreamFromSsml;
+    XSpeechSynthesizerCreateStreamFromText =
+        &::XSpeechSynthesizerCreateStreamFromText;
+    XSpeechSynthesizerEnumerateInstalledVoices =
+        &::XSpeechSynthesizerEnumerateInstalledVoices;
+    XSpeechSynthesizerGetStreamData = &::XSpeechSynthesizerGetStreamData;
+    XSpeechSynthesizerGetStreamDataSize =
+        &::XSpeechSynthesizerGetStreamDataSize;
+    XSpeechSynthesizerSetCustomVoice = &::XSpeechSynthesizerSetCustomVoice;
+    XSpeechSynthesizerSetDefaultVoice = &::XSpeechSynthesizerSetDefaultVoice;
+    available = true;
+#else
+    if (!library) {
+      LogSource{"GdkSpeech"}.debug("GDK runtime library not found");
+      return;
+    }
+    bool ok = true;
+    ok = library.bind(XGameRuntimeInitialize, "XGameRuntimeInitialize") && ok;
+    ok = library.bind(XGameRuntimeUninitialize, "XGameRuntimeUninitialize") &&
+         ok;
+    ok = library.bind(XPackageGetUserLocale, "XPackageGetUserLocale") && ok;
+    ok = library.bind(XSpeechSynthesizerCloseHandle,
+                      "XSpeechSynthesizerCloseHandle") &&
+         ok;
+    ok = library.bind(XSpeechSynthesizerCloseStreamHandle,
+                      "XSpeechSynthesizerCloseStreamHandle") &&
+         ok;
+    ok = library.bind(XSpeechSynthesizerCreate, "XSpeechSynthesizerCreate") &&
+         ok;
+    ok = library.bind(XSpeechSynthesizerCreateStreamFromSsml,
+                      "XSpeechSynthesizerCreateStreamFromSsml") &&
+         ok;
+    ok = library.bind(XSpeechSynthesizerCreateStreamFromText,
+                      "XSpeechSynthesizerCreateStreamFromText") &&
+         ok;
+    ok = library.bind(XSpeechSynthesizerEnumerateInstalledVoices,
+                      "XSpeechSynthesizerEnumerateInstalledVoices") &&
+         ok;
+    ok = library.bind(XSpeechSynthesizerGetStreamData,
+                      "XSpeechSynthesizerGetStreamData") &&
+         ok;
+    ok = library.bind(XSpeechSynthesizerGetStreamDataSize,
+                      "XSpeechSynthesizerGetStreamDataSize") &&
+         ok;
+    ok = library.bind(XSpeechSynthesizerSetCustomVoice,
+                      "XSpeechSynthesizerSetCustomVoice") &&
+         ok;
+    ok = library.bind(XSpeechSynthesizerSetDefaultVoice,
+                      "XSpeechSynthesizerSetDefaultVoice") &&
+         ok;
+    available = ok;
+    if (!ok)
+      LogSource{"GdkSpeech"}.warn(
+          "GDK runtime lacks one or more required exports");
+    else
+      LogSource{"GdkSpeech"}.debug("GDK runtime exports resolved");
+#endif
+  }
+};
+GdkApi &gdk_api() noexcept {
+  static GdkApi api;
+  return api;
+}
 
 #ifndef PRISM_STATIC
 class GamingRuntimeLease {
@@ -47,8 +197,12 @@ public:
       out_hr = 0;
       return true;
     }
-    out_hr = XGameRuntimeInitialize();
-    if (FAILED(out_hr))
+    if (!gdk_api().available) {
+      out_hr = E_NOTIMPL;
+      return false;
+    }
+    out_hr = gdk_api().XGameRuntimeInitialize();
+    if (failed(out_hr, "out_hr"))
       return false;
     references = 1;
     return true;
@@ -59,12 +213,12 @@ public:
     if (references == 0)
       return;
     if (--references == 0)
-      XGameRuntimeUninitialize();
+      gdk_api().XGameRuntimeUninitialize();
   }
 };
 #endif
 
-struct XboxVoice {
+struct GdkVoice {
   std::string id;
   std::string name;
   std::string language;
@@ -90,46 +244,109 @@ public:
   XSpeechSynthesizerStreamHandle handle{};
   ~StreamGuard() {
     if (handle != nullptr)
-      (void)XSpeechSynthesizerCloseStreamHandle(handle);
+      (void)gdk_api().XSpeechSynthesizerCloseStreamHandle(handle);
   }
   StreamGuard() = default;
   StreamGuard(const StreamGuard &) = delete;
   StreamGuard &operator=(const StreamGuard &) = delete;
 };
 
-std::string xml_escape(std::string_view text) {
-  std::string result;
-  result.reserve(text.size());
-  for (const char c : text) {
-    switch (c) {
-    case '&':
-      result += "&amp;";
-      break;
-    case '<':
-      result += "&lt;";
-      break;
-    case '>':
-      result += "&gt;";
-      break;
-    case '\"':
-      result += "&quot;";
-      break;
-    case '\'':
-      result += "&apos;";
-      break;
-    default:
-      result += c;
-      break;
-    }
-  }
+tstring widen(std::string_view text) {
+  if (text.empty())
+    return {};
+  const auto count = simdutf::utf16_length_from_utf8(text.data(), text.size());
+  tstring result(count, _T('\0'));
+  const auto written = simdutf::convert_utf8_to_utf16le(
+      text.data(), text.size(), reinterpret_cast<char16_t *>(result.data()));
+  if (written == 0)
+    return {};
+  result.resize(written);
+  return result;
+}
+
+std::string make_ssml(std::string_view text, std::string_view language,
+                      float rate, float pitch) {
+  using Microsoft::WRL::ComPtr;
+  ComPtr<IStream> stream;
+  if (failed(CreateStreamOnHGlobal(nullptr, TRUE, &stream),
+             "CreateStreamOnHGlobal(nullptr, TRUE, &stream)"))
+    return {};
+  ComPtr<IXmlWriter> writer;
+  if (failed(CreateXmlWriter(__uuidof(IXmlWriter),
+                             reinterpret_cast<void **>(writer.GetAddressOf()),
+                             nullptr),
+             "CreateXmlWriter(__uuidof(IXmlWriter), reinterpret_cast<void "
+             "**>(writer.GetAddressOf()), nullptr)"))
+    return {};
+  ComPtr<IXmlWriterOutput> output;
+  if (failed(CreateXmlWriterOutputWithEncodingName(stream.Get(), nullptr,
+                                                   _T("utf-8"), &output),
+             "CreateXmlWriterOutputWithEncodingName( stream.Get(), nullptr, "
+             "_T(utf-8), &output)") ||
+      failed(writer->SetOutput(output.Get()),
+             "writer->SetOutput(output.Get())"))
+    return {};
+  const auto wide_text = widen(text);
+  const auto wide_language = widen(language);
+  if ((!text.empty() && wide_text.empty()) || wide_language.empty())
+    return {};
+  const auto wide_rate = widen(fmt::format("{:.4f}", rate));
+  const auto wide_pitch = widen(fmt::format("{:+.4f}st", pitch));
+  constexpr auto ns = _T("http://www.w3.org/2001/10/synthesis");
+  if (failed(writer->WriteStartElement(nullptr, _T("speak"), ns),
+             "writer->WriteStartElement(nullptr, _T(speak), ns)") ||
+      failed(writer->WriteAttributeString(nullptr, _T("version"), nullptr,
+                                          _T("1.0")),
+             "writer->WriteAttributeString(nullptr, _T(version), nullptr, "
+             "_T(1.0))") ||
+      failed(writer->WriteAttributeString(
+                 _T("xml"), _T("lang"),
+                 _T("http://www.w3.org/XML/1998/namespace"),
+                 wide_language.c_str()),
+             "writer->WriteAttributeString(_T(xml), _T(lang), "
+             "_T(http://www.w3.org/XML/1998/namespace), wide") ||
+      failed(writer->WriteStartElement(nullptr, _T("prosody"), ns),
+             "writer->WriteStartElement(nullptr, _T(prosody), ns)") ||
+      failed(writer->WriteAttributeString(nullptr, _T("rate"), nullptr,
+                                          wide_rate.c_str()),
+             "writer->WriteAttributeString(nullptr, _T(rate), nullptr, "
+             "wide_rate.c_str())") ||
+      failed(writer->WriteAttributeString(nullptr, _T("pitch"), nullptr,
+                                          wide_pitch.c_str()),
+             "writer->WriteAttributeString(nullptr, _T(pitch), nullptr, "
+             "wide_pitch.c_str())") ||
+      failed(writer->WriteString(wide_text.c_str()),
+             "writer->WriteString(wide_text.c_str())") ||
+      failed(writer->WriteEndElement(), "writer->WriteEndElement()") ||
+      failed(writer->WriteEndElement(), "writer->WriteEndElement()") ||
+      failed(writer->Flush(), "writer->Flush()"))
+    return {};
+  STATSTG stat{};
+  LARGE_INTEGER origin{};
+  if (failed(stream->Stat(&stat, STATFLAG_NONAME),
+             "stream->Stat(&stat, STATFLAG_NONAME)") ||
+      stat.cbSize.QuadPart > static_cast<ULONGLONG>(SIZE_MAX) ||
+      failed(stream->Seek(origin, STREAM_SEEK_SET, nullptr),
+             "stream->Seek(origin, STREAM_SEEK_SET, nullptr)"))
+    return {};
+  std::string result(static_cast<std::size_t>(stat.cbSize.QuadPart), '\0');
+  if (result.size() > static_cast<std::size_t>(ULONG_MAX))
+    return {};
+  ULONG read = 0;
+  if (failed(
+          stream->Read(result.data(), static_cast<ULONG>(result.size()), &read),
+          "stream->Read(result.data(), static_cast<ULONG>(result.size()), "
+          "&read)") ||
+      read != result.size())
+    return {};
   return result;
 }
 } // namespace
 
-class XboxSpeechBackend final : public TextToSpeechBackend {
+class GdkSpeechBackend final : public TextToSpeechBackend {
   mutable std::mutex synth_mutex;
   XSpeechSynthesizerHandle synth{};
-  std::vector<XboxVoice> voices;
+  std::vector<GdkVoice> voices;
   std::size_t selected_voice = NO_VOICE;
   bool format_cached = false;
   std::size_t cached_channels = 0;
@@ -145,12 +362,24 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
   std::deque<PlaybackItem> playback_queue;
   IXAudio2SourceVoice *current_voice = nullptr;
   std::jthread playback_thread;
+  struct SpeechRequest {
+    std::string text;
+    float volume;
+    float rate;
+    float pitch;
+    std::uint64_t generation;
+  };
+  std::mutex request_mutex;
+  std::condition_variable request_cv;
+  std::deque<SpeechRequest> requests;
+  std::jthread synthesis_thread;
+  bool synthesis_shutdown = false;
   std::uint64_t playback_generation = 1;
   std::uint64_t current_generation = 0;
   bool playback_paused = false;
   bool playback_shutdown = false;
   bool starting_voice = false;
-  LogSource logger{"XboxSpeech"};
+  LogSource logger{"GdkSpeech"};
 #ifndef PRISM_STATIC
   bool runtime_initialized = false;
 #endif
@@ -159,8 +388,8 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
       const XSpeechSynthesizerVoiceInformation *information, void *context) {
     if (information == nullptr || context == nullptr)
       return false;
-    auto &out = *static_cast<std::vector<XboxVoice> *>(context);
-    out.push_back(XboxVoice{
+    auto &out = *static_cast<std::vector<GdkVoice> *>(context);
+    out.push_back(GdkVoice{
         .id = information->VoiceId != nullptr ? information->VoiceId : "",
         .name =
             information->DisplayName != nullptr ? information->DisplayName : "",
@@ -195,27 +424,13 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
         !voices[selected_voice].language.empty())
       return voices[selected_voice].language;
     std::array<char, 128> locale{};
-    if (SUCCEEDED(XPackageGetUserLocale(locale.size(), locale.data())) &&
+    if (SUCCEEDED(
+            gdk_api().XPackageGetUserLocale(locale.size(), locale.data())) &&
         locale.front() != '\0')
       return locale.data();
     const auto it = std::ranges::find_if(
-        voices, [](const XboxVoice &voice) { return !voice.language.empty(); });
+        voices, [](const GdkVoice &voice) { return !voice.language.empty(); });
     return it != voices.end() ? it->language : "en-US";
-  }
-
-  std::string make_ssml_unlocked(std::string_view text, float current_rate,
-                                 float current_pitch) const {
-    const auto rate_multiplier = range_convert_midpoint(
-        current_rate, 0.0F, 0.5F, 1.0F, 0.5F, 1.0F, 6.0F);
-    const auto pitch_semitones = range_convert_midpoint(
-        current_pitch, 0.0F, 0.5F, 1.0F, -12.0F, 0.0F, 12.0F);
-    return fmt::format(
-        "<speak version=\"1.0\" "
-        "xmlns=\"http://www.w3.org/2001/10/synthesis\" xml:lang=\"{}\">"
-        "<prosody rate=\"{:.4f}\" pitch=\"{:+.4f}st\">{}</prosody>"
-        "</speak>",
-        xml_escape(synthesis_language_unlocked()), rate_multiplier,
-        pitch_semitones, xml_escape(text));
   }
 
   BackendResult<std::vector<std::byte>>
@@ -231,29 +446,50 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
     HRESULT hr;
     if (neutral_rate && neutral_pitch) {
       const std::string owned{text};
-      hr = XSpeechSynthesizerCreateStreamFromText(synth, owned.c_str(),
-                                                  &stream.handle);
+      hr = gdk_api().XSpeechSynthesizerCreateStreamFromText(
+          synth, owned.c_str(), &stream.handle);
     } else {
-      const auto ssml = make_ssml_unlocked(text, current_rate, current_pitch);
-      hr = XSpeechSynthesizerCreateStreamFromSsml(synth, ssml.c_str(),
-                                                  &stream.handle);
+      const auto rate_multiplier = range_convert_midpoint(
+          current_rate, 0.0F, 0.5F, 1.0F, 0.5F, 1.0F, 6.0F);
+      const auto pitch_semitones = range_convert_midpoint(
+          current_pitch, 0.0F, 0.5F, 1.0F, -12.0F, 0.0F, 12.0F);
+      const auto ssml = make_ssml(text, synthesis_language_unlocked(),
+                                  rate_multiplier, pitch_semitones);
+      if (ssml.empty())
+        return std::unexpected(BackendError::SpeakFailure);
+      hr = gdk_api().XSpeechSynthesizerCreateStreamFromSsml(synth, ssml.c_str(),
+                                                            &stream.handle);
     }
-    if (FAILED(hr))
+    if (failed(hr, "GDK or XAudio2 operation")) {
+      logger.error("GDK speech API failed: HRESULT {:#010x}",
+                   static_cast<unsigned>(hr));
       return std::unexpected(synth_error(hr));
+    }
     std::size_t size = 0;
-    hr = XSpeechSynthesizerGetStreamDataSize(stream.handle, &size);
-    if (FAILED(hr))
+    hr = gdk_api().XSpeechSynthesizerGetStreamDataSize(stream.handle, &size);
+    if (failed(hr, "GDK or XAudio2 operation")) {
+      logger.error("GDK speech API failed: HRESULT {:#010x}",
+                   static_cast<unsigned>(hr));
       return std::unexpected(synth_error(hr));
-    if (size == 0)
+    }
+    if (size == 0) {
+      logger.warn("GDK synthesized stream reported zero bytes");
       return std::unexpected(BackendError::InvalidAudioFormat);
+    }
     std::vector<std::byte> bytes(size);
     std::size_t used = 0;
-    hr = XSpeechSynthesizerGetStreamData(stream.handle, bytes.size(),
-                                         bytes.data(), &used);
-    if (FAILED(hr))
+    hr = gdk_api().XSpeechSynthesizerGetStreamData(stream.handle, bytes.size(),
+                                                   bytes.data(), &used);
+    if (failed(hr, "GDK or XAudio2 operation")) {
+      logger.error("GDK speech API failed: HRESULT {:#010x}",
+                   static_cast<unsigned>(hr));
       return std::unexpected(synth_error(hr));
-    if (used == 0 || used > bytes.size())
+    }
+    if (used == 0 || used > bytes.size()) {
+      logger.error("GDK returned invalid stream byte count: {} of {}", used,
+                   bytes.size());
       return std::unexpected(BackendError::InvalidAudioFormat);
+    }
     bytes.resize(used);
     return bytes;
   }
@@ -299,26 +535,31 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
     std::string selected_id;
     if (selected_voice < voices.size())
       selected_id = voices[selected_voice].id;
-    std::vector<XboxVoice> next;
-    const HRESULT hr =
-        XSpeechSynthesizerEnumerateInstalledVoices(&next, &voice_callback);
-    if (FAILED(hr))
+    std::vector<GdkVoice> next;
+    const HRESULT hr = gdk_api().XSpeechSynthesizerEnumerateInstalledVoices(
+        &next, &voice_callback);
+    if (failed(hr, "GDK or XAudio2 operation"))
       return std::unexpected(BackendError::BackendNotAvailable);
-    if (next.empty())
+    if (next.empty()) {
+      logger.warn("GDK reports no installed speech voices");
       return std::unexpected(BackendError::NoVoices);
+    }
+    logger.debug("Enumerated {} GDK speech voices", next.size());
     voices = std::move(next);
     if (selected_id.empty()) {
       selected_voice = NO_VOICE;
       return {};
     }
-    const auto it = std::ranges::find(voices, selected_id, &XboxVoice::id);
+    const auto it = std::ranges::find(voices, selected_id, &GdkVoice::id);
     if (it != voices.end()) {
       selected_voice = static_cast<std::size_t>(it - voices.begin());
       return {};
     }
     selected_voice = NO_VOICE;
     format_cached = false;
-    if (synth != nullptr && FAILED(XSpeechSynthesizerSetDefaultVoice(synth)))
+    if (synth != nullptr &&
+        failed(gdk_api().XSpeechSynthesizerSetDefaultVoice(synth),
+               "gdk_api().XSpeechSynthesizerSetDefaultVoice(synth)"))
       return std::unexpected(BackendError::VoiceNotFound);
     return {};
   }
@@ -372,7 +613,7 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
       HRESULT hr = audio_engine->CreateSourceVoice(&voice, &format,
                                                    XAUDIO2_VOICE_NOPITCH, 1.0F,
                                                    nullptr, nullptr, nullptr);
-      if (FAILED(hr) || voice == nullptr) {
+      if (failed(hr, "GDK or XAudio2 operation") || voice == nullptr) {
         logger.error("CreateSourceVoice failed with HRESULT 0x{:08X}",
                      static_cast<unsigned>(hr));
         std::scoped_lock lock(playback_mutex);
@@ -388,7 +629,7 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
       hr = voice->SubmitSourceBuffer(&buffer);
       if (SUCCEEDED(hr))
         hr = voice->SetVolume(item.volume);
-      if (FAILED(hr)) {
+      if (failed(hr, "GDK or XAudio2 operation")) {
         logger.error(
             "Preparing XAudio2 source voice failed with HRESULT 0x{:08X}",
             static_cast<unsigned>(hr));
@@ -418,7 +659,7 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
         if (!playback_paused && current_voice == voice &&
             item.generation == playback_generation) {
           hr = voice->Start(0);
-          if (FAILED(hr)) {
+          if (failed(hr, "GDK or XAudio2 operation")) {
             logger.error("XAudio2 source Start failed with HRESULT 0x{:08X}",
                          static_cast<unsigned>(hr));
             current_voice = nullptr;
@@ -426,7 +667,7 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
           }
         }
       }
-      if (FAILED(hr)) {
+      if (failed(hr, "GDK or XAudio2 operation")) {
         voice->DestroyVoice();
         continue;
       }
@@ -473,16 +714,50 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
     }
   }
 
+  void synthesis_loop() noexcept {
+    for (;;) {
+      SpeechRequest request;
+      {
+        std::unique_lock lock(request_mutex);
+        request_cv.wait(
+            lock, [this] { return synthesis_shutdown || !requests.empty(); });
+        if (synthesis_shutdown)
+          return;
+        request = std::move(requests.front());
+        requests.pop_front();
+      }
+      BackendResult<SynthesizedAudio> result =
+          std::unexpected(BackendError::NotInitialized);
+      {
+        std::scoped_lock lock(synth_mutex);
+        if (synth != nullptr)
+          result = synthesize_pcm_unlocked(request.text, request.rate,
+                                           request.pitch);
+      }
+      if (!result) {
+        logger.error("Asynchronous speech synthesis failed ({})",
+                     static_cast<int>(result.error()));
+        continue;
+      }
+      {
+        std::scoped_lock lock(playback_mutex);
+        if (request.generation != playback_generation)
+          continue;
+      }
+      (void)enqueue_playback(std::move(*result), request.volume);
+    }
+  }
+
   BackendResult<> initialize_audio_unlocked() {
     HRESULT hr = XAudio2Create(&audio_engine, 0, XAUDIO2_DEFAULT_PROCESSOR);
-    if (FAILED(hr) || audio_engine == nullptr) {
+    if (failed(hr, "GDK or XAudio2 operation") || audio_engine == nullptr) {
       audio_engine = nullptr;
       return std::unexpected(audio_error(hr));
     }
     hr = audio_engine->CreateMasteringVoice(
         &mastering_voice, XAUDIO2_DEFAULT_CHANNELS, XAUDIO2_DEFAULT_SAMPLERATE,
         0, nullptr, nullptr, AudioCategory_Speech);
-    if (FAILED(hr) || mastering_voice == nullptr) {
+    if (failed(hr, "GDK or XAudio2 operation") || mastering_voice == nullptr) {
       audio_engine->Release();
       audio_engine = nullptr;
       mastering_voice = nullptr;
@@ -491,6 +766,7 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
     playback_shutdown = false;
     playback_paused = false;
     playback_thread = std::jthread([this] { playback_loop(); });
+    logger.debug("XAudio2 playback worker started");
     return {};
   }
 
@@ -543,7 +819,7 @@ class XboxSpeechBackend final : public TextToSpeechBackend {
   }
 
 public:
-  XboxSpeechBackend() {
+  GdkSpeechBackend() {
 #ifndef PRISM_STATIC
     HRESULT hr = 0;
     runtime_initialized = GamingRuntimeLease::acquire(hr);
@@ -553,11 +829,20 @@ public:
 #endif
   }
 
-  ~XboxSpeechBackend() override {
+  ~GdkSpeechBackend() override {
+    {
+      std::scoped_lock lock(request_mutex);
+      synthesis_shutdown = true;
+      requests.clear();
+    }
+    request_cv.notify_all();
+    if (synthesis_thread.joinable())
+      synthesis_thread.join();
+    logger.debug("GDK synthesis worker stopped");
     shutdown_audio();
     std::scoped_lock lock(synth_mutex);
     if (synth != nullptr) {
-      (void)XSpeechSynthesizerCloseHandle(synth);
+      (void)gdk_api().XSpeechSynthesizerCloseHandle(synth);
       synth = nullptr;
     }
 #ifndef PRISM_STATIC
@@ -569,7 +854,7 @@ public:
   }
 
   [[nodiscard]] std::string_view get_name() const override {
-    return "XboxSpeech";
+    return "GdkSpeech";
   }
 
   [[nodiscard]] std::bitset<64> get_features() const override {
@@ -589,13 +874,16 @@ public:
 #endif
     XSpeechSynthesizerHandle probe_synth{};
     IXAudio2 *probe_audio = nullptr;
-    const bool speech_ok = SUCCEEDED(XSpeechSynthesizerCreate(&probe_synth)) &&
-                           probe_synth != nullptr;
+    if (!gdk_api().available)
+      return features;
+    const bool speech_ok =
+        SUCCEEDED(gdk_api().XSpeechSynthesizerCreate(&probe_synth)) &&
+        probe_synth != nullptr;
     const bool audio_ok =
         SUCCEEDED(XAudio2Create(&probe_audio, 0, XAUDIO2_DEFAULT_PROCESSOR)) &&
         probe_audio != nullptr;
     if (probe_synth != nullptr)
-      (void)XSpeechSynthesizerCloseHandle(probe_synth);
+      (void)gdk_api().XSpeechSynthesizerCloseHandle(probe_synth);
     if (probe_audio != nullptr)
       probe_audio->Release();
     if (speech_ok && audio_ok)
@@ -604,6 +892,8 @@ public:
   }
 
   BackendResult<> initialize() override {
+    if (!gdk_api().available)
+      return std::unexpected(BackendError::BackendNotAvailable);
 #ifndef PRISM_STATIC
     if (!runtime_initialized)
       return std::unexpected(BackendError::BackendNotAvailable);
@@ -611,21 +901,25 @@ public:
     std::scoped_lock lock(synth_mutex);
     if (synth != nullptr)
       return std::unexpected(BackendError::AlreadyInitialized);
-    HRESULT hr = XSpeechSynthesizerCreate(&synth);
-    if (FAILED(hr) || synth == nullptr) {
+    HRESULT hr = gdk_api().XSpeechSynthesizerCreate(&synth);
+    if (failed(hr, "GDK or XAudio2 operation") || synth == nullptr) {
+      logger.error("XSpeechSynthesizerCreate failed: HRESULT {:#010x}",
+                   static_cast<unsigned>(hr));
       synth = nullptr;
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (auto result = refresh_voices_unlocked(); !result) {
-      (void)XSpeechSynthesizerCloseHandle(synth);
+      (void)gdk_api().XSpeechSynthesizerCloseHandle(synth);
       synth = nullptr;
       return result;
     }
     if (auto result = initialize_audio_unlocked(); !result) {
-      (void)XSpeechSynthesizerCloseHandle(synth);
+      (void)gdk_api().XSpeechSynthesizerCloseHandle(synth);
       synth = nullptr;
       return result;
     }
+    synthesis_thread = std::jthread([this] { synthesis_loop(); });
+    logger.info("GDK speech backend initialized");
     if (auto result = cache_format_unlocked(); !result)
       logger.warn(
           "Could not cache Xbox speech output format during initialization");
@@ -637,20 +931,31 @@ public:
       if (auto result = stop(); !result)
         return result;
     }
-    const float current_rate = rate.load(std::memory_order_acquire);
-    const float current_pitch = pitch.load(std::memory_order_acquire);
-    const float current_volume = volume.load(std::memory_order_acquire);
-    BackendResult<SynthesizedAudio> audio =
-        std::unexpected(BackendError::NotInitialized);
     {
       std::scoped_lock lock(synth_mutex);
       if (synth == nullptr)
         return std::unexpected(BackendError::NotInitialized);
-      audio = synthesize_pcm_unlocked(text, current_rate, current_pitch);
     }
-    if (!audio)
-      return std::unexpected(audio.error());
-    return enqueue_playback(std::move(*audio), current_volume);
+    std::uint64_t generation;
+    {
+      std::scoped_lock lock(playback_mutex);
+      generation = playback_generation;
+    }
+    {
+      std::scoped_lock lock(request_mutex);
+      if (synthesis_shutdown)
+        return std::unexpected(BackendError::BackendNotAvailable);
+      requests.push_back(SpeechRequest{
+          .text = std::string{text},
+          .volume = volume.load(std::memory_order_acquire),
+          .rate = rate.load(std::memory_order_acquire),
+          .pitch = pitch.load(std::memory_order_acquire),
+          .generation = generation,
+      });
+    }
+    logger.debug("Queued {} bytes of speech text", text.size());
+    request_cv.notify_one();
+    return {};
   }
 
   BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
@@ -688,8 +993,11 @@ public:
     std::scoped_lock playback_lock(playback_mutex);
     const bool current_is_active =
         current_voice != nullptr && current_generation == playback_generation;
-    return !playback_paused &&
-           (current_is_active || starting_voice || !playback_queue.empty());
+    const bool playback_active =
+        !playback_paused &&
+        (current_is_active || starting_voice || !playback_queue.empty());
+    std::scoped_lock queue_lock(request_mutex);
+    return playback_active || !requests.empty();
   }
 
   BackendResult<> stop() override {
@@ -707,6 +1015,11 @@ public:
       if (current_voice != nullptr)
         (void)current_voice->Stop(0);
     }
+    {
+      std::scoped_lock lock(request_mutex);
+      requests.clear();
+    }
+    logger.debug("Stopped speech and discarded pending requests");
     playback_cv.notify_all();
     return {};
   }
@@ -726,7 +1039,7 @@ public:
       return std::unexpected(BackendError::NotSpeaking);
     if (current_is_active) {
       const HRESULT hr = current_voice->Stop(0);
-      if (FAILED(hr))
+      if (failed(hr, "GDK or XAudio2 operation"))
         return std::unexpected(audio_error(hr));
     }
     playback_paused = true;
@@ -745,7 +1058,7 @@ public:
       return std::unexpected(BackendError::NotPaused);
     if (current_voice != nullptr) {
       const HRESULT hr = current_voice->Start(0);
-      if (FAILED(hr))
+      if (failed(hr, "GDK or XAudio2 operation"))
         return std::unexpected(audio_error(hr));
     }
     playback_paused = false;
@@ -765,7 +1078,7 @@ public:
     std::scoped_lock lock(playback_mutex);
     if (current_voice != nullptr && current_generation == playback_generation) {
       const HRESULT hr = current_voice->SetVolume(value);
-      if (FAILED(hr))
+      if (failed(hr, "GDK or XAudio2 operation"))
         return std::unexpected(audio_error(hr));
     }
     return {};
@@ -852,9 +1165,9 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     if (id >= voices.size())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    const HRESULT hr =
-        XSpeechSynthesizerSetCustomVoice(synth, voices[id].id.c_str());
-    if (FAILED(hr))
+    const HRESULT hr = gdk_api().XSpeechSynthesizerSetCustomVoice(
+        synth, voices[id].id.c_str());
+    if (failed(hr, "GDK or XAudio2 operation"))
       return std::unexpected(BackendError::VoiceNotFound);
     selected_voice = id;
     format_cached = false;
@@ -898,6 +1211,6 @@ public:
   }
 };
 
-REGISTER_BACKEND_WITH_ID(XboxSpeechBackend, Backends::XboxSpeech, "XboxSpeech",
+REGISTER_BACKEND_WITH_ID(GdkSpeechBackend, Backends::GdkSpeech, "GdkSpeech",
                          100)
 #endif

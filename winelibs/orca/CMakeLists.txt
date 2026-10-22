@@ -1,5 +1,5 @@
-if(NOT GIO_FOUND)
-  message(STATUS "winelibs/orca: skipped (need gio-2.0 and gdbus-codegen)")
+if(NOT DBUS_FOUND)
+  message(STATUS "winelibs/orca: skipped (needs dbus-1)")
   return()
 endif()
 prism_add_winelib(
@@ -11,4 +11,4 @@ prism_add_winelib(
   INCLUDES
   ${CMAKE_CURRENT_BINARY_DIR}/gen
   DEPS
-  PkgConfig::GIO)
+  PkgConfig::DBUS)

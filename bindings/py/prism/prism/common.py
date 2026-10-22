@@ -29,6 +29,7 @@ class BackendId(IntEnum):
     SYSTEM_ACCESS = 0x8380F2A37B2C3EB6
     WINDOW_EYES = 0x9120D89908785C13
     SPIEL = 0x478B44F14AD3D89C
+    XBOX_SPEECH = 0xC3012087817A1CEE
 
     @classmethod
     def _missing_(cls, value: object) -> Self | None:

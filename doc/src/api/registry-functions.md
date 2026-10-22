@@ -92,31 +92,6 @@ Backend names are human-readable strings such as "SAPI", "NVDA", "Speech Dispatc
 
 If the application knows the backend it wants at compile time, using the predefined `PRISM_BACKEND_*` constants is more efficient than calling this function, as it avoids the string comparison overhead.
 
-The names used by Prism backends are:
-
-| Backend | Name |
-| --- | --- |
-| SAPI | `"SAPI"` |
-| AVSpeech | `"AVSpeech"` |
-| VoiceOver | `"VoiceOver"` |
-| Speech Dispatcher | `"Speech Dispatcher"` |
-| NVDA | `"NVDA"` |
-| JAWS | `"JAWS"` |
-| OneCore | `"OneCore"` |
-| Orca | `"Orca"` |
-| Android text-to-speech services | `"AndroidTextToSpeech"` |
-| Android screen readers (via Android's accessibility manager) | `"AndroidScreenReader"` |
-| Web SpeechSynthesis API | `"WebSpeechSynthesis"` |
-| UIAutomation | `"UIA"` |
-| Zhengdu Screen Reader | `"ZDSR"` |
-| ZoomText | `"ZoomText"` |
-| BoyPCReader | `"BoyPCReader"` |
-| PCTalker | `"PCTalker"` |
-| Sense Reader | `"SenseReader"` |
-| SystemAccess | `"SystemAccess"` |
-| WindowEyes | `"WindowEyes"` |
-| Spiel | `"Spiel"` |
-
 ### prism_registry_name
 
 Returns the human-readable name of a backend given its ID.

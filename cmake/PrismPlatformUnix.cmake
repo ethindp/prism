@@ -5,25 +5,36 @@ include(PrismGuards)
 prism_require_targets(prism prism_common)
 if(PRISM_ENABLE_POWER_MANAGEMENT)
   find_package(PkgConfig REQUIRED)
-  pkg_check_modules(PRISM_PM QUIET IMPORTED_TARGET "giomm-2.68>=2.68.0")
+  pkg_check_modules(PRISM_PM QUIET IMPORTED_TARGET "dbus-1")
   if(PRISM_PM_FOUND)
     target_compile_definitions(prism_common
                                INTERFACE PRISM_ENABLE_POWER_MANAGEMENT)
     target_link_libraries(prism PRIVATE PkgConfig::PRISM_PM)
     set(_pcd "${PRISM_PKGCONFIG_FIND_DEPENDS}")
-    list(
-      APPEND
-      _pcd
-      "pkg_check_modules(PRISM_PM REQUIRED IMPORTED_TARGET \"giomm-2.68>=2.68.0\")"
-    )
+    list(APPEND _pcd
+         "pkg_check_modules(PRISM_PM REQUIRED IMPORTED_TARGET \"dbus-1\")")
     set(PRISM_PKGCONFIG_FIND_DEPENDS
         "${_pcd}"
         CACHE INTERNAL "")
   else()
     message(
-      STATUS "Prism: giomm not found; power-aware availability polling disabled"
-    )
+      STATUS
+        "Prism: dbus-1 not found; power-aware availability polling disabled")
   endif()
+endif()
+# Orca also requires the compiled D-Bus bindings when power management is off.
+if(TARGET prism_backend_orca AND NOT PRISM_PM_FOUND)
+  pkg_check_modules(PRISM_ORCA_DBUS REQUIRED IMPORTED_TARGET "dbus-1")
+  target_link_libraries(prism PRIVATE PkgConfig::PRISM_ORCA_DBUS)
+endif()
+if(PRISM_PM_FOUND OR TARGET prism_backend_orca)
+  target_sources(
+    prism
+    PRIVATE ${PRISM_SOURCE_ROOT}/source/dbus/client.cpp
+            ${PRISM_SOURCE_ROOT}/source/dbus/bus.cpp
+            ${PRISM_SOURCE_ROOT}/source/dbus/orca.cpp
+            ${PRISM_SOURCE_ROOT}/source/dbus/login1.cpp
+            ${PRISM_SOURCE_ROOT}/source/dbus/spiel.cpp)
 endif()
 if(PRISM_BUILD_WINELIBS)
   include(ExternalProject)

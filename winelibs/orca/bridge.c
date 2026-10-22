@@ -1,271 +1,216 @@
 // SPDX-License-Identifier: MPL-2.0
-
 #include "bridge.h"
-#include <gio/gio.h>
+#include <dbus/dbus.h>
 #include <stdlib.h>
-#include <string.h>
 
-typedef struct OrcaDialect OrcaDialect;
-static gboolean probe_legacy_module(GDBusConnection *conn, const OrcaDialect *d,
-                                    const char *path);
-static gboolean probe_v1_speech_manager(GDBusConnection *conn,
-                                        const OrcaDialect *d, const char *path);
-typedef gboolean (*OrcaProbeFunc)(GDBusConnection *conn, const OrcaDialect *d,
-                                  const char *path);
-
-struct OrcaDialect {
-  const char *bus_name;
+typedef struct {
+  const char *name;
   const char *service_path;
-  const char *service_iface;
-  const char *const *speech_path_candidates;
-  const char *speech_iface;
-  gboolean generic_dispatch;
-  OrcaProbeFunc probe_speech_path;
-};
-static const char *const LEGACY_SPEECH_PATHS[] = {
+  const char *service_interface;
+  const char *speech_interface;
+  const char *const *speech_paths;
+  int legacy;
+} OrcaDialect;
+
+static const char *const v1_paths[] = {"/org/gnome/Orca1/Service/SpeechManager",
+                                       NULL};
+static const char *const legacy_paths[] = {
     "/org/gnome/Orca/Service/SpeechAndVerbosityManager",
-    "/org/gnome/Orca/Service/SpeechManager",
-    NULL,
-};
-static const char *const V1_SPEECH_PATHS[] = {
-    "/org/gnome/Orca1/Service/SpeechManager",
-    NULL,
-};
-static const OrcaDialect ORCA_LEGACY_DIALECT = {
-    .bus_name = "org.gnome.Orca.Service",
-    .service_path = "/org/gnome/Orca/Service",
-    .service_iface = "org.gnome.Orca.Service",
-    .speech_path_candidates = LEGACY_SPEECH_PATHS,
-    .speech_iface = "org.gnome.Orca.Module",
-    .generic_dispatch = TRUE,
-    .probe_speech_path = probe_legacy_module,
-};
-static const OrcaDialect ORCA_V1_DIALECT = {
-    .bus_name = "org.gnome.Orca1.Service",
-    .service_path = "/org/gnome/Orca1/Service",
-    .service_iface = "org.gnome.Orca1.Service",
-    .speech_path_candidates = V1_SPEECH_PATHS,
-    .speech_iface = "org.gnome.Orca1.SpeechManager",
-    .generic_dispatch = FALSE,
-    .probe_speech_path = probe_v1_speech_manager,
-};
-static const OrcaDialect *const DIALECTS[] = {
-    &ORCA_V1_DIALECT,
-    &ORCA_LEGACY_DIALECT,
-    NULL,
-};
-static const int DBUS_TIMEOUT_MS = 100;
+    "/org/gnome/Orca/Service/SpeechManager", NULL};
+static const OrcaDialect dialects[] = {
+    {"org.gnome.Orca1.Service", "/org/gnome/Orca1/Service",
+     "org.gnome.Orca1.Service", "org.gnome.Orca1.SpeechManager", v1_paths, 0},
+    {"org.gnome.Orca.Service", "/org/gnome/Orca/Service",
+     "org.gnome.Orca.Service", "org.gnome.Orca.Module", legacy_paths, 1}};
 
 struct PrismOrcaDBusInstance {
-  GDBusConnection *conn;
+  DBusConnection *connection;
   const OrcaDialect *dialect;
-  const char *speech_path; /* points into one of the kXxxSpeechPaths arrays */
+  const char *speech_path;
 };
 
-static gboolean name_has_owner(GDBusConnection *conn, const char *bus_name) {
-  GError *err = NULL;
-  GVariant *reply = g_dbus_connection_call_sync(
-      conn, "org.freedesktop.DBus", "/org/freedesktop/DBus",
-      "org.freedesktop.DBus", "NameHasOwner", g_variant_new("(s)", bus_name),
-      G_VARIANT_TYPE("(b)"), G_DBUS_CALL_FLAGS_NONE, DBUS_TIMEOUT_MS, NULL,
-      &err);
-  if (err) {
-    g_error_free(err);
+static void close_bus(DBusConnection *connection) {
+  if (connection != NULL) {
+    dbus_connection_close(connection);
+    dbus_connection_unref(connection);
   }
-  if (!reply) {
-    return FALSE;
-  }
-  gboolean owned = FALSE;
-  g_variant_get(reply, "(b)", &owned);
-  g_variant_unref(reply);
-  return owned;
 }
 
-static gboolean probe_legacy_module(GDBusConnection *conn, const OrcaDialect *d,
-                                    const char *path) {
-  GError *err = NULL;
-  GVariant *reply = g_dbus_connection_call_sync(
-      conn, d->bus_name, path, d->speech_iface, "ListCommands", NULL, NULL,
-      G_DBUS_CALL_FLAGS_NONE, DBUS_TIMEOUT_MS, NULL, &err);
-  if (err) {
-    g_error_free(err);
-  }
-  if (!reply) {
-    return FALSE;
-  }
-  g_variant_unref(reply);
-  return TRUE;
-}
-
-static gboolean probe_v1_speech_manager(GDBusConnection *conn,
-                                        const OrcaDialect *d,
-                                        const char *path) {
-  GError *err = NULL;
-  GVariant *reply = g_dbus_connection_call_sync(
-      conn, d->bus_name, path, "org.freedesktop.DBus.Properties", "Get",
-      g_variant_new("(ss)", d->speech_iface, "Rate"), NULL,
-      G_DBUS_CALL_FLAGS_NONE, DBUS_TIMEOUT_MS, NULL, &err);
-  if (err) {
-    g_error_free(err);
-  }
-  if (!reply) {
-    return FALSE;
-  }
-  g_variant_unref(reply);
-  return TRUE;
-}
-
-static GDBusConnection *open_private_session_bus(void) {
-  GError *err = NULL;
-  gchar *addr = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SESSION, NULL, &err);
-  if (err) {
-    g_error_free(err);
-    err = NULL;
-  }
-  if (!addr) {
+static DBusConnection *open_bus(void) {
+  if (dbus_threads_init_default() == FALSE)
+    return NULL;
+  DBusError error = DBUS_ERROR_INIT;
+  DBusConnection *connection = dbus_bus_get_private(DBUS_BUS_SESSION, &error);
+  if (dbus_error_is_set(&error)) {
+    dbus_error_free(&error);
+    close_bus(connection);
     return NULL;
   }
-  GDBusConnection *c = g_dbus_connection_new_for_address_sync(
-      addr,
-      G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
-          G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
-      NULL, NULL, &err);
-  g_free(addr);
-  if (err) {
-    g_error_free(err);
-  }
-  return c;
+  if (connection != NULL)
+    dbus_connection_set_exit_on_disconnect(connection, FALSE);
+  return connection;
 }
 
-PRISM_WINELIB_ABI bool prism_orca_available(void) {
-  GError *err = NULL;
-  GDBusConnection *c = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &err);
-  if (err) {
-    g_error_free(err);
-    err = NULL;
-  }
-  if (!c) {
-    return false;
-  }
-  bool result = false;
-  for (int i = 0; DIALECTS[i] != NULL; i++) {
-    if (name_has_owner(c, DIALECTS[i]->bus_name)) {
-      for (int j = 0; DIALECTS[i]->speech_path_candidates[j] != NULL; j++) {
-        if (DIALECTS[i]->probe_speech_path(
-                c, DIALECTS[i], DIALECTS[i]->speech_path_candidates[j])) {
-          result = true;
-          break;
-        }
-      }
-      if (result) {
-        break;
-      }
+static DBusMessage *invoke(DBusConnection *connection, const char *destination,
+                           const char *path, const char *interface,
+                           const char *method, const char *first,
+                           const char *second, int with_false) {
+  DBusMessage *request =
+      dbus_message_new_method_call(destination, path, interface, method);
+  if (request == NULL)
+    return NULL;
+  DBusMessageIter iter;
+  dbus_message_iter_init_append(request, &iter);
+  const char *strings[2] = {first, second};
+  for (int i = 0; i != 2; ++i) {
+    if (strings[i] != NULL &&
+        dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &strings[i]) ==
+            FALSE) {
+      dbus_message_unref(request);
+      return NULL;
     }
   }
-  g_object_unref(c);
+  if (with_false) {
+    dbus_bool_t value = FALSE;
+    if (dbus_message_iter_append_basic(&iter, DBUS_TYPE_BOOLEAN, &value) ==
+        FALSE) {
+      dbus_message_unref(request);
+      return NULL;
+    }
+  }
+  DBusError error = DBUS_ERROR_INIT;
+  DBusMessage *reply = dbus_connection_send_with_reply_and_block(
+      connection, request, 2500, &error);
+  dbus_message_unref(request);
+  if (dbus_error_is_set(&error)) {
+    dbus_error_free(&error);
+    if (reply != NULL)
+      dbus_message_unref(reply);
+    return NULL;
+  }
+  if (reply != NULL &&
+      dbus_message_get_type(reply) != DBUS_MESSAGE_TYPE_METHOD_RETURN) {
+    dbus_message_unref(reply);
+    return NULL;
+  }
+  return reply;
+}
+
+static int reply_bool(DBusMessage *reply) {
+  if (reply == NULL || !dbus_message_has_signature(reply, "b"))
+    return 0;
+  DBusMessageIter iter;
+  if (dbus_message_iter_init(reply, &iter) == FALSE)
+    return 0;
+  dbus_bool_t value = FALSE;
+  dbus_message_iter_get_basic(&iter, &value);
+  return value != FALSE;
+}
+
+static int has_owner(DBusConnection *connection, const char *name) {
+  DBusMessage *reply =
+      invoke(connection, "org.freedesktop.DBus", "/org/freedesktop/DBus",
+             "org.freedesktop.DBus", "NameHasOwner", name, NULL, 0);
+  int result = reply_bool(reply);
+  if (reply != NULL)
+    dbus_message_unref(reply);
   return result;
 }
 
-PRISM_WINELIB_ABI bool prism_orca_create(PrismOrcaDBusInstance **out) {
-  if (!out) {
-    return false;
-  }
-  *out = NULL;
-  PrismOrcaDBusInstance *inst = calloc(1, sizeof(*inst));
-  if (!inst) {
-    return false;
-  }
-  inst->conn = open_private_session_bus();
-  if (!inst->conn) {
-    free(inst);
-    return false;
-  }
-  for (int i = 0; DIALECTS[i] != NULL; i++) {
-    const OrcaDialect *d = DIALECTS[i];
-    if (!name_has_owner(inst->conn, d->bus_name)) {
+static const OrcaDialect *detect(DBusConnection *connection,
+                                 const char **path) {
+  for (unsigned i = 0; i < sizeof(dialects) / sizeof(dialects[0]); ++i) {
+    const OrcaDialect *dialect = &dialects[i];
+    if (!has_owner(connection, dialect->name))
       continue;
-    }
-    for (int j = 0; d->speech_path_candidates[j] != NULL; j++) {
-      if (d->probe_speech_path(inst->conn, d, d->speech_path_candidates[j])) {
-        inst->dialect = d;
-        inst->speech_path = d->speech_path_candidates[j];
-        break;
+    for (const char *const *candidate = dialect->speech_paths;
+         *candidate != NULL; ++candidate) {
+      DBusMessage *reply =
+          dialect->legacy
+              ? invoke(connection, dialect->name, *candidate,
+                       dialect->speech_interface, "ListCommands", NULL, NULL, 0)
+              : invoke(connection, dialect->name, *candidate,
+                       "org.freedesktop.DBus.Properties", "Get",
+                       dialect->speech_interface, "Rate", 0);
+      if (reply != NULL) {
+        dbus_message_unref(reply);
+        *path = *candidate;
+        return dialect;
       }
     }
-    if (inst->dialect) {
-      break;
-    }
   }
-  if (!inst->dialect) {
-    g_dbus_connection_close_sync(inst->conn, NULL, NULL);
-    g_object_unref(inst->conn);
-    free(inst);
+  return NULL;
+}
+
+PRISM_WINELIB_ABI bool prism_orca_available(void) {
+  DBusConnection *connection = open_bus();
+  if (connection == NULL)
+    return false;
+  const char *path = NULL;
+  bool available = detect(connection, &path) != NULL;
+  close_bus(connection);
+  return available;
+}
+
+PRISM_WINELIB_ABI bool prism_orca_create(PrismOrcaDBusInstance **out) {
+  if (out == NULL)
+    return false;
+  *out = NULL;
+  DBusConnection *connection = open_bus();
+  if (connection == NULL)
+    return false;
+  const char *path = NULL;
+  const OrcaDialect *dialect = detect(connection, &path);
+  if (dialect == NULL) {
+    close_bus(connection);
     return false;
   }
-  *out = inst;
+  PrismOrcaDBusInstance *instance = calloc(1, sizeof(*instance));
+  if (instance == NULL) {
+    close_bus(connection);
+    return false;
+  }
+  instance->connection = connection;
+  instance->dialect = dialect;
+  instance->speech_path = path;
+  *out = instance;
   return true;
 }
 
-PRISM_WINELIB_ABI void prism_orca_destroy(PrismOrcaDBusInstance *h) {
-  if (!h) {
+PRISM_WINELIB_ABI void prism_orca_destroy(PrismOrcaDBusInstance *instance) {
+  if (instance == NULL)
     return;
-  }
-  if (h->conn) {
-    g_dbus_connection_close_sync(h->conn, NULL, NULL);
-    g_object_unref(h->conn);
-  }
-  free(h);
+  close_bus(instance->connection);
+  free(instance);
 }
 
-PRISM_WINELIB_ABI bool prism_orca_speak(PrismOrcaDBusInstance *h,
+PRISM_WINELIB_ABI bool prism_orca_speak(PrismOrcaDBusInstance *instance,
                                         const char *text) {
-  if (!h || !text || !h->conn || !h->dialect) {
+  if (instance == NULL || text == NULL)
     return false;
-  }
-  GError *err = NULL;
-  GVariant *reply = g_dbus_connection_call_sync(
-      h->conn, h->dialect->bus_name, h->dialect->service_path,
-      h->dialect->service_iface, "PresentMessage", g_variant_new("(s)", text),
-      G_VARIANT_TYPE("(b)"), G_DBUS_CALL_FLAGS_NONE, DBUS_TIMEOUT_MS, NULL,
-      &err);
-  if (err) {
-    g_error_free(err);
-  }
-  if (!reply) {
-    return false;
-  }
-  gboolean ok = FALSE;
-  g_variant_get(reply, "(b)", &ok);
-  g_variant_unref(reply);
-  return ok != FALSE;
+  DBusMessage *reply = invoke(instance->connection, instance->dialect->name,
+                              instance->dialect->service_path,
+                              instance->dialect->service_interface,
+                              "PresentMessage", text, NULL, 0);
+  int result = reply_bool(reply);
+  if (reply != NULL)
+    dbus_message_unref(reply);
+  return result != 0;
 }
 
-PRISM_WINELIB_ABI bool prism_orca_stop(PrismOrcaDBusInstance *h) {
-  if (!h || !h->conn || !h->dialect || !h->speech_path) {
+PRISM_WINELIB_ABI bool prism_orca_stop(PrismOrcaDBusInstance *instance) {
+  if (instance == NULL)
     return false;
-  }
-  GVariant *params;
-  const char *method_name;
-  if (h->dialect->generic_dispatch) {
-    params = g_variant_new("(sb)", "InterruptSpeech", FALSE);
-    method_name = "ExecuteCommand";
-  } else {
-    params = g_variant_new("(b)", FALSE);
-    method_name = "InterruptSpeech";
-  }
-  GError *err = NULL;
-  GVariant *reply = g_dbus_connection_call_sync(
-      h->conn, h->dialect->bus_name, h->speech_path, h->dialect->speech_iface,
-      method_name, params, G_VARIANT_TYPE("(b)"), G_DBUS_CALL_FLAGS_NONE,
-      DBUS_TIMEOUT_MS, NULL, &err);
-  if (err) {
-    g_error_free(err);
-  }
-  if (!reply) {
-    return false;
-  }
-  gboolean ok = FALSE;
-  g_variant_get(reply, "(b)", &ok);
-  g_variant_unref(reply);
-  return ok != FALSE;
+  const OrcaDialect *dialect = instance->dialect;
+  DBusMessage *reply =
+      dialect->legacy
+          ? invoke(instance->connection, dialect->name, instance->speech_path,
+                   dialect->speech_interface, "ExecuteCommand",
+                   "InterruptSpeech", NULL, 1)
+          : invoke(instance->connection, dialect->name, instance->speech_path,
+                   dialect->speech_interface, "InterruptSpeech", NULL, NULL, 1);
+  int result = reply_bool(reply);
+  if (reply != NULL)
+    dbus_message_unref(reply);
+  return result != 0;
 }

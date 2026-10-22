@@ -56,92 +56,66 @@ public:
 std::unique_ptr<PowerNotifier>
 PowerNotifier::create(const std::function<void()> &on_suspend,
                       const std::function<void()> &on_resume) {
-  return std::make_unique<WindowsPowerNotifier>(on_suspend,
-                                                on_resume);
+  return std::make_unique<WindowsPowerNotifier>(on_suspend, on_resume);
 }
 
 bool PowerNotifier::supported() noexcept { return true; }
 
 #elif defined(PRISM_ENABLE_POWER_MANAGEMENT) && defined(__linux__) &&          \
     !defined(__ANDROID__)
-#include <giomm/dbusconnection.h>
-#include <giomm/init.h>
-#include <glibmm/main.h>
-#include <glibmm/refptr.h>
-#include <glibmm/variant.h>
+#include "dbus/login1.h"
+#include "logging.h"
+#include <atomic>
 #include <thread>
 
 namespace {
 class LinuxPowerNotifier final : public PowerNotifier {
-private:
+  const LogSource log{"Power notifier"};
   std::function<void()> on_suspend;
   std::function<void()> on_resume;
-  Glib::RefPtr<Glib::MainContext> context;
-  Glib::RefPtr<Glib::MainLoop> loop;
-  Glib::RefPtr<Gio::DBus::Connection> connection;
-  guint sub_id = 0;
-  std::thread thread;
+  prism::dbus::Connection connection;
+  std::atomic_flag stopping = ATOMIC_FLAG_INIT;
+  std::thread worker;
 
-  void thread_main() {
-    context->push_thread_default();
-    // NOLINTBEGIN(bugprone-empty-catch)
-    try {
-      sub_id = connection->signal_subscribe(
-          sigc::mem_fun(*this, &LinuxPowerNotifier::on_signal),
-          "org.freedesktop.login1", "org.freedesktop.login1.Manager",
-          "PrepareForSleep", "/org/freedesktop/login1");
-      loop->run();
-    } catch (...) {
-    }
-    // NOLINTEND(bugprone-empty-catch)
-    if (sub_id != 0)
-      connection->signal_unsubscribe(sub_id);
-    context->pop_thread_default();
-  }
-
-  void on_signal([[maybe_unused]] const Glib::RefPtr<Gio::DBus::Connection>
-                     &connection_unused,
-                 [[maybe_unused]] const Glib::ustring &sender_name,
-                 [[maybe_unused]] const Glib::ustring &object_path,
-                 [[maybe_unused]] const Glib::ustring &interface_name,
-                 [[maybe_unused]] const Glib::ustring &signal_name,
-                 const Glib::VariantContainerBase &params) {
-    if (params.get_n_children() < 1)
-      return;
-    Glib::Variant<bool> arg;
-    params.get_child(arg, 0);
-    // NOLINTBEGIN(bugprone-empty-catch)
-    try {
-      if (arg.get()) {
-        if (on_suspend)
-          on_suspend();
-      } else {
-        if (on_resume)
-          on_resume();
+  void run() noexcept {
+    while (!stopping.test(std::memory_order_acquire)) {
+      auto message = connection.receive(100);
+      if (!message) {
+        if (!connection.connected()) {
+          log.warn(
+              "System D-Bus connection lost; power notifications disabled");
+          break;
+        }
+        continue;
       }
-    } catch (...) {
+      const auto sleeping =
+          prism::dbus::services::login1::prepare_for_sleep(message);
+      if (!sleeping)
+        continue;
+      try {
+        if (*sleeping) {
+          if (on_suspend)
+            on_suspend();
+        } else {
+          if (on_resume)
+            on_resume();
+        }
+      } catch (...) {
+        log.warn("Suspend/resume callback threw an exception");
+      }
     }
-    // NOLINTEND(bugprone-empty-catch)
   }
 
 public:
-  LinuxPowerNotifier(std::function<void()> on_suspend,
-                     std::function<void()> on_resume,
-                     Glib::RefPtr<Gio::DBus::Connection> conn)
-      : on_suspend(std::move(on_suspend)), on_resume(std::move(on_resume)),
-        context(Glib::MainContext::create()),
-        loop(Glib::MainLoop::create(context, false)),
-        connection(std::move(conn)) {
-    thread = std::thread([this] { thread_main(); });
-  }
+  LinuxPowerNotifier(std::function<void()> suspend,
+                     std::function<void()> resume, prism::dbus::Connection conn)
+      : on_suspend(std::move(suspend)), on_resume(std::move(resume)),
+        connection(std::move(conn)), worker(&LinuxPowerNotifier::run, this) {}
 
   ~LinuxPowerNotifier() override {
-    context->invoke([this] {
-      loop->quit();
-      return false;
-    });
-    if (thread.joinable())
-      thread.join();
+    stopping.test_and_set(std::memory_order_release);
+    if (worker.joinable())
+      worker.join();
   }
 };
 } // namespace
@@ -149,14 +123,16 @@ public:
 std::unique_ptr<PowerNotifier>
 PowerNotifier::create(const std::function<void()> &on_suspend,
                       const std::function<void()> &on_resume) {
-  Gio::init();
+  auto bus = prism::dbus::Connection::open(DBUS_BUS_SYSTEM);
+  if (!bus || !prism::dbus::services::login1::subscribe(bus)) {
+    static const LogSource log{"Power notifier"};
+    log.debug("System D-Bus unavailable or login1 subscription failed");
+    return nullptr;
+  }
   try {
-    auto conn = Gio::DBus::Connection::get_sync(Gio::DBus::BusType::SYSTEM);
-    if (!conn)
-      return nullptr;
     return std::make_unique<LinuxPowerNotifier>(on_suspend, on_resume,
-                                                std::move(conn));
-  } catch (const Glib::Error &) {
+                                                std::move(bus));
+  } catch (...) {
     return nullptr;
   }
 }

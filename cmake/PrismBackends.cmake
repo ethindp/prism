@@ -338,8 +338,7 @@ prism_declare_backend(
   FEATURE
   PRISM_HAVE_ORCA
   PKG_CONFIG
-  "glibmm-2.68>=2.68.0"
-  "giomm-2.68>=2.68.0")
+  "dbus-1")
 prism_declare_backend(
   speech_dispatcher
   SOURCE
@@ -368,14 +367,104 @@ prism_declare_backend(
   "gio-2.0"
   RUNTIME_PKG_CONFIG
   "spiel-1.0")
-prism_declare_backend(
-  xbox_speech
-  SOURCE
-  xbox_speech.cpp
-  PLATFORM
-  XBOX
-  DOC
-  "Microsoft GDK XSpeechSynthesizer")
+# The GDK speech API is also supported by desktop Windows. Detect a usable
+# development SDK without requiring GDK for other Windows backends.
+if(WIN32 OR PRISM_XBOX)
+  set(_prism_gdk_option "${PRISM_ENABLE_GDK_SPEECH_BACKEND}")
+  if(NOT _prism_gdk_option STREQUAL "OFF")
+    find_path(
+      PRISM_GDK_INCLUDE_DIR XSpeechSynthesizer.h
+      HINTS "$ENV{GamingGRDK}" "$ENV{GRDKLatest}" "$ENV{GRDK}" "${GamingGRDK}"
+            "${GRDKLatest}" "${GRDK}"
+      PATH_SUFFIXES GameKit/Include Include)
+    if(PRISM_XBOX)
+      find_library(
+        PRISM_GDK_RUNTIME_LIBRARY
+        NAMES xgameruntime
+        HINTS "$ENV{GamingGRDK}" "$ENV{GRDKLatest}" "$ENV{GRDK}" "${GamingGRDK}"
+              "${GRDKLatest}" "${GRDK}"
+        PATH_SUFFIXES GameKit/Lib/amd64 GameKit/Lib/x64 Lib/amd64 Lib/x64 Lib)
+    endif()
+    unset(PRISM_GDK_SPEECH_LINKS CACHE)
+    if(PRISM_GDK_INCLUDE_DIR AND (NOT PRISM_XBOX OR PRISM_GDK_RUNTIME_LIBRARY))
+      include(CheckCXXSourceCompiles)
+      set(_prism_saved_required_includes "${CMAKE_REQUIRED_INCLUDES}")
+      set(_prism_saved_required_libraries "${CMAKE_REQUIRED_LIBRARIES}")
+      set(CMAKE_REQUIRED_INCLUDES "${PRISM_GDK_INCLUDE_DIR}")
+      if(PRISM_XBOX)
+        set(CMAKE_REQUIRED_LIBRARIES "${PRISM_GDK_RUNTIME_LIBRARY}")
+      else()
+        set(CMAKE_REQUIRED_LIBRARIES "")
+      endif()
+      check_cxx_source_compiles(
+        "#include <XSpeechSynthesizer.h>
+#include <XPackage.h>
+#include <XGameRuntimeInit.h>
+#include <xaudio2.h>
+int main() {
+  XSpeechSynthesizerHandle handle{};
+  using Synth = decltype(&XSpeechSynthesizerCreate);
+  using Runtime = decltype(&XGameRuntimeInitialize);
+  static_assert(sizeof(Synth) == sizeof(void (*)()));
+  static_assert(sizeof(Runtime) == sizeof(void (*)()));
+  return 0;
+}"
+        PRISM_GDK_SPEECH_LINKS)
+      set(CMAKE_REQUIRED_INCLUDES "${_prism_saved_required_includes}")
+      set(CMAKE_REQUIRED_LIBRARIES "${_prism_saved_required_libraries}")
+    endif()
+    if(NOT PRISM_GDK_SPEECH_LINKS)
+      if(_prism_gdk_option STREQUAL "ON")
+        message(
+          FATAL_ERROR
+            "GDK speech backend requested but its SDK headers or required console link library are unavailable"
+        )
+      endif()
+      message(
+        STATUS
+          "Prism: GDK speech backend unavailable (SDK headers or required console library)"
+      )
+    else()
+      if(PRISM_XBOX AND NOT TARGET prism_gdk_runtime)
+        add_library(prism_gdk_runtime UNKNOWN IMPORTED)
+        set_target_properties(
+          prism_gdk_runtime
+          PROPERTIES IMPORTED_LOCATION "${PRISM_GDK_RUNTIME_LIBRARY}"
+                     INTERFACE_INCLUDE_DIRECTORIES "${PRISM_GDK_INCLUDE_DIR}")
+      endif()
+    endif()
+  endif()
+endif()
+if(PRISM_GDK_SPEECH_LINKS AND NOT PRISM_ENABLE_GDK_SPEECH_BACKEND STREQUAL
+                              "OFF")
+  prism_declare_backend(
+    gdk_speech
+    SOURCE
+    gdk_speech.cpp
+    PLATFORM
+    WINDOWS
+    XBOX
+    DEFINES
+    PRISM_HAVE_GDK_SPEECH=1
+    UNICODE
+    _UNICODE
+    DOC
+    "Microsoft GDK XSpeechSynthesizer")
+  if(TARGET prism_backend_gdk_speech)
+    target_include_directories(prism_backend_gdk_speech
+                               PRIVATE "${PRISM_GDK_INCLUDE_DIR}")
+    target_link_libraries(prism PRIVATE xmllite ole32)
+    if(PRISM_XBOX)
+      target_link_libraries(prism_backend_gdk_speech PRIVATE prism_gdk_runtime)
+      target_link_libraries(prism PRIVATE prism_gdk_runtime)
+    endif()
+  endif()
+elseif(PRISM_XBOX AND PRISM_ENABLE_GDK_SPEECH_BACKEND STREQUAL "ON")
+  message(
+    FATAL_ERROR
+      "Xbox speech backend explicitly enabled but GDK dependencies were not found"
+  )
+endif()
 prism_declare_backend(
   android_tts
   SOURCE

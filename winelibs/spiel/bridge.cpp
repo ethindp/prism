@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "bridge.h"
+#include "../../source/dbus/spiel.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -313,37 +314,16 @@ extern "C" PRISM_WINELIB_ABI uint32_t prism_spiel_abi_version(void) noexcept {
 
 extern "C" PRISM_WINELIB_ABI PrismWinelibStatus
 prism_spiel_available(void) noexcept {
-  GDBusConnection *bus = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, nullptr);
-  if (bus == nullptr)
-    return PRISM_WINELIB_NOT_AVAILABLE;
-  bool found = false;
-  for (const char *method : {"ListActivatableNames", "ListNames"}) {
-    GError *err = nullptr;
-    GVariant *reply = g_dbus_connection_call_sync(
-        bus, "org.freedesktop.DBus", "/org/freedesktop/DBus",
-        "org.freedesktop.DBus", method, nullptr, G_VARIANT_TYPE("(as)"),
-        G_DBUS_CALL_FLAGS_NONE, DBUS_TIMEOUT_MS, nullptr, &err);
-    if (err != nullptr)
-      g_error_free(err);
-    if (reply == nullptr)
-      continue;
-    GVariant *names = g_variant_get_child_value(reply, 0);
-    GVariantIter it;
-    const char *name = nullptr;
-    g_variant_iter_init(&it, names);
-    while (g_variant_iter_next(&it, "&s", &name) != FALSE) {
-      if (std::string_view{name}.ends_with(PROVIDER_SUFFIX)) {
-        found = true;
-        break;
-      }
-    }
-    g_variant_unref(names);
-    g_variant_unref(reply);
-    if (found)
-      break;
+  try {
+    auto bus = prism::dbus::Connection::open(DBUS_BUS_SESSION);
+    if (!bus)
+      return PRISM_WINELIB_NOT_AVAILABLE;
+    return prism::dbus::services::spiel::has_provider(bus)
+               ? PRISM_WINELIB_OK
+               : PRISM_WINELIB_NOT_AVAILABLE;
+  } catch (...) {
+    return PRISM_WINELIB_INTERNAL;
   }
-  g_object_unref(bus);
-  return found ? PRISM_WINELIB_OK : PRISM_WINELIB_NOT_AVAILABLE;
 }
 
 extern "C" PRISM_WINELIB_ABI PrismWinelibStatus

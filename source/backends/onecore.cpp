@@ -6,21 +6,26 @@
 #include "../logging.h"
 #include "../utils.h"
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <concepts>
+#include <deque>
 #include <dr_wav/dr_wav.h>
 #include <exception>
 #include <fmt/format.h>
 #include <fmt/xchar.h>
 #include <limits>
+#include <moodycamel/blockingconcurrentqueue.h>
 #include <objbase.h>
 #include <optional>
 #include <roapi.h>
 #include <simdutf.h>
 #include <span>
 #include <tchar.h>
+#include <thread>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <windows.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Foundation.Metadata.h>
@@ -146,12 +151,50 @@ template <std::invocable F> auto run_on_mta(F &&fn) -> std::invoke_result_t<F> {
     return std::move(*ctx.result);
 }
 
+namespace {
+struct SpeakCommand {
+  MediaSource source;
+};
+struct AdvanceCommand {};
+struct StopCommand {};
+struct PauseCommand {};
+struct ResumeCommand {};
+
+// SpeakCommand is listed last: MediaSource is not default-constructible, and
+// std::variant's default constructor uses its first alternative.
+using Command = std::variant<AdvanceCommand, StopCommand, PauseCommand,
+                             ResumeCommand, SpeakCommand>;
+
+template <class... Ts> struct Overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+} // namespace
+
 class OneCoreBackend final : public ComTextToSpeechBackend {
 private:
   SpeechSynthesizer synth{nullptr};
   MediaPlayer player{nullptr};
+  // Callers and the MediaPlayer's own event threads feed a single worker
+  // through a lock-free command queue. The worker is the only thread that
+  // touches the player, so the playback queue below needs no locking of its
+  // own; utterances with interrupt == false are played after the one already
+  // in progress rather than replacing it.
+  moodycamel::BlockingConcurrentQueue<Command> commands;
+  std::jthread worker;
+  // Worker-private state: only worker_proc() and the helpers it calls touch
+  // these.
+  std::deque<MediaSource> pending_sources;
+  bool playing = false;
+  bool paused = false;
+  bool advance_pending = false;
+  // Set when a MediaEnded/MediaFailed handler could not enqueue its advance
+  // command; the worker picks the work up on its next wakeup.
+  std::atomic<bool> advance_needed{false};
   std::atomic<MediaPlaybackState> current_state{MediaPlaybackState::None};
   MediaPlaybackSession::PlaybackStateChanged_revoker state_changed_revoker;
+  MediaPlayer::MediaEnded_revoker media_ended_revoker;
+  MediaPlayer::MediaFailed_revoker media_failed_revoker;
   std::size_t cached_channels = 0;
   std::size_t cached_sample_rate = 0;
   std::size_t cached_bit_depth = 0;
@@ -165,13 +208,119 @@ private:
     format_cached = false;
   }
 
+  void stop_worker() noexcept {
+    if (!worker.joinable())
+      return;
+    // The worker waits with a short timeout, so it observes the stop request
+    // on its next wakeup without a command that could fail to enqueue.
+    worker.request_stop();
+    worker.join();
+  }
+
   void reset_state() noexcept {
+    stop_worker();
     state_changed_revoker.revoke();
     state_changed_revoker = {};
+    media_ended_revoker.revoke();
+    media_ended_revoker = {};
+    media_failed_revoker.revoke();
+    media_failed_revoker = {};
+    pending_sources.clear();
+    playing = false;
+    paused = false;
+    advance_pending = false;
+    advance_needed.store(false, std::memory_order_release);
     player = nullptr;
     synth = nullptr;
     current_state.store(MediaPlaybackState::None, std::memory_order_release);
     reset_audio_format_cache();
+  }
+
+  void start_source(const MediaSource &source) {
+    player.Source(source);
+    player.Play();
+    current_state.store(MediaPlaybackState::Playing, std::memory_order_release);
+  }
+
+  // Starts the next queued utterance, or marks the backend idle if the queue
+  // is empty. Runs on the worker only.
+  void advance() {
+    if (!playing)
+      return;
+    // While paused the player does not advance; remember that the current
+    // utterance ended so resume() can pick up the queue.
+    if (paused) {
+      advance_pending = true;
+      return;
+    }
+    if (pending_sources.empty()) {
+      playing = false;
+      current_state.store(MediaPlaybackState::None,
+                          std::memory_order_release);
+      return;
+    }
+    MediaSource next = std::move(pending_sources.front());
+    pending_sources.pop_front();
+    start_source(next);
+  }
+
+  // Halt playback and drop everything queued. Runs on the worker only.
+  void discard() {
+    pending_sources.clear();
+    playing = false;
+    paused = false;
+    advance_pending = false;
+    player.Pause();
+    player.Source(nullptr);
+    current_state.store(MediaPlaybackState::None, std::memory_order_release);
+  }
+
+  void dispatch(Command command) {
+    std::visit(
+        Overloaded{
+            [this](SpeakCommand &c) {
+              if (playing)
+                pending_sources.push_back(std::move(c.source));
+              else {
+                playing = true;
+                start_source(c.source);
+              }
+            },
+            [this](AdvanceCommand &) { advance(); },
+            [this](StopCommand &) { discard(); },
+            [this](PauseCommand &) {
+              player.Pause();
+              paused = true;
+              current_state.store(MediaPlaybackState::Paused,
+                                  std::memory_order_release);
+            },
+            [this](ResumeCommand &) {
+              player.Play();
+              paused = false;
+              current_state.store(MediaPlaybackState::Playing,
+                                  std::memory_order_release);
+              if (advance_pending) {
+                advance_pending = false;
+                advance();
+              }
+            }},
+        command);
+  }
+
+  void worker_proc(const std::stop_token &st) {
+    WinrtApartmentGuard apartment{RO_INIT_MULTITHREADED};
+    if (!apartment)
+      return;
+    while (!st.stop_requested()) {
+      // A MediaEnded/MediaFailed handler may have been unable to enqueue its
+      // advance command; pick the work up here instead.
+      if (advance_needed.exchange(false, std::memory_order_acq_rel))
+        advance();
+      Command command;
+      if (!commands.wait_dequeue_timed(command, std::chrono::milliseconds(100)))
+        continue;
+      dispatch(std::move(command));
+    }
   }
 
 public:
@@ -227,6 +376,30 @@ public:
           [this](MediaPlaybackSession const &session, auto const &) {
             current_state = session.PlaybackState();
           });
+      media_ended_revoker =
+          player.MediaEnded(winrt::auto_revoke,
+                            [this](auto const &, auto const &) {
+                              if (!commands.enqueue(AdvanceCommand{})) {
+                                logger.error(
+                                    "could not queue advance command; the "
+                                    "worker will retry it");
+                                advance_needed.store(
+                                    true, std::memory_order_release);
+                              }
+                            });
+      media_failed_revoker =
+          player.MediaFailed(winrt::auto_revoke,
+                             [this](auto const &, auto const &) {
+                               if (!commands.enqueue(AdvanceCommand{})) {
+                                 logger.error(
+                                     "could not queue advance command; the "
+                                     "worker will retry it");
+                                 advance_needed.store(
+                                     true, std::memory_order_release);
+                               }
+                             });
+      worker = std::jthread(
+          [this](const std::stop_token &st) { this->worker_proc(st); });
       if (const auto format_result = cache_audio_format(); !format_result)
         logger.warn(
             "Could not cache OneCore audio format during initialization: {}",
@@ -255,9 +428,8 @@ public:
         [&] { return synth.SynthesizeTextToStreamAsync(wtext).get(); });
     const auto source =
         MediaSource::CreateFromStream(stream, stream.ContentType());
-    player.Source(source);
-    player.Play();
-    current_state = MediaPlaybackState::Playing;
+    if (!commands.enqueue(SpeakCommand{source}))
+      return std::unexpected(BackendError::MemoryFailure);
     return {};
   } catch (const winrt::hresult_error &e) {
     logger.error("Could not speak text of size {}: {}", text.size(),
@@ -341,13 +513,11 @@ public:
     winrt::check_hresult(apartment.hr);
     if (!synth || !player)
       return std::unexpected(BackendError::NotInitialized);
-    const auto state = current_state.load();
-    if (state == MediaPlaybackState::Playing ||
-        state == MediaPlaybackState::Paused) {
-      player.Pause();
-      player.Source(nullptr);
-      current_state = MediaPlaybackState::None;
-    }
+    if (!commands.enqueue(StopCommand{}))
+      return std::unexpected(BackendError::MemoryFailure);
+    // The worker performs the teardown, but stop() must report the synchronous
+    // contract that is_speaking() is false once it returns.
+    current_state.store(MediaPlaybackState::None, std::memory_order_release);
     return {};
   } catch (const winrt::hresult_error &e) {
     logger.error("stop failed: {}", e.message());
@@ -364,7 +534,8 @@ public:
       return std::unexpected(BackendError::AlreadyPaused);
     if (state != MediaPlaybackState::Playing)
       return std::unexpected(BackendError::NotSpeaking);
-    player.Pause();
+    if (!commands.enqueue(PauseCommand{}))
+      return std::unexpected(BackendError::MemoryFailure);
     current_state = MediaPlaybackState::Paused;
     return {};
   } catch (const winrt::hresult_error &e) {
@@ -380,7 +551,8 @@ public:
     const auto state = current_state.load();
     if (state != MediaPlaybackState::Paused)
       return std::unexpected(BackendError::NotPaused);
-    player.Play();
+    if (!commands.enqueue(ResumeCommand{}))
+      return std::unexpected(BackendError::MemoryFailure);
     current_state = MediaPlaybackState::Playing;
     return {};
   } catch (const winrt::hresult_error &e) {

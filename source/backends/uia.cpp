@@ -65,7 +65,7 @@ struct UiaRuntime final {
   ClientsAreListeningFn clients_are_listening{};
 
   UiaRuntime() noexcept
-      : module(LoadLibraryExW(L"uiautomationcore.dll", nullptr,
+      : module(LoadLibraryExW(_T("uiautomationcore.dll"), nullptr,
                               LOAD_LIBRARY_SEARCH_SYSTEM32)) {
     if (module == nullptr) {
       return;
@@ -301,7 +301,7 @@ private:
         return;
       }
       const HINSTANCE hinst = GetModuleHandle(nullptr);
-      window_class_name = fmt::format(L"PrismUIANotificationWindow_{}",
+      window_class_name = fmt::format(_T("PrismUIANotificationWindow_{}"),
                                       reinterpret_cast<uintptr_t>(this));
       WNDCLASSEX wc{};
       wc.cbSize = sizeof(wc);

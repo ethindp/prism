@@ -31,11 +31,11 @@ constexpr InstallLocation zdsr_install{.subkey = _T("SOFTWARE\\zhiduo\\zdsr"),
 
 struct Zdsr {
   SharedLibrary library;
-  decltype(&::InitTTS) InitTTS;
-  decltype(&::Speak) Speak;
-  decltype(&::GetSpeakState) GetSpeakState;
-  decltype(&::StopSpeak) StopSpeak;
-  decltype(&::Braille) Braille;
+  decltype(&::InitTTS) InitTTS = nullptr;
+  decltype(&::Speak) Speak = nullptr;
+  decltype(&::GetSpeakState) GetSpeakState = nullptr;
+  decltype(&::StopSpeak) StopSpeak = nullptr;
+  decltype(&::Braille) Braille = nullptr;
 };
 
 std::optional<Zdsr> load_zdsr() {

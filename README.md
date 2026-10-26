@@ -49,7 +49,6 @@ The following features are available:
 | Feature | Description |
 | --- | --- |
 | `speech-dispatcher` | Enables linking to speech dispatcher and, by extension, enables the respective back-end module. If not defined, speech dispatcher will NOT be a supported backend. |
-| `orca` | Enables use of glib and gdbus to communicate directly with the Orca screen reader. If not defined, Orca will NOT be available as a supported backend. |
 
 
 ## Documentation

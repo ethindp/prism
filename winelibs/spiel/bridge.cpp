@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstdint>
 #include <deque>
 #include <gio/gio.h>
 #include <initializer_list>
@@ -32,6 +33,7 @@ struct SpielVoiceEntry {
 struct SpielSpeakCommand {
   std::string text;
   bool interrupt;
+  std::uint64_t generation;
   float rate;
   float pitch;
   float volume;
@@ -39,7 +41,9 @@ struct SpielSpeakCommand {
   std::string language;
 };
 
-struct SpielStopCommand {};
+struct SpielStopCommand {
+  std::uint64_t generation;
+};
 struct SpielPauseCommand {};
 struct SpielResumeCommand {};
 struct SpielRefreshVoicesCommand {};
@@ -56,7 +60,6 @@ struct PrismSpielInstance {
   SpielSpeaker *speaker{nullptr};
   GListModel *voices_model{nullptr};
   gulong speaking_handler{0};
-  gulong paused_handler{0};
   gulong voices_handler{0};
   std::mutex ready_mtx;
   std::condition_variable ready_cv;
@@ -64,8 +67,24 @@ struct PrismSpielInstance {
   std::mutex queue_mtx;
   std::deque<SpielCommand> queue;
   bool wake_pending{false};
-  std::atomic_flag speaking;
-  std::atomic_flag paused;
+  std::mutex state_mtx;
+  std::uint64_t generation{0};
+  std::uint64_t worker_generation{0};
+  std::size_t outstanding{0};
+  bool spiel_speaking{false};
+  bool paused{false};
+
+  [[nodiscard]] bool has_speech_locked() const noexcept {
+    return outstanding > 0 ||
+           (spiel_speaking && worker_generation == generation);
+  }
+
+  std::uint64_t discard_locked() noexcept {
+    ++generation;
+    outstanding = 0;
+    paused = false;
+    return generation;
+  }
   std::atomic<float> rate{0.5F};
   std::atomic<float> pitch{0.5F};
   std::atomic<float> volume{1.0F};
@@ -98,9 +117,6 @@ struct PrismSpielInstance {
       g_object_unref(cancellable);
   }
 };
-
-static constexpr std::string_view PROVIDER_SUFFIX = ".Speech.Provider";
-static constexpr int DBUS_TIMEOUT_MS = 100;
 
 static bool valid_normalized(float v) noexcept {
   return v >= 0.0F && v <= 1.0F &&
@@ -159,16 +175,36 @@ static void rebuild_voices(PrismSpielInstance *h) noexcept try {
   h->voices_stale.test_and_set();
 }
 
+static void silence(PrismSpielInstance *h, std::uint64_t stopped) {
+  spiel_speaker_cancel(h->speaker);
+  spiel_speaker_resume(h->speaker);
+  std::scoped_lock lock(h->state_mtx);
+  h->worker_generation = stopped;
+}
+
+static void finish_speak(PrismSpielInstance *h, std::uint64_t of) {
+  std::scoped_lock lock(h->state_mtx);
+  if (of == h->generation && h->outstanding > 0)
+    --h->outstanding;
+}
+
 static void dispatch(PrismSpielInstance *h, const SpielCommand &cmd) {
   if (h->speaker == nullptr)
     return;
   if (const auto *speak = std::get_if<SpielSpeakCommand>(&cmd)) {
     if (speak->interrupt)
-      spiel_speaker_cancel(h->speaker);
+      silence(h, speak->generation);
+    {
+      std::scoped_lock lock(h->state_mtx);
+      if (speak->generation != h->generation)
+        return;
+    }
     std::unique_ptr<SpielUtterance, decltype(&g_object_unref)> u(
         spiel_utterance_new(speak->text.c_str()), g_object_unref);
-    if (u == nullptr)
+    if (u == nullptr) {
+      finish_speak(h, speak->generation);
       return;
+    }
     spiel_utterance_set_rate(u.get(), speak->rate);
     spiel_utterance_set_pitch(u.get(), speak->pitch);
     spiel_utterance_set_volume(u.get(), speak->volume);
@@ -188,8 +224,9 @@ static void dispatch(PrismSpielInstance *h, const SpielCommand &cmd) {
       }
     }
     spiel_speaker_speak(h->speaker, u.get());
-  } else if (std::holds_alternative<SpielStopCommand>(cmd)) {
-    spiel_speaker_cancel(h->speaker);
+    finish_speak(h, speak->generation);
+  } else if (const auto *stop = std::get_if<SpielStopCommand>(&cmd)) {
+    silence(h, stop->generation);
   } else if (std::holds_alternative<SpielPauseCommand>(cmd)) {
     spiel_speaker_pause(h->speaker);
   } else if (std::holds_alternative<SpielResumeCommand>(cmd)) {
@@ -233,22 +270,9 @@ static void on_notify_speaking(GObject *obj, [[maybe_unused]] GParamSpec *spec,
                                gpointer ud) {
   gboolean v = FALSE;
   g_object_get(obj, "speaking", &v, nullptr);
-  auto &flag = static_cast<PrismSpielInstance *>(ud)->speaking;
-  if (v != FALSE)
-    flag.test_and_set();
-  else
-    flag.clear();
-}
-
-static void on_notify_paused(GObject *obj, [[maybe_unused]] GParamSpec *spec,
-                             gpointer ud) {
-  gboolean v = FALSE;
-  g_object_get(obj, "paused", &v, nullptr);
-  auto &flag = static_cast<PrismSpielInstance *>(ud)->paused;
-  if (v != FALSE)
-    flag.test_and_set();
-  else
-    flag.clear();
+  auto *h = static_cast<PrismSpielInstance *>(ud);
+  std::scoped_lock lock(h->state_mtx);
+  h->spiel_speaking = v != FALSE;
 }
 
 static void on_voices_changed([[maybe_unused]] GListModel *model,
@@ -276,8 +300,6 @@ static void on_speaker_ready([[maybe_unused]] GObject *source,
   }
   h->speaking_handler = g_signal_connect(h->speaker, "notify::speaking",
                                          G_CALLBACK(on_notify_speaking), h);
-  h->paused_handler = g_signal_connect(h->speaker, "notify::paused",
-                                       G_CALLBACK(on_notify_paused), h);
   h->voices_model = spiel_speaker_get_voices(h->speaker);
   if (h->voices_model != nullptr)
     h->voices_handler = g_signal_connect(h->voices_model, "items-changed",
@@ -297,8 +319,6 @@ static void worker(PrismSpielInstance *h) {
   if (h->speaker != nullptr) {
     if (h->speaking_handler != 0)
       g_signal_handler_disconnect(h->speaker, h->speaking_handler);
-    if (h->paused_handler != 0)
-      g_signal_handler_disconnect(h->speaker, h->paused_handler);
     if (h->voices_model != nullptr && h->voices_handler != 0)
       g_signal_handler_disconnect(h->voices_model, h->voices_handler);
     h->voices_model = nullptr;
@@ -308,12 +328,12 @@ static void worker(PrismSpielInstance *h) {
   g_main_context_pop_thread_default(h->ctx);
 }
 
-extern "C" PRISM_WINELIB_ABI uint32_t prism_spiel_abi_version(void) noexcept {
+extern "C" PRISM_WINELIB_ABI uint32_t prism_spiel_abi_version() noexcept {
   return PRISM_SPIEL_BRIDGE_ABI_VERSION;
 }
 
 extern "C" PRISM_WINELIB_ABI PrismWinelibStatus
-prism_spiel_available(void) noexcept {
+prism_spiel_available() noexcept {
   try {
     auto bus = prism::dbus::Connection::open(DBUS_BUS_SESSION);
     if (!bus)
@@ -368,6 +388,7 @@ extern "C" PRISM_WINELIB_ABI PrismWinelibStatus prism_spiel_speak(
   SpielSpeakCommand cmd{
       .text = text,
       .interrupt = interrupt != 0,
+      .generation = 0,
       .rate = r <= 0.5F ? 0.1F + (r * 1.8F) : 1.0F + ((r - 0.5F) * 18.0F),
       .pitch = p * 2.0F,
       .volume = h->volume.load(),
@@ -381,6 +402,11 @@ extern "C" PRISM_WINELIB_ABI PrismWinelibStatus prism_spiel_speak(
       cmd.language = h->voices[h->voice_idx].language;
     }
   }
+  {
+    std::scoped_lock lock(h->state_mtx);
+    cmd.generation = cmd.interrupt ? h->discard_locked() : h->generation;
+    ++h->outstanding;
+  }
   return post(h, std::move(cmd));
 } catch (const std::bad_alloc &) {
   return PRISM_WINELIB_MEMORY;
@@ -392,17 +418,26 @@ extern "C" PRISM_WINELIB_ABI PrismWinelibStatus
 prism_spiel_stop(PrismSpielInstance *h) noexcept {
   if (h == nullptr)
     return PRISM_WINELIB_INVALID_ARGUMENT;
-  return post(h, SpielStopCommand{});
+  std::uint64_t stopped = 0;
+  {
+    std::scoped_lock lock(h->state_mtx);
+    stopped = h->discard_locked();
+  }
+  return post(h, SpielStopCommand{.generation = stopped});
 }
 
 extern "C" PRISM_WINELIB_ABI PrismWinelibStatus
 prism_spiel_pause(PrismSpielInstance *h) noexcept {
   if (h == nullptr)
     return PRISM_WINELIB_INVALID_ARGUMENT;
-  if (!h->speaking.test())
-    return PRISM_WINELIB_NOT_SPEAKING;
-  if (h->paused.test())
-    return PRISM_WINELIB_ALREADY_PAUSED;
+  {
+    std::scoped_lock lock(h->state_mtx);
+    if (h->paused)
+      return PRISM_WINELIB_ALREADY_PAUSED;
+    if (!h->has_speech_locked())
+      return PRISM_WINELIB_NOT_SPEAKING;
+    h->paused = true;
+  }
   return post(h, SpielPauseCommand{});
 }
 
@@ -410,8 +445,12 @@ extern "C" PRISM_WINELIB_ABI PrismWinelibStatus
 prism_spiel_resume(PrismSpielInstance *h) noexcept {
   if (h == nullptr)
     return PRISM_WINELIB_INVALID_ARGUMENT;
-  if (!h->paused.test())
-    return PRISM_WINELIB_NOT_PAUSED;
+  {
+    std::scoped_lock lock(h->state_mtx);
+    if (!h->paused)
+      return PRISM_WINELIB_NOT_PAUSED;
+    h->paused = false;
+  }
   return post(h, SpielResumeCommand{});
 }
 
@@ -419,7 +458,8 @@ extern "C" PRISM_WINELIB_ABI PrismWinelibStatus
 prism_spiel_is_speaking(PrismSpielInstance *h, int32_t *out) noexcept {
   if (h == nullptr || out == nullptr)
     return PRISM_WINELIB_INVALID_ARGUMENT;
-  *out = h->speaking.test() ? 1 : 0;
+  std::scoped_lock lock(h->state_mtx);
+  *out = !h->paused && h->has_speech_locked() ? 1 : 0;
   return PRISM_WINELIB_OK;
 }
 

@@ -5,7 +5,7 @@
 #include <prism_winelib_status.h>
 #include <stdint.h>
 
-#if defined(__x86_64__)
+#ifdef __x86_64__
 #define PRISM_WINELIB_ABI __attribute__((ms_abi))
 #else
 #define PRISM_WINELIB_ABI
@@ -17,8 +17,8 @@ extern "C" {
 
 typedef struct PrismSpielInstance PrismSpielInstance;
 
-PRISM_WINELIB_ABI uint32_t prism_spiel_abi_version(void) PRISM_WINELIB_NOEXCEPT;
-PRISM_WINELIB_ABI PrismWinelibStatus prism_spiel_available(void)
+PRISM_WINELIB_ABI uint32_t prism_spiel_abi_version() PRISM_WINELIB_NOEXCEPT;
+PRISM_WINELIB_ABI PrismWinelibStatus prism_spiel_available()
     PRISM_WINELIB_NOEXCEPT;
 PRISM_WINELIB_ABI PrismWinelibStatus
 prism_spiel_create(PrismSpielInstance **out) PRISM_WINELIB_NOEXCEPT;

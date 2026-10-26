@@ -5,10 +5,11 @@ endif()
 prism_add_winelib(
   orca
   SOURCES
-  bridge.c
+  bridge.cpp
+  ../../source/dbus/client.cpp
+  ../../source/dbus/bus.cpp
+  ../../source/dbus/orca.cpp
   SPEC
   ${CMAKE_CURRENT_SOURCE_DIR}/exports.spec
-  INCLUDES
-  ${CMAKE_CURRENT_BINARY_DIR}/gen
   DEPS
   PkgConfig::DBUS)

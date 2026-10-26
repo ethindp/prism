@@ -2,9 +2,10 @@
 
 #ifndef PRISM_ORCA_BRIDGE_H
 #define PRISM_ORCA_BRIDGE_H
+#include <prism_winelib_status.h>
 #include <stdbool.h>
 
-#if defined(__x86_64__)
+#ifdef __x86_64__
 #define PRISM_WINELIB_ABI __attribute__((ms_abi))
 #else
 #define PRISM_WINELIB_ABI
@@ -16,12 +17,16 @@ extern "C" {
 
 typedef struct PrismOrcaDBusInstance PrismOrcaDBusInstance;
 
-PRISM_WINELIB_ABI bool prism_orca_available(void);
-PRISM_WINELIB_ABI bool prism_orca_create(PrismOrcaDBusInstance **out);
-PRISM_WINELIB_ABI void prism_orca_destroy(PrismOrcaDBusInstance *h);
-PRISM_WINELIB_ABI bool prism_orca_speak(PrismOrcaDBusInstance *h,
-                                        const char *text);
-PRISM_WINELIB_ABI bool prism_orca_stop(PrismOrcaDBusInstance *h);
+PRISM_WINELIB_ABI bool prism_orca_available() PRISM_WINELIB_NOEXCEPT;
+PRISM_WINELIB_ABI bool
+prism_orca_create(PrismOrcaDBusInstance **out) PRISM_WINELIB_NOEXCEPT;
+PRISM_WINELIB_ABI void
+prism_orca_destroy(PrismOrcaDBusInstance *h) PRISM_WINELIB_NOEXCEPT;
+PRISM_WINELIB_ABI bool
+prism_orca_speak(PrismOrcaDBusInstance *h,
+                 const char *text) PRISM_WINELIB_NOEXCEPT;
+PRISM_WINELIB_ABI bool
+prism_orca_stop(PrismOrcaDBusInstance *h) PRISM_WINELIB_NOEXCEPT;
 
 #ifdef __cplusplus
 }

@@ -211,9 +211,11 @@ void GodotPrismContext::_bind_methods() {
   ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId",
                                  "WINDOW_EYES",
                                  id_to_godot(PRISM_BACKEND_WINDOW_EYES));
-  ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId",
-                                 "SPIEL",
+  ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId", "SPIEL",
                                  id_to_godot(PRISM_BACKEND_SPIEL));
+  ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId",
+                                 "GDK_SPEECH",
+                                 id_to_godot(PRISM_BACKEND_GDK_SPEECH));
   // Methods
   ClassDB::bind_method(D_METHOD("get_backends_count"),
                        &GodotPrismContext::get_backends_count);

@@ -14,7 +14,7 @@ typedef enum TolkOp {
   TOLK_OP_OUTPUT,
   TOLK_OP_SPEAK,
   TOLK_OP_BRAILLE,
-  TOLK_OP_SILENCE
+  TOLK_OP_SILENCE,
 } TolkOp;
 
 static fast_lock tolk_lock = FAST_LOCK_INIT;
@@ -27,7 +27,7 @@ static bool tolk_loaded TSA_GUARDED_BY(tolk_lock);
 static bool tolk_try_sapi TSA_GUARDED_BY(tolk_lock);
 static bool tolk_prefer_sapi TSA_GUARDED_BY(tolk_lock);
 
-static PrismBackend *tolk_current_locked(void) TSA_REQUIRES(tolk_lock) {
+static PrismBackend *tolk_current_locked() TSA_REQUIRES(tolk_lock) {
   if (tolk_try_sapi && tolk_prefer_sapi) {
     PrismBackend *sapi =
         shim_slot_get(tolk_ctx, shim_native_tts_id(), &tolk_sapi);
@@ -91,7 +91,7 @@ static bool tolk_run(TolkOp op, const wchar_t *str, bool interrupt)
   return error == PRISM_OK;
 }
 
-TOLK_API void TOLK_CALL Tolk_Load(void) {
+TOLK_API void TOLK_CALL Tolk_Load() {
   fast_lock_acquire(&tolk_lock);
   if (!tolk_loaded) {
     tolk_ctx = shim_context_open(&tolk_stale);
@@ -103,14 +103,14 @@ TOLK_API void TOLK_CALL Tolk_Load(void) {
   fast_lock_release(&tolk_lock);
 }
 
-TOLK_API bool TOLK_CALL Tolk_IsLoaded(void) {
+TOLK_API bool TOLK_CALL Tolk_IsLoaded() {
   fast_lock_acquire(&tolk_lock);
   const bool result = tolk_loaded;
   fast_lock_release(&tolk_lock);
   return result;
 }
 
-TOLK_API void TOLK_CALL Tolk_Unload(void) {
+TOLK_API void TOLK_CALL Tolk_Unload() {
   fast_lock_acquire(&tolk_lock);
   if (tolk_loaded) {
     shim_selection_clear(&tolk_auto);
@@ -136,7 +136,7 @@ TOLK_API void TOLK_CALL Tolk_PreferSAPI(bool preferSAPI) {
   fast_lock_release(&tolk_lock);
 }
 
-TOLK_API const wchar_t *TOLK_CALL Tolk_DetectScreenReader(void) {
+TOLK_API const wchar_t *TOLK_CALL Tolk_DetectScreenReader() {
   fast_lock_acquire(&tolk_lock);
   const wchar_t *result = PRISM_SHIM_NULL;
   if (tolk_loaded) {
@@ -149,7 +149,7 @@ TOLK_API const wchar_t *TOLK_CALL Tolk_DetectScreenReader(void) {
   return result;
 }
 
-TOLK_API bool TOLK_CALL Tolk_HasSpeech(void) {
+TOLK_API bool TOLK_CALL Tolk_HasSpeech() {
   fast_lock_acquire(&tolk_lock);
   uint64_t features = 0;
   if (tolk_loaded) {
@@ -162,7 +162,7 @@ TOLK_API bool TOLK_CALL Tolk_HasSpeech(void) {
   return (features & PRISM_BACKEND_SUPPORTS_SPEAK) != 0;
 }
 
-TOLK_API bool TOLK_CALL Tolk_HasBraille(void) {
+TOLK_API bool TOLK_CALL Tolk_HasBraille() {
   fast_lock_acquire(&tolk_lock);
   uint64_t features = 0;
   if (tolk_loaded) {
@@ -187,7 +187,7 @@ TOLK_API bool TOLK_CALL Tolk_Braille(const wchar_t *str) {
   return tolk_run(TOLK_OP_BRAILLE, str, false);
 }
 
-TOLK_API bool TOLK_CALL Tolk_IsSpeaking(void) {
+TOLK_API bool TOLK_CALL Tolk_IsSpeaking() {
   fast_lock_acquire(&tolk_lock);
   bool speaking = false;
   PrismError error = PRISM_ERROR_NOT_INITIALIZED;
@@ -201,6 +201,6 @@ TOLK_API bool TOLK_CALL Tolk_IsSpeaking(void) {
   return (bool)((int)error == PRISM_OK && speaking);
 }
 
-TOLK_API bool TOLK_CALL Tolk_Silence(void) {
+TOLK_API bool TOLK_CALL Tolk_Silence() {
   return tolk_run(TOLK_OP_SILENCE, PRISM_SHIM_NULL, false);
 }

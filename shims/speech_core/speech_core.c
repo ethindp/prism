@@ -27,7 +27,7 @@ typedef enum ScOp {
   SC_OP_BRAILLE,
   SC_OP_STOP,
   SC_OP_PAUSE,
-  SC_OP_RESUME
+  SC_OP_RESUME,
 } ScOp;
 
 static fast_lock sc_lock = FAST_LOCK_INIT;
@@ -38,16 +38,18 @@ static PrismBackend *sc_native;
 static ShimStrings sc_strings;
 static bool sc_pinned;
 static bool sc_loaded;
+#ifdef _WIN32
 static bool sc_prefer_native;
+#endif
 
-static bool sc_ensure_context_locked(void) {
+static bool sc_ensure_context_locked() {
   if (sc_ctx == PRISM_SHIM_NULL) {
     sc_ctx = shim_context_open(&sc_stale);
   }
   return sc_ctx != PRISM_SHIM_NULL;
 }
 
-static void sc_release_context_if_idle_locked(void) {
+static void sc_release_context_if_idle_locked() {
   if (sc_loaded || sc_native != PRISM_SHIM_NULL || sc_ctx == PRISM_SHIM_NULL) {
     return;
   }
@@ -57,7 +59,7 @@ static void sc_release_context_if_idle_locked(void) {
   shim_strings_free(&sc_strings);
 }
 
-static PrismBackend *sc_active_locked(void) {
+static PrismBackend *sc_active_locked() {
   if (!sc_loaded) {
     return PRISM_SHIM_NULL;
   }
@@ -141,23 +143,23 @@ static uint32_t sc_flags(PrismBackend *backend) {
   const uint64_t features = prism_backend_get_features(backend);
   uint32_t flags = 0;
   if (features & PRISM_BACKEND_SUPPORTS_SPEAK)
-    flags |= SC_HAS_SPEECH;
+    flags |= (uint32_t)SC_HAS_SPEECH;
   if (features & PRISM_BACKEND_SUPPORTS_BRAILLE)
-    flags |= SC_HAS_BRAILLE;
+    flags |= (uint32_t)SC_HAS_BRAILLE;
   if (features & PRISM_BACKEND_SUPPORTS_IS_SPEAKING)
-    flags |= SC_HAS_SPEECH_STATE;
+    flags |= (uint32_t)SC_HAS_SPEECH_STATE;
   if (features & (PRISM_BACKEND_SUPPORTS_STOP | PRISM_BACKEND_SUPPORTS_PAUSE |
                   PRISM_BACKEND_SUPPORTS_RESUME))
-    flags |= SC_SPEECH_FLOW_CONTROL;
+    flags |= (uint32_t)SC_SPEECH_FLOW_CONTROL;
   if (features &
       (PRISM_BACKEND_SUPPORTS_SET_VOLUME | PRISM_BACKEND_SUPPORTS_SET_RATE |
        PRISM_BACKEND_SUPPORTS_SET_PITCH))
-    flags |= SC_SPEECH_PARAMETER_CONTROL;
+    flags |= (uint32_t)SC_SPEECH_PARAMETER_CONTROL;
   if (features &
       (PRISM_BACKEND_SUPPORTS_COUNT_VOICES | PRISM_BACKEND_SUPPORTS_SET_VOICE))
-    flags |= SC_VOICE_CONFIG;
+    flags |= (uint32_t)SC_VOICE_CONFIG;
   if (features & PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY)
-    flags |= SC_FILE_OUTPUT;
+    flags |= (uint32_t)SC_FILE_OUTPUT;
   return flags;
 }
 
@@ -196,7 +198,7 @@ static void sc_output_file_locked(PrismBackend *backend, const char *path,
   free(utf8);
 }
 
-void Speech_Init(void) {
+void Speech_Init() {
   fast_lock_acquire(&sc_lock);
   if (!sc_loaded && sc_ensure_context_locked()) {
     sc_loaded = true;
@@ -208,18 +210,20 @@ void Speech_Init(void) {
   fast_lock_release(&sc_lock);
 }
 
-void Speech_Free(void) {
+void Speech_Free() {
   fast_lock_acquire(&sc_lock);
   shim_selection_clear(&sc_auto);
   shim_slot_drop(&sc_native);
   sc_pinned = false;
   sc_loaded = false;
+#ifdef _WIN32
   sc_prefer_native = false;
+#endif
   sc_release_context_if_idle_locked();
   fast_lock_release(&sc_lock);
 }
 
-void Speech_Detect_Driver(void) {
+void Speech_Detect_Driver() {
   fast_lock_acquire(&sc_lock);
   if (sc_loaded) {
     sc_pinned = false;
@@ -228,7 +232,7 @@ void Speech_Detect_Driver(void) {
   fast_lock_release(&sc_lock);
 }
 
-const wchar_t *Speech_Current_Driver(void) {
+const wchar_t *Speech_Current_Driver() {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   const wchar_t *result =
@@ -261,13 +265,15 @@ void Speech_Set_Driver(int index) {
       sc_auto.backend = replacement;
       sc_auto.id = id;
       sc_pinned = true;
+#ifdef _WIN32
       sc_prefer_native = false;
+#endif
     }
   }
   fast_lock_release(&sc_lock);
 }
 
-int Speech_Get_Drivers(void) {
+int Speech_Get_Drivers() {
   fast_lock_acquire(&sc_lock);
   const size_t count =
       sc_ctx == PRISM_SHIM_NULL ? 0 : prism_registry_count(sc_ctx);
@@ -275,21 +281,21 @@ int Speech_Get_Drivers(void) {
   return count > (size_t)INT_MAX ? INT_MAX : (int)count;
 }
 
-uint32_t Speech_Get_Flags(void) {
+uint32_t Speech_Get_Flags() {
   fast_lock_acquire(&sc_lock);
   const uint32_t result = sc_flags(sc_active_locked());
   fast_lock_release(&sc_lock);
   return result;
 }
 
-bool Speech_Is_Loaded(void) {
+bool Speech_Is_Loaded() {
   fast_lock_acquire(&sc_lock);
   const bool result = sc_loaded;
   fast_lock_release(&sc_lock);
   return result;
 }
 
-bool Speech_Is_Speaking(void) {
+bool Speech_Is_Speaking() {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   bool speaking = false;
@@ -317,9 +323,9 @@ bool Speech_Braille(const wchar_t *text) {
   return sc_run(SC_OP_BRAILLE, text, false);
 }
 
-bool Speech_Stop(void) { return sc_run(SC_OP_STOP, PRISM_SHIM_NULL, false); }
+bool Speech_Stop() { return sc_run(SC_OP_STOP, PRISM_SHIM_NULL, false); }
 
-float Speech_Get_Volume(void) {
+float Speech_Get_Volume() {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   float value = 0.0F;
@@ -341,7 +347,7 @@ void Speech_Set_Volume(float offset) {
   fast_lock_release(&sc_lock);
 }
 
-float Speech_Get_Rate(void) {
+float Speech_Get_Rate() {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   float value = 0.0F;
@@ -363,7 +369,7 @@ void Speech_Set_Rate(float offset) {
   fast_lock_release(&sc_lock);
 }
 
-float Speech_Get_Pitch(void) {
+float Speech_Get_Pitch() {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   float value = 0.0F;
@@ -384,7 +390,7 @@ void Speech_Set_Pitch(float offset) {
   fast_lock_release(&sc_lock);
 }
 
-int Speech_Get_Voices(void) {
+int Speech_Get_Voices() {
   fast_lock_acquire(&sc_lock);
   PrismBackend *backend = sc_active_locked();
   size_t count = 0;
@@ -401,7 +407,7 @@ const wchar_t *Speech_Get_Voice(int index) {
   return result;
 }
 
-const wchar_t *Speech_Get_Current_Voice(void) {
+const wchar_t *Speech_Get_Current_Voice() {
   fast_lock_acquire(&sc_lock);
   const wchar_t *result = sc_current_voice_locked(sc_active_locked());
   fast_lock_release(&sc_lock);
@@ -422,9 +428,9 @@ void Speech_Output_File(const char *path, const wchar_t *text) {
   fast_lock_release(&sc_lock);
 }
 
-void Speech_Resume(void) { (void)sc_run(SC_OP_RESUME, PRISM_SHIM_NULL, false); }
+void Speech_Resume() { (void)sc_run(SC_OP_RESUME, PRISM_SHIM_NULL, false); }
 
-void Speech_Pause(void) { (void)sc_run(SC_OP_PAUSE, PRISM_SHIM_NULL, false); }
+void Speech_Pause() { (void)sc_run(SC_OP_PAUSE, PRISM_SHIM_NULL, false); }
 
 #ifdef _WIN32
 void Speech_Prefer_Sapi(bool prefer_sapi) {

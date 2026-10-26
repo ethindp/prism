@@ -48,7 +48,7 @@ void shim_flag_raise(ShimFlag *flag);
 bool shim_flag_take(ShimFlag *flag);
 
 PrismContext *shim_context_open(ShimFlag *stale);
-PrismBackendId shim_native_tts_id(void);
+PrismBackendId shim_native_tts_id();
 bool shim_error_means_lost(PrismError error);
 bool shim_backend_live(PrismBackend *backend);
 PrismBackend *shim_create_live(PrismContext *ctx, PrismBackendId id);

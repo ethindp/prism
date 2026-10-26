@@ -55,7 +55,7 @@ PrismContext *shim_context_open(ShimFlag *stale) {
   return prism_init(&config);
 }
 
-PrismBackendId shim_native_tts_id(void) {
+PrismBackendId shim_native_tts_id() {
 #ifdef _WIN32
   return PRISM_BACKEND_SAPI;
 #elifdef __APPLE__
@@ -609,16 +609,20 @@ bool shim_audio_to_pcm16_mono(const ShimAudioBuffer *buffer,
 }
 
 static bool write_u16_le(FILE *file, uint16_t value) {
-  const unsigned char bytes[2] = {(unsigned char)(value & 0xFF),
-                                  (unsigned char)((value >> 8) & 0xFF)};
+  const unsigned char bytes[2] = {
+      (unsigned char)((unsigned)value & 0xFFU),
+      (unsigned char)(((unsigned)value >> 8U) & 0xFFU),
+  };
   return fwrite(bytes, 1, sizeof(bytes), file) == sizeof(bytes);
 }
 
 static bool write_u32_le(FILE *file, uint32_t value) {
-  const unsigned char bytes[4] = {(unsigned char)(value & 0xFF),
-                                  (unsigned char)((value >> 8) & 0xFF),
-                                  (unsigned char)((value >> 16) & 0xFF),
-                                  (unsigned char)((value >> 24) & 0xFF)};
+  const unsigned char bytes[4] = {
+      (unsigned char)(value & 0xFF),
+      (unsigned char)((value >> 8) & 0xFF),
+      (unsigned char)((value >> 16) & 0xFF),
+      (unsigned char)((value >> 24) & 0xFF),
+  };
   return fwrite(bytes, 1, sizeof(bytes), file) == sizeof(bytes);
 }
 

@@ -131,6 +131,16 @@ The rate, pitch, and voice in effect when `prism_backend_speak` is called apply 
 
 When the default audio output device changes, playback moves to the new device at the next utterance that begins while no speech is playing. If the device in use is removed, speech in progress is discarded, and subsequent utterances are played on the current default device.
 
+### OneCore
+
+The OneCore backend synthesizes speech through the `Windows.Media.SpeechSynthesis` API and plays it through the `Windows.Media.Audio` audio graph API. Both APIs MUST be present for the backend to report `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME`; if either is absent, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
+
+`prism_backend_speak` returns once the text has been queued. Each utterance is synthesized in its entirety on an internal worker thread before playback of it begins. From the return of `prism_backend_speak` until the audio graph has consumed the final audio frame of the speech, `prism_backend_is_speaking` reports `true`, unless speech is paused or stopped in the interim. `prism_backend_stop` silences the utterance being played immediately and discards all queued utterances.
+
+The rate, pitch, and voice in effect when `prism_backend_speak` is called apply to that utterance; subsequent changes affect only utterances queued thereafter. Volume is applied during playback, and a change of volume therefore also affects the utterance being played.
+
+The audio graph renders to the default audio output device. When the default device changes, the audio graph is recreated on the new device at the next utterance that begins while no speech is playing. If the audio graph fails, including when its device is removed, speech in progress is discarded, and the audio graph is recreated at the next utterance.
+
 ### Speech Dispatcher
 
 The Speech Dispatcher backend is available natively on Linux and BSD and through a Wine bridge to Windows applications running under Wine or Proton. The native and bridged variants use the same backend identifier and expose the same public Prism API. For more information about using the wine bridges, see the Wine Bridges chapter for build, deployment, and selection requirements.

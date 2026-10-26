@@ -5,17 +5,21 @@
 #include "../backend_catalog.h"
 #include "../logging.h"
 #include "../utils.h"
-#include <atomic>
-#include <chrono>
+#include <MemoryBuffer.h>
+#include <algorithm>
 #include <cmath>
 #include <concepts>
+#include <condition_variable>
+#include <cstdint>
+#include <cstring>
 #include <deque>
 #include <dr_wav/dr_wav.h>
 #include <exception>
 #include <fmt/format.h>
 #include <fmt/xchar.h>
 #include <limits>
-#include <moodycamel/blockingconcurrentqueue.h>
+#include <map>
+#include <mutex>
 #include <objbase.h>
 #include <optional>
 #include <roapi.h>
@@ -25,23 +29,29 @@
 #include <thread>
 #include <type_traits>
 #include <utility>
-#include <variant>
+#include <vector>
 #include <windows.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Foundation.Metadata.h>
 #include <winrt/Windows.Foundation.h>
-#include <winrt/Windows.Media.Core.h>
-#include <winrt/Windows.Media.Playback.h>
+#include <winrt/Windows.Media.Audio.h>
+#include <winrt/Windows.Media.Devices.h>
+#include <winrt/Windows.Media.MediaProperties.h>
+#include <winrt/Windows.Media.Render.h>
 #include <winrt/Windows.Media.SpeechSynthesis.h>
+#include <winrt/Windows.Media.h>
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/base.h>
 
 using namespace winrt;
+using namespace winrt::Windows::Foundation::Metadata;
+using namespace winrt::Windows::Media;
+using namespace winrt::Windows::Media::Audio;
+using namespace winrt::Windows::Media::Devices;
+using namespace winrt::Windows::Media::MediaProperties;
+using namespace winrt::Windows::Media::Render;
 using namespace winrt::Windows::Media::SpeechSynthesis;
 using namespace winrt::Windows::Storage::Streams;
-using namespace winrt::Windows::Media::Core;
-using namespace winrt::Windows::Media::Playback;
-using namespace winrt::Windows::Foundation::Metadata;
 
 [[nodiscard]] static std::string hstring_to_utf8(std::wstring_view w) {
   const auto *src = reinterpret_cast<const char16_t *>(w.data());
@@ -152,653 +162,352 @@ template <std::invocable F> auto run_on_mta(F &&fn) -> std::invoke_result_t<F> {
 }
 
 namespace {
-struct SpeakCommand {
-  MediaSource source;
-};
-struct AdvanceCommand {};
-struct StopCommand {};
-struct PauseCommand {};
-struct ResumeCommand {};
+constexpr float DEFAULT_PARAMETER = 0.5F;
+constexpr float DEFAULT_VOLUME = 1.0F;
 
-// SpeakCommand is listed last: MediaSource is not default-constructible, and
-// std::variant's default constructor uses its first alternative.
-using Command = std::variant<AdvanceCommand, StopCommand, PauseCommand,
-                             ResumeCommand, SpeakCommand>;
-
-template <class... Ts> struct Overloaded : Ts... {
-  using Ts::operator()...;
+struct DecodedAudio {
+  std::vector<float> samples;
+  std::uint32_t channels{};
+  std::uint32_t sample_rate{};
+  std::uint32_t bit_depth{};
 };
-template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+
+std::vector<std::uint8_t> read_stream(const SpeechSynthesisStream &stream) {
+  if (stream.ContentType() != _T("audio/wav"))
+    throw std::runtime_error("synthesized stream is not audio/wav");
+  const auto size = stream.Size();
+  if (size > std::numeric_limits<std::uint32_t>::max())
+    throw std::length_error("synthesized stream is too large");
+  const auto capacity = static_cast<std::uint32_t>(size);
+  std::vector<std::uint8_t> bytes;
+  bytes.reserve(capacity);
+  stream.Seek(0);
+  while (bytes.size() < capacity) {
+    const auto wanted = capacity - static_cast<std::uint32_t>(bytes.size());
+    const auto chunk =
+        stream.ReadAsync(Buffer(wanted), wanted, InputStreamOptions::None)
+            .get();
+    if (chunk.Length() == 0)
+      break;
+    bytes.insert(bytes.end(), chunk.data(), chunk.data() + chunk.Length());
+  }
+  return bytes;
+}
+
+std::optional<DecodedAudio> decode_wave(std::span<const std::uint8_t> bytes) {
+  drwav wav{};
+  if (drwav_init_memory(&wav, bytes.data(), bytes.size(), nullptr) == 0)
+    return std::nullopt;
+  DecodedAudio audio{
+      .samples = {},
+      .channels = wav.channels,
+      .sample_rate = wav.sampleRate,
+      .bit_depth = wav.bitsPerSample,
+  };
+  if (wav.channels == 0 || wav.sampleRate == 0) {
+    drwav_uninit(&wav);
+    return std::nullopt;
+  }
+  audio.samples.resize(static_cast<std::size_t>(wav.totalPCMFrameCount) *
+                       wav.channels);
+  const auto frames = drwav_read_pcm_frames_f32(&wav, wav.totalPCMFrameCount,
+                                                audio.samples.data());
+  audio.samples.resize(static_cast<std::size_t>(frames) * wav.channels);
+  drwav_uninit(&wav);
+  return audio;
+}
+
+AudioFrame make_frame(std::span<const float> samples) {
+  const auto bytes = static_cast<std::uint32_t>(samples.size_bytes());
+  AudioFrame frame(bytes);
+  {
+    const AudioBuffer buffer = frame.LockBuffer(AudioBufferAccessMode::Write);
+    const auto reference = buffer.CreateReference();
+    const auto access =
+        reference.as<::Windows::Foundation::IMemoryBufferByteAccess>();
+    BYTE *data = nullptr;
+    UINT32 capacity = 0;
+    check_hresult(access->GetBuffer(&data, &capacity));
+    if (capacity < bytes)
+      throw std::length_error("audio frame is smaller than requested");
+    std::memcpy(data, samples.data(), bytes);
+    buffer.Length(bytes);
+    reference.Close();
+    buffer.Close();
+  }
+  return frame;
+}
+
+struct SpeechRequest {
+  hstring text;
+  double rate;
+  double pitch;
+  VoiceInformation voice{nullptr};
+  std::uint64_t generation;
+};
+
+struct QueuedFrame {
+  AudioFrameInputNode node{nullptr};
+  AudioFrame frame{nullptr};
+};
 } // namespace
 
 class OneCoreBackend final : public ComTextToSpeechBackend {
 private:
   SpeechSynthesizer synth{nullptr};
-  MediaPlayer player{nullptr};
-  // Callers and the MediaPlayer's own event threads feed a single worker
-  // through a lock-free command queue. The worker is the only thread that
-  // touches the player, so the playback queue below needs no locking of its
-  // own; utterances with interrupt == false are played after the one already
-  // in progress rather than replacing it.
-  moodycamel::BlockingConcurrentQueue<Command> commands;
-  std::jthread worker;
-  // Worker-private state: only worker_proc() and the helpers it calls touch
-  // these.
-  std::deque<MediaSource> pending_sources;
-  bool playing = false;
-  bool paused = false;
-  bool advance_pending = false;
-  // Set when a MediaEnded/MediaFailed handler could not enqueue its advance
-  // command; the worker picks the work up on its next wakeup.
-  std::atomic<bool> advance_needed{false};
-  std::atomic<MediaPlaybackState> current_state{MediaPlaybackState::None};
-  MediaPlaybackSession::PlaybackStateChanged_revoker state_changed_revoker;
-  MediaPlayer::MediaEnded_revoker media_ended_revoker;
-  MediaPlayer::MediaFailed_revoker media_failed_revoker;
+  SpeechSynthesizer worker_synth{nullptr};
+
+  float volume = DEFAULT_VOLUME;
+  float rate = DEFAULT_PARAMETER;
+  float pitch = DEFAULT_PARAMETER;
+  bool ready = false;
+
   std::size_t cached_channels = 0;
   std::size_t cached_sample_rate = 0;
   std::size_t cached_bit_depth = 0;
   bool format_cached = false;
+
+  std::jthread worker;
+
+  std::mutex state_mutex;
+  std::condition_variable_any request_cv;
+  std::deque<SpeechRequest> requests;
+  std::uint64_t synthesizing_generation = 0;
+  std::uint64_t generation = 1;
+  bool paused = false;
+  AudioGraph graph{nullptr};
+  AudioDeviceOutputNode output_node{nullptr};
+  std::map<std::pair<std::uint32_t, std::uint32_t>, AudioFrameInputNode> nodes;
+  AudioFrameInputNode active_node{nullptr};
+  std::deque<AudioFrame> in_flight;
+  std::deque<QueuedFrame> waiting;
+  bool graph_stale = false;
+  event_token device_changed_token{};
+
   LogSource logger{"OneCore"};
 
-  void reset_audio_format_cache() noexcept {
-    cached_channels = 0;
-    cached_sample_rate = 0;
-    cached_bit_depth = 0;
-    format_cached = false;
+  [[nodiscard]] bool has_speech_locked() const noexcept {
+    return !in_flight.empty() || !waiting.empty() || !requests.empty() ||
+           synthesizing_generation == generation;
   }
 
-  void stop_worker() noexcept {
-    if (!worker.joinable())
+  void pump_locked() {
+    while (!waiting.empty()) {
+      auto &next = waiting.front();
+      if (next.node != active_node) {
+        if (!in_flight.empty())
+          return;
+        active_node = next.node;
+        active_node.OutgoingGain(volume);
+        if (paused)
+          active_node.Stop();
+        else
+          active_node.Start();
+      }
+      active_node.AddFrame(next.frame);
+      in_flight.push_back(std::move(next.frame));
+      waiting.pop_front();
+    }
+  }
+
+  void on_frame_completed(const AudioFrameInputNode &node,
+                          const AudioFrameCompletedEventArgs &args) {
+    std::scoped_lock lock(state_mutex);
+    if (node != active_node || in_flight.empty() ||
+        in_flight.front() != args.Frame())
       return;
-    // The worker waits with a short timeout, so it observes the stop request
-    // on its next wakeup without a command that could fail to enqueue.
-    worker.request_stop();
-    worker.join();
+    in_flight.pop_front();
+    pump_locked();
   }
 
-  void reset_state() noexcept {
-    stop_worker();
-    state_changed_revoker.revoke();
-    state_changed_revoker = {};
-    media_ended_revoker.revoke();
-    media_ended_revoker = {};
-    media_failed_revoker.revoke();
-    media_failed_revoker = {};
-    pending_sources.clear();
-    playing = false;
+  [[nodiscard]] AudioFrameInputNode discard_locked() {
+    ++generation;
+    requests.clear();
+    waiting.clear();
+    in_flight.clear();
     paused = false;
-    advance_pending = false;
-    advance_needed.store(false, std::memory_order_release);
-    player = nullptr;
-    synth = nullptr;
-    current_state.store(MediaPlaybackState::None, std::memory_order_release);
-    reset_audio_format_cache();
+    if (!active_node)
+      return nullptr;
+    active_node.Stop();
+    std::erase_if(nodes, [this](const auto &entry) {
+      return entry.second == active_node;
+    });
+    return std::exchange(active_node, nullptr);
   }
 
-  void start_source(const MediaSource &source) {
-    player.Source(source);
-    player.Play();
-    current_state.store(MediaPlaybackState::Playing, std::memory_order_release);
-  }
-
-  // Starts the next queued utterance, or marks the backend idle if the queue
-  // is empty. Runs on the worker only.
-  void advance() {
-    if (!playing)
+  void close_node(const AudioFrameInputNode &node) const noexcept {
+    if (!node)
       return;
-    // While paused the player does not advance; remember that the current
-    // utterance ended so resume() can pick up the queue.
-    if (paused) {
-      advance_pending = true;
+    try {
+      node.Close();
+    } catch (...) {
+      logger.debug("A silenced frame input node could not be closed");
+    }
+  }
+
+  [[nodiscard]] AudioGraph build_graph_locked() {
+    AudioGraphSettings settings(AudioRenderCategory::Speech);
+    const auto created = AudioGraph::CreateAsync(settings).get();
+    if (created.Status() != AudioGraphCreationStatus::Success)
+      throw hresult_error(created.ExtendedError(),
+                          _T("AudioGraph could not be created"));
+    AudioGraph next = created.Graph();
+    const auto device = next.CreateDeviceOutputNodeAsync().get();
+    if (device.Status() != AudioDeviceNodeCreationStatus::Success)
+      throw hresult_error(device.ExtendedError(),
+                          _T("AudioGraph output node could not be created"));
+    next.UnrecoverableErrorOccurred(
+        [this](const AudioGraph &failed,
+               const AudioGraphUnrecoverableErrorOccurredEventArgs &args) {
+          std::scoped_lock lock(state_mutex);
+          if (failed != graph)
+            return;
+          logger.error("AudioGraph failed ({}); speech in progress is lost",
+                       static_cast<int>(args.Error()));
+          ++generation;
+          waiting.clear();
+          in_flight.clear();
+          paused = false;
+          graph_stale = true;
+        });
+    AudioGraph old = std::exchange(graph, std::move(next));
+    output_node = device.DeviceOutputNode();
+    nodes.clear();
+    active_node = nullptr;
+    graph_stale = false;
+    graph.Start();
+    return old;
+  }
+
+  AudioFrameInputNode node_for_locked(std::uint32_t sample_rate,
+                                      std::uint32_t channels) {
+    const auto key = std::pair{sample_rate, channels};
+    if (const auto it = nodes.find(key); it != nodes.end())
+      return it->second;
+    auto properties =
+        AudioEncodingProperties::CreatePcm(sample_rate, channels, 32);
+    properties.Subtype(_T("Float"));
+    auto node = graph.CreateFrameInputNode(properties);
+    node.AddOutgoingConnection(output_node);
+    node.Stop();
+    node.AudioFrameCompleted([this](const AudioFrameInputNode &sender,
+                                    const AudioFrameCompletedEventArgs &args) {
+      on_frame_completed(sender, args);
+    });
+    nodes.emplace(key, node);
+    return node;
+  }
+
+  static void apply_options(const SpeechSynthesizer &target, double rate_value,
+                            double pitch_value) {
+    target.Options().SpeakingRate(rate_value);
+    target.Options().AudioPitch(pitch_value);
+  }
+
+  void play(const SpeechRequest &request) {
+    if (request.voice && worker_synth.Voice().Id() != request.voice.Id())
+      worker_synth.Voice(request.voice);
+    apply_options(worker_synth, request.rate, request.pitch);
+    const auto stream =
+        worker_synth.SynthesizeTextToStreamAsync(request.text).get();
+    const auto bytes = read_stream(stream);
+    auto audio = decode_wave(bytes);
+    if (!audio) {
+      logger.error("Could not decode synthesized speech");
       return;
     }
-    if (pending_sources.empty()) {
-      playing = false;
-      current_state.store(MediaPlaybackState::None,
-                          std::memory_order_release);
+    const auto trimmed = trim_silence_rms_gate_inplace(
+        std::span<float>(audio->samples), audio->channels, audio->sample_rate);
+    if (trimmed.view.empty())
       return;
+    const AudioFrame frame = make_frame(trimmed.view);
+    AudioGraph replaced{nullptr};
+    {
+      std::scoped_lock lock(state_mutex);
+      if (request.generation != generation)
+        return;
+      if (graph_stale && in_flight.empty() && waiting.empty())
+        replaced = build_graph_locked();
+      waiting.push_back(QueuedFrame{
+          .node = node_for_locked(audio->sample_rate, audio->channels),
+          .frame = frame,
+      });
+      pump_locked();
     }
-    MediaSource next = std::move(pending_sources.front());
-    pending_sources.pop_front();
-    start_source(next);
+    if (replaced)
+      replaced.Close();
   }
 
-  // Halt playback and drop everything queued. Runs on the worker only.
-  void discard() {
-    pending_sources.clear();
-    playing = false;
-    paused = false;
-    advance_pending = false;
-    player.Pause();
-    player.Source(nullptr);
-    current_state.store(MediaPlaybackState::None, std::memory_order_release);
-  }
-
-  void dispatch(Command command) {
-    std::visit(
-        Overloaded{
-            [this](SpeakCommand &c) {
-              if (playing)
-                pending_sources.push_back(std::move(c.source));
-              else {
-                playing = true;
-                start_source(c.source);
-              }
-            },
-            [this](AdvanceCommand &) { advance(); },
-            [this](StopCommand &) { discard(); },
-            [this](PauseCommand &) {
-              player.Pause();
-              paused = true;
-              current_state.store(MediaPlaybackState::Paused,
-                                  std::memory_order_release);
-            },
-            [this](ResumeCommand &) {
-              player.Play();
-              paused = false;
-              current_state.store(MediaPlaybackState::Playing,
-                                  std::memory_order_release);
-              if (advance_pending) {
-                advance_pending = false;
-                advance();
-              }
-            }},
-        command);
-  }
-
-  void worker_proc(const std::stop_token &st) {
+  void worker_proc(const std::stop_token &stop) {
     WinrtApartmentGuard apartment{RO_INIT_MULTITHREADED};
     if (!apartment)
       return;
-    while (!st.stop_requested()) {
-      // A MediaEnded/MediaFailed handler may have been unable to enqueue its
-      // advance command; pick the work up here instead.
-      if (advance_needed.exchange(false, std::memory_order_acq_rel))
-        advance();
-      Command command;
-      if (!commands.wait_dequeue_timed(command, std::chrono::milliseconds(100)))
-        continue;
-      dispatch(std::move(command));
+    while (true) {
+      SpeechRequest request;
+      {
+        std::unique_lock lock(state_mutex);
+        if (!request_cv.wait(lock, stop, [this] { return !requests.empty(); }))
+          return;
+        request = std::move(requests.front());
+        requests.pop_front();
+        synthesizing_generation = request.generation;
+      }
+      try {
+        play(request);
+      } catch (const hresult_error &e) {
+        logger.error("Could not speak an utterance: {}", e.message());
+      } catch (const std::exception &e) {
+        logger.error("Could not speak an utterance: {}", e.what());
+      }
+      std::scoped_lock lock(state_mutex);
+      synthesizing_generation = 0;
     }
   }
 
-public:
-  ~OneCoreBackend() override {
-    WinrtApartmentGuard apartment;
-    reset_state();
-  }
-
-  [[nodiscard]] std::string_view get_name() const override { return "OneCore"; }
-
-  [[nodiscard]] std::bitset<64> get_features() const override {
-    using namespace BackendFeature;
-    std::bitset<64> features;
-    WinrtApartmentGuard apartment;
-    if (apartment &&
-        ApiInformation::IsTypePresent(
-            _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) &&
-        ApiInformation::IsTypePresent(
-            _T("Windows.Media.Playback.MediaPlayer"))) {
-      features |= IS_SUPPORTED_AT_RUNTIME;
+  void reset_state() noexcept {
+    if (worker.joinable()) {
+      worker.request_stop();
+      worker.join();
     }
-    features |= SUPPORTS_SPEAK | SUPPORTS_SPEAK_TO_MEMORY | SUPPORTS_OUTPUT |
-                SUPPORTS_IS_SPEAKING | SUPPORTS_STOP | SUPPORTS_PAUSE |
-                SUPPORTS_RESUME | SUPPORTS_SET_VOLUME | SUPPORTS_GET_VOLUME |
-                SUPPORTS_SET_RATE | SUPPORTS_GET_RATE | SUPPORTS_SET_PITCH |
-                SUPPORTS_GET_PITCH | SUPPORTS_REFRESH_VOICES |
-                SUPPORTS_COUNT_VOICES | SUPPORTS_GET_VOICE_NAME |
-                SUPPORTS_GET_VOICE_LANGUAGE | SUPPORTS_GET_VOICE |
-                SUPPORTS_SET_VOICE | SUPPORTS_GET_CHANNELS |
-                SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH |
-                PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY;
-    return features;
-  }
-
-  BackendResult<> initialize() override {
-    WinrtApartmentGuard apartment;
-    if (!apartment)
-      return std::unexpected(BackendError::InternalBackendError);
-    try {
-      if (!ApiInformation::IsTypePresent(
-              _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||
-          !ApiInformation::IsTypePresent(
-              _T("Windows.Media.Playback.MediaPlayer")))
-        return std::unexpected(BackendError::BackendNotAvailable);
-      if (synth || player)
-        return std::unexpected(BackendError::AlreadyInitialized);
-      synth = SpeechSynthesizer();
-      synth.Options().AppendedSilence(SpeechAppendedSilence::Min);
-      synth.Options().PunctuationSilence(SpeechPunctuationSilence::Min);
-      player = MediaPlayer();
-      state_changed_revoker = player.PlaybackSession().PlaybackStateChanged(
-          winrt::auto_revoke,
-          [this](MediaPlaybackSession const &session, auto const &) {
-            current_state = session.PlaybackState();
-          });
-      media_ended_revoker =
-          player.MediaEnded(winrt::auto_revoke,
-                            [this](auto const &, auto const &) {
-                              if (!commands.enqueue(AdvanceCommand{})) {
-                                logger.error(
-                                    "could not queue advance command; the "
-                                    "worker will retry it");
-                                advance_needed.store(
-                                    true, std::memory_order_release);
-                              }
-                            });
-      media_failed_revoker =
-          player.MediaFailed(winrt::auto_revoke,
-                             [this](auto const &, auto const &) {
-                               if (!commands.enqueue(AdvanceCommand{})) {
-                                 logger.error(
-                                     "could not queue advance command; the "
-                                     "worker will retry it");
-                                 advance_needed.store(
-                                     true, std::memory_order_release);
-                               }
-                             });
-      worker = std::jthread(
-          [this](const std::stop_token &st) { this->worker_proc(st); });
-      if (const auto format_result = cache_audio_format(); !format_result)
-        logger.warn(
-            "Could not cache OneCore audio format during initialization: {}",
-            std::to_underlying(format_result.error()));
-      return {};
-    } catch (const winrt::hresult_error &e) {
-      reset_state();
-      logger.error("Could not initialize OneCore backend: {}", e.message());
-      return std::unexpected(BackendError::Unknown);
-    } catch (...) {
-      reset_state();
-      return std::unexpected(BackendError::Unknown);
+    if (device_changed_token) {
+      try {
+        MediaDevice::DefaultAudioRenderDeviceChanged(device_changed_token);
+      } catch (...) {
+        logger.debug("Could not stop watching for output device changes");
+      }
+      device_changed_token = {};
     }
-  }
-
-  BackendResult<> speak(std::string_view text, bool interrupt) override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    if (interrupt)
-      if (const auto res = stop(); !res)
-        return res;
-    const auto wtext = to_hstring(text);
-    const auto stream = run_on_mta(
-        [&] { return synth.SynthesizeTextToStreamAsync(wtext).get(); });
-    const auto source =
-        MediaSource::CreateFromStream(stream, stream.ContentType());
-    if (!commands.enqueue(SpeakCommand{source}))
-      return std::unexpected(BackendError::MemoryFailure);
-    return {};
-  } catch (const winrt::hresult_error &e) {
-    logger.error("Could not speak text of size {}: {}", text.size(),
-                 e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
-                                  void *userdata) override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth)
-      return std::unexpected(BackendError::NotInitialized);
-    const auto wtext = to_hstring(text);
-    const auto stream = run_on_mta(
-        [&] { return synth.SynthesizeTextToStreamAsync(wtext).get(); });
-    if (stream.ContentType() != _T("audio/wav"))
-      return std::unexpected(BackendError::NotImplemented);
-    const auto size64 = stream.Size();
-    if (size64 > std::numeric_limits<uint32_t>::max())
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto cap = static_cast<uint32_t>(size64);
-    Buffer buffer(cap);
-    stream.Seek(0);
-    std::uint32_t total = 0;
-    while (total < cap) {
-      Buffer chunk(cap - total);
-      run_on_mta([&] {
-        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
-      });
-      const uint32_t got = chunk.Length();
-      if (got == 0)
-        break;
-      std::memcpy(buffer.data() + total, chunk.data(), got);
-      total += got;
+    AudioGraph closing{nullptr};
+    {
+      std::scoped_lock lock(state_mutex);
+      requests.clear();
+      waiting.clear();
+      in_flight.clear();
+      nodes.clear();
+      active_node = nullptr;
+      output_node = nullptr;
+      closing = std::exchange(graph, nullptr);
     }
-    if (total == 0)
-      return std::unexpected(BackendError::InternalBackendError);
-    drwav wav{};
-    if (drwav_init_memory(&wav, buffer.data(), total, nullptr) == 0)
-      return std::unexpected(BackendError::InvalidAudioFormat);
-    auto frame_count = wav.totalPCMFrameCount;
-    std::vector<float> samples(frame_count * wav.channels);
-    drwav_read_pcm_frames_f32(&wav, frame_count, samples.data());
-    auto const trimmed_samples =
-        trim_silence_rms_gate(samples, wav.channels, wav.sampleRate);
-    callback(userdata, trimmed_samples.data(), trimmed_samples.size(),
-             wav.channels, wav.sampleRate);
-    drwav_uninit(&wav);
-    return {};
-  } catch (const std::exception &e) {
-    logger.error(
-        "speak_to_memory failed  with text of size {} and userdata {}: {}",
-        text.size(), static_cast<const void *>(userdata), e.what());
-    return std::unexpected(BackendError::Unknown);
-  } catch (...) {
-    logger.error(
-        "speak_to_memory failed  with text of size {} and userdata {}: "
-        "unknown non-std exception",
-        text.size(), static_cast<const void *>(userdata));
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> output(std::string_view text, bool interrupt) override {
-    return speak(text, interrupt);
-  }
-
-  BackendResult<bool> is_speaking() override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    return current_state == MediaPlaybackState::Playing;
-  } catch (const winrt::hresult_error &e) {
-    logger.error("is_speaking failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> stop() override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    if (!commands.enqueue(StopCommand{}))
-      return std::unexpected(BackendError::MemoryFailure);
-    // The worker performs the teardown, but stop() must report the synchronous
-    // contract that is_speaking() is false once it returns.
-    current_state.store(MediaPlaybackState::None, std::memory_order_release);
-    return {};
-  } catch (const winrt::hresult_error &e) {
-    logger.error("stop failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> pause() override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    const auto state = current_state.load();
-    if (state == MediaPlaybackState::Paused)
-      return std::unexpected(BackendError::AlreadyPaused);
-    if (state != MediaPlaybackState::Playing)
-      return std::unexpected(BackendError::NotSpeaking);
-    if (!commands.enqueue(PauseCommand{}))
-      return std::unexpected(BackendError::MemoryFailure);
-    current_state = MediaPlaybackState::Paused;
-    return {};
-  } catch (const winrt::hresult_error &e) {
-    logger.error("pause failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> resume() override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    const auto state = current_state.load();
-    if (state != MediaPlaybackState::Paused)
-      return std::unexpected(BackendError::NotPaused);
-    if (!commands.enqueue(ResumeCommand{}))
-      return std::unexpected(BackendError::MemoryFailure);
-    current_state = MediaPlaybackState::Playing;
-    return {};
-  } catch (const winrt::hresult_error &e) {
-    logger.error("resume failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> set_volume(float volume) override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    synth.Options().AudioVolume(volume);
-    return {};
-  } catch (const winrt::hresult_error &e) {
-    logger.error("set_volume failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<float> get_volume() override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    return static_cast<float>(synth.Options().AudioVolume());
-  } catch (const winrt::hresult_error &e) {
-    logger.error("get_volume failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> set_rate(float rate) override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    const auto val = exp_range_convert(rate, 0.5, 1.0, 6.0);
-    synth.Options().SpeakingRate(val);
-    return {};
-  } catch (const winrt::hresult_error &e) {
-    logger.error("set_rate failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<float> get_rate() override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    return exp_range_convert_inv(synth.Options().SpeakingRate(), 0.5, 1.0, 6.0);
-  } catch (const winrt::hresult_error &e) {
-    logger.error("get_rate failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> set_pitch(float pitch) override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    const auto val =
-        range_convert(static_cast<double>(pitch), 0.0, 1.0, 0.0, 2.0);
-    synth.Options().AudioPitch(val);
-    return {};
-  } catch (const winrt::hresult_error &e) {
-    logger.error("set_pitch failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<float> get_pitch() override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    return static_cast<float>(
-        range_convert(synth.Options().AudioPitch(), 0.0, 2.0, 0.0, 1.0));
-  } catch (const winrt::hresult_error &e) {
-    logger.error("get_pitch failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> refresh_voices() override {
-    WinrtApartmentGuard apartment;
-    if (!apartment)
-      return std::unexpected(BackendError::InternalBackendError);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-
-    return {};
-  }
-
-  BackendResult<std::size_t> count_voices() override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    return SpeechSynthesizer::AllVoices().Size();
-  } catch (const winrt::hresult_error &e) {
-    logger.error("count_voices failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<std::string> get_voice_name(std::size_t id) override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    if (id >= std::numeric_limits<std::uint32_t>::max())
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto voices = SpeechSynthesizer::AllVoices();
-    if (id >= voices.Size())
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    return to_string(
-        voices.GetAt(static_cast<std::uint32_t>(id)).DisplayName());
-  } catch (const winrt::hresult_error &e) {
-    logger.error("get_voice_name failed for id {}: {}", id, e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<std::string> get_voice_language(std::size_t id) override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    if (id >= std::numeric_limits<std::uint32_t>::max())
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto voices = SpeechSynthesizer::AllVoices();
-    if (id >= voices.Size())
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    return to_string(voices.GetAt(static_cast<std::uint32_t>(id)).Language());
-  } catch (const winrt::hresult_error &e) {
-    logger.error("get_voice_language failed for id {}: {}", id, e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<> set_voice(std::size_t id) override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    if (id >= std::numeric_limits<std::uint32_t>::max())
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto voices = SpeechSynthesizer::AllVoices();
-    if (id >= voices.Size())
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto old = synth.Voice();
-    synth.Voice(voices.GetAt(static_cast<std::uint32_t>(id)));
-    reset_audio_format_cache();
-    if (const auto res = cache_audio_format(); !res) {
-      logger.warn("Could not retrieve voice audio format when setting voice to "
-                  "ID {}; reverting update",
-                  id);
-      synth.Voice(old);
-      return std::unexpected(BackendError::InternalBackendError);
+    if (closing) {
+      try {
+        closing.Close();
+      } catch (...) {
+        logger.debug("The audio graph could not be closed");
+      }
     }
-    return {};
-  } catch (const winrt::hresult_error &e) {
-    logger.error("set_voice failed for id {}: {}", id, e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<std::size_t> get_voice() override try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    const auto voices = SpeechSynthesizer::AllVoices();
-    for (std::uint32_t i = 0; i < voices.Size(); ++i) {
-      if (synth.Voice().Id() == voices.GetAt(i).Id())
-        return i;
-    }
-    return std::unexpected(BackendError::InternalBackendError);
-  } catch (const winrt::hresult_error &e) {
-    logger.error("get_voice failed: {}", e.message());
-    return std::unexpected(BackendError::Unknown);
-  }
-
-  BackendResult<std::size_t> get_channels() override {
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    if (!format_cached) {
-      if (const auto result = cache_audio_format(); !result)
-        return std::unexpected(result.error());
-    }
-    return cached_channels;
-  }
-
-  BackendResult<std::size_t> get_sample_rate() override {
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    if (!format_cached) {
-      if (const auto result = cache_audio_format(); !result)
-        return std::unexpected(result.error());
-    }
-    return cached_sample_rate;
-  }
-
-  BackendResult<std::size_t> get_bit_depth() override {
-    if (!synth || !player)
-      return std::unexpected(BackendError::NotInitialized);
-    if (!format_cached) {
-      if (const auto result = cache_audio_format(); !result)
-        return std::unexpected(result.error());
-    }
-    return cached_bit_depth;
+    synth = nullptr;
+    worker_synth = nullptr;
+    ready = false;
   }
 
   BackendResult<> cache_audio_format() try {
-    WinrtApartmentGuard apartment;
-    winrt::check_hresult(apartment.hr);
     if (format_cached)
       return {};
-    const auto stream = run_on_mta(
-        [&] { return synth.SynthesizeTextToStreamAsync(_T(" ")).get(); });
-    if (stream.ContentType() != _T("audio/wav")) {
-      logger.error("cache_audio_format: unknown stream content type {}",
-                   stream.ContentType());
-      return std::unexpected(BackendError::InvalidAudioFormat);
-    }
-    const auto size64 = stream.Size();
-    if (size64 > std::numeric_limits<uint32_t>::max()) {
-      logger.error(
-          "cache_audio_format: stream size of {} exceeds max size of {}",
-          size64, std::numeric_limits<uint32_t>::max());
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    }
-    const auto cap = static_cast<uint32_t>(size64);
-    Buffer buffer(cap);
-    stream.Seek(0);
-    std::uint32_t total = 0;
-    while (total < cap) {
-      Buffer chunk(cap - total);
-      run_on_mta([&] {
-        stream.ReadAsync(chunk, cap - total, InputStreamOptions::None).get();
-      });
-      const uint32_t got = chunk.Length();
-      if (got == 0)
-        break;
-      std::memcpy(buffer.data() + total, chunk.data(), got);
-      total += got;
-    }
-    if (total == 0) {
-      logger.error("cache_audio_format: synthesis audio stream has no samples");
-      return std::unexpected(BackendError::InternalBackendError);
-    }
+    const auto bytes = run_on_mta([&] {
+      return read_stream(synth.SynthesizeTextToStreamAsync(_T(" ")).get());
+    });
     drwav wav{};
-    if (drwav_init_memory(&wav, buffer.data(), total, nullptr) == 0) {
+    if (drwav_init_memory(&wav, bytes.data(), bytes.size(), nullptr) == 0) {
       logger.error("cache_audio_format: WAV parse error");
       return std::unexpected(BackendError::InvalidAudioFormat);
     }
@@ -808,12 +517,326 @@ public:
     format_cached = true;
     drwav_uninit(&wav);
     return {};
+  } catch (const hresult_error &e) {
+    logger.error("cache_audio_format failed: {}", e.message());
+    return std::unexpected(BackendError::InternalBackendError);
   } catch (const std::exception &e) {
     logger.error("cache_audio_format failed: {}", e.what());
-    return std::unexpected(BackendError::Unknown);
-  } catch (...) {
-    logger.error("cache_audio_format failed: unknown non-std exception");
-    return std::unexpected(BackendError::Unknown);
+    return std::unexpected(BackendError::InternalBackendError);
+  }
+
+  template <class F>
+  auto guarded(std::string_view operation, F &&body) -> decltype(body()) try {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    return body();
+  } catch (const hresult_error &e) {
+    logger.error("{} failed: {}", operation, e.message());
+    return std::unexpected(BackendError::InternalBackendError);
+  } catch (const std::bad_alloc &) {
+    return std::unexpected(BackendError::MemoryFailure);
+  } catch (const std::exception &e) {
+    logger.error("{} failed: {}", operation, e.what());
+    return std::unexpected(BackendError::InternalBackendError);
+  }
+
+  static BackendResult<VoiceInformation> voice_at(std::size_t id) {
+    const auto voices = SpeechSynthesizer::AllVoices();
+    if (id >= voices.Size())
+      return std::unexpected(BackendError::RangeOutOfBounds);
+    return voices.GetAt(static_cast<std::uint32_t>(id));
+  }
+
+public:
+  ~OneCoreBackend() override { reset_state(); }
+
+  [[nodiscard]] std::string_view get_name() const override { return "OneCore"; }
+
+  [[nodiscard]] std::bitset<64> get_features() const override {
+    using namespace BackendFeature;
+    std::bitset<64> features =
+        SUPPORTS_SPEAK | SUPPORTS_SPEAK_TO_MEMORY | SUPPORTS_OUTPUT |
+        SUPPORTS_IS_SPEAKING | SUPPORTS_STOP | SUPPORTS_PAUSE |
+        SUPPORTS_RESUME | SUPPORTS_SET_VOLUME | SUPPORTS_GET_VOLUME |
+        SUPPORTS_SET_RATE | SUPPORTS_GET_RATE | SUPPORTS_SET_PITCH |
+        SUPPORTS_GET_PITCH | SUPPORTS_REFRESH_VOICES | SUPPORTS_COUNT_VOICES |
+        SUPPORTS_GET_VOICE_NAME | SUPPORTS_GET_VOICE_LANGUAGE |
+        SUPPORTS_GET_VOICE | SUPPORTS_SET_VOICE | SUPPORTS_GET_CHANNELS |
+        SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH |
+        PERFORMS_SILENCE_TRIMMING_ON_SPEAK |
+        PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY;
+    try {
+      if (ApiInformation::IsTypePresent(
+              _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) &&
+          ApiInformation::IsTypePresent(_T("Windows.Media.Audio.AudioGraph")))
+        features |= IS_SUPPORTED_AT_RUNTIME;
+    } catch (...) {
+      logger.debug("Could not ask whether the speech and audio APIs exist");
+    }
+    return features;
+  }
+
+  BackendResult<> initialize() override try {
+    if (ready)
+      return std::unexpected(BackendError::AlreadyInitialized);
+    if (!ApiInformation::IsTypePresent(
+            _T("Windows.Media.SpeechSynthesis.SpeechSynthesizer")) ||
+        !ApiInformation::IsTypePresent(_T("Windows.Media.Audio.AudioGraph")))
+      return std::unexpected(BackendError::BackendNotAvailable);
+    run_on_mta([this] {
+      synth = SpeechSynthesizer();
+      worker_synth = SpeechSynthesizer();
+      for (const auto &target : {synth, worker_synth}) {
+        target.Options().AppendedSilence(SpeechAppendedSilence::Min);
+        target.Options().PunctuationSilence(SpeechPunctuationSilence::Min);
+      }
+      std::scoped_lock lock(state_mutex);
+      (void)build_graph_locked();
+    });
+    device_changed_token = MediaDevice::DefaultAudioRenderDeviceChanged(
+        [this](const auto &,
+               const DefaultAudioRenderDeviceChangedEventArgs &args) {
+          if (args.Role() != AudioDeviceRole::Default)
+            return;
+          std::scoped_lock lock(state_mutex);
+          graph_stale = true;
+        });
+    worker = std::jthread(
+        [this](const std::stop_token &stop) { worker_proc(stop); });
+    ready = true;
+    if (const auto format_result = cache_audio_format(); !format_result)
+      logger.warn(
+          "Could not cache OneCore audio format during initialization: {}",
+          std::to_underlying(format_result.error()));
+    return {};
+  } catch (const hresult_error &e) {
+    logger.error("Could not initialize OneCore backend: {}", e.message());
+    reset_state();
+    return std::unexpected(BackendError::BackendNotAvailable);
+  } catch (const std::exception &e) {
+    logger.error("Could not initialize OneCore backend: {}", e.what());
+    reset_state();
+    return std::unexpected(BackendError::InternalBackendError);
+  }
+
+  BackendResult<> speak(std::string_view text, bool interrupt) override {
+    return guarded("speak", [&]() -> BackendResult<> {
+      SpeechRequest request{
+          .text = to_hstring(text),
+          .rate = exp_range_convert(rate, 0.5, 1.0, 6.0),
+          .pitch =
+              range_convert(static_cast<double>(pitch), 0.0, 1.0, 0.0, 2.0),
+          .voice = synth.Voice(),
+          .generation = 0,
+      };
+      AudioFrameInputNode silenced{nullptr};
+      {
+        std::scoped_lock lock(state_mutex);
+        if (interrupt)
+          silenced = discard_locked();
+        request.generation = generation;
+        requests.push_back(std::move(request));
+      }
+      request_cv.notify_one();
+      close_node(silenced);
+      return {};
+    });
+  }
+
+  BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
+                                  void *userdata) override {
+    return guarded("speak_to_memory", [&]() -> BackendResult<> {
+      const auto wide = to_hstring(text);
+      apply_options(
+          synth, exp_range_convert(rate, 0.5, 1.0, 6.0),
+          range_convert(static_cast<double>(pitch), 0.0, 1.0, 0.0, 2.0));
+      const auto bytes = run_on_mta([&] {
+        return read_stream(synth.SynthesizeTextToStreamAsync(wide).get());
+      });
+      auto audio = decode_wave(bytes);
+      if (!audio)
+        return std::unexpected(BackendError::InvalidAudioFormat);
+      auto trimmed =
+          trim_silence_rms_gate_inplace(std::span<float>(audio->samples),
+                                        audio->channels, audio->sample_rate);
+      for (float &sample : trimmed.view)
+        sample = std::clamp(sample * volume, -1.0F, 1.0F);
+      callback(userdata, trimmed.view.data(), trimmed.view.size(),
+               audio->channels, audio->sample_rate);
+      return {};
+    });
+  }
+
+  BackendResult<> output(std::string_view text, bool interrupt) override {
+    return speak(text, interrupt);
+  }
+
+  BackendResult<bool> is_speaking() override {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    std::scoped_lock lock(state_mutex);
+    return !paused && has_speech_locked();
+  }
+
+  BackendResult<> stop() override {
+    return guarded("stop", [&]() -> BackendResult<> {
+      AudioFrameInputNode silenced{nullptr};
+      {
+        std::scoped_lock lock(state_mutex);
+        silenced = discard_locked();
+      }
+      close_node(silenced);
+      return {};
+    });
+  }
+
+  BackendResult<> pause() override {
+    return guarded("pause", [&]() -> BackendResult<> {
+      std::scoped_lock lock(state_mutex);
+      if (paused)
+        return std::unexpected(BackendError::AlreadyPaused);
+      if (!has_speech_locked())
+        return std::unexpected(BackendError::NotSpeaking);
+      if (active_node)
+        active_node.Stop();
+      paused = true;
+      return {};
+    });
+  }
+
+  BackendResult<> resume() override {
+    return guarded("resume", [&]() -> BackendResult<> {
+      std::scoped_lock lock(state_mutex);
+      if (!paused)
+        return std::unexpected(BackendError::NotPaused);
+      paused = false;
+      if (active_node)
+        active_node.Start();
+      pump_locked();
+      return {};
+    });
+  }
+
+  BackendResult<> set_volume(float value) override {
+    return guarded("set_volume", [&]() -> BackendResult<> {
+      std::scoped_lock lock(state_mutex);
+      volume = value;
+      for (const auto &[format, node] : nodes)
+        node.OutgoingGain(value);
+      return {};
+    });
+  }
+
+  BackendResult<float> get_volume() override {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    return volume;
+  }
+
+  BackendResult<> set_rate(float value) override {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    rate = value;
+    return {};
+  }
+
+  BackendResult<float> get_rate() override {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    return rate;
+  }
+
+  BackendResult<> set_pitch(float value) override {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    pitch = value;
+    return {};
+  }
+
+  BackendResult<float> get_pitch() override {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    return pitch;
+  }
+
+  BackendResult<> refresh_voices() override {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    return {};
+  }
+
+  BackendResult<std::size_t> count_voices() override {
+    return guarded("count_voices", [&]() -> BackendResult<std::size_t> {
+      return SpeechSynthesizer::AllVoices().Size();
+    });
+  }
+
+  BackendResult<std::string> get_voice_name(std::size_t id) override {
+    return guarded("get_voice_name", [&]() -> BackendResult<std::string> {
+      return voice_at(id).transform([](const VoiceInformation &voice) {
+        return to_string(voice.DisplayName());
+      });
+    });
+  }
+
+  BackendResult<std::string> get_voice_language(std::size_t id) override {
+    return guarded("get_voice_language", [&]() -> BackendResult<std::string> {
+      return voice_at(id).transform([](const VoiceInformation &voice) {
+        return to_string(voice.Language());
+      });
+    });
+  }
+
+  BackendResult<> set_voice(std::size_t id) override {
+    return guarded("set_voice", [&]() -> BackendResult<> {
+      const auto voice = voice_at(id);
+      if (!voice)
+        return std::unexpected(voice.error());
+      const auto old = synth.Voice();
+      synth.Voice(*voice);
+      format_cached = false;
+      if (const auto res = cache_audio_format(); !res) {
+        logger.warn("Could not retrieve voice audio format when setting voice "
+                    "to ID {}; reverting update",
+                    id);
+        synth.Voice(old);
+        format_cached = false;
+        return std::unexpected(BackendError::InternalBackendError);
+      }
+      return {};
+    });
+  }
+
+  BackendResult<std::size_t> get_voice() override {
+    return guarded("get_voice", [&]() -> BackendResult<std::size_t> {
+      const auto voices = SpeechSynthesizer::AllVoices();
+      const auto current = synth.Voice().Id();
+      for (std::uint32_t i = 0; i < voices.Size(); ++i) {
+        if (voices.GetAt(i).Id() == current)
+          return i;
+      }
+      return std::unexpected(BackendError::VoiceNotFound);
+    });
+  }
+
+  BackendResult<std::size_t> get_channels() override {
+    return guarded("get_channels", [&]() -> BackendResult<std::size_t> {
+      return cache_audio_format().transform([this] { return cached_channels; });
+    });
+  }
+
+  BackendResult<std::size_t> get_sample_rate() override {
+    return guarded("get_sample_rate", [&]() -> BackendResult<std::size_t> {
+      return cache_audio_format().transform(
+          [this] { return cached_sample_rate; });
+    });
+  }
+
+  BackendResult<std::size_t> get_bit_depth() override {
+    return guarded("get_bit_depth", [&]() -> BackendResult<std::size_t> {
+      return cache_audio_format().transform(
+          [this] { return cached_bit_depth; });
+    });
   }
 };
 

@@ -2,20 +2,37 @@
 #include "bus.h"
 
 namespace prism::dbus::services::bus {
-constexpr auto service_name = "org.freedesktop.DBus";
-constexpr auto path = "/org/freedesktop/DBus";
+namespace {
+constexpr Object daemon{
+    .service = "org.freedesktop.DBus",
+    .path = "/org/freedesktop/DBus",
+};
 constexpr auto interface = "org.freedesktop.DBus";
+constexpr Method<bool, std::string> name_has_owner{
+    .interface = interface,
+    .member = "NameHasOwner",
+};
+constexpr Method<std::vector<std::string>> list_names{
+    .interface = interface,
+    .member = "ListNames",
+};
+constexpr Method<std::vector<std::string>> list_activatable_names{
+    .interface = interface,
+    .member = "ListActivatableNames",
+};
+} // namespace
 
 bool has_owner(const Connection &connection, const char *bus_name_to_check) {
-  return boolean(connection.call(service_name, path, interface, "NameHasOwner",
-                                 2500, bus_name_to_check))
+  return connection.call(daemon, name_has_owner, bus_name_to_check)
       .value_or(false);
 }
 
 std::optional<std::vector<std::string>> names(const Connection &connection,
                                               bool activatable) {
-  return strings(connection.call(
-      service_name, path, interface,
-      activatable ? "ListActivatableNames" : "ListNames", 2500));
+  auto result = connection.call(daemon, activatable ? list_activatable_names
+                                                    : list_names);
+  if (!result)
+    return std::nullopt;
+  return std::move(*result);
 }
 } // namespace prism::dbus::services::bus

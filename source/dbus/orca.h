@@ -16,9 +16,9 @@ public:
 
   [[nodiscard]] static std::optional<Service>
   detect(const Connection &connection);
-  [[nodiscard]] std::expected<void, Connection::Error>
-  present(const Connection &connection, std::string_view text) const;
-  [[nodiscard]] std::expected<void, Connection::Error>
+  [[nodiscard]] std::expected<void, Error> present(const Connection &connection,
+                                                   std::string_view text) const;
+  [[nodiscard]] std::expected<void, Error>
   interrupt(const Connection &connection) const;
 };
 } // namespace prism::dbus::services::orca

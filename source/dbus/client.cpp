@@ -7,6 +7,59 @@ void MessageDeleter::operator()(DBusMessage *message) const noexcept {
     dbus_message_unref(message);
 }
 
+bool Codec<bool>::append(DBusMessageIter &iter, bool value) {
+  const dbus_bool_t wire = value ? TRUE : FALSE;
+  return dbus_message_iter_append_basic(&iter, DBUS_TYPE_BOOLEAN, &wire) !=
+         FALSE;
+}
+
+std::optional<bool> Codec<bool>::read(DBusMessageIter &iter) {
+  if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_BOOLEAN)
+    return std::nullopt;
+  dbus_bool_t value = FALSE;
+  dbus_message_iter_get_basic(&iter, &value);
+  return value != FALSE;
+}
+
+bool Codec<std::string>::append(DBusMessageIter &iter, std::string_view value) {
+  if (value.contains('\0'))
+    return false;
+  const std::string owned(value);
+  if (dbus_validate_utf8(owned.c_str(), nullptr) == FALSE)
+    return false;
+  const char *raw = owned.c_str();
+  return dbus_message_iter_append_basic(
+             &iter, DBUS_TYPE_STRING, static_cast<const void *>(&raw)) != FALSE;
+}
+
+std::optional<std::string> Codec<std::string>::read(DBusMessageIter &iter) {
+  if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_STRING)
+    return std::nullopt;
+  const char *value = nullptr;
+  dbus_message_iter_get_basic(&iter, static_cast<void *>(&value));
+  if (value == nullptr)
+    return std::nullopt;
+  return std::string(value);
+}
+
+std::optional<std::vector<std::string>>
+Codec<std::vector<std::string>>::read(DBusMessageIter &iter) {
+  if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY ||
+      dbus_message_iter_get_element_type(&iter) != DBUS_TYPE_STRING)
+    return std::nullopt;
+  DBusMessageIter values;
+  dbus_message_iter_recurse(&iter, &values);
+  std::vector<std::string> result;
+  while (dbus_message_iter_get_arg_type(&values) == DBUS_TYPE_STRING) {
+    auto value = Codec<std::string>::read(values);
+    if (!value)
+      return std::nullopt;
+    result.push_back(std::move(*value));
+    dbus_message_iter_next(&values);
+  }
+  return result;
+}
+
 Connection::Connection(DBusConnection *connection) noexcept
     : handle(connection) {}
 
@@ -55,14 +108,31 @@ Connection Connection::open(DBusBusType bus) {
   return Connection(raw);
 }
 
-std::expected<Message, Connection::Error>
-Connection::send(DBusMessage *request, int timeout_ms) const {
+bool Connection::has_signature(DBusMessage *message,
+                               std::string_view signature) {
+  const char *actual = dbus_message_get_signature(message);
+  return actual != nullptr && std::string_view(actual) == signature;
+}
+
+Error Connection::signature_error(DBusMessage *message,
+                                  std::string_view expected) {
+  const char *actual = dbus_message_get_signature(message);
+  return Error{
+      std::string("D-Bus reply has signature '") +
+          (actual != nullptr ? actual : "") + "', expected '" +
+          std::string(expected) + "'",
+  };
+}
+
+std::expected<Message, Error> Connection::send(DBusMessage *request,
+                                               int timeout_ms) const {
   DBusError error = DBUS_ERROR_INIT;
   Message reply(dbus_connection_send_with_reply_and_block(handle, request,
                                                           timeout_ms, &error));
   if (dbus_error_is_set(&error) != FALSE) {
-    std::string reason =
-        error.message != nullptr ? error.message : "Unknown D-Bus error";
+    std::string reason = error.name != nullptr ? error.name : "D-Bus error";
+    if (error.message != nullptr)
+      reason.append(": ").append(error.message);
     dbus_error_free(&error);
     return std::unexpected(Error{std::move(reason)});
   }
@@ -73,92 +143,26 @@ Connection::send(DBusMessage *request, int timeout_ms) const {
   return reply;
 }
 
-bool Connection::append(DBusMessageIter &iter, std::string_view text) {
-  if (text.contains('\0'))
-    return false;
-  std::string value(text);
-  if (dbus_validate_utf8(value.c_str(), nullptr) == FALSE)
-    return false;
-  const char *raw = value.c_str();
-  return dbus_message_iter_append_basic(
-             &iter, DBUS_TYPE_STRING, static_cast<const void *>(&raw)) != FALSE;
-}
-
-bool Connection::append(DBusMessageIter &iter, const std::string &text) {
-  return append(iter, std::string_view(text));
-}
-
-bool Connection::append(DBusMessageIter &iter, const char *text) {
-  return text != nullptr && append(iter, std::string_view(text));
-}
-
-bool Connection::append(DBusMessageIter &iter, bool value) {
-  dbus_bool_t b = value ? TRUE : FALSE;
-  return dbus_message_iter_append_basic(&iter, DBUS_TYPE_BOOLEAN, &b) != FALSE;
-}
-
-bool Connection::subscribe(std::string_view match_rule) const {
+bool Connection::add_match(const std::string &rule) const {
   if (handle == nullptr)
     return false;
-  const std::string rule(match_rule);
   DBusError error = DBUS_ERROR_INIT;
   dbus_bus_add_match(handle, rule.c_str(), &error);
-  const bool ok = dbus_error_is_set(&error) == FALSE;
-  if (!ok) {
+  if (dbus_error_is_set(&error) != FALSE) {
     dbus_error_free(&error);
-  } else {
-    dbus_connection_flush(handle);
-    if (dbus_connection_get_is_connected(handle) == FALSE)
-      return false;
+    return false;
   }
-  return ok;
+  dbus_connection_flush(handle);
+  return dbus_connection_get_is_connected(handle) != FALSE;
 }
 
 Message Connection::receive(int timeout_ms) const {
-  if (handle == nullptr ||
-      dbus_connection_read_write(handle, timeout_ms) == FALSE)
+  if (handle == nullptr)
+    return {};
+  if (Message queued(dbus_connection_pop_message(handle)); queued)
+    return queued;
+  if (dbus_connection_read_write(handle, timeout_ms) == FALSE)
     return {};
   return Message(dbus_connection_pop_message(handle));
-}
-
-bool is_signal(const Message &message, const char *interface,
-               const char *member, const char *path) noexcept {
-  return message != nullptr &&
-         dbus_message_is_signal(message.get(), interface, member) != FALSE &&
-         dbus_message_has_path(message.get(), path) != FALSE;
-}
-
-std::optional<bool> boolean(const Message &message) {
-  if (message == nullptr ||
-      dbus_message_has_signature(message.get(), "b") == FALSE)
-    return std::nullopt;
-  DBusMessageIter iter;
-  if (dbus_message_iter_init(message.get(), &iter) == FALSE)
-    return std::nullopt;
-  dbus_bool_t value = FALSE;
-  dbus_message_iter_get_basic(&iter, &value);
-  return value != FALSE;
-}
-
-std::optional<std::vector<std::string>> strings(const Message &message) {
-  if (message == nullptr ||
-      dbus_message_has_signature(message.get(), "as") == FALSE)
-    return std::nullopt;
-  DBusMessageIter outer;
-  DBusMessageIter values;
-  if (dbus_message_iter_init(message.get(), &outer) == FALSE)
-    return std::nullopt;
-  dbus_message_iter_recurse(&outer, &values);
-  std::vector<std::string> result;
-  while (dbus_message_iter_get_arg_type(&values) == DBUS_TYPE_STRING) {
-    const char *value = nullptr;
-    dbus_message_iter_get_basic(&values, static_cast<void *>(&value));
-    if (value == nullptr)
-      return std::nullopt;
-    result.emplace_back(value);
-    if (dbus_message_iter_next(&values) == FALSE)
-      break;
-  }
-  return result;
 }
 } // namespace prism::dbus

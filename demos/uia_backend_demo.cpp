@@ -307,7 +307,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam,
               hwnd, _T("MultiByteToWideChar(convert for prism_error_string)"));
           return 0;
         }
-        if (!werr.empty() && werr.back() == L'\0')
+        if (!werr.empty() && werr.back() == _T('\0'))
           werr.pop_back();
 #ifdef UNICODE
         const tstring msg =
@@ -440,7 +440,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE, LPTSTR, int nCmdShow) {
       g_hRichDll = nullptr;
       return 1;
     }
-    if (!werr.empty() && werr.back() == L'\0')
+    if (!werr.empty() && werr.back() == _T('\0'))
       werr.pop_back();
     const tstring msg = std::format(_T("Could not initialize UIA: {}"), werr);
     ShowProblem(hwnd, _T("Prism error"), msg.c_str());

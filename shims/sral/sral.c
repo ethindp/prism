@@ -27,43 +27,142 @@ typedef enum SralOp {
   SRAL_OP_OUTPUT,
   SRAL_OP_STOP,
   SRAL_OP_PAUSE,
-  SRAL_OP_RESUME
+  SRAL_OP_RESUME,
 } SralOp;
 
 static SralSlot sral_slots[] = {
-    {PRISM_BACKEND_NVDA, PRISM_SHIM_NULL, SRAL_ENGINE_NVDA,
-     SRAL_ENGINE_CATEGORY_SCREEN_READER, true, -100.0F, 100.0F, 0.0F, 100.0F},
-    {PRISM_BACKEND_JAWS, PRISM_SHIM_NULL, SRAL_ENGINE_JAWS,
-     SRAL_ENGINE_CATEGORY_SCREEN_READER, true, -100.0F, 100.0F, 0.0F, 100.0F},
-    {PRISM_BACKEND_ZDSR, PRISM_SHIM_NULL, SRAL_ENGINE_ZDSR,
-     SRAL_ENGINE_CATEGORY_SCREEN_READER, true, -100.0F, 100.0F, 0.0F, 100.0F},
-    {PRISM_BACKEND_INVALID, PRISM_SHIM_NULL, SRAL_ENGINE_NARRATOR,
-     SRAL_ENGINE_CATEGORY_SCREEN_READER, false, -100.0F, 100.0F, 0.0F, 100.0F},
-    {PRISM_BACKEND_UIA, PRISM_SHIM_NULL, SRAL_ENGINE_UIA,
-     SRAL_ENGINE_CATEGORY_ACCESSIBILITY_PROVIDER, true, -100.0F, 100.0F, 0.0F,
-     100.0F},
-    {PRISM_BACKEND_SAPI, PRISM_SHIM_NULL, SRAL_ENGINE_SAPI,
-     SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE, true, -10.0F, 10.0F, 0.0F,
-     100.0F},
-    {PRISM_BACKEND_SPEECH_DISPATCHER, PRISM_SHIM_NULL,
-     SRAL_ENGINE_SPEECH_DISPATCHER, SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE,
-     true, -100.0F, 100.0F, -100.0F, 100.0F},
-    {PRISM_BACKEND_VOICE_OVER, PRISM_SHIM_NULL, SRAL_ENGINE_VOICE_OVER,
-     SRAL_ENGINE_CATEGORY_SCREEN_READER, true, -100.0F, 100.0F, 0.0F, 100.0F},
-    {PRISM_BACKEND_INVALID, PRISM_SHIM_NULL, SRAL_ENGINE_NS_SPEECH,
-     SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE, false, -100.0F, 100.0F, 0.0F,
-     100.0F},
-    {PRISM_BACKEND_AV_SPEECH, PRISM_SHIM_NULL, SRAL_ENGINE_AV_SPEECH,
-     SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE, true, -100.0F, 100.0F, 0.0F,
-     100.0F},
-    {PRISM_BACKEND_ANDROID_SCREEN_READER, PRISM_SHIM_NULL,
-     SRAL_ENGINE_ANDROID_ACCESSIBILITY_MANAGER,
-     SRAL_ENGINE_CATEGORY_ACCESSIBILITY_PROVIDER, true, -100.0F, 100.0F, 0.0F,
-     100.0F},
-    {PRISM_BACKEND_ANDROID_TTS, PRISM_SHIM_NULL,
-     SRAL_ENGINE_ANDROID_TEXT_TO_SPEECH,
-     SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE, true, -100.0F, 100.0F, 0.0F,
-     100.0F},
+    {
+        PRISM_BACKEND_NVDA,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_NVDA,
+        SRAL_ENGINE_CATEGORY_SCREEN_READER,
+        true,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_JAWS,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_JAWS,
+        SRAL_ENGINE_CATEGORY_SCREEN_READER,
+        true,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_ZDSR,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_ZDSR,
+        SRAL_ENGINE_CATEGORY_SCREEN_READER,
+        true,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_INVALID,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_NARRATOR,
+        SRAL_ENGINE_CATEGORY_SCREEN_READER,
+        false,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_UIA,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_UIA,
+        SRAL_ENGINE_CATEGORY_ACCESSIBILITY_PROVIDER,
+        true,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_SAPI,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_SAPI,
+        SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE,
+        true,
+        -10.0F,
+        10.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_SPEECH_DISPATCHER,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_SPEECH_DISPATCHER,
+        SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE,
+        true,
+        -100.0F,
+        100.0F,
+        -100.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_VOICE_OVER,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_VOICE_OVER,
+        SRAL_ENGINE_CATEGORY_SCREEN_READER,
+        true,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_INVALID,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_NS_SPEECH,
+        SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE,
+        false,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_AV_SPEECH,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_AV_SPEECH,
+        SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE,
+        true,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_ANDROID_SCREEN_READER,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_ANDROID_ACCESSIBILITY_MANAGER,
+        SRAL_ENGINE_CATEGORY_ACCESSIBILITY_PROVIDER,
+        true,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
+    {
+        PRISM_BACKEND_ANDROID_TTS,
+        PRISM_SHIM_NULL,
+        SRAL_ENGINE_ANDROID_TEXT_TO_SPEECH,
+        SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE,
+        true,
+        -100.0F,
+        100.0F,
+        0.0F,
+        100.0F,
+    },
 };
 
 enum { SRAL_SLOT_COUNT = (int)(sizeof(sral_slots) / sizeof(sral_slots[0])) };
@@ -86,7 +185,7 @@ static SralSlot *sral_slot(int engine) {
   return PRISM_SHIM_NULL;
 }
 
-static void sral_select_locked(void) {
+static void sral_select_locked() {
   sral_current = PRISM_SHIM_NULL;
   if (sral_ctx == PRISM_SHIM_NULL) {
     return;
@@ -94,7 +193,7 @@ static void sral_select_locked(void) {
   for (int i = 0; i < SRAL_SLOT_COUNT; ++i) {
     SralSlot *slot = &sral_slots[i];
     if (slot->prism_id != PRISM_BACKEND_INVALID && slot->auto_eligible &&
-        (sral_excluded & slot->legacy_id) == 0 &&
+        ((unsigned)sral_excluded & (unsigned)slot->legacy_id) == 0U &&
         shim_slot_live(sral_ctx, slot->prism_id, &slot->backend)) {
       sral_current = slot;
       return;
@@ -182,25 +281,25 @@ static int sral_features_locked(SralSlot *slot) {
   if (probe != slot->backend) {
     prism_backend_free(probe);
   }
-  int result = 0;
+  unsigned result = 0U;
   if (prism & PRISM_BACKEND_SUPPORTS_SPEAK)
-    result |= SRAL_SUPPORTS_SPEECH;
+    result |= (unsigned)SRAL_SUPPORTS_SPEECH;
   if (prism & PRISM_BACKEND_SUPPORTS_BRAILLE)
-    result |= SRAL_SUPPORTS_BRAILLE;
+    result |= (unsigned)SRAL_SUPPORTS_BRAILLE;
   if (prism &
       (PRISM_BACKEND_SUPPORTS_SET_RATE | PRISM_BACKEND_SUPPORTS_GET_RATE))
-    result |= SRAL_SUPPORTS_SPEECH_RATE;
+    result |= (unsigned)SRAL_SUPPORTS_SPEECH_RATE;
   if (prism &
       (PRISM_BACKEND_SUPPORTS_SET_VOLUME | PRISM_BACKEND_SUPPORTS_GET_VOLUME))
-    result |= SRAL_SUPPORTS_SPEECH_VOLUME;
+    result |= (unsigned)SRAL_SUPPORTS_SPEECH_VOLUME;
   if (prism &
       (PRISM_BACKEND_SUPPORTS_SET_VOICE | PRISM_BACKEND_SUPPORTS_GET_VOICE))
-    result |= SRAL_SUPPORTS_SELECT_VOICE;
+    result |= (unsigned)SRAL_SUPPORTS_SELECT_VOICE;
   if (prism & (PRISM_BACKEND_SUPPORTS_PAUSE | PRISM_BACKEND_SUPPORTS_RESUME))
-    result |= SRAL_SUPPORTS_PAUSE_SPEECH;
+    result |= (unsigned)SRAL_SUPPORTS_PAUSE_SPEECH;
   if (prism & PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY)
-    result |= SRAL_SUPPORTS_SPEAK_TO_MEMORY;
-  return result;
+    result |= (unsigned)SRAL_SUPPORTS_SPEAK_TO_MEMORY;
+  return (int)result;
 }
 
 static int sral_to_int(float unit, float min, float max) {
@@ -244,7 +343,7 @@ bool SRAL_Initialize(int engines_exclude) {
   return true;
 }
 
-void SRAL_Uninitialize(void) {
+void SRAL_Uninitialize() {
   fast_lock_acquire(&sral_lock);
   for (int i = 0; i < SRAL_SLOT_COUNT; ++i) {
     shim_slot_drop(&sral_slots[i].backend);
@@ -261,7 +360,7 @@ void SRAL_Uninitialize(void) {
   fast_lock_release(&sral_lock);
 }
 
-bool SRAL_IsInitialized(void) {
+bool SRAL_IsInitialized() {
   fast_lock_acquire(&sral_lock);
   const bool result = sral_initialized;
   fast_lock_release(&sral_lock);
@@ -355,7 +454,7 @@ bool SRAL_StopSpeechEx(int engine) {
   return sral_run(engine, SRAL_OP_STOP, PRISM_SHIM_NULL, false);
 }
 
-bool SRAL_StopSpeech(void) {
+bool SRAL_StopSpeech() {
   return sral_run(SRAL_ENGINE_NONE, SRAL_OP_STOP, PRISM_SHIM_NULL, false);
 }
 
@@ -363,7 +462,7 @@ bool SRAL_PauseSpeechEx(int engine) {
   return sral_run(engine, SRAL_OP_PAUSE, PRISM_SHIM_NULL, false);
 }
 
-bool SRAL_PauseSpeech(void) {
+bool SRAL_PauseSpeech() {
   return sral_run(SRAL_ENGINE_NONE, SRAL_OP_PAUSE, PRISM_SHIM_NULL, false);
 }
 
@@ -371,7 +470,7 @@ bool SRAL_ResumeSpeechEx(int engine) {
   return sral_run(engine, SRAL_OP_RESUME, PRISM_SHIM_NULL, false);
 }
 
-bool SRAL_ResumeSpeech(void) {
+bool SRAL_ResumeSpeech() {
   return sral_run(SRAL_ENGINE_NONE, SRAL_OP_RESUME, PRISM_SHIM_NULL, false);
 }
 
@@ -392,9 +491,9 @@ bool SRAL_IsSpeakingEx(int engine) {
   return speaking;
 }
 
-bool SRAL_IsSpeaking(void) { return SRAL_IsSpeakingEx(SRAL_ENGINE_NONE); }
+bool SRAL_IsSpeaking() { return SRAL_IsSpeakingEx(SRAL_ENGINE_NONE); }
 
-int SRAL_GetCurrentEngine(void) {
+int SRAL_GetCurrentEngine() {
   fast_lock_acquire(&sral_lock);
   const SralSlot *slot = PRISM_SHIM_NULL;
   if (sral_initialized) {
@@ -532,38 +631,38 @@ bool SRAL_GetEngineParameter(int engine, int param, void *value) {
 
 void SRAL_Delay(int time) { (void)time; }
 
-bool SRAL_RegisterKeyboardHooks(void) { return false; }
+bool SRAL_RegisterKeyboardHooks() { return false; }
 
-void SRAL_UnregisterKeyboardHooks(void) {}
+void SRAL_UnregisterKeyboardHooks() {}
 
-int SRAL_GetAvailableEngines(void) {
+int SRAL_GetAvailableEngines() {
   fast_lock_acquire(&sral_lock);
-  int result = 0;
+  unsigned result = 0U;
   if (sral_ctx != PRISM_SHIM_NULL) {
     for (int i = 0; i < SRAL_SLOT_COUNT; ++i) {
       const SralSlot *slot = &sral_slots[i];
       if (slot->prism_id != PRISM_BACKEND_INVALID &&
           prism_registry_exists(sral_ctx, slot->prism_id))
-        result |= slot->legacy_id;
+        result |= (unsigned)slot->legacy_id;
     }
   }
   fast_lock_release(&sral_lock);
-  return result;
+  return (int)result;
 }
 
-int SRAL_GetActiveEngines(void) {
+int SRAL_GetActiveEngines() {
   fast_lock_acquire(&sral_lock);
-  int result = 0;
+  unsigned result = 0U;
   if (sral_initialized) {
     for (int i = 0; i < SRAL_SLOT_COUNT; ++i) {
       SralSlot *slot = &sral_slots[i];
       if (slot->prism_id != PRISM_BACKEND_INVALID &&
           shim_slot_live(sral_ctx, slot->prism_id, &slot->backend))
-        result |= slot->legacy_id;
+        result |= (unsigned)slot->legacy_id;
     }
   }
   fast_lock_release(&sral_lock);
-  return result;
+  return (int)result;
 }
 
 SRAL_EngineCategory SRAL_GetEngineCategory(int engine) {
@@ -578,36 +677,36 @@ SRAL_EngineCategory SRAL_GetEngineCategory(int engine) {
   return result;
 }
 
-int SRAL_GetTTSEngines(void) {
+int SRAL_GetTTSEngines() {
   fast_lock_acquire(&sral_lock);
-  int result = 0;
+  unsigned result = 0U;
   if (sral_initialized) {
     for (int i = 0; i < SRAL_SLOT_COUNT; ++i) {
       const SralSlot *slot = &sral_slots[i];
       if (slot->category == SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE &&
           slot->prism_id != PRISM_BACKEND_INVALID &&
           prism_registry_exists(sral_ctx, slot->prism_id))
-        result |= slot->legacy_id;
+        result |= (unsigned)slot->legacy_id;
     }
   }
   fast_lock_release(&sral_lock);
-  return result;
+  return (int)result;
 }
 
-int SRAL_GetAssistiveTechEngines(void) {
+int SRAL_GetAssistiveTechEngines() {
   fast_lock_acquire(&sral_lock);
-  int result = 0;
+  unsigned result = 0U;
   if (sral_initialized) {
     for (int i = 0; i < SRAL_SLOT_COUNT; ++i) {
       const SralSlot *slot = &sral_slots[i];
       if (slot->category != SRAL_ENGINE_CATEGORY_TEXT_TO_SPEECH_ENGINE &&
           slot->prism_id != PRISM_BACKEND_INVALID &&
           prism_registry_exists(sral_ctx, slot->prism_id))
-        result |= slot->legacy_id;
+        result |= (unsigned)slot->legacy_id;
     }
   }
   fast_lock_release(&sral_lock);
-  return result;
+  return (int)result;
 }
 
 const char *SRAL_GetEngineName(int engine) {
@@ -655,7 +754,7 @@ bool SRAL_SetEnginesExclude(int engines_exclude) {
   return true;
 }
 
-int SRAL_GetEnginesExclude(void) {
+int SRAL_GetEnginesExclude() {
   fast_lock_acquire(&sral_lock);
   int result = -1;
   if (sral_initialized) {

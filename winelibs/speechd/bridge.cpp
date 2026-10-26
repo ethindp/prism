@@ -118,12 +118,12 @@ static PrismWinelibStatus get_param(PrismSpeechDispatcherInstance *h,
   return PRISM_WINELIB_OK;
 }
 
-extern "C" PRISM_WINELIB_ABI uint32_t prism_speechd_abi_version(void) noexcept {
+extern "C" PRISM_WINELIB_ABI uint32_t prism_speechd_abi_version() noexcept {
   return PRISM_SPEECHD_BRIDGE_ABI_VERSION;
 }
 
 extern "C" PRISM_WINELIB_ABI PrismWinelibStatus
-prism_speechd_available(void) noexcept {
+prism_speechd_available() noexcept {
   auto *addr = spd_get_default_address(nullptr);
   if (addr == nullptr)
     return PRISM_WINELIB_NOT_AVAILABLE;
@@ -159,9 +159,10 @@ prism_speechd_available(void) noexcept {
       addrinfo *result = nullptr;
       if (getaddrinfo(addr->inet_socket_host, port.data(), &hints, &result) ==
           0) {
-        const int fd =
-            socket(result->ai_family, result->ai_socktype | SOCK_NONBLOCK,
-                   result->ai_protocol);
+        const auto type =
+            static_cast<int>(static_cast<unsigned>(result->ai_socktype) |
+                             static_cast<unsigned>(SOCK_NONBLOCK));
+        const int fd = socket(result->ai_family, type, result->ai_protocol);
         if (fd >= 0) {
           const int status = connect(fd, result->ai_addr, result->ai_addrlen);
           available =

@@ -41,6 +41,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install the Microsoft GDK
+        id: gdk
+        if: runner.os == 'Windows'
+        uses: $/.github/actions/install-gdk
       - name: Install current CMake
         uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
         with:
@@ -48,6 +52,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
         env:
+          PRISM_GDK_ROOT: ${{ steps.gdk.outputs.root }}
           ANDROID_API_LEVEL: 26
           CIBW_PLATFORM: ${{ matrix.platform || 'auto' }}
           CIBW_ARCHS: ${{ matrix.archs || 'auto64' }}

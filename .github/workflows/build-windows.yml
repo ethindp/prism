@@ -19,12 +19,17 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: ${{ matrix.msvc_arch }}
+      - name: Install the Microsoft GDK
+        id: gdk
+        uses: $/.github/actions/install-gdk
       - name: Install current CMake
         uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
         with:
           cmakeVersion: latest
       - name: Build all configurations
         shell: pwsh
+        env:
+          PRISM_GDK_ROOT: ${{ steps.gdk.outputs.root }}
         run: |
           foreach ($shared in @("ON", "OFF")) {
             $linkage = if ($shared -eq "ON") { "dynamic" } else { "static" }
@@ -36,6 +41,7 @@ jobs:
                 -DPRISM_ENABLE_DEMOS=OFF `
                 -DPRISM_ENABLE_SHIMS=ON `
                 -DPRISM_ENABLE_LEGACY_BACKENDS=ON `
+                -DPRISM_ENABLE_GDK_SPEECH_BACKEND=ON `
                 "-DCMAKE_BUILD_TYPE=$bt" `
                 "-DBUILD_SHARED_LIBS=$shared" `
                 -DPRISM_ENABLE_GDEXTENSION=OFF ${{ matrix.extra_cmake }}

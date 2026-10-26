@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Install the Microsoft GDK
+description: >-
+  Downloads the newest release of the Microsoft GDK's Windows package from
+  NuGet, checks it against the hash nuget.org publishes for it, unpacks it and
+  reports where the edition inside it is. Given that folder as PRISM_GDK_ROOT,
+  CMake builds the GDK speech backend whatever the edition. Installing the
+  package accepts the GDK's license.
+outputs:
+  root:
+    description: The folder of the GDK edition, to give CMake as PRISM_GDK_ROOT.
+    value: ${{ steps.install.outputs.root }}
+runs:
+  using: composite
+  steps:
+    - name: Download and unpack the GDK
+      id: install
+      shell: pwsh
+      run: |
+        $id = "microsoft.gdk.windows"
+        # The newest version that is not a pre-release.
+        $versions = (Invoke-RestMethod "https://api.nuget.org/v3-flatcontainer/$id/index.json").versions
+        $version = $versions | Where-Object { $_ -notmatch "-" } | Select-Object -Last 1
+        if (-not $version) {
+          Write-Error "nuget.org lists no release of $id"
+          exit 1
+        }
+        # nuget.org's catalog holds the SHA-512 it computed when the package
+        # was published.
+        $registration = Invoke-RestMethod "https://api.nuget.org/v3/registration5-semver1/$id/$version.json"
+        $catalog = Invoke-RestMethod $registration.catalogEntry
+        if ($catalog.packageHashAlgorithm -ne "SHA512" -or -not $catalog.packageHash) {
+          Write-Error "nuget.org publishes no SHA-512 for $id $version"
+          exit 1
+        }
+        $package = Join-Path $env:RUNNER_TEMP "$id.$version.nupkg"
+        Invoke-WebRequest -Uri "https://api.nuget.org/v3-flatcontainer/$id/$version/$id.$version.nupkg" -OutFile $package
+        $stream = [System.IO.File]::OpenRead($package)
+        try {
+          $hash = [Convert]::ToBase64String([System.Security.Cryptography.SHA512]::Create().ComputeHash($stream))
+        } finally {
+          $stream.Dispose()
+        }
+        if ($hash -ne $catalog.packageHash) {
+          Write-Error "The hash of $id $version, $hash, is not the published $($catalog.packageHash)"
+          exit 1
+        }
+        $destination = Join-Path $env:RUNNER_TEMP "gdk"
+        Expand-Archive -Path $package -DestinationPath $destination -Force
+        # The package holds one edition, in a folder named for it.
+        $edition = Get-ChildItem (Join-Path $destination "native") -Directory |
+          Sort-Object Name | Select-Object -Last 1
+        if ($null -eq $edition) {
+          Write-Error "$id $version holds no edition under native/"
+          exit 1
+        }
+        Write-Output "Using GDK $version, edition $($edition.Name)"
+        "root=$($edition.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append

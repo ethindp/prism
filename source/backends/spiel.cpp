@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstdint>
 #include <gio/gio.h>
 #include <memory>
 #include <moodycamel/concurrentqueue.h>
@@ -29,23 +30,24 @@
 namespace {
 struct Spiel {
   SharedLibrary library;
-  decltype(&::spiel_speaker_new) spiel_speaker_new;
-  decltype(&::spiel_speaker_new_finish) spiel_speaker_new_finish;
-  decltype(&::spiel_speaker_get_voices) spiel_speaker_get_voices;
-  decltype(&::spiel_speaker_speak) spiel_speaker_speak;
-  decltype(&::spiel_speaker_cancel) spiel_speaker_cancel;
-  decltype(&::spiel_speaker_pause) spiel_speaker_pause;
-  decltype(&::spiel_speaker_resume) spiel_speaker_resume;
-  decltype(&::spiel_utterance_new) spiel_utterance_new;
-  decltype(&::spiel_utterance_set_rate) spiel_utterance_set_rate;
-  decltype(&::spiel_utterance_set_pitch) spiel_utterance_set_pitch;
-  decltype(&::spiel_utterance_set_volume) spiel_utterance_set_volume;
-  decltype(&::spiel_utterance_set_language) spiel_utterance_set_language;
-  decltype(&::spiel_utterance_set_voice) spiel_utterance_set_voice;
-  decltype(&::spiel_voice_get_type) spiel_voice_get_type;
-  decltype(&::spiel_voice_get_identifier) spiel_voice_get_identifier;
-  decltype(&::spiel_voice_get_name) spiel_voice_get_name;
-  decltype(&::spiel_voice_get_languages) spiel_voice_get_languages;
+  decltype(&::spiel_speaker_new) spiel_speaker_new = nullptr;
+  decltype(&::spiel_speaker_new_finish) spiel_speaker_new_finish = nullptr;
+  decltype(&::spiel_speaker_get_voices) spiel_speaker_get_voices = nullptr;
+  decltype(&::spiel_speaker_speak) spiel_speaker_speak = nullptr;
+  decltype(&::spiel_speaker_cancel) spiel_speaker_cancel = nullptr;
+  decltype(&::spiel_speaker_pause) spiel_speaker_pause = nullptr;
+  decltype(&::spiel_speaker_resume) spiel_speaker_resume = nullptr;
+  decltype(&::spiel_utterance_new) spiel_utterance_new = nullptr;
+  decltype(&::spiel_utterance_set_rate) spiel_utterance_set_rate = nullptr;
+  decltype(&::spiel_utterance_set_pitch) spiel_utterance_set_pitch = nullptr;
+  decltype(&::spiel_utterance_set_volume) spiel_utterance_set_volume = nullptr;
+  decltype(&::spiel_utterance_set_language) spiel_utterance_set_language =
+      nullptr;
+  decltype(&::spiel_utterance_set_voice) spiel_utterance_set_voice = nullptr;
+  decltype(&::spiel_voice_get_type) spiel_voice_get_type = nullptr;
+  decltype(&::spiel_voice_get_identifier) spiel_voice_get_identifier = nullptr;
+  decltype(&::spiel_voice_get_name) spiel_voice_get_name = nullptr;
+  decltype(&::spiel_voice_get_languages) spiel_voice_get_languages = nullptr;
 };
 
 std::optional<Spiel> load_spiel() {
@@ -112,6 +114,7 @@ using VoiceListPtr = std::shared_ptr<const VoiceList>;
 struct SpeakCommand {
   std::string text;
   bool interrupt;
+  std::uint64_t generation;
   float native_rate;
   float native_pitch;
   float native_volume;
@@ -119,7 +122,9 @@ struct SpeakCommand {
   std::string language;
 };
 
-struct StopCommand {};
+struct StopCommand {
+  std::uint64_t generation;
+};
 struct PauseCommand {};
 struct ResumeCommand {};
 struct RefreshVoicesCommand {};
@@ -143,7 +148,6 @@ private:
   GCancellable *init_cancellable{nullptr};
   SpielSpeaker *speaker{nullptr};
   gulong notify_speaking_handler{0};
-  gulong notify_paused_handler{0};
   gulong voices_changed_handler{0};
   std::mutex ready_mtx;
   std::condition_variable ready_cv;
@@ -151,8 +155,12 @@ private:
   moodycamel::ConcurrentQueue<Command> command_queue;
   std::atomic_flag wake_pending;
   std::atomic_flag initialized;
-  std::atomic_flag speaking;
-  std::atomic_flag paused;
+  std::mutex state_mtx;
+  std::uint64_t generation{0};
+  std::uint64_t worker_generation{0};
+  std::size_t outstanding{0};
+  bool spiel_speaking{false};
+  bool paused{false};
   std::atomic_size_t voice_idx{0};
   std::atomic<float> rate{0.5};
   std::atomic<float> pitch{0.5};
@@ -176,10 +184,17 @@ private:
               if (speaker == nullptr)
                 return;
               if (c.interrupt)
-                spiel()->spiel_speaker_cancel(speaker);
+                silence(c.generation);
+              {
+                std::scoped_lock lock(state_mtx);
+                if (c.generation != generation)
+                  return;
+              }
               SpielUtterance *u = spiel()->spiel_utterance_new(c.text.c_str());
-              if (u == nullptr)
+              if (u == nullptr) {
+                finish_speak(c.generation);
                 return;
+              }
               spiel()->spiel_utterance_set_rate(u, c.native_rate);
               spiel()->spiel_utterance_set_pitch(u, c.native_pitch);
               spiel()->spiel_utterance_set_volume(u, c.native_volume);
@@ -194,10 +209,11 @@ private:
               }
               spiel()->spiel_speaker_speak(speaker, u);
               g_object_unref(u);
+              finish_speak(c.generation);
             },
-            [this](const StopCommand &) {
+            [this](const StopCommand &c) {
               if (speaker != nullptr)
-                spiel()->spiel_speaker_cancel(speaker);
+                silence(c.generation);
             },
             [this](const PauseCommand &) {
               if (speaker != nullptr)
@@ -211,8 +227,34 @@ private:
             [this](const ShutdownCommand &) {
               if (worker_loop != nullptr)
                 g_main_loop_quit(worker_loop);
-            }},
+            },
+        },
         cmd);
+  }
+
+  void silence(std::uint64_t stopped) {
+    spiel()->spiel_speaker_cancel(speaker);
+    spiel()->spiel_speaker_resume(speaker);
+    std::scoped_lock lock(state_mtx);
+    worker_generation = stopped;
+  }
+
+  void finish_speak(std::uint64_t of) {
+    std::scoped_lock lock(state_mtx);
+    if (of == generation && outstanding > 0)
+      --outstanding;
+  }
+
+  [[nodiscard]] bool has_speech_locked() const noexcept {
+    return outstanding > 0 ||
+           (spiel_speaking && worker_generation == generation);
+  }
+
+  std::uint64_t discard_locked() noexcept {
+    ++generation;
+    outstanding = 0;
+    paused = false;
+    return generation;
   }
 
   SpielVoice *find_voice_by_id(std::string_view id) {
@@ -283,22 +325,9 @@ private:
                                  gpointer ud) {
     gboolean v = FALSE;
     g_object_get(obj, "speaking", &v, nullptr);
-    auto &flag = static_cast<SpielBackend *>(ud)->speaking;
-    if (v != FALSE)
-      flag.test_and_set(std::memory_order_release);
-    else
-      flag.clear(std::memory_order_release);
-  }
-
-  static void on_notify_paused(GObject *obj, [[maybe_unused]] GParamSpec *spec,
-                               gpointer ud) {
-    gboolean v = FALSE;
-    g_object_get(obj, "paused", &v, nullptr);
-    auto &flag = static_cast<SpielBackend *>(ud)->paused;
-    if (v != FALSE)
-      flag.test_and_set(std::memory_order_release);
-    else
-      flag.clear(std::memory_order_release);
+    auto *self = static_cast<SpielBackend *>(ud);
+    std::scoped_lock lock(self->state_mtx);
+    self->spiel_speaking = v != FALSE;
   }
 
   static void on_voices_items_changed([[maybe_unused]] GListModel *model,
@@ -328,8 +357,6 @@ private:
     self->notify_speaking_handler =
         g_signal_connect(self->speaker, "notify::speaking",
                          G_CALLBACK(&on_notify_speaking), self);
-    self->notify_paused_handler = g_signal_connect(
-        self->speaker, "notify::paused", G_CALLBACK(&on_notify_paused), self);
     if (GListModel *vm = spiel()->spiel_speaker_get_voices(self->speaker);
         vm != nullptr) {
       self->voices_changed_handler = g_signal_connect(
@@ -352,8 +379,6 @@ private:
     if (speaker != nullptr) {
       if (notify_speaking_handler != 0)
         g_signal_handler_disconnect(speaker, notify_speaking_handler);
-      if (notify_paused_handler != 0)
-        g_signal_handler_disconnect(speaker, notify_paused_handler);
       if (voices_changed_handler != 0) {
         if (GListModel *vm = spiel()->spiel_speaker_get_voices(speaker);
             vm != nullptr)
@@ -497,9 +522,16 @@ public:
         language = (*snap)[i].language;
       }
     }
+    std::uint64_t speak_generation = 0;
+    {
+      std::scoped_lock lock(state_mtx);
+      speak_generation = interrupt ? discard_locked() : generation;
+      ++outstanding;
+    }
     post(SpeakCommand{
         .text = std::string{text},
         .interrupt = interrupt,
+        .generation = speak_generation,
         .native_rate =
             range_convert_midpoint(r, 0.0F, 0.5F, 1.0F, 0.1F, 1.0F, 10.0F),
         .native_pitch =
@@ -518,17 +550,26 @@ public:
   BackendResult<> stop() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    post(StopCommand{});
+    std::uint64_t stopped = 0;
+    {
+      std::scoped_lock lock(state_mtx);
+      stopped = discard_locked();
+    }
+    post(StopCommand{.generation = stopped});
     return {};
   }
 
   BackendResult<> pause() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    if (!speaking.test())
-      return std::unexpected(BackendError::NotSpeaking);
-    if (paused.test())
-      return std::unexpected(BackendError::AlreadyPaused);
+    {
+      std::scoped_lock lock(state_mtx);
+      if (paused)
+        return std::unexpected(BackendError::AlreadyPaused);
+      if (!has_speech_locked())
+        return std::unexpected(BackendError::NotSpeaking);
+      paused = true;
+    }
     post(PauseCommand{});
     return {};
   }
@@ -536,8 +577,12 @@ public:
   BackendResult<> resume() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    if (!paused.test())
-      return std::unexpected(BackendError::NotPaused);
+    {
+      std::scoped_lock lock(state_mtx);
+      if (!paused)
+        return std::unexpected(BackendError::NotPaused);
+      paused = false;
+    }
     post(ResumeCommand{});
     return {};
   }
@@ -545,7 +590,8 @@ public:
   BackendResult<bool> is_speaking() override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    return speaking.test();
+    std::scoped_lock lock(state_mtx);
+    return !paused && has_speech_locked();
   }
 
   BackendResult<> set_rate(float v) override {
@@ -677,27 +723,28 @@ constexpr const TCHAR *spiel_bridge_dll = _T("prism_spiel_bridge.dll");
 
 struct SpielBridge {
   SharedLibrary library;
-  decltype(&::prism_spiel_abi_version) prism_spiel_abi_version;
-  decltype(&::prism_spiel_available) prism_spiel_available;
-  decltype(&::prism_spiel_create) prism_spiel_create;
-  decltype(&::prism_spiel_destroy) prism_spiel_destroy;
-  decltype(&::prism_spiel_speak) prism_spiel_speak;
-  decltype(&::prism_spiel_stop) prism_spiel_stop;
-  decltype(&::prism_spiel_pause) prism_spiel_pause;
-  decltype(&::prism_spiel_resume) prism_spiel_resume;
-  decltype(&::prism_spiel_is_speaking) prism_spiel_is_speaking;
-  decltype(&::prism_spiel_set_volume) prism_spiel_set_volume;
-  decltype(&::prism_spiel_get_volume) prism_spiel_get_volume;
-  decltype(&::prism_spiel_set_rate) prism_spiel_set_rate;
-  decltype(&::prism_spiel_get_rate) prism_spiel_get_rate;
-  decltype(&::prism_spiel_set_pitch) prism_spiel_set_pitch;
-  decltype(&::prism_spiel_get_pitch) prism_spiel_get_pitch;
-  decltype(&::prism_spiel_refresh_voices) prism_spiel_refresh_voices;
-  decltype(&::prism_spiel_count_voices) prism_spiel_count_voices;
-  decltype(&::prism_spiel_get_voice_name) prism_spiel_get_voice_name;
-  decltype(&::prism_spiel_get_voice_language) prism_spiel_get_voice_language;
-  decltype(&::prism_spiel_set_voice) prism_spiel_set_voice;
-  decltype(&::prism_spiel_get_voice) prism_spiel_get_voice;
+  decltype(&::prism_spiel_abi_version) prism_spiel_abi_version = nullptr;
+  decltype(&::prism_spiel_available) prism_spiel_available = nullptr;
+  decltype(&::prism_spiel_create) prism_spiel_create = nullptr;
+  decltype(&::prism_spiel_destroy) prism_spiel_destroy = nullptr;
+  decltype(&::prism_spiel_speak) prism_spiel_speak = nullptr;
+  decltype(&::prism_spiel_stop) prism_spiel_stop = nullptr;
+  decltype(&::prism_spiel_pause) prism_spiel_pause = nullptr;
+  decltype(&::prism_spiel_resume) prism_spiel_resume = nullptr;
+  decltype(&::prism_spiel_is_speaking) prism_spiel_is_speaking = nullptr;
+  decltype(&::prism_spiel_set_volume) prism_spiel_set_volume = nullptr;
+  decltype(&::prism_spiel_get_volume) prism_spiel_get_volume = nullptr;
+  decltype(&::prism_spiel_set_rate) prism_spiel_set_rate = nullptr;
+  decltype(&::prism_spiel_get_rate) prism_spiel_get_rate = nullptr;
+  decltype(&::prism_spiel_set_pitch) prism_spiel_set_pitch = nullptr;
+  decltype(&::prism_spiel_get_pitch) prism_spiel_get_pitch = nullptr;
+  decltype(&::prism_spiel_refresh_voices) prism_spiel_refresh_voices = nullptr;
+  decltype(&::prism_spiel_count_voices) prism_spiel_count_voices = nullptr;
+  decltype(&::prism_spiel_get_voice_name) prism_spiel_get_voice_name = nullptr;
+  decltype(&::prism_spiel_get_voice_language) prism_spiel_get_voice_language =
+      nullptr;
+  decltype(&::prism_spiel_set_voice) prism_spiel_set_voice = nullptr;
+  decltype(&::prism_spiel_get_voice) prism_spiel_get_voice = nullptr;
 };
 
 std::optional<SpielBridge> load_spiel_bridge() {

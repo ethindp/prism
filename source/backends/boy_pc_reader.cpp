@@ -46,11 +46,11 @@ constexpr InstallLocation boy_pc_reader_install{
 
 struct BoyCtrl {
   SharedLibrary library;
-  decltype(&::BoyCtrlInitializeU8) BoyCtrlInitializeU8;
-  decltype(&::BoyCtrlUninitialize) BoyCtrlUninitialize;
-  decltype(&::BoyCtrlIsReaderRunning) BoyCtrlIsReaderRunning;
-  decltype(&::BoyCtrlSpeak) BoyCtrlSpeak;
-  decltype(&::BoyCtrlStopSpeaking) BoyCtrlStopSpeaking;
+  decltype(&::BoyCtrlInitializeU8) BoyCtrlInitializeU8 = nullptr;
+  decltype(&::BoyCtrlUninitialize) BoyCtrlUninitialize = nullptr;
+  decltype(&::BoyCtrlIsReaderRunning) BoyCtrlIsReaderRunning = nullptr;
+  decltype(&::BoyCtrlSpeak) BoyCtrlSpeak = nullptr;
+  decltype(&::BoyCtrlStopSpeaking) BoyCtrlStopSpeaking = nullptr;
 };
 
 std::optional<BoyCtrl> load_boy_ctrl() {

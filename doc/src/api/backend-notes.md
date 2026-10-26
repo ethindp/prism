@@ -117,6 +117,20 @@ The System Access backend is a legacy backend. No other requirements are imposed
 
 The Window Eyes backend is a legacy backend. The backend communicates with WindowEyes through a COM interface registered by the WindowEyes installer. The host process MUST be running on Windows, and the COM interface MUST be registered on the system; if it is not, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
 
+### SAPI
+
+The SAPI backend uses SAPI 5 for synthesis only. Synthesized audio is played through XAudio2; SAPI's own audio output is not used. The host process MUST be running on Windows, and the SAPI voice COM class MUST be registered; if it is not, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`. An audio output device that XAudio2 can open MUST be present when the backend is initialized; if none is present, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
+
+The backend creates and exclusively uses its SAPI voice on an internal worker thread in the multithreaded apartment. Accordingly, the thread from which the backend is called MAY belong to any apartment. `prism_backend_speak_to_memory`, `prism_backend_set_voice`, and `prism_backend_refresh_voices` are executed on the worker thread and return when the worker has completed them. No other function waits for synthesis.
+
+`prism_backend_speak` returns once the text has been queued. Each utterance is synthesized in its entirety before playback of it begins. From the return of `prism_backend_speak` until playback of the utterance ends, `prism_backend_is_speaking` reports `true`, unless speech is paused or stopped in the interim. Synthesis of an utterance that is stopped before its synthesis completes is abandoned. An utterance that cannot be synthesized is discarded, and the failure is reported through the logging facility.
+
+The voice list comprises the voices registered under the SAPI voice token category and, where present, the voices of the Microsoft Speech Platform 11 runtime. If neither category contains a voice, `prism_backend_initialize` returns `PRISM_ERROR_NO_VOICES`. Each voice is synthesized in the audio format that SAPI reports for it. Where an implementation of SAPI reports no format, 16-bit mono PCM at 22050 Hz is used.
+
+The rate, pitch, and voice in effect when `prism_backend_speak` is called apply to that utterance; subsequent changes affect only utterances queued thereafter. Pitch is applied through SAPI XML markup. Text passed to `prism_backend_speak` is escaped and SHALL NOT be interpreted as markup. Volume is applied during playback, and a change of volume therefore also affects the utterance being played.
+
+When the default audio output device changes, playback moves to the new device at the next utterance that begins while no speech is playing. If the device in use is removed, speech in progress is discarded, and subsequent utterances are played on the current default device.
+
 ### Speech Dispatcher
 
 The Speech Dispatcher backend is available natively on Linux and BSD and through a Wine bridge to Windows applications running under Wine or Proton. The native and bridged variants use the same backend identifier and expose the same public Prism API. For more information about using the wine bridges, see the Wine Bridges chapter for build, deployment, and selection requirements.

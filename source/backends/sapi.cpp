@@ -4,36 +4,37 @@
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../logging.h"
+#include "../speech_player.h"
 #include "../utils.h"
 #include <algorithm>
 #include <array>
 #include <atlbase.h>
 #include <atomic>
 #include <bitset>
-#include <cassert>
 #include <cctype>
 #include <charconv>
-#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <dr_wav/dr_wav.h>
+#include <future>
 #include <limits>
-#include <memory>
 #include <mmreg.h>
 #include <mutex>
 #include <optional>
 #include <ranges>
 #include <sapi.h>
-#include <shared_mutex>
 #include <shlwapi.h>
 #include <simdutf.h>
 #include <span>
 #include <stop_token>
+#include <string>
 #include <tchar.h>
 #include <thread>
+#include <utility>
+#include <variant>
 #include <vector>
 #include <version>
 #include <windows.h>
@@ -41,7 +42,6 @@
 
 namespace {
 struct VoiceInfo {
-  CComPtr<ISpObjectToken> token;
   std::string name;
   std::string language;
 };
@@ -57,79 +57,6 @@ struct ComApartmentGuard {
   ComApartmentGuard &operator=(const ComApartmentGuard &) = delete;
 };
 
-struct HandleGuard {
-  HANDLE h{};
-  ~HandleGuard() noexcept {
-    if (h != nullptr && h != INVALID_HANDLE_VALUE)
-      CloseHandle(h);
-  }
-  HandleGuard(HANDLE h) : h(h) {}
-  HandleGuard(const HandleGuard &) = delete;
-  HandleGuard &operator=(const HandleGuard &) = delete;
-};
-
-struct VoiceOutputStreamResetter {
-  CComPtr<ISpVoice> v;
-  ~VoiceOutputStreamResetter() noexcept {
-    if (v != nullptr)
-      (void)v->SetOutput(nullptr, TRUE);
-  }
-};
-
-struct SetVoiceRollbackGuard {
-  CComPtr<ISpVoice> voice;
-  CComPtr<ISpObjectToken> old_token;
-  bool commit = false;
-  ~SetVoiceRollbackGuard() noexcept {
-    if (!commit && voice != nullptr && old_token != nullptr)
-      (void)voice->SetVoice(old_token);
-  }
-  SetVoiceRollbackGuard(const SetVoiceRollbackGuard &) = delete;
-  SetVoiceRollbackGuard &operator=(const SetVoiceRollbackGuard &) = delete;
-  SetVoiceRollbackGuard(CComPtr<ISpVoice> v, CComPtr<ISpObjectToken> t)
-      : voice(std::move(v)), old_token(std::move(t)) {}
-};
-
-struct SapiSpeakParams {
-  std::wstring text;
-  DWORD flags;
-};
-
-struct InitHandshake {
-  std::mutex &m;
-  std::condition_variable &cv;
-  std::optional<bool> &ready;
-  std::atomic<IStream *> &marshal_stream;
-  bool committed = false;
-  ~InitHandshake() noexcept {
-    if (!committed) {
-      std::scoped_lock g(m);
-      ready = false;
-      cv.notify_all();
-    }
-  }
-
-  void succeed(IStream *s) {
-    std::scoped_lock g(m);
-    marshal_stream.store(s, std::memory_order_release);
-    committed = true;
-    ready = true;
-    cv.notify_all();
-  }
-};
-
-struct GlobalLockGuard {
-  HGLOBAL hg{};
-  void *p{};
-  explicit GlobalLockGuard(HGLOBAL h) : hg(h), p(GlobalLock(h)) {}
-  ~GlobalLockGuard() noexcept {
-    if (p != nullptr)
-      GlobalUnlock(hg);
-  }
-  GlobalLockGuard(const GlobalLockGuard &) = delete;
-  GlobalLockGuard &operator=(const GlobalLockGuard &) = delete;
-};
-
 template <class T>
 const T *lifetime_as_array(const void *p,
                            [[maybe_unused]] std::size_t n) noexcept {
@@ -141,212 +68,292 @@ const T *lifetime_as_array(const void *p,
   return reinterpret_cast<const T *>(p);
 #endif
 }
+
+constexpr WAVEFORMATEX FALLBACK_FORMAT{
+    .wFormatTag = WAVE_FORMAT_PCM,
+    .nChannels = 1,
+    .nSamplesPerSec = 22050,
+    .nAvgBytesPerSec = 44100,
+    .nBlockAlign = 2,
+    .wBitsPerSample = 16,
+    .cbSize = 0,
+};
+
+class CaptureStream final : public IStream {
+public:
+  CaptureStream(const SpeechPlayer *player, std::uint64_t generation)
+      : player(player), generation(generation) {}
+
+  [[nodiscard]] std::span<const std::byte> bytes() const noexcept {
+    return captured;
+  }
+
+  HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid,
+                                           void **object) noexcept override {
+    if (object == nullptr)
+      return E_POINTER;
+    if (riid == __uuidof(IUnknown) || riid == __uuidof(ISequentialStream) ||
+        riid == __uuidof(IStream)) {
+      *object = static_cast<IStream *>(this);
+      AddRef();
+      return S_OK;
+    }
+    *object = nullptr;
+    return E_NOINTERFACE;
+  }
+  ULONG STDMETHODCALLTYPE AddRef() noexcept override { return ++references; }
+  ULONG STDMETHODCALLTYPE Release() noexcept override {
+    const ULONG remaining = --references;
+    if (remaining == 0)
+      delete this;
+    return remaining;
+  }
+
+  HRESULT STDMETHODCALLTYPE
+  Read([[maybe_unused]] void *data, [[maybe_unused]] ULONG size,
+       [[maybe_unused]] ULONG *read) noexcept override {
+    return E_NOTIMPL;
+  }
+  HRESULT STDMETHODCALLTYPE Write(const void *data, ULONG size,
+                                  ULONG *written) noexcept override {
+    if (written != nullptr)
+      *written = 0;
+    if (data == nullptr && size != 0)
+      return STG_E_INVALIDPOINTER;
+    if (player != nullptr && player->generation() != generation)
+      return E_ABORT;
+    try {
+      const auto *first = static_cast<const std::byte *>(data);
+      captured.insert(captured.end(), first, first + size);
+    } catch (...) {
+      return E_OUTOFMEMORY;
+    }
+    position += size;
+    if (written != nullptr)
+      *written = size;
+    return S_OK;
+  }
+  HRESULT STDMETHODCALLTYPE
+  Seek(LARGE_INTEGER move, DWORD origin,
+       ULARGE_INTEGER *new_position) noexcept override {
+    if ((origin != STREAM_SEEK_CUR && origin != STREAM_SEEK_END) ||
+        move.QuadPart != 0)
+      return STG_E_INVALIDFUNCTION;
+    if (new_position != nullptr)
+      new_position->QuadPart = position;
+    return S_OK;
+  }
+  HRESULT STDMETHODCALLTYPE
+  SetSize([[maybe_unused]] ULARGE_INTEGER size) noexcept override {
+    return S_OK;
+  }
+  HRESULT STDMETHODCALLTYPE
+  CopyTo([[maybe_unused]] IStream *destination,
+         [[maybe_unused]] ULARGE_INTEGER size,
+         [[maybe_unused]] ULARGE_INTEGER *read,
+         [[maybe_unused]] ULARGE_INTEGER *written) noexcept override {
+    return E_NOTIMPL;
+  }
+  HRESULT STDMETHODCALLTYPE
+  Commit([[maybe_unused]] DWORD flags) noexcept override {
+    return S_OK;
+  }
+  HRESULT STDMETHODCALLTYPE Revert() noexcept override { return E_NOTIMPL; }
+  HRESULT STDMETHODCALLTYPE
+  LockRegion([[maybe_unused]] ULARGE_INTEGER offset,
+             [[maybe_unused]] ULARGE_INTEGER size,
+             [[maybe_unused]] DWORD type) noexcept override {
+    return STG_E_INVALIDFUNCTION;
+  }
+  HRESULT STDMETHODCALLTYPE
+  UnlockRegion([[maybe_unused]] ULARGE_INTEGER offset,
+               [[maybe_unused]] ULARGE_INTEGER size,
+               [[maybe_unused]] DWORD type) noexcept override {
+    return STG_E_INVALIDFUNCTION;
+  }
+  HRESULT STDMETHODCALLTYPE
+  Stat(STATSTG *stat, [[maybe_unused]] DWORD flags) noexcept override {
+    if (stat == nullptr)
+      return STG_E_INVALIDPOINTER;
+    *stat = STATSTG{};
+    stat->type = STGTY_STREAM;
+    stat->cbSize.QuadPart = position;
+    return S_OK;
+  }
+  HRESULT STDMETHODCALLTYPE
+  Clone([[maybe_unused]] IStream **clone) noexcept override {
+    return E_NOTIMPL;
+  }
+
+private:
+  ~CaptureStream() = default;
+  std::atomic<ULONG> references{1};
+  const SpeechPlayer *player;
+  std::uint64_t generation;
+  std::vector<std::byte> captured;
+  std::uint64_t position = 0;
+};
+
+struct Prosody {
+  LONG rate = 0;
+  LONG pitch = 0;
+  std::size_t voice = 0;
+};
+
+struct SpeakJob {
+  std::wstring text;
+  Prosody prosody;
+  std::uint64_t generation = 0;
+};
+
+struct MemoryJob {
+  std::wstring text;
+  Prosody prosody;
+  float volume = 1.0F;
+  TextToSpeechBackend::AudioCallback *callback = nullptr;
+  void *userdata = nullptr;
+  std::promise<BackendResult<>> *done = nullptr;
+};
+
+struct SetVoiceJob {
+  std::size_t voice = 0;
+  std::promise<BackendResult<>> *done = nullptr;
+};
+
+struct RefreshVoicesJob {
+  std::promise<BackendResult<>> *done = nullptr;
+};
+
+using Job = std::variant<SpeakJob, MemoryJob, SetVoiceJob, RefreshVoicesJob>;
+
+template <class... Ts> struct Overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+
+std::string narrow(std::wstring_view text) {
+  const auto *source = reinterpret_cast<const char16_t *>(text.data());
+  std::string result(simdutf::utf8_length_from_utf16le(source, text.size()),
+                     '\0');
+  result.resize(
+      simdutf::convert_utf16le_to_utf8(source, text.size(), result.data()));
+  return result;
+}
+
+std::string token_language(ISpObjectToken &token) {
+  CComHeapPtr<WCHAR> value;
+  if (FAILED(token.GetStringValue(_T("Language"), &value)) ||
+      value.m_pData == nullptr)
+    return "en-us";
+  const std::wstring_view view{value};
+  const auto first = view.substr(0, view.find(_T(';')));
+  std::string ascii(first.size(), '\0');
+  std::ranges::transform(first, ascii.begin(),
+                         [](wchar_t c) { return static_cast<char>(c); });
+  LANGID langid{};
+  if (std::from_chars(ascii.data(), ascii.data() + ascii.size(), langid, 16)
+          .ec != std::errc{})
+    return "en-us";
+  std::array<wchar_t, LOCALE_NAME_MAX_LENGTH> locale{};
+  if (LCIDToLocaleName(MAKELCID(langid, SORT_DEFAULT), locale.data(),
+                       LOCALE_NAME_MAX_LENGTH, 0) == 0)
+    return "en-us";
+  auto language = narrow(locale.data());
+  std::ranges::transform(language, language.begin(),
+                         [](unsigned char c) { return std::tolower(c); });
+  return language;
+}
 } // namespace
 
 class SapiBackend final : public ComTextToSpeechBackend {
 private:
-  std::jthread worker_thread;
-  CComPtr<ISpVoice> voice;
-  std::atomic_flag initialized;
-  bool paused = false;
-  std::atomic<LONG> pitch{0};
-  std::vector<VoiceInfo> voices;
-  std::atomic_uint64_t voice_idx{0};
-  mutable std::shared_mutex voices_lock;
-  std::atomic<std::size_t> audio_channels{0};
-  std::atomic<std::size_t> audio_sample_rate{0};
-  std::atomic<std::size_t> audio_bit_depth{0};
-  std::atomic<IStream *> marshal_stream{nullptr};
-  std::atomic<ISpVoice *> raw_voice{nullptr};
-  mutable std::mutex init_mtx;
-  mutable std::condition_variable init_cv;
-  std::optional<bool> ready = std::nullopt;
-  std::recursive_mutex voice_lock;
-  LogSource logger{"SAPI"};
   static constexpr auto VOICE_CATEGORIES = std::to_array<LPCWSTR>({
       SPCAT_VOICES,
       _T("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech ")
       _T("Server\\v11.0\\Voices"),
   });
 
-  void thread_proc(const std::stop_token &st) {
-    InitHandshake handshake{.m = init_mtx,
-                            .cv = init_cv,
-                            .ready = ready,
-                            .marshal_stream = marshal_stream};
-    HandleGuard stop_event(CreateEvent(nullptr, TRUE, FALSE, nullptr));
-    HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED |
-                                             COINIT_SPEED_OVER_MEMORY);
-    ComApartmentGuard apartment{hr};
-    if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) {
-      return;
-    }
-    if (stop_event.h == nullptr) {
-      return;
-    }
-    {
-      std::stop_callback cb(st, [h = stop_event.h] { SetEvent(h); });
-      CComPtr<ISpVoice> local_voice;
-      hr = local_voice.CoCreateInstance(CLSID_SpVoice);
-      if (FAILED(hr))
-        return;
-      IStream *stream = nullptr;
-      hr = CoMarshalInterThreadInterfaceInStream(__uuidof(ISpVoice),
-                                                 local_voice, &stream);
-      if (FAILED(hr)) {
-        // No proxy/stub for ISpVoice (Wine's sapi lacks one, so this is the
-        // normal path there). Hand the caller the raw interface instead: the
-        // voice stays alive on this thread for as long as we pump, and the
-        // environments that reach this path use apartment-agnostic SAPI
-        // objects, so cross-thread calls on the raw pointer are safe.
-        logger.debug("marshaling ISpVoice failed ({:#010x}); handing out the "
-                     "raw interface",
-                     static_cast<std::uint32_t>(hr));
-        local_voice.p->AddRef();
-        raw_voice.store(local_voice.p, std::memory_order_release);
-        stream = nullptr;
-      }
-      handshake.succeed(stream);
-      while (true) {
-        auto const r = MsgWaitForMultipleObjectsEx(
-            1, &stop_event.h, INFINITE, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
-        if (r == WAIT_OBJECT_0 || r == WAIT_FAILED)
-          break;
-        MSG msg{};
-        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-          DispatchMessage(&msg);
-        }
-      }
-      stream = marshal_stream.exchange(nullptr, std::memory_order_acq_rel);
-      if (stream != nullptr) {
-        LARGE_INTEGER start{};
-        if (SUCCEEDED(stream->Seek(start, STREAM_SEEK_SET, nullptr)))
-          (void)CoReleaseMarshalData(stream);
-        stream->Release();
-      }
-      // If the raw-interface fallback published a voice that initialize()
-      // never claimed (e.g. it timed out), drop that reference too.
-      if (ISpVoice *unclaimed =
-              raw_voice.exchange(nullptr, std::memory_order_acq_rel))
-        unclaimed->Release();
-    }
-  }
+  SpeechPlayer player;
+  bool ready = false;
+  bool paused = false;
+  float volume = 1.0F;
+  float rate = 0.5F;
+  float pitch = 0.5F;
+  Prosody prosody;
 
-  BackendResult<> require_ready_locked() const {
-    if (!initialized.test())
-      return std::unexpected(BackendError::NotInitialized);
-    return {};
-  }
+  std::mutex state_mutex;
+  std::condition_variable_any jobs_cv;
+  std::deque<Job> jobs;
+  std::uint64_t rendering_generation = 0;
+  std::vector<VoiceInfo> voice_names;
+  std::size_t published_voice = 0;
+  std::size_t audio_channels = 0;
+  std::size_t audio_sample_rate = 0;
+  std::size_t audio_bit_depth = 0;
 
-  BackendResult<SapiSpeakParams> make_speak_args(std::string_view text,
-                                                 DWORD base_flags = 0) const {
+  CComPtr<ISpVoice> voice;
+  std::vector<CComPtr<ISpObjectToken>> tokens;
+  std::size_t active_voice = std::numeric_limits<std::size_t>::max();
+  WAVEFORMATEX format = FALLBACK_FORMAT;
+
+  std::jthread worker;
+  LogSource logger{"SAPI"};
+
+  static BackendResult<std::wstring> make_text(std::string_view text,
+                                               LONG pitch_value) {
     if (text.size() >= std::numeric_limits<int>::max())
       return std::unexpected(BackendError::RangeOutOfBounds);
     std::wstring wtext(
         simdutf::utf16_length_from_utf8(text.data(), text.size()), _T('\0'));
     if (simdutf::convert_valid_utf8_to_utf16(
             text.data(), text.size(),
-            reinterpret_cast<char16_t *>(wtext.data())) == 0)
+            reinterpret_cast<char16_t *>(wtext.data())) == 0 &&
+        !text.empty())
       return std::unexpected(BackendError::InvalidUtf8);
-    DWORD flags = base_flags;
-    const auto p = pitch.load(std::memory_order_acquire);
-    if (p != 0) {
-      CComPtr<IStream> stream;
-      stream.Attach(SHCreateMemStream(nullptr, 0));
-      if (!stream)
-        return std::unexpected(BackendError::MemoryFailure);
-      CComPtr<IXmlWriter> writer;
-      HRESULT hr = CreateXmlWriter(__uuidof(IXmlWriter),
-                                   reinterpret_cast<void **>(&writer), nullptr);
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      hr = writer->SetProperty(XmlWriterProperty_OmitXmlDeclaration, TRUE);
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      CComPtr<IXmlWriterOutput> output;
-      hr = CreateXmlWriterOutputWithEncodingName(stream, nullptr, _T("utf-16"),
-                                                 &output);
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      hr = writer->SetOutput(output);
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      const auto pitch_str = std::to_wstring(p);
-      hr = writer->WriteStartElement(nullptr, _T("pitch"), nullptr);
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      hr = writer->WriteAttributeString(nullptr, _T("absmiddle"), nullptr,
-                                        pitch_str.c_str());
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      hr = writer->WriteString(wtext.c_str());
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InvalidUtf8);
-      hr = writer->WriteEndElement();
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      hr = writer->Flush();
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      LARGE_INTEGER zero{};
-      ULARGE_INTEGER end_pos{};
-      hr = stream->Seek(zero, STREAM_SEEK_END, &end_pos);
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      const auto bytes = static_cast<std::size_t>(end_pos.QuadPart);
-      if (bytes == 0 || (bytes % sizeof(wchar_t)) != 0)
-        return std::unexpected(BackendError::InternalBackendError);
-      hr = stream->Seek(zero, STREAM_SEEK_SET, nullptr);
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      wtext.resize(bytes / sizeof(wchar_t));
-      ULONG read = 0;
-      hr = stream->Read(wtext.data(), static_cast<ULONG>(bytes), &read);
-      if (FAILED(hr) || read != bytes)
-        return std::unexpected(BackendError::InternalBackendError);
-      flags |= SPF_IS_XML;
-    } else {
-      flags |= SPF_IS_NOT_XML;
-    }
-    return SapiSpeakParams{.text = std::move(wtext), .flags = flags};
+    if (pitch_value == 0)
+      return wtext;
+    CComPtr<IStream> stream;
+    stream.Attach(SHCreateMemStream(nullptr, 0));
+    if (!stream)
+      return std::unexpected(BackendError::MemoryFailure);
+    CComPtr<IXmlWriter> writer;
+    CComPtr<IXmlWriterOutput> output;
+    const auto pitch_text = std::to_wstring(pitch_value);
+    LARGE_INTEGER zero{};
+    ULARGE_INTEGER end{};
+    if (FAILED(CreateXmlWriter(__uuidof(IXmlWriter),
+                               reinterpret_cast<void **>(&writer), nullptr)) ||
+        FAILED(
+            writer->SetProperty(XmlWriterProperty_OmitXmlDeclaration, TRUE)) ||
+        FAILED(CreateXmlWriterOutputWithEncodingName(stream, nullptr,
+                                                     _T("utf-16"), &output)) ||
+        FAILED(writer->SetOutput(output)) ||
+        FAILED(writer->WriteStartElement(nullptr, _T("pitch"), nullptr)) ||
+        FAILED(writer->WriteAttributeString(nullptr, _T("absmiddle"), nullptr,
+                                            pitch_text.c_str())) ||
+        FAILED(writer->WriteString(wtext.c_str())) ||
+        FAILED(writer->WriteEndElement()) || FAILED(writer->Flush()) ||
+        FAILED(stream->Seek(zero, STREAM_SEEK_END, &end)))
+      return std::unexpected(BackendError::InternalBackendError);
+    const auto bytes = static_cast<std::size_t>(end.QuadPart);
+    if (bytes == 0 || bytes % sizeof(wchar_t) != 0 ||
+        FAILED(stream->Seek(zero, STREAM_SEEK_SET, nullptr)))
+      return std::unexpected(BackendError::InternalBackendError);
+    std::wstring markup(bytes / sizeof(wchar_t), _T('\0'));
+    ULONG read = 0;
+    if (FAILED(stream->Read(markup.data(), static_cast<ULONG>(bytes), &read)) ||
+        read != bytes)
+      return std::unexpected(BackendError::InternalBackendError);
+    return markup;
   }
 
-  BackendResult<> refresh_cached_output_params_locked() {
-    if (voice == nullptr)
-      return std::unexpected(BackendError::NotInitialized);
-    CComPtr<ISpStreamFormat> fmt;
-    HRESULT hr = voice->GetOutputStream(&fmt);
-    if (FAILED(hr) || fmt == nullptr)
-      return std::unexpected(BackendError::InternalBackendError);
-    GUID format_id{};
-    WAVEFORMATEX *wfx = nullptr;
-    hr = fmt->GetFormat(&format_id, &wfx);
-    if (FAILED(hr) || wfx == nullptr) {
-      if (wfx != nullptr)
-        CoTaskMemFree(wfx);
-      return std::unexpected(BackendError::InternalBackendError);
-    }
-    assert(wfx->wFormatTag == WAVE_FORMAT_PCM ||
-           wfx->wFormatTag == WAVE_FORMAT_IEEE_FLOAT ||
-           wfx->wFormatTag == WAVE_FORMAT_ALAW ||
-           wfx->wFormatTag == WAVE_FORMAT_MULAW);
-    if (wfx->wFormatTag != WAVE_FORMAT_PCM &&
-        wfx->wFormatTag != WAVE_FORMAT_IEEE_FLOAT &&
-        wfx->wFormatTag != WAVE_FORMAT_ALAW &&
-        wfx->wFormatTag != WAVE_FORMAT_MULAW) {
-      if (wfx != nullptr)
-        CoTaskMemFree(wfx);
-      return std::unexpected(BackendError::InvalidAudioFormat);
-    }
-    audio_channels.store(wfx->nChannels, std::memory_order_release);
-    audio_sample_rate.store(wfx->nSamplesPerSec, std::memory_order_release);
-    audio_bit_depth.store(wfx->wBitsPerSample, std::memory_order_release);
-    CoTaskMemFree(wfx);
-    return {};
+  static DWORD speak_flags(LONG pitch_value) {
+    return pitch_value != 0 ? SPF_IS_XML : SPF_IS_NOT_XML;
   }
 
-  BackendResult<> refresh_voices_locked() {
-    std::vector<VoiceInfo> new_voices;
+  BackendResult<> enumerate_voices() {
+    std::vector<CComPtr<ISpObjectToken>> found;
+    std::vector<VoiceInfo> names;
     for (const auto &category_id : VOICE_CATEGORIES) {
       CComPtr<ISpObjectTokenCategory> category;
       if (FAILED(category.CoCreateInstance(CLSID_SpObjectTokenCategory)))
@@ -355,134 +362,249 @@ private:
         logger.debug(_T("voice category absent, skipping: {}"), category_id);
         continue;
       }
-      CComPtr<IEnumSpObjectTokens> enum_tokens;
-      if (FAILED(category->EnumTokens(nullptr, nullptr, &enum_tokens)))
+      CComPtr<IEnumSpObjectTokens> tokens_enum;
+      if (FAILED(category->EnumTokens(nullptr, nullptr, &tokens_enum)))
         continue;
-      ULONG count = 0;
-      if (FAILED(enum_tokens->GetCount(&count)))
-        continue;
-      new_voices.reserve(new_voices.size() + count);
-      HRESULT hr = S_OK;
-      for (ULONG i = 0; i < count; ++i) {
-        CComPtr<ISpObjectToken> token;
-        hr = enum_tokens->Next(1, &token, nullptr);
-        if (FAILED(hr))
-          break;
-        LPWSTR name_ptr = nullptr;
-        hr = token->GetStringValue(nullptr, &name_ptr);
-        if (FAILED(hr) || name_ptr == nullptr) {
-          if (name_ptr != nullptr)
-            CoTaskMemFree(name_ptr);
-          continue;
+      CComPtr<ISpObjectToken> token;
+      while (tokens_enum->Next(1, &token, nullptr) == S_OK) {
+        CComHeapPtr<WCHAR> name;
+        if (SUCCEEDED(token->GetStringValue(nullptr, &name)) &&
+            name.m_pData != nullptr && name[0] != _T('\0')) {
+          names.push_back(VoiceInfo{.name = narrow(name.m_pData),
+                                    .language = token_language(*token)});
+          found.push_back(token);
         }
-        std::wstring_view name_view{name_ptr};
-        std::string name(
-            simdutf::utf8_length_from_utf16le(
-                reinterpret_cast<const char16_t *>(name_view.data()),
-                name_view.size()),
-            '\0');
-        (void)simdutf::convert_valid_utf16_to_utf8(
-            reinterpret_cast<const char16_t *>(name_view.data()),
-            name_view.size(), name.data()); // Deliberately ignored return value
-        if (name.empty()) {
-          if (name_ptr != nullptr)
-            CoTaskMemFree(name_ptr);
-          continue;
-        }
-        CoTaskMemFree(name_ptr);
-        std::string language = "en-us";
-        LPWSTR lang_ptr = nullptr;
-        if (SUCCEEDED(token->GetStringValue(_T("Language"), &lang_ptr)) &&
-            lang_ptr != nullptr) {
-          std::wstring_view lang_view{lang_ptr};
-          LANGID langid{};
-          std::string lang_narrow(lang_view.size(), '\0');
-          std::ranges::transform(lang_view, lang_narrow.begin(), [](wchar_t c) {
-            return static_cast<char>(c);
-          });
-          auto [ptr, ec] = std::from_chars(
-              lang_narrow.data(), lang_narrow.data() + lang_narrow.size(),
-              langid, 16);
-          CoTaskMemFree(lang_ptr);
-          if (ec == std::errc{}) {
-            std::array<wchar_t, LOCALE_NAME_MAX_LENGTH> locale_name{};
-            if (LCIDToLocaleName(MAKELCID(langid, SORT_DEFAULT),
-                                 locale_name.data(), LOCALE_NAME_MAX_LENGTH,
-                                 0) != 0) {
-              std::wstring_view locale_view{locale_name.data()};
-              language.resize(simdutf::utf8_length_from_utf16le(
-                  reinterpret_cast<const char16_t *>(locale_view.data()),
-                  locale_view.size()));
-              (void)simdutf::convert_valid_utf16_to_utf8(
-                  reinterpret_cast<const char16_t *>(locale_view.data()),
-                  locale_view.size(), language.data());
-              std::ranges::transform(
-                  language, language.begin(),
-                  [](unsigned char c) { return std::tolower(c); });
-            }
-          }
-        }
-        new_voices.emplace_back(VoiceInfo{
-            .token = std::move(token),
-            .name = std::move(name),
-            .language = std::move(language),
-        });
+        token.Release();
       }
     }
-    if (new_voices.empty())
+    if (found.empty())
       return std::unexpected(BackendError::NoVoices);
-    {
-      std::unique_lock ul(voices_lock);
-      std::swap(voices, new_voices);
-    }
-    CComPtr<ISpObjectToken> current_token;
-    HRESULT hr = voice->GetVoice(&current_token);
-    if (FAILED(hr) || current_token == nullptr) {
-      return std::unexpected(BackendError::InternalBackendError);
-    }
-    {
-      std::shared_lock sl(voices_lock);
-      for (std::size_t i = 0; i < voices.size(); ++i) {
-        if (voices[i].token.IsEqualObject(current_token)) {
-          voice_idx.store(i, std::memory_order_release);
+    std::size_t current = 0;
+    CComPtr<ISpObjectToken> in_use;
+    if (SUCCEEDED(voice->GetVoice(&in_use)) && in_use != nullptr) {
+      for (std::size_t i = 0; i < found.size(); ++i) {
+        if (found[i].IsEqualObject(in_use)) {
+          current = i;
           break;
         }
       }
     }
+    tokens = std::move(found);
+    active_voice = current;
+    {
+      std::scoped_lock lock(state_mutex);
+      voice_names = std::move(names);
+    }
+    return select_voice(current);
+  }
+
+  BackendResult<> select_voice(std::size_t index) {
+    if (index >= tokens.size())
+      return std::unexpected(BackendError::RangeOutOfBounds);
+    if (FAILED(voice->SetVoice(tokens[index])))
+      return std::unexpected(BackendError::VoiceNotFound);
+    active_voice = index;
+    format = FALLBACK_FORMAT;
+    CComPtr<ISpStreamFormat> output;
+    GUID format_id{};
+    WAVEFORMATEX *reported = nullptr;
+    if (SUCCEEDED(voice->SetOutput(nullptr, TRUE)) &&
+        SUCCEEDED(voice->GetOutputStream(&output)) && output != nullptr &&
+        SUCCEEDED(output->GetFormat(&format_id, &reported)) &&
+        reported != nullptr && reported->wFormatTag == WAVE_FORMAT_PCM)
+      format = *reported;
+    if (reported != nullptr)
+      CoTaskMemFree(reported);
+    format.cbSize = 0;
+    std::scoped_lock lock(state_mutex);
+    published_voice = index;
+    audio_channels = format.nChannels;
+    audio_sample_rate = format.nSamplesPerSec;
+    audio_bit_depth = format.wBitsPerSample;
     return {};
   }
 
-  void stop_worker() noexcept {
-    worker_thread.request_stop();
-    if (worker_thread.joinable())
-      worker_thread.join();
+  void apply(const Prosody &settings) {
+    if (settings.voice != active_voice)
+      if (const auto selected = select_voice(settings.voice); !selected)
+        logger.warn("Could not select voice {} ({})", settings.voice,
+                    std::to_underlying(selected.error()));
+    (void)voice->SetRate(settings.rate);
   }
 
-  void reset_initialization_state_locked() {
-    initialized.clear(std::memory_order_release);
-    paused = false;
-    voice.Release();
-    audio_channels.store(0, std::memory_order_release);
-    audio_sample_rate.store(0, std::memory_order_release);
-    audio_bit_depth.store(0, std::memory_order_release);
-    voice_idx.store(0, std::memory_order_release);
-    {
-      std::unique_lock ul(voices_lock);
-      voices.clear();
+  BackendResult<std::vector<float>>
+  render_samples(const std::wstring &text, const Prosody &settings,
+                 const SpeechPlayer *cancelled_by, std::uint64_t generation) {
+    apply(settings);
+    auto *capture = new CaptureStream(cancelled_by, generation);
+    CComPtr<IStream> capture_stream;
+    capture_stream.Attach(capture);
+    CComPtr<ISpStream> stream;
+    if (FAILED(stream.CoCreateInstance(CLSID_SpStream)) ||
+        FAILED(stream->SetBaseStream(capture_stream, SPDFID_WaveFormatEx,
+                                     &format)) ||
+        FAILED(voice->SetOutput(stream, FALSE)))
+      return std::unexpected(BackendError::InternalBackendError);
+    const HRESULT hr =
+        voice->Speak(text.c_str(), speak_flags(settings.pitch), nullptr);
+    if (FAILED(hr))
+      return std::unexpected(hr == E_ABORT ? BackendError::NotSpeaking
+                                           : BackendError::SpeakFailure);
+    const std::size_t channels = format.nChannels;
+    const std::size_t block_align = format.nBlockAlign;
+    const std::size_t bit_depth = format.wBitsPerSample;
+    if (channels == 0 || block_align == 0 || bit_depth % 8 != 0)
+      return std::unexpected(BackendError::InvalidAudioFormat);
+    const auto bytes = capture->bytes();
+    const std::size_t total_samples = bytes.size() / block_align * channels;
+    const auto *data = reinterpret_cast<const std::uint8_t *>(bytes.data());
+    std::vector<float> samples(total_samples);
+    switch (bit_depth) {
+    case 8:
+      drwav_u8_to_f32(samples.data(), data, total_samples);
+      break;
+    case 16:
+      drwav_s16_to_f32(samples.data(),
+                       lifetime_as_array<drwav_int16>(data, total_samples),
+                       total_samples);
+      break;
+    case 24:
+      drwav_s24_to_f32(samples.data(), data, total_samples);
+      break;
+    case 32:
+      drwav_s32_to_f32(samples.data(),
+                       lifetime_as_array<drwav_int32>(data, total_samples),
+                       total_samples);
+      break;
+    default:
+      return std::unexpected(BackendError::InvalidAudioFormat);
     }
+    return samples;
+  }
+
+  void render(const SpeakJob &job) {
+    auto samples =
+        render_samples(job.text, job.prosody, &player, job.generation);
+    if (!samples) {
+      if (samples.error() != BackendError::NotSpeaking)
+        logger.error("Could not render an utterance ({})",
+                     std::to_underlying(samples.error()));
+      return;
+    }
+    player.play(job.generation, std::move(*samples), format.nChannels,
+                format.nSamplesPerSec);
+  }
+
+  BackendResult<> render_to_memory(const MemoryJob &job) {
+    auto samples = render_samples(job.text, job.prosody, nullptr, 0);
+    if (!samples)
+      return std::unexpected(samples.error());
+    auto trimmed = trim_silence_rms_gate_inplace(
+        std::span<float>(*samples), format.nChannels, format.nSamplesPerSec);
+    for (float &sample : trimmed.view)
+      sample = std::clamp(sample * job.volume, -1.0F, 1.0F);
+    (*job.callback)(job.userdata, trimmed.view.data(), trimmed.view.size(),
+                    format.nChannels, format.nSamplesPerSec);
+    return {};
+  }
+
+  void run(Job &job) {
+    std::visit(Overloaded{[this](SpeakJob &speak) { render(speak); },
+                          [this](MemoryJob &memory) {
+                            BackendResult<> result = std::unexpected(
+                                BackendError::InternalBackendError);
+                            try {
+                              result = render_to_memory(memory);
+                            } catch (const std::bad_alloc &) {
+                              result =
+                                  std::unexpected(BackendError::MemoryFailure);
+                            }
+                            memory.done->set_value(result);
+                          },
+                          [this](SetVoiceJob &set) {
+                            set.done->set_value(select_voice(set.voice));
+                          },
+                          [this](RefreshVoicesJob &refresh) {
+                            refresh.done->set_value(enumerate_voices());
+                          }},
+               job);
+  }
+
+  void worker_proc(const std::stop_token &stop,
+                   std::promise<BackendResult<>> &started) {
+    const HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    const ComApartmentGuard apartment{hr};
+    if (FAILED(hr) || FAILED(voice.CoCreateInstance(CLSID_SpVoice))) {
+      started.set_value(std::unexpected(BackendError::BackendNotAvailable));
+      return;
+    }
+    started.set_value(enumerate_voices());
+    while (true) {
+      Job job;
+      {
+        std::unique_lock lock(state_mutex);
+        if (!jobs_cv.wait(lock, stop, [this] { return !jobs.empty(); }))
+          break;
+        job = std::move(jobs.front());
+        jobs.pop_front();
+        if (const auto *speak = std::get_if<SpeakJob>(&job))
+          rendering_generation = speak->generation;
+      }
+      run(job);
+      std::scoped_lock lock(state_mutex);
+      rendering_generation = 0;
+    }
+    std::scoped_lock lock(state_mutex);
+    for (auto &pending : jobs) {
+      std::visit(Overloaded{[](SpeakJob &) {},
+                            [](auto &request) {
+                              request.done->set_value(std::unexpected(
+                                  BackendError::NotInitialized));
+                            }},
+                 pending);
+    }
+    jobs.clear();
+    tokens.clear();
+    voice.Release();
+  }
+
+  BackendResult<> call(Job job, std::promise<BackendResult<>> &done) {
+    auto result = done.get_future();
+    {
+      std::scoped_lock lock(state_mutex);
+      jobs.push_back(std::move(job));
+    }
+    jobs_cv.notify_one();
+    return result.get();
+  }
+
+  [[nodiscard]] bool has_speech_locked() const {
+    const auto current = player.generation();
+    return rendering_generation == current || player.has_audio() ||
+           std::ranges::any_of(jobs, [current](const Job &job) {
+             const auto *speak = std::get_if<SpeakJob>(&job);
+             return speak != nullptr && speak->generation == current;
+           });
+  }
+
+  void discard() {
+    std::scoped_lock lock(state_mutex);
+    player.stop();
+    std::erase_if(jobs, [](const Job &job) {
+      return std::holds_alternative<SpeakJob>(job);
+    });
+    paused = false;
   }
 
 public:
   ~SapiBackend() override {
-    {
-      std::unique_lock vl(voice_lock);
-      voice.Release();
-      initialized.clear(std::memory_order_release);
-    }
-    stop_worker();
-    {
-      std::unique_lock ul(voices_lock);
-      voices.clear();
+    if (worker.joinable()) {
+      {
+        std::scoped_lock lock(state_mutex);
+        player.stop();
+      }
+      worker.request_stop();
+      worker.join();
     }
   }
 
@@ -490,263 +612,84 @@ public:
 
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
-    std::bitset<64> features;
+    std::bitset<64> features =
+        SUPPORTS_SPEAK | SUPPORTS_SPEAK_TO_MEMORY | SUPPORTS_OUTPUT |
+        SUPPORTS_IS_SPEAKING | SUPPORTS_STOP | SUPPORTS_PAUSE |
+        SUPPORTS_RESUME | SUPPORTS_SET_VOLUME | SUPPORTS_GET_VOLUME |
+        SUPPORTS_SET_RATE | SUPPORTS_GET_RATE | SUPPORTS_SET_PITCH |
+        SUPPORTS_GET_PITCH | SUPPORTS_REFRESH_VOICES | SUPPORTS_COUNT_VOICES |
+        SUPPORTS_GET_VOICE_NAME | SUPPORTS_GET_VOICE_LANGUAGE |
+        SUPPORTS_GET_VOICE | SUPPORTS_SET_VOICE | SUPPORTS_GET_CHANNELS |
+        SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH |
+        PERFORMS_SILENCE_TRIMMING_ON_SPEAK |
+        PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY;
     IClassFactory *factory = nullptr;
-    HRESULT hr = CoGetClassObject(
+    const HRESULT hr = CoGetClassObject(
         CLSID_SpVoice, CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER, nullptr,
         IID_IClassFactory, reinterpret_cast<void **>(&factory));
     if (SUCCEEDED(hr) && factory != nullptr) {
       factory->Release();
       features |= IS_SUPPORTED_AT_RUNTIME;
     }
-    features |= SUPPORTS_SPEAK | SUPPORTS_SPEAK_TO_MEMORY | SUPPORTS_OUTPUT |
-                SUPPORTS_IS_SPEAKING | SUPPORTS_STOP | SUPPORTS_PAUSE |
-                SUPPORTS_RESUME | SUPPORTS_SET_VOLUME | SUPPORTS_GET_VOLUME |
-                SUPPORTS_SET_RATE | SUPPORTS_GET_RATE | SUPPORTS_SET_PITCH |
-                SUPPORTS_GET_PITCH | SUPPORTS_REFRESH_VOICES |
-                SUPPORTS_COUNT_VOICES | SUPPORTS_GET_VOICE_NAME |
-                SUPPORTS_GET_VOICE_LANGUAGE | SUPPORTS_GET_VOICE |
-                SUPPORTS_SET_VOICE | SUPPORTS_GET_CHANNELS |
-                SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH |
-                PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY;
     return features;
   }
 
   BackendResult<> initialize() override {
-    std::unique_lock vl(voice_lock);
-    if (voice != nullptr || initialized.test(std::memory_order_acquire))
+    if (ready)
       return std::unexpected(BackendError::AlreadyInitialized);
-    stop_worker();
-    reset_initialization_state_locked();
-    IStream *stream = nullptr;
-    ISpVoice *raw = nullptr;
-    {
-      std::unique_lock lock(init_mtx);
-      ready.reset();
-      worker_thread = std::jthread(
-          [this](const std::stop_token &st) { this->thread_proc(st); });
-      const bool signaled = init_cv.wait_for(
-          lock, std::chrono::seconds(5), [this] { return ready.has_value(); });
-      if (signaled && ready.value_or(false)) {
-        stream = marshal_stream.exchange(nullptr, std::memory_order_acq_rel);
-        raw = raw_voice.exchange(nullptr, std::memory_order_acq_rel);
-      }
-      if (!signaled || !ready.value_or(false) ||
-          (stream == nullptr && raw == nullptr)) {
-        lock.unlock();
-        stop_worker();
-        reset_initialization_state_locked();
-        return std::unexpected(BackendError::InternalBackendError);
-      }
-    }
-    HRESULT hr = S_OK;
-    if (stream != nullptr) {
-      hr = CoGetInterfaceAndReleaseStream(stream, __uuidof(ISpVoice),
-                                          reinterpret_cast<void **>(&voice));
-      if (FAILED(hr) || voice == nullptr) {
-        stop_worker();
-        reset_initialization_state_locked();
-        return std::unexpected(BackendError::InternalBackendError);
-      }
-    } else {
-      voice.Attach(raw); // worker already AddRef'd on our behalf
-    }
-    if (auto const res = refresh_voices_locked(); !res) {
-      stop_worker();
-      reset_initialization_state_locked();
-      return res;
-    }
-    CComPtr<ISpObjectToken> current_token;
-    hr = voice->GetVoice(&current_token);
-    if (FAILED(hr) || current_token == nullptr) {
-      stop_worker();
-      reset_initialization_state_locked();
-      return std::unexpected(BackendError::InternalBackendError);
+    if (auto opened = player.open(); !opened)
+      return opened;
+    std::promise<BackendResult<>> started;
+    auto result = started.get_future();
+    worker = std::jthread([this, &started](const std::stop_token &stop) {
+      worker_proc(stop, started);
+    });
+    if (auto outcome = result.get(); !outcome) {
+      worker.request_stop();
+      worker.join();
+      return outcome;
     }
     {
-      std::shared_lock sl(voices_lock);
-      for (std::size_t i = 0; i < voices.size(); ++i) {
-        if (voices[i].token.IsEqualObject(current_token)) {
-          voice_idx.store(i, std::memory_order_release);
-          break;
-        }
-      }
+      std::scoped_lock lock(state_mutex);
+      prosody.voice = published_voice;
     }
-    // Cached output params only serve the get_channels/sample_rate/bit_depth
-    // queries, and some SAPI implementations (Wine) stub the underlying
-    // GetOutputStream; speech works without knowing the format, so a failure
-    // here is not worth failing initialization over.
-    if (auto const r = refresh_cached_output_params_locked(); !r)
-      logger.warn("output format unavailable; channel/rate/depth queries "
-                  "will report zero");
-    initialized.test_and_set(std::memory_order_release);
+    ready = true;
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    auto const args = make_speak_args(text, SPF_ASYNC);
-    if (!args)
-      return std::unexpected(args.error());
-    const auto &wtext = args->text;
-    DWORD flags = args->flags;
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return r;
-    const bool old_paused = paused;
-    paused = false;
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    auto wtext = make_text(text, prosody.pitch);
+    if (!wtext)
+      return std::unexpected(wtext.error());
     if (interrupt)
-      if (FAILED(voice->Speak(nullptr, SPF_PURGEBEFORESPEAK, nullptr))) {
-        paused = old_paused;
-        return std::unexpected(BackendError::SpeakFailure);
-      }
-    if (FAILED(voice->Speak(wtext.c_str(), flags, nullptr)))
-      return std::unexpected(BackendError::SpeakFailure);
+      discard();
+    {
+      std::scoped_lock lock(state_mutex);
+      jobs.emplace_back(SpeakJob{.text = std::move(*wtext),
+                                 .prosody = prosody,
+                                 .generation = player.generation()});
+    }
+    jobs_cv.notify_one();
     return {};
   }
 
   BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
                                   void *userdata) override {
-    auto const args = make_speak_args(text, SPF_DEFAULT);
-    if (!args)
-      return std::unexpected(args.error());
-    const auto &wtext = args->text;
-    DWORD flags = args->flags;
-    CComPtr<ISpStream> stream;
-    CComPtr<IStream> base_stream;
-    HRESULT hr = CreateStreamOnHGlobal(nullptr, TRUE, &base_stream);
-    if (FAILED(hr))
-      return std::unexpected(BackendError::InternalBackendError);
-    hr = stream.CoCreateInstance(CLSID_SpStream);
-    if (FAILED(hr))
-      return std::unexpected(BackendError::InternalBackendError);
-    WORD format = WAVE_FORMAT_UNKNOWN;
-    std::size_t channels = 0;
-    std::size_t sample_rate = 0;
-    std::size_t bit_depth = 0;
-    std::size_t block_align = 0;
-    {
-      std::unique_lock vl(voice_lock);
-      if (auto const r = require_ready_locked(); !r)
-        return r;
-      CComPtr<ISpStreamFormat> output_format;
-      hr = voice->GetOutputStream(&output_format);
-      if (FAILED(hr) || output_format == nullptr)
-        return std::unexpected(BackendError::InternalBackendError);
-      GUID format_id{};
-      WAVEFORMATEX *wfx = nullptr;
-      hr = output_format->GetFormat(&format_id, &wfx);
-      if (FAILED(hr) || wfx == nullptr) {
-        if (wfx != nullptr)
-          CoTaskMemFree(wfx);
-        return std::unexpected(BackendError::InternalBackendError);
-      }
-      assert(wfx->wFormatTag == WAVE_FORMAT_PCM ||
-             wfx->wFormatTag == WAVE_FORMAT_IEEE_FLOAT ||
-             wfx->wFormatTag == WAVE_FORMAT_ALAW ||
-             wfx->wFormatTag == WAVE_FORMAT_MULAW);
-      if (wfx->wFormatTag != WAVE_FORMAT_PCM &&
-          wfx->wFormatTag != WAVE_FORMAT_IEEE_FLOAT &&
-          wfx->wFormatTag != WAVE_FORMAT_ALAW &&
-          wfx->wFormatTag != WAVE_FORMAT_MULAW) {
-        if (wfx != nullptr)
-          CoTaskMemFree(wfx);
-        return std::unexpected(BackendError::InvalidAudioFormat);
-      }
-      format = wfx->wFormatTag;
-      channels = wfx->nChannels;
-      sample_rate = wfx->nSamplesPerSec;
-      bit_depth = wfx->wBitsPerSample;
-      block_align = wfx->nBlockAlign;
-      hr = stream->SetBaseStream(base_stream, format_id, wfx);
-      CoTaskMemFree(wfx);
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      hr = voice->SetOutput(stream, TRUE);
-      if (FAILED(hr))
-        return std::unexpected(BackendError::InternalBackendError);
-      VoiceOutputStreamResetter reset{voice};
-      paused = false;
-      if (FAILED(voice->Speak(wtext.c_str(), flags, nullptr)))
-        return std::unexpected(BackendError::SpeakFailure);
-    }
-    if (bit_depth == 0 || bit_depth % 8 != 0)
-      return std::unexpected(BackendError::InternalBackendError);
-    if (block_align == 0 || channels == 0)
-      return std::unexpected(BackendError::InternalBackendError);
-    LARGE_INTEGER zero{};
-    ULARGE_INTEGER uend{};
-    hr = base_stream->Seek(zero, STREAM_SEEK_END, &uend);
-    if (FAILED(hr))
-      return std::unexpected(BackendError::InternalBackendError);
-    if (uend.QuadPart == 0)
-      return std::unexpected(BackendError::InternalBackendError);
-    const auto bytes = static_cast<std::size_t>(uend.QuadPart);
-    hr = base_stream->Seek(zero, STREAM_SEEK_SET, nullptr);
-    if (FAILED(hr))
-      return std::unexpected(BackendError::InternalBackendError);
-    if ((bytes % block_align) != 0)
-      return std::unexpected(BackendError::InternalBackendError);
-    HGLOBAL hg = nullptr;
-    hr = GetHGlobalFromStream(base_stream, &hg);
-    if (FAILED(hr) || hg == nullptr)
-      return std::unexpected(BackendError::InternalBackendError);
-    GlobalLockGuard lock(hg);
-    if (lock.p == nullptr)
-      return std::unexpected(BackendError::InternalBackendError);
-    auto const *data = static_cast<const std::uint8_t *>(lock.p);
-    const std::size_t frames = bytes / block_align;
-    const std::size_t total_samples = frames * channels;
-    std::vector<float> samples(total_samples);
-    switch (format) {
-    case WAVE_FORMAT_PCM: {
-      switch (bit_depth) {
-      case 8:
-        drwav_u8_to_f32(samples.data(), data, total_samples);
-        break;
-      case 16:
-        drwav_s16_to_f32(samples.data(),
-                         lifetime_as_array<drwav_int16>(data, total_samples),
-                         total_samples);
-        break;
-      case 24:
-        drwav_s24_to_f32(samples.data(), data, total_samples);
-        break;
-      case 32:
-        drwav_s32_to_f32(samples.data(),
-                         lifetime_as_array<drwav_int32>(data, total_samples),
-                         total_samples);
-        break;
-      default:
-        return std::unexpected(BackendError::InvalidAudioFormat);
-      }
-    } break;
-    case WAVE_FORMAT_IEEE_FLOAT: {
-      switch (bit_depth) {
-      case 32:
-        std::memcpy(samples.data(), data, total_samples * sizeof(float));
-        break;
-      case 64:
-        drwav_f64_to_f32(samples.data(),
-                         lifetime_as_array<double>(data, total_samples),
-                         total_samples);
-        break;
-      default:
-        return std::unexpected(BackendError::InvalidAudioFormat);
-      }
-    } break;
-    case WAVE_FORMAT_ALAW:
-      drwav_alaw_to_f32(samples.data(), data, total_samples);
-      break;
-    case WAVE_FORMAT_MULAW:
-      drwav_mulaw_to_f32(samples.data(), data, total_samples);
-      break;
-    default:
-      return std::unexpected(BackendError::InvalidAudioFormat);
-    }
-    auto const tv = trim_silence_rms_gate_inplace(std::span<float>(samples),
-                                                  channels, sample_rate);
-    callback(userdata, tv.view.data(), tv.view.size(), channels, sample_rate);
-    return {};
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    auto wtext = make_text(text, prosody.pitch);
+    if (!wtext)
+      return std::unexpected(wtext.error());
+    std::promise<BackendResult<>> done;
+    return call(MemoryJob{.text = std::move(*wtext),
+                          .prosody = prosody,
+                          .volume = volume,
+                          .callback = &callback,
+                          .userdata = userdata,
+                          .done = &done},
+                done);
   }
 
   BackendResult<> output(std::string_view text, bool interrupt) override {
@@ -754,207 +697,163 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return std::unexpected(r.error());
-    SPVOICESTATUS status;
-    LPWSTR bookmark;
-    if (FAILED(voice->GetStatus(&status, &bookmark)))
-      return std::unexpected(BackendError::InternalBackendError);
-    CoTaskMemFree(bookmark);
-    return status.dwRunningState == SPRS_IS_SPEAKING;
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    std::scoped_lock lock(state_mutex);
+    return !paused && has_speech_locked();
   }
 
   BackendResult<> stop() override {
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return r;
-    if (FAILED(voice->Speak(nullptr, SPF_PURGEBEFORESPEAK, nullptr)))
-      return std::unexpected(BackendError::SpeakFailure);
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    discard();
     return {};
   }
 
   BackendResult<> pause() override {
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return r;
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    std::scoped_lock lock(state_mutex);
     if (paused)
       return std::unexpected(BackendError::AlreadyPaused);
-    if (FAILED(voice->Pause()))
-      return std::unexpected(BackendError::InternalBackendError);
+    if (!has_speech_locked())
+      return std::unexpected(BackendError::NotSpeaking);
+    player.pause();
     paused = true;
     return {};
   }
 
   BackendResult<> resume() override {
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return r;
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    std::scoped_lock lock(state_mutex);
     if (!paused)
       return std::unexpected(BackendError::NotPaused);
-    if (FAILED(voice->Resume()))
-      return std::unexpected(BackendError::InternalBackendError);
+    player.resume();
     paused = false;
     return {};
   }
 
-  BackendResult<> set_volume(float volume) override {
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return r;
-    if (volume < 0.0F || volume > 1.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto val = std::round(
-        range_convert_midpoint(volume, 0.0, 0.5, 1.0, 0.0, 50.0, 100.0));
-    if (val < 0.0F || val > 100.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    if (FAILED(voice->SetVolume(static_cast<USHORT>(val))))
-      return std::unexpected(BackendError::InternalBackendError);
+  BackendResult<> set_volume(float value) override {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    volume = value;
+    player.set_volume(value);
     return {};
   }
 
   BackendResult<float> get_volume() override {
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return std::unexpected(r.error());
-    USHORT val;
-    if (FAILED(voice->GetVolume(&val)))
-      return std::unexpected(BackendError::InternalBackendError);
-    return range_convert_midpoint(static_cast<float>(val), 0, 50, 100, 0.0, 0.5,
-                                  1.0);
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    return volume;
   }
 
-  BackendResult<> set_rate(float rate) override {
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return r;
-    if (rate < 0.0F || rate > 1.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto val =
-        range_convert_midpoint(rate, 0.0, 0.5, 1.0, -10.0, 0.0, 10.0);
-    if (val < -10.0F || val > 10.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    if (FAILED(voice->SetRate(static_cast<LONG>(val))))
-      return std::unexpected(BackendError::InternalBackendError);
+  BackendResult<> set_rate(float value) override {
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    rate = value;
+    prosody.rate = static_cast<LONG>(std::lround(
+        range_convert_midpoint(value, 0.0, 0.5, 1.0, -10.0, 0.0, 10.0)));
     return {};
   }
 
   BackendResult<float> get_rate() override {
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return std::unexpected(r.error());
-    LONG val;
-    if (FAILED(voice->GetRate(&val)))
-      return std::unexpected(BackendError::InternalBackendError);
-    return range_convert_midpoint(static_cast<float>(val), -10, 0, 10, 0.0, 0.5,
-                                  1.0);
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    return rate;
   }
 
-  BackendResult<> set_pitch(float pitch) override {
-    if (!initialized.test())
+  BackendResult<> set_pitch(float value) override {
+    if (!ready)
       return std::unexpected(BackendError::NotInitialized);
-    if (pitch < 0.0F || pitch > 1.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    const auto val =
-        range_convert_midpoint(pitch, 0.0, 0.5, 1.0, -10.0, 0.0, 10.0);
-    if (val < -10.0F || val > 10.0F)
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    this->pitch.exchange(static_cast<LONG>(val), std::memory_order_acq_rel);
+    pitch = value;
+    prosody.pitch = static_cast<LONG>(std::lround(
+        range_convert_midpoint(value, 0.0, 0.5, 1.0, -10.0, 0.0, 10.0)));
     return {};
   }
 
   BackendResult<float> get_pitch() override {
-    if (!initialized.test())
+    if (!ready)
       return std::unexpected(BackendError::NotInitialized);
-    const auto val = pitch.load(std::memory_order_acquire);
-    return range_convert_midpoint(static_cast<float>(val), -10, 0, 10, 0.0, 0.5,
-                                  1.0);
+    return pitch;
   }
 
   BackendResult<> refresh_voices() override {
-    std::unique_lock vl(voice_lock);
-    if (auto const r = require_ready_locked(); !r)
-      return r;
-    return refresh_voices_locked();
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    std::promise<BackendResult<>> done;
+    auto result = call(RefreshVoicesJob{.done = &done}, done);
+    std::scoped_lock lock(state_mutex);
+    prosody.voice = published_voice;
+    return result;
   }
 
   BackendResult<std::size_t> count_voices() override {
-    if (!initialized.test())
+    if (!ready)
       return std::unexpected(BackendError::NotInitialized);
-    std::shared_lock sl(voices_lock);
-    return voices.size();
+    std::scoped_lock lock(state_mutex);
+    return voice_names.size();
   }
 
   BackendResult<std::string> get_voice_name(std::size_t id) override {
-    if (!initialized.test())
+    if (!ready)
       return std::unexpected(BackendError::NotInitialized);
-    std::shared_lock sl(voices_lock);
-    if (id >= voices.size())
+    std::scoped_lock lock(state_mutex);
+    if (id >= voice_names.size())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    return voices[id].name;
+    return voice_names[id].name;
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override {
-    if (!initialized.test())
+    if (!ready)
       return std::unexpected(BackendError::NotInitialized);
-    std::shared_lock sl(voices_lock);
-    if (id >= voices.size())
+    std::scoped_lock lock(state_mutex);
+    if (id >= voice_names.size())
       return std::unexpected(BackendError::RangeOutOfBounds);
-    return voices[id].language;
+    return voice_names[id].language;
   }
 
   BackendResult<> set_voice(std::size_t id) override {
-    std::scoped_lock lock(voice_lock, voices_lock);
-    CComPtr<ISpObjectToken> new_token;
-    if (id >= voices.size())
-      return std::unexpected(BackendError::RangeOutOfBounds);
-    new_token = voices[id].token;
-    if (new_token == nullptr)
-      return std::unexpected(BackendError::InternalBackendError);
-    if (auto const r = require_ready_locked(); !r)
-      return r;
-    CComPtr<ISpObjectToken> old_token;
-    HRESULT hr = voice->GetVoice(&old_token);
-    if (FAILED(hr) || old_token == nullptr)
-      return std::unexpected(BackendError::InternalBackendError);
-    SetVoiceRollbackGuard rb{voice, old_token};
-    hr = voice->SetVoice(new_token);
-    if (FAILED(hr))
-      return std::unexpected(BackendError::InternalBackendError);
-    if (auto const r = refresh_cached_output_params_locked(); !r) {
-      if (SUCCEEDED(voice->SetVoice(old_token)))
-        rb.commit = true;
-      if (auto const r2 = refresh_cached_output_params_locked(); !r2)
-        return r2;
-      return r;
+    if (!ready)
+      return std::unexpected(BackendError::NotInitialized);
+    {
+      std::scoped_lock lock(state_mutex);
+      if (id >= voice_names.size())
+        return std::unexpected(BackendError::RangeOutOfBounds);
     }
-    rb.commit = true;
-    voice_idx.store(id, std::memory_order_release);
+    std::promise<BackendResult<>> done;
+    if (auto result = call(SetVoiceJob{.voice = id, .done = &done}, done);
+        !result)
+      return result;
+    prosody.voice = id;
     return {};
   }
 
   BackendResult<std::size_t> get_voice() override {
-    if (!initialized.test())
+    if (!ready)
       return std::unexpected(BackendError::NotInitialized);
-    return static_cast<std::size_t>(voice_idx.load(std::memory_order_acquire));
+    return prosody.voice;
   }
 
   BackendResult<std::size_t> get_channels() override {
-    if (!initialized.test())
+    if (!ready)
       return std::unexpected(BackendError::NotInitialized);
-    return audio_channels.load(std::memory_order_acquire);
+    std::scoped_lock lock(state_mutex);
+    return audio_channels;
   }
 
   BackendResult<std::size_t> get_sample_rate() override {
-    if (!initialized.test())
+    if (!ready)
       return std::unexpected(BackendError::NotInitialized);
-    return audio_sample_rate.load(std::memory_order_acquire);
+    std::scoped_lock lock(state_mutex);
+    return audio_sample_rate;
   }
 
   BackendResult<std::size_t> get_bit_depth() override {
-    if (!initialized.test())
+    if (!ready)
       return std::unexpected(BackendError::NotInitialized);
-    return audio_bit_depth.load(std::memory_order_acquire);
+    std::scoped_lock lock(state_mutex);
+    return audio_bit_depth;
   }
 };
 

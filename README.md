@@ -13,6 +13,7 @@ Prism requires the following to be met to function properly. If your system does
 * Linux requires a version of Glib which conforms to the Glib-2.68 ABI. This typically means having glib and glibmm 2.80 or later and Orca 49 or later for the Orca backend to function. Speech-dispatcher will work with any version of speech dispatcher that supports ABI version 2 (which means that versions 0.11.1 and on will definitely work).
 * Android requires version 8/API level 26 or later.
 * Web requires that the browser implement the [WebSpeech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API) to be implemented.
+* The GDK speech backend requires Microsoft Gaming Services to be installed. On desktop Windows, it also requires `xgameruntime.thunks.dll` from the Microsoft GDK to be on the application's library search path or beside the Prism library. Prism does not distribute this library, as the GDK's license permits only a title to redistribute it; applications that use the backend must ship it themselves. Building the backend requires the GDK's headers; on Xbox, it also requires the GDK's `xgameruntime` library.
 
 ## Building
 
@@ -26,6 +27,7 @@ To build Prism, all you need do is create a build directory and run cmake as you
 | `PRISM_ENABLE_SHIMS` | Enable screen reader library compatibility shims. |
 | `PRISM_ENABLE_TOLK_SHIM` | Enable the Tolk compatibility shim. |
 | `PRISM_ENABLE_LEGACY_BACKENDS` | Build backends for legacy screen readers. |
+| `PRISM_GDK_ROOT` | Root of the Microsoft GDK edition to build the GDK speech backend against. If unset, Prism uses the latest edition the GDK installer has registered. |
 | `PRISM_ENABLE_POWER_MANAGEMENT` | Allow Prism to manage the backend availability enumeration thread based on OS-level power management transitions if supported by the target. |
 | `PRISM_ENABLE_LINTING` | Enable linting of Prism's source code using tools such as clang-tidy. This is a developer option; do not use under normal circumstances. |
 | `PRISM_DIAGNOSE_VECTORIZATION` | Request that the compiler generate vectorization diagnostics to assist in understanding vectorization decisions and opportunities. This is a developer option; do not use under normal circumstances. |

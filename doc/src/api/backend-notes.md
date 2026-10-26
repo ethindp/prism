@@ -141,6 +141,30 @@ The rate, pitch, and voice in effect when `prism_backend_speak` is called apply 
 
 The audio graph renders to the default audio output device. When the default device changes, the audio graph is recreated on the new device at the next utterance that begins while no speech is playing. If the audio graph fails, including when its device is removed, speech in progress is discarded, and the audio graph is recreated at the next utterance.
 
+### GDK Speech
+
+The GDK speech backend synthesizes speech through the speech synthesis API of the Microsoft Game Development Kit (GDK) and plays it through XAudio2. The backend is compiled only when the GDK headers are available at build time. The build locates the headers through the `PRISM_GDK_ROOT` build option if it is set, and otherwise through the environment variables defined by the GDK installer.
+
+#### Windows
+
+On Windows, Prism does not link against the GDK. The backend loads `xgameruntime.thunks.dll` at run time. The library MUST be resolvable through the host process's library search order or be present in the directory containing the Prism library; if it is not, the backend does not report `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME`, and `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`. Prism does not distribute the library, the redistribution of which is governed by the GDK license. An application that uses the backend MUST deploy the library itself. A build of Prism that locates the library within the GDK copies it to the build directory beside the Prism library; the library is not installed.
+
+The library depends on the Gaming Runtime, which is provided by Microsoft Gaming Services. Gaming Services MUST be installed. Each backend instance holds a reference to the Gaming Runtime from its creation until it is freed. If the Gaming Runtime cannot be initialized, the backend does not report `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME`, and `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
+
+#### Xbox
+
+On Xbox, Prism links against the GDK `xgameruntime` library. When Prism is built as a static library, it shares the title's Gaming Runtime, and the title MUST call `XGameRuntimeInitialize` before creating any backend instance. When Prism is built as a shared library, each backend instance holds its own reference to the Gaming Runtime, as on Windows.
+
+#### All platforms
+
+The runtime-supported probe creates and destroys a speech synthesizer and an XAudio2 engine. `prism_backend_initialize` enumerates the installed voices and returns `PRISM_ERROR_NO_VOICES` if the Gaming Runtime reports none.
+
+`prism_backend_speak` returns once the text has been queued. Each utterance is synthesized in its entirety on an internal worker thread before playback of it begins; the delay before an utterance becomes audible therefore increases with its length. From the return of `prism_backend_speak` until playback of the utterance ends, `prism_backend_is_speaking` reports `true`, unless speech is paused or stopped in the interim. An utterance that cannot be synthesized is discarded, and the failure is reported through the logging facility. Changes of the default audio output device, and removal of the device in use, are handled as described for the SAPI backend.
+
+Until `prism_backend_set_voice` is called, the backend uses the system default voice, and `prism_backend_get_voice` returns `PRISM_ERROR_VOICE_NOT_FOUND`. If the selected voice is no longer installed when `prism_backend_refresh_voices` is called, the backend reverts to the system default voice.
+
+Rate and pitch are applied through SSML prosody markup. Text passed to `prism_backend_speak` is escaped and SHALL NOT be interpreted as SSML. The rate and pitch in effect when `prism_backend_speak` is called apply to that utterance; subsequent changes affect only utterances queued thereafter. Volume is applied during playback, and a change of volume therefore also affects the utterance being played.
+
 ### Speech Dispatcher
 
 The Speech Dispatcher backend is available natively on Linux and BSD and through a Wine bridge to Windows applications running under Wine or Proton. The native and bridged variants use the same backend identifier and expose the same public Prism API. For more information about using the wine bridges, see the Wine Bridges chapter for build, deployment, and selection requirements.

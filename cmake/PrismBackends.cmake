@@ -370,20 +370,53 @@ prism_declare_backend(
 # The GDK speech API is also supported by desktop Windows. Detect a usable
 # development SDK without requiring GDK for other Windows backends.
 if(WIN32 OR PRISM_XBOX)
-  set(_prism_gdk_option "${PRISM_ENABLE_GDK_SPEECH_BACKEND}")
+  if(DEFINED PRISM_ENABLE_GDK_SPEECH_BACKEND)
+    set(_prism_gdk_option "${PRISM_ENABLE_GDK_SPEECH_BACKEND}")
+  else()
+    set(_prism_gdk_option "${PRISM_BACKEND_DEFAULT}")
+  endif()
   if(NOT _prism_gdk_option STREQUAL "OFF")
+    set(PRISM_GDK_ROOT
+        ""
+        CACHE
+          PATH
+          "Root of a Microsoft GDK edition to build the GDK speech backend against"
+    )
+    set(_prism_gdk_hints
+        "${PRISM_GDK_ROOT}" "$ENV{PRISM_GDK_ROOT}" "$ENV{GameDKCoreLatest}"
+        "$ENV{GameDKLatest}" "$ENV{GRDKLatest}")
     find_path(
       PRISM_GDK_INCLUDE_DIR XSpeechSynthesizer.h
-      HINTS "$ENV{GamingGRDK}" "$ENV{GRDKLatest}" "$ENV{GRDK}" "${GamingGRDK}"
-            "${GRDKLatest}" "${GRDK}"
-      PATH_SUFFIXES GameKit/Include Include)
+      HINTS ${_prism_gdk_hints}
+      PATH_SUFFIXES windows/include GRDK/GameKit/Include GameKit/Include
+                    Include)
+    if(PRISM_ARCH_CLASS STREQUAL "arm64")
+      set(_prism_gdk_arch arm64)
+      set(_prism_gdk_thunk_suffixes windows/bin/arm64)
+    else()
+      set(_prism_gdk_arch x64)
+      set(_prism_gdk_thunk_suffixes windows/bin/x64 GRDK/GameKit/Lib
+                                    GameKit/Lib)
+    endif()
     if(PRISM_XBOX)
       find_library(
         PRISM_GDK_RUNTIME_LIBRARY
         NAMES xgameruntime
-        HINTS "$ENV{GamingGRDK}" "$ENV{GRDKLatest}" "$ENV{GRDK}" "${GamingGRDK}"
-              "${GRDKLatest}" "${GRDK}"
-        PATH_SUFFIXES GameKit/Lib/amd64 GameKit/Lib/x64 Lib/amd64 Lib/x64 Lib)
+        HINTS ${_prism_gdk_hints}
+        PATH_SUFFIXES
+          windows/lib/${_prism_gdk_arch}
+          GRDK/GameKit/Lib/amd64
+          GameKit/Lib/amd64
+          GameKit/Lib/x64
+          Lib/amd64
+          Lib/x64
+          Lib)
+    else()
+      find_file(
+        PRISM_GDK_THUNKS_DLL xgameruntime.thunks.dll
+        HINTS ${_prism_gdk_hints}
+        PATH_SUFFIXES ${_prism_gdk_thunk_suffixes}
+        NO_DEFAULT_PATH)
     endif()
     unset(PRISM_GDK_SPEECH_LINKS CACHE)
     if(PRISM_GDK_INCLUDE_DIR AND (NOT PRISM_XBOX OR PRISM_GDK_RUNTIME_LIBRARY))
@@ -397,7 +430,8 @@ if(WIN32 OR PRISM_XBOX)
         set(CMAKE_REQUIRED_LIBRARIES "")
       endif()
       check_cxx_source_compiles(
-        "#include <XSpeechSynthesizer.h>
+        "#include <windows.h>
+#include <XSpeechSynthesizer.h>
 #include <XPackage.h>
 #include <XGameRuntimeInit.h>
 #include <xaudio2.h>
@@ -457,6 +491,21 @@ if(PRISM_GDK_SPEECH_LINKS AND NOT PRISM_ENABLE_GDK_SPEECH_BACKEND STREQUAL
     if(PRISM_XBOX)
       target_link_libraries(prism_backend_gdk_speech PRIVATE prism_gdk_runtime)
       target_link_libraries(prism PRIVATE prism_gdk_runtime)
+    else()
+      if(PRISM_GDK_THUNKS_DLL)
+        message(STATUS "Prism: GDK thunk library: ${PRISM_GDK_THUNKS_DLL}")
+        add_custom_command(
+          TARGET prism
+          POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                  "${PRISM_GDK_THUNKS_DLL}" "$<TARGET_FILE_DIR:prism>"
+          VERBATIM)
+      else()
+        message(
+          STATUS
+            "Prism: xgameruntime.thunks.dll not found; applications using the GDK speech backend must ship it"
+        )
+      endif()
     endif()
   endif()
 elseif(PRISM_XBOX AND PRISM_ENABLE_GDK_SPEECH_BACKEND STREQUAL "ON")

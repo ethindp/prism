@@ -93,7 +93,7 @@ The following bits are defined:
 | `PRISM_BACKEND_SUPPORTS_GET_CHANNELS` | `prism_backend_get_channels` is implemented. |
 | `PRISM_BACKEND_SUPPORTS_GET_SAMPLE_RATE` | `prism_backend_get_sample_rate` is implemented. |
 | `PRISM_BACKEND_SUPPORTS_GET_BIT_DEPTH` | `prism_backend_get_bit_depth` is implemented. |
-| `PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK` | Reserved. |
+| `PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK` | The backend trims leading and trailing silence from each utterance before playing it. |
 | `PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY` | The backend trims leading and trailing silence from the audio stream before delivering it to the audio callback. |
 | `PRISM_BACKEND_SUPPORTS_SPEAK_SSML` | Reserved. |
 | `PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML` | Reserved. |

@@ -8,9 +8,8 @@ target_compile_definitions(
   INTERFACE _CRT_SECURE_NO_WARNINGS _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1
             _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1
             BELT_COM_NO_LEAK_DETECTION UNICODE _UNICODE)
-target_link_libraries(
-  prism PRIVATE ole32.lib onecore.lib runtimeobject.lib
-                uiautomationcore.lib rpcrt4)
+target_link_libraries(prism PRIVATE ole32.lib onecore.lib runtimeobject.lib
+                                    uiautomationcore.lib rpcrt4 xaudio2)
 if(PRISM_ENABLE_POWER_MANAGEMENT)
   target_compile_definitions(prism_common
                              INTERFACE PRISM_ENABLE_POWER_MANAGEMENT)

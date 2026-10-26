@@ -40,15 +40,20 @@ typedef struct UsSlot {
 typedef enum UsOp { US_OP_SAY, US_OP_BRAILLE, US_OP_STOP } UsOp;
 typedef enum UsNarrowEncoding {
   US_NARROW_ANSI,
-  US_NARROW_UTF8
+  US_NARROW_UTF8,
 } UsNarrowEncoding;
 
 static UsSlot us_slots[] = {
     {L"Jaws", PRISM_BACKEND_JAWS, PRISM_SHIM_NULL, true, false},
     {L"Windows eye", PRISM_BACKEND_WINDOW_EYES, PRISM_SHIM_NULL, true, false},
     {L"NVDA", PRISM_BACKEND_NVDA, PRISM_SHIM_NULL, true, false},
-    {L"System access", PRISM_BACKEND_SYSTEM_ACCESS, PRISM_SHIM_NULL, true,
-     false},
+    {
+        L"System access",
+        PRISM_BACKEND_SYSTEM_ACCESS,
+        PRISM_SHIM_NULL,
+        true,
+        false,
+    },
     {L"Supernova", PRISM_BACKEND_INVALID, PRISM_SHIM_NULL, false, false},
     {L"ZoomText", PRISM_BACKEND_ZOOM_TEXT, PRISM_SHIM_NULL, true, false},
     {L"ZDSR", PRISM_BACKEND_ZDSR, PRISM_SHIM_NULL, true, false},
@@ -85,7 +90,7 @@ static PrismBackendId us_slot_id(int index) {
   return us_slots[index].prism_id;
 }
 
-static bool us_ensure_context_locked(void) {
+static bool us_ensure_context_locked() {
   if (us_ctx == PRISM_SHIM_NULL)
     us_ctx = shim_context_open(&us_stale);
   return us_ctx != PRISM_SHIM_NULL;
@@ -112,7 +117,7 @@ static void us_drop_locked(int index) {
   us_slots[index].paused = false;
 }
 
-static int us_detect_locked(void) {
+static int us_detect_locked() {
   for (int i = 0; i < US_ENGINE_COUNT; ++i) {
     if (us_slots[i].automatic && us_available_locked(i))
       return i;
@@ -120,7 +125,7 @@ static int us_detect_locked(void) {
   return -1;
 }
 
-static int us_resolve_current_locked(void) {
+static int us_resolve_current_locked() {
   if (shim_flag_take(&us_stale) && us_auto_engine)
     us_current = -1;
   if (us_current < 0 || us_current >= US_ENGINE_COUNT)
@@ -215,7 +220,7 @@ US_EXPORT(int) speechSay(const ____wchar_t *text, int interrupt) {
   return us_run_current(US_OP_SAY, text, interrupt);
 }
 
-US_EXPORT(int) speechStop(void) {
+US_EXPORT(int) speechStop() {
   return us_run_current(US_OP_STOP, PRISM_SHIM_NULL, 0);
 }
 
@@ -546,11 +551,9 @@ static void us_id_unload(PrismBackendId id) {
   fast_lock_release(&us_lock);
 }
 
-US_EXPORT(int) jfwLoad(void) { return us_id_available(PRISM_BACKEND_JAWS); }
-US_EXPORT(void) jfwUnload(void) { us_id_unload(PRISM_BACKEND_JAWS); }
-US_EXPORT(int) jfwIsAvailable(void) {
-  return us_id_available(PRISM_BACKEND_JAWS);
-}
+US_EXPORT(int) jfwLoad() { return us_id_available(PRISM_BACKEND_JAWS); }
+US_EXPORT(void) jfwUnload() { us_id_unload(PRISM_BACKEND_JAWS); }
+US_EXPORT(int) jfwIsAvailable() { return us_id_available(PRISM_BACKEND_JAWS); }
 US_EXPORT(int) jfwSayA(const char *text, int interrupt) {
   return us_id_speak_a(PRISM_BACKEND_JAWS, text, interrupt);
 }
@@ -563,7 +566,7 @@ US_EXPORT(int) jfwBrailleA(const char *text) {
 US_EXPORT(int) jfwBrailleW(const wchar_t *text) {
   return us_id_braille_w(PRISM_BACKEND_JAWS, text);
 }
-US_EXPORT(int) jfwStopSpeech(void) { return us_id_stop(PRISM_BACKEND_JAWS); }
+US_EXPORT(int) jfwStopSpeech() { return us_id_stop(PRISM_BACKEND_JAWS); }
 US_EXPORT(int) jfwRunScriptA(const char *name) {
   (void)name;
   return 0;
@@ -590,11 +593,9 @@ US_EXPORT(int) jfwGetRunningVersion(char *buf, int size) {
     buf[0] = '\0';
   return 0;
 }
-US_EXPORT(int) nvdaLoad(void) { return us_id_available(PRISM_BACKEND_NVDA); }
-US_EXPORT(void) nvdaUnload(void) { us_id_unload(PRISM_BACKEND_NVDA); }
-US_EXPORT(int) nvdaIsAvailable(void) {
-  return us_id_available(PRISM_BACKEND_NVDA);
-}
+US_EXPORT(int) nvdaLoad() { return us_id_available(PRISM_BACKEND_NVDA); }
+US_EXPORT(void) nvdaUnload() { us_id_unload(PRISM_BACKEND_NVDA); }
+US_EXPORT(int) nvdaIsAvailable() { return us_id_available(PRISM_BACKEND_NVDA); }
 US_EXPORT(int) nvdaSay(const wchar_t *text) {
   return us_id_speak_w(PRISM_BACKEND_NVDA, text, 0);
 }
@@ -604,18 +605,16 @@ US_EXPORT(int) nvdaSayW(const wchar_t *text, int interrupt) {
 US_EXPORT(int) nvdaBraille(const wchar_t *text) {
   return us_id_braille_w(PRISM_BACKEND_NVDA, text);
 }
-US_EXPORT(int) nvdaStopSpeech(void) { return us_id_stop(PRISM_BACKEND_NVDA); }
+US_EXPORT(int) nvdaStopSpeech() { return us_id_stop(PRISM_BACKEND_NVDA); }
 US_EXPORT(int) nvdaGetRunningVersion(char *buf, int size) {
   if (buf != PRISM_SHIM_NULL && size > 0)
     buf[0] = '\0';
   return 0;
 }
 
-US_EXPORT(int) weLoad(void) {
-  return us_id_available(PRISM_BACKEND_WINDOW_EYES);
-}
-US_EXPORT(void) weUnload(void) { us_id_unload(PRISM_BACKEND_WINDOW_EYES); }
-US_EXPORT(int) weIsAvailable(void) {
+US_EXPORT(int) weLoad() { return us_id_available(PRISM_BACKEND_WINDOW_EYES); }
+US_EXPORT(void) weUnload() { us_id_unload(PRISM_BACKEND_WINDOW_EYES); }
+US_EXPORT(int) weIsAvailable() {
   return us_id_available(PRISM_BACKEND_WINDOW_EYES);
 }
 US_EXPORT(int) weSayA(const char *text) {
@@ -630,15 +629,11 @@ US_EXPORT(int) weBrailleA(const char *text) {
 US_EXPORT(int) weBrailleW(const wchar_t *text) {
   return us_id_braille_w(PRISM_BACKEND_WINDOW_EYES, text);
 }
-US_EXPORT(int) weStopSpeech(void) {
-  return us_id_stop(PRISM_BACKEND_WINDOW_EYES);
-}
+US_EXPORT(int) weStopSpeech() { return us_id_stop(PRISM_BACKEND_WINDOW_EYES); }
 
-US_EXPORT(int) saLoad(void) {
-  return us_id_available(PRISM_BACKEND_SYSTEM_ACCESS);
-}
-US_EXPORT(void) saUnload(void) { us_id_unload(PRISM_BACKEND_SYSTEM_ACCESS); }
-US_EXPORT(int) saIsAvailable(void) {
+US_EXPORT(int) saLoad() { return us_id_available(PRISM_BACKEND_SYSTEM_ACCESS); }
+US_EXPORT(void) saUnload() { us_id_unload(PRISM_BACKEND_SYSTEM_ACCESS); }
+US_EXPORT(int) saIsAvailable() {
   return us_id_available(PRISM_BACKEND_SYSTEM_ACCESS);
 }
 US_EXPORT(int) saSayA(const char *text) {
@@ -653,21 +648,21 @@ US_EXPORT(int) saBrailleA(const char *text) {
 US_EXPORT(int) saBrailleW(const wchar_t *text) {
   return us_id_braille_w(PRISM_BACKEND_SYSTEM_ACCESS, text);
 }
-US_EXPORT(int) saStopSpeech(void) {
+US_EXPORT(int) saStopSpeech() {
   return us_id_stop(PRISM_BACKEND_SYSTEM_ACCESS);
 }
 
-US_EXPORT(int) dolLoad(void) { return 0; }
-US_EXPORT(void) dolUnload(void) {}
-US_EXPORT(int) dolIsAvailable(void) { return 0; }
+US_EXPORT(int) dolLoad() { return 0; }
+US_EXPORT(void) dolUnload() {}
+US_EXPORT(int) dolIsAvailable() { return 0; }
 US_EXPORT(int) dolSay(const wchar_t *text) {
   (void)text;
   return 0;
 }
-US_EXPORT(int) dolStopSpeech(void) { return 0; }
-US_EXPORT(int) cbrLoad(void) { return 0; }
-US_EXPORT(void) cbrUnload(void) {}
-US_EXPORT(int) cbrIsAvailable(void) { return 0; }
+US_EXPORT(int) dolStopSpeech() { return 0; }
+US_EXPORT(int) cbrLoad() { return 0; }
+US_EXPORT(void) cbrUnload() {}
+US_EXPORT(int) cbrIsAvailable() { return 0; }
 US_EXPORT(int) cbrSayA(const char *text) {
   (void)text;
   return 0;
@@ -684,34 +679,30 @@ US_EXPORT(int) cbrBrailleW(const wchar_t *text) {
   (void)text;
   return 0;
 }
-US_EXPORT(int) cbrStopSpeech(void) { return 0; }
+US_EXPORT(int) cbrStopSpeech() { return 0; }
 
-US_EXPORT(int) ztLoad(void) { return us_id_available(PRISM_BACKEND_ZOOM_TEXT); }
-US_EXPORT(int) ztUnload(void) {
+US_EXPORT(int) ztLoad() { return us_id_available(PRISM_BACKEND_ZOOM_TEXT); }
+US_EXPORT(int) ztUnload() {
   us_id_unload(PRISM_BACKEND_ZOOM_TEXT);
   return 1;
 }
-US_EXPORT(int) ztIsAvailable(void) {
+US_EXPORT(int) ztIsAvailable() {
   return us_id_available(PRISM_BACKEND_ZOOM_TEXT);
 }
-US_EXPORT(int) ztIsActive(void) { return ztIsAvailable(); }
+US_EXPORT(int) ztIsActive() { return ztIsAvailable(); }
 US_EXPORT(int) ztSayW(const wchar_t *text, int interrupt) {
   return us_id_speak_w(PRISM_BACKEND_ZOOM_TEXT, text, interrupt);
 }
-US_EXPORT(int) ztStopSpeech(void) {
-  return us_id_stop(PRISM_BACKEND_ZOOM_TEXT);
-}
+US_EXPORT(int) ztStopSpeech() { return us_id_stop(PRISM_BACKEND_ZOOM_TEXT); }
 
-US_EXPORT(int) zdsrLoad(void) { return us_id_available(PRISM_BACKEND_ZDSR); }
-US_EXPORT(void) zdsrUnload(void) { us_id_unload(PRISM_BACKEND_ZDSR); }
-US_EXPORT(int) zdsrIsAvailable(void) {
-  return us_id_available(PRISM_BACKEND_ZDSR);
-}
+US_EXPORT(int) zdsrLoad() { return us_id_available(PRISM_BACKEND_ZDSR); }
+US_EXPORT(void) zdsrUnload() { us_id_unload(PRISM_BACKEND_ZDSR); }
+US_EXPORT(int) zdsrIsAvailable() { return us_id_available(PRISM_BACKEND_ZDSR); }
 US_EXPORT(int) zdsrSayW(const wchar_t *text, int interrupt) {
   return us_id_speak_w(PRISM_BACKEND_ZDSR, text, interrupt);
 }
-US_EXPORT(int) zdsrStopSpeech(void) { return us_id_stop(PRISM_BACKEND_ZDSR); }
-US_EXPORT(int) zdsrIsSpeaking(void) {
+US_EXPORT(int) zdsrStopSpeech() { return us_id_stop(PRISM_BACKEND_ZDSR); }
+US_EXPORT(int) zdsrIsSpeaking() {
   fast_lock_acquire(&us_lock);
   PrismBackend *backend =
       us_backend_locked(us_index_for_id(PRISM_BACKEND_ZDSR));
@@ -723,24 +714,22 @@ US_EXPORT(int) zdsrIsSpeaking(void) {
   return result;
 }
 
-US_EXPORT(int) narIsAvailable(void) {
-  return us_id_available(PRISM_BACKEND_UIA);
-}
+US_EXPORT(int) narIsAvailable() { return us_id_available(PRISM_BACKEND_UIA); }
 
-static PrismBackend *us_native_locked(void) {
+static PrismBackend *us_native_locked() {
   return us_backend_locked(US_NATIVE_INDEX);
 }
 
-US_EXPORT(int) sapiLoad(void) {
+US_EXPORT(int) sapiLoad() {
   fast_lock_acquire(&us_lock);
   const int result = us_native_locked() != PRISM_SHIM_NULL;
   fast_lock_release(&us_lock);
   return result;
 }
 
-US_EXPORT(void) sapiUnload(void) { us_id_unload(shim_native_tts_id()); }
+US_EXPORT(void) sapiUnload() { us_id_unload(shim_native_tts_id()); }
 
-US_EXPORT(int) sapiIsAvailable(void) {
+US_EXPORT(int) sapiIsAvailable() {
   return us_id_available(shim_native_tts_id());
 }
 static int us_sapi_say_w_locked(const wchar_t *text, int interrupt) {
@@ -802,7 +791,7 @@ US_EXPORT(int) sapiSaySSMLA(const char *text, int interrupt) {
   return 0;
 }
 
-US_EXPORT(int) sapiStopSpeech(void) { return us_id_stop(shim_native_tts_id()); }
+US_EXPORT(int) sapiStopSpeech() { return us_id_stop(shim_native_tts_id()); }
 
 US_EXPORT(int) sapiSetPaused(int paused) {
   fast_lock_acquire(&us_lock);
@@ -819,7 +808,7 @@ US_EXPORT(int) sapiSetPaused(int paused) {
   return result;
 }
 
-US_EXPORT(int) sapiIsPaused(void) {
+US_EXPORT(int) sapiIsPaused() {
   fast_lock_acquire(&us_lock);
   const int result = (int)us_slots[US_NATIVE_INDEX].paused;
   fast_lock_release(&us_lock);
@@ -829,7 +818,7 @@ US_EXPORT(int) sapiWait(int timeout) {
   (void)timeout;
   return 0;
 }
-US_EXPORT(int) sapiIsSpeaking(void) {
+US_EXPORT(int) sapiIsSpeaking() {
   fast_lock_acquire(&us_lock);
   PrismBackend *backend = us_native_locked();
   bool speaking = false;
@@ -851,7 +840,7 @@ US_EXPORT(int) sapiSetRate(int rate) {
   return result;
 }
 
-US_EXPORT(int) sapiGetRate(void) {
+US_EXPORT(int) sapiGetRate() {
   fast_lock_acquire(&us_lock);
   PrismBackend *backend = us_native_locked();
   float rate = 0.0F;
@@ -874,7 +863,7 @@ US_EXPORT(int) sapiSetVolume(int volume) {
   return result;
 }
 
-US_EXPORT(int) sapiGetVolume(void) {
+US_EXPORT(int) sapiGetVolume() {
   fast_lock_acquire(&us_lock);
   PrismBackend *backend = us_native_locked();
   float volume = 0.0F;
@@ -887,7 +876,7 @@ US_EXPORT(int) sapiGetVolume(void) {
   return result;
 }
 
-US_EXPORT(int) sapiGetNumVoices(void) {
+US_EXPORT(int) sapiGetNumVoices() {
   fast_lock_acquire(&us_lock);
   PrismBackend *backend = us_native_locked();
   size_t count = 0;
@@ -911,7 +900,7 @@ US_EXPORT(int) sapiSetVoice(int voice) {
   return result;
 }
 
-US_EXPORT(int) sapiGetVoice(void) {
+US_EXPORT(int) sapiGetVoice() {
   fast_lock_acquire(&us_lock);
   PrismBackend *backend = us_native_locked();
   size_t voice = 0;
@@ -1028,8 +1017,8 @@ US_EXPORT_STDCALL(int) brailleMessageA(const char *text) {
 US_EXPORT_STDCALL(int) brailleMessageW(const wchar_t *text) {
   return brailleDisplay(text);
 }
-US_EXPORT_STDCALL(int) stopSpeech(void) { return speechStop(); }
-US_EXPORT_STDCALL(int) getCurrentScreenReader(void) {
+US_EXPORT_STDCALL(int) stopSpeech() { return speechStop(); }
+US_EXPORT_STDCALL(int) getCurrentScreenReader() {
   return speechGetValue(SP_ENGINE);
 }
 US_EXPORT_STDCALL(int) setCurrentScreenReader(int index) {
@@ -1041,10 +1030,10 @@ US_EXPORT_STDCALL(const wchar_t *) getScreenReaderNameW(int index) {
 US_EXPORT_STDCALL(const char *) getScreenReaderNameA(int index) {
   return speechGetStringA(SP_ENGINE + index);
 }
-US_EXPORT_STDCALL(const wchar_t *) getCurrentScreenReaderNameW(void) {
+US_EXPORT_STDCALL(const wchar_t *) getCurrentScreenReaderNameW() {
   return getScreenReaderNameW(getCurrentScreenReader());
 }
-US_EXPORT_STDCALL(const char *) getCurrentScreenReaderNameA(void) {
+US_EXPORT_STDCALL(const char *) getCurrentScreenReaderNameA() {
   return getScreenReaderNameA(getCurrentScreenReader());
 }
 US_EXPORT_STDCALL(int) getScreenReaderIdW(const wchar_t *name) {
@@ -1069,20 +1058,20 @@ US_EXPORT_STDCALL(int) setCurrentScreenReaderNameW(const wchar_t *name) {
 US_EXPORT_STDCALL(int) setCurrentScreenReaderNameA(const char *name) {
   return setCurrentScreenReader(getScreenReaderIdA(name));
 }
-US_EXPORT_STDCALL(int) getSupportedScreenReadersCount(void) {
+US_EXPORT_STDCALL(int) getSupportedScreenReadersCount() {
   return US_ENGINE_COUNT;
 }
-US_EXPORT_STDCALL(int) sapiIsEnabled(void) {
+US_EXPORT_STDCALL(int) sapiIsEnabled() {
   return speechGetValue(SP_ENABLE_NATIVE_SPEECH);
 }
 US_EXPORT_STDCALL(int) sapiEnable(int enable) {
   return speechSetValue(SP_ENABLE_NATIVE_SPEECH, enable);
 }
-int US_STDCALL sapiGetRate2(void) { return sapiGetRate(); }
+int US_STDCALL sapiGetRate2() { return sapiGetRate(); }
 int US_STDCALL sapiSetRate2(int rate) { return sapiSetRate(rate); }
 
-US_EXPORT(int) installKeyboardHook(void) { return 0; }
-US_EXPORT(void) uninstallKeyboardHook(void) {}
+US_EXPORT(int) installKeyboardHook() { return 0; }
+US_EXPORT(void) uninstallKeyboardHook() {}
 US_EXPORT(int) FindProcess(const char *needle, char *buf, size_t size) {
   (void)needle;
   if (buf != PRISM_SHIM_NULL && size != 0)

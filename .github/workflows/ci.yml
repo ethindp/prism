@@ -17,6 +17,7 @@ jobs:
     outputs:
       docs:        ${{ steps.compute.outputs.docs }}
       windows:     ${{ steps.compute.outputs.windows }}
+      xbox:        ${{ steps.compute.outputs.xbox }}
       linux:       ${{ steps.compute.outputs.linux }}
       macos:       ${{ steps.compute.outputs.macos }}
       ios:         ${{ steps.compute.outputs.ios }}
@@ -58,6 +59,10 @@ jobs:
               - 'source/backends/speech_dispatcher.cpp'
               - 'source/backends/orca.cpp'
               - 'idl/**'
+            xbox:
+              - 'source/backends/gdk_speech.cpp'
+              - 'source/speech_player.*'
+              - '.github/actions/install-gdk/**'
             linux:
               - 'source/backends/speech_dispatcher.cpp'
               - 'source/backends/orca.cpp'
@@ -104,6 +109,8 @@ jobs:
               - '.github/workflows/build-docs.yml'
             ci_windows:
               - '.github/workflows/build-windows.yml'
+            ci_xbox:
+              - '.github/workflows/build-xbox.yml'
             ci_linux:
               - '.github/workflows/build-linux.yml'
             ci_macos:
@@ -125,6 +132,7 @@ jobs:
           F_DOCS:          ${{ steps.filter.outputs.docs }}
           F_GDEXT_SRC:     ${{ steps.filter.outputs.gdext_src }}
           F_WINDOWS:       ${{ steps.filter.outputs.windows }}
+          F_XBOX:          ${{ steps.filter.outputs.xbox }}
           F_LINUX:         ${{ steps.filter.outputs.linux }}
           F_APPLE:         ${{ steps.filter.outputs.apple }}
           F_ANDROID:       ${{ steps.filter.outputs.android }}
@@ -134,6 +142,7 @@ jobs:
           F_CI_CORE:       ${{ steps.filter.outputs.ci_core }}
           F_CI_DOCS:       ${{ steps.filter.outputs.ci_docs }}
           F_CI_WINDOWS:    ${{ steps.filter.outputs.ci_windows }}
+          F_CI_XBOX:       ${{ steps.filter.outputs.ci_xbox }}
           F_CI_LINUX:      ${{ steps.filter.outputs.ci_linux }}
           F_CI_MACOS:      ${{ steps.filter.outputs.ci_macos }}
           F_CI_IOS:        ${{ steps.filter.outputs.ci_ios }}
@@ -154,6 +163,7 @@ jobs:
           {
             echo "docs=$(any "$CI_ALL" "$F_DOCS" "$F_CI_DOCS")"
             echo "windows=$(any "$CI_ALL" "$F_WINDOWS" "$F_CI_WINDOWS")"
+            echo "xbox=$(any "$CI_ALL" "$F_XBOX" "$F_CI_XBOX")"
             echo "linux=$(any "$CI_ALL" "$F_LINUX" "$F_CI_LINUX")"
             echo "macos=$(any "$CI_ALL" "$F_APPLE" "$F_CI_MACOS")"
             echo "ios=$(any "$CI_ALL" "$F_APPLE" "$F_CI_IOS")"
@@ -173,6 +183,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.windows == 'true'
     uses: $/.github/workflows/build-windows.yml
+
+  build-xbox:
+    needs: changes
+    if: needs.changes.outputs.xbox == 'true'
+    uses: $/.github/workflows/build-xbox.yml
 
   build-linux:
     needs: changes

@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: MPL-2.0
+# Lints Prism's Xbox configuration against the public GDK, with MSVC's
+# /analyze and with clang-tidy, as the Windows lint jobs do for Windows.
+name: Lint Xbox
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: msvc,       c: cl,    cxx: cl }
+          - { name: clang-tidy, c: clang, cxx: clang++ }
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: amd64
+      - name: Install the Microsoft GDK
+        id: gdk
+        uses: $/.github/actions/install-gdk
+      - name: Install current CMake
+        uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
+        with:
+          cmakeVersion: latest
+      - name: Set up LLVM toolchain if needed
+        if: matrix.name == 'clang-tidy'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command clang-tidy -ErrorAction SilentlyContinue)) {
+            choco install -y llvm
+            "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          }
+      - name: Lint all configurations
+        shell: pwsh
+        env:
+          PRISM_GDK_ROOT: ${{ steps.gdk.outputs.root }}
+          C_COMPILER: ${{ matrix.c }}
+          CXX_COMPILER: ${{ matrix.cxx }}
+        run: |
+          foreach ($shared in @("ON", "OFF")) {
+            $linkage = if ($shared -eq "ON") { "dynamic" } else { "static" }
+            foreach ($bt in @("Release", "Debug")) {
+              $config = $bt.ToLower()
+              cmake -B "build-${linkage}-${config}" `
+                -G Ninja `
+                "-DCMAKE_C_COMPILER=$env:C_COMPILER" `
+                "-DCMAKE_CXX_COMPILER=$env:CXX_COMPILER" `
+                -DPRISM_CONSOLE_TARGET=XBOX `
+                -DPRISM_ENABLE_GDK_SPEECH_BACKEND=ON `
+                -DPRISM_ENABLE_TESTS=OFF `
+                -DPRISM_ENABLE_DEMOS=OFF `
+                -DPRISM_ENABLE_LINTING=ON `
+                -DPRISM_ENABLE_GDEXTENSION=OFF `
+                "-DCMAKE_BUILD_TYPE=$bt" `
+                "-DBUILD_SHARED_LIBS=$shared"
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              cmake --build "build-${linkage}-${config}" --target prism
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }

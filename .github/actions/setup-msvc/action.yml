@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Set up MSVC
+description: >-
+  Runs vcvarsall.bat and reports the variables Prism's builds read from it, for
+  the steps that compile to take through env.
+inputs:
+  arch:
+    description: The vcvarsall.bat architecture, amd64 or amd64_arm64.
+    required: true
+outputs:
+  path:
+    description: PATH with the MSVC and Windows SDK tools on it.
+    value: ${{ steps.vcvars.outputs.path }}
+  include:
+    description: The compiler's header search path, as INCLUDE.
+    value: ${{ steps.vcvars.outputs.include }}
+  lib:
+    description: The linker's library search path, as LIB.
+    value: ${{ steps.vcvars.outputs.lib }}
+  libpath:
+    description: The compiler's metadata search path, as LIBPATH.
+    value: ${{ steps.vcvars.outputs.libpath }}
+  vsinstalldir:
+    description: The Visual Studio installation, as VSINSTALLDIR.
+    value: ${{ steps.vcvars.outputs.vsinstalldir }}
+runs:
+  using: composite
+  steps:
+    - name: Run vcvarsall.bat
+      id: vcvars
+      shell: pwsh
+      env:
+        MSVC_ARCH: ${{ inputs.arch }}
+      run: |
+        # The architecture ends up in a batch file, so only known values get there.
+        if ($env:MSVC_ARCH -cnotin "amd64", "amd64_arm64") {
+          Write-Error "Unsupported architecture: $env:MSVC_ARCH"
+          exit 1
+        }
+        $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+        $vs = & $vswhere -latest -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        if (-not $vs) {
+          Write-Error "No Visual Studio installation has the C++ tools"
+          exit 1
+        }
+        $script = Join-Path $env:RUNNER_TEMP "vcvars.cmd"
+        Set-Content -LiteralPath $script -Encoding ascii -Value @(
+          "@echo off"
+          "call `"$(Join-Path $vs "VC\Auxiliary\Build\vcvarsall.bat")`" $env:MSVC_ARCH >nul 2>&1 || exit /b 1"
+          "where cl >nul 2>&1 || exit /b 1"
+          "set"
+        )
+        $variables = & cmd /c $script
+        if ($LASTEXITCODE -ne 0) {
+          Write-Error "vcvarsall.bat could not set up $env:MSVC_ARCH"
+          exit 1
+        }
+        foreach ($name in "PATH", "INCLUDE", "LIB", "LIBPATH", "VSINSTALLDIR") {
+          $line = $variables | Where-Object { $_ -match "^$name=" } | Select-Object -First 1
+          if (-not $line) {
+            Write-Error "vcvarsall.bat did not set $name"
+            exit 1
+          }
+          "$($name.ToLower())=$($line.Substring($name.Length + 1))" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        }

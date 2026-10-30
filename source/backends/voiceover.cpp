@@ -148,7 +148,7 @@ static bool host_has_entitlement(CFStringRef entitlement) {
   id const value = CFBridgingRelease(
       SecTaskCopyValueForEntitlement(task, entitlement, nullptr));
   CFRelease(task);
-  return [value isEqual:@YES];
+  return [value isEqual:@YES] == YES;
 }
 
 static bool is_host_notarized() {

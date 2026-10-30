@@ -55,7 +55,8 @@ jobs:
           persist-credentials: false
       - name: MSVC setup
         if: matrix.target.platform == 'windows'
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        id: msvc
+        uses: $/.github/actions/setup-msvc
         with:
           arch: ${{ matrix.target.msvc }}
       - name: Install current CMake
@@ -69,9 +70,21 @@ jobs:
         with:
           ndk-version: r29
       - name: Configure and build
+        if: matrix.target.platform != 'windows'
         shell: bash
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          ./tools/gdextension-native.sh "${{ matrix.target.platform }}" "${{ matrix.target.arch }}" "${{ matrix.target-type }}"
+      - name: Configure and build with MSVC
+        if: matrix.target.platform == 'windows'
+        shell: bash
+        env:
+          PATH: ${{ steps.msvc.outputs.path }}
+          INCLUDE: ${{ steps.msvc.outputs.include }}
+          LIB: ${{ steps.msvc.outputs.lib }}
+          LIBPATH: ${{ steps.msvc.outputs.libpath }}
+          VSINSTALLDIR: ${{ steps.msvc.outputs.vsinstalldir }}
         run: |
           ./tools/gdextension-native.sh "${{ matrix.target.platform }}" "${{ matrix.target.arch }}" "${{ matrix.target-type }}"
       - name: Verify and fix binary name

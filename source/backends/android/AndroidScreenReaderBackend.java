@@ -70,6 +70,14 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
     return Outcome.fromResult(new Unit());
   }
 
+  @SuppressWarnings("deprecation")
+  private static AccessibilityEvent newAnnouncementEvent() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      return new AccessibilityEvent();
+    }
+    return AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT);
+  }
+
   @Override
   public Outcome<Unit, BackendError> speak(ByteBuffer text, boolean interrupt) {
     Context ctx = PrismContext.get();
@@ -93,12 +101,7 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
         return res;
       }
     }
-    AccessibilityEvent e;
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      e = new AccessibilityEvent();
-    } else {
-      e = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT);
-    }
+    AccessibilityEvent e = newAnnouncementEvent();
     e.setEventType(AccessibilityEvent.TYPE_ANNOUNCEMENT);
     e.setPackageName(ctx.getPackageName());
     e.getText().add(out.toString() + AvoidDuplicateSpeechHack);

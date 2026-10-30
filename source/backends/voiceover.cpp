@@ -13,11 +13,13 @@
 #elif TARGET_OS_OSX
 #import <AppKit/AppKit.h>
 #import <Carbon/Carbon.h>
+#import <Security/Security.h>
 #else
 #import <UIKit/UIKit.h>
 #endif
 #include <atomic>
 #include <bitset>
+#include <memory>
 #include <string_view>
 #if TARGET_OS_OSX
 static inline constexpr bool is_macos = true;
@@ -136,6 +138,73 @@ static constexpr NSString *const VOICE_OVER_APPLE_SCRIPT_SOURCE =
     @"on voStop()\n"
     @"    tell application \"VoiceOver\" to output \"\"\n"
     @"end voStop\n";
+
+static constexpr NSString *const VOICE_OVER_BUNDLE_ID = @"com.apple.VoiceOver";
+
+static bool host_has_entitlement(CFStringRef entitlement) {
+  auto *const task = SecTaskCreateFromSelf(kCFAllocatorDefault);
+  if (task == nullptr)
+    return false;
+  id const value = CFBridgingRelease(
+      SecTaskCopyValueForEntitlement(task, entitlement, nullptr));
+  CFRelease(task);
+  return [value isEqual:@YES];
+}
+
+static bool is_host_notarized() {
+  SecCodeRef code = nullptr;
+  if (SecCodeCopySelf(kSecCSDefaultFlags, &code) != errSecSuccess)
+    return false;
+  SecRequirementRef requirement = nullptr;
+  auto status = SecRequirementCreateWithString(
+      CFSTR("notarized"), kSecCSDefaultFlags, &requirement);
+  if (status == errSecSuccess) {
+    status = SecCodeCheckValidity(code, kSecCSDefaultFlags, requirement);
+    CFRelease(requirement);
+  }
+  CFRelease(code);
+  return status == errSecSuccess;
+}
+
+static bool host_permits_legacy_automation() {
+  static const bool permitted =
+      !host_has_entitlement(CFSTR("com.apple.security.app-sandbox")) &&
+      (host_has_entitlement(
+           CFSTR("com.apple.security.automation.apple-events")) ||
+       !is_host_notarized());
+  return permitted;
+}
+
+struct LegacyAutomationState {
+  std::atomic_flag usable;
+  std::atomic_flag check_pending;
+};
+
+// AEDeterminePermissionToAutomateTarget can block indefinitely, even when not
+// asking the user, so it must stay off the main thread. Speech reads the most
+// recent result, and a stuck check leaves the backend on the announcement path.
+static void
+refresh_legacy_automation_state(std::shared_ptr<LegacyAutomationState> state,
+                                bool ask_user) {
+  if (state->check_pending.test_and_set())
+    return;
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    bool usable = false;
+    if (host_permits_legacy_automation()) {
+      auto *const target = [NSAppleEventDescriptor
+          descriptorWithBundleIdentifier:VOICE_OVER_BUNDLE_ID];
+      usable = AEDeterminePermissionToAutomateTarget(
+                   target.aeDesc, typeWildCard, typeWildCard,
+                   ask_user ? TRUE : FALSE) == noErr;
+    }
+    if (usable) {
+      state->usable.test_and_set();
+    } else {
+      state->usable.clear();
+    }
+    state->check_pending.clear();
+  });
+}
 #endif
 
 class VoiceOverBackend final : public TextToSpeechBackend {
@@ -148,7 +217,8 @@ private:
   dispatch_block_t debounce_block{nullptr};
   __weak NSWindow *cached_window{nullptr};
   NSAppleScript *legacy_script{nullptr};
-  std::atomic_flag legacy_unavailable;
+  std::shared_ptr<LegacyAutomationState> legacy_state{
+      std::make_shared<LegacyAutomationState>()};
   static constexpr double debounce_delay = 0.015;
 #else
   NSMutableArray<NSString *> *queue{nullptr};
@@ -218,13 +288,13 @@ public:
       cached_window = w;
       [pending_text setString:@""];
       cancel_debounce();
-      legacy_unavailable.clear();
       legacy_script =
           [[NSAppleScript alloc] initWithSource:VOICE_OVER_APPLE_SCRIPT_SOURCE];
       NSDictionary *compileError = nil;
       if ([legacy_script compileAndReturnError:&compileError] == NO) {
         legacy_script = nil;
-        legacy_unavailable.test_and_set();
+      } else {
+        refresh_legacy_automation_state(legacy_state, true);
       }
       dispatch_async(dispatch_get_main_queue(), ^{
         NSAccessibilityPostNotification(
@@ -376,9 +446,9 @@ private:
   }
 
   bool try_invoke_legacy_handler(NSString *handlerName, NSString *argument) {
-    if (legacy_unavailable.test())
-      return false;
     if (legacy_script == nullptr)
+      return false;
+    if (!is_voiceover_active() || !legacy_state->usable.test())
       return false;
     ProcessSerialNumber psn = {
         .highLongOfPSN = 0,
@@ -405,16 +475,7 @@ private:
     }
     [event setParamDescriptor:args forKeyword:keyDirectObject];
     NSDictionary *errorInfo = nil;
-    auto *const reply =
-        [legacy_script executeAppleEvent:event error:&errorInfo];
-    if (reply == nil) {
-      NSNumber *const errNum = errorInfo[NSAppleScriptErrorNumber];
-      if (errNum != nullptr && errNum.intValue == errAEEventNotPermitted) {
-        legacy_unavailable.test_and_set();
-      }
-      return false;
-    }
-    return true;
+    return [legacy_script executeAppleEvent:event error:&errorInfo] != nil;
   }
 
   void fire_announcement_now() {
@@ -426,7 +487,10 @@ private:
       return;
     NSString *const text_to_speak = [pending_text copy];
     [pending_text setString:@""];
-    if (try_invoke_legacy_handler(@"voSpeak", text_to_speak))
+    const bool delivered = try_invoke_legacy_handler(@"voSpeak", text_to_speak);
+    if (legacy_script != nullptr)
+      refresh_legacy_automation_state(legacy_state, false);
+    if (delivered)
       return;
     NSWindow *w = cached_window != nullptr ? cached_window : pick_best_window();
     if (w == nullptr)

@@ -28,10 +28,16 @@ The host process MUST own at least one `NSWindow`. The backend selects a window 
 
 In the case of the final two selections listed above, the chosen window need not be visible. An offscreen `NSWindow` of any size suffices. An `NSApplication` instance MUST exist and the main run loop MUST be active. `NSApplicationMain` and the SwiftUI `@main` attribute on a `SwiftUI.App` declaration satisfy these requirements. A console-style program that does not bring up AppKit does not, regardless of whether it is wrapped in an application bundle.
 
-The backend has two delivery mechanisms for announcements: a legacy automation path that sends Apple events to VoiceOver, and a standard accessibility-announcement path that posts an announcement notification on a window owned by the host process. The legacy path requires that the host process be packaged as an application bundle whose `Info.plist` declares a non-empty value for `NSAppleEventsUsageDescription`, and that the user has approved automation access to VoiceOver. The string supplied for `NSAppleEventsUsageDescription` is shown verbatim in the Transparency, Consent, and Control prompt. The backend does not verify these conditions in advance; it discovers them when it first attempts to send an Apple event. The legacy path is disabled for the lifetime of the backend instance under either of the following conditions:
+The backend has two delivery mechanisms for announcements: a legacy automation path that sends Apple events to VoiceOver, and a standard accessibility-announcement path that posts an announcement notification on a window owned by the host process. The legacy path requires that the host process be packaged as an application bundle whose `Info.plist` declares a non-empty value for `NSAppleEventsUsageDescription`, and that the user has approved automation access to VoiceOver. The string supplied for `NSAppleEventsUsageDescription` is shown verbatim in the Transparency, Consent, and Control prompt.
 
-* The helper script does not compile during initialization; or
-* The first Apple event, sent at the first speech request, is rejected because automation has not been permitted. This is the case both when the user denies the prompt and when the host process cannot request automation access at all, such as when it is not packaged as an application bundle or supplies no `NSAppleEventsUsageDescription`.
+During initialization, if the host process is eligible for the legacy path, the backend requests automation access in the background. A host process is eligible if it is not sandboxed and is either not notarized or holds the `com.apple.security.automation.apple-events` entitlement. Initialization neither waits for the user's response nor fails because of it. A speech request uses the legacy path only when all of the following hold:
+
+* The helper script compiled during initialization;
+* VoiceOver is running;
+* The most recent permission check, which runs in the background after each speech request and never prompts, found that automation access has been granted; and
+* The host process is eligible.
+
+Otherwise, the speech request uses the accessibility-announcement path. Because the permission check runs in the background, a change in automation access takes effect from the speech request after the one that observes it, without reinitializing the backend.
 
 The standard macOS accessibility-announcement API does not provide Prism with a completion notification or a way to cancel an announcement after it has been posted. Because the backend may fall back to that path on any speech request, the macOS backend does not advertise `PRISM_BACKEND_FEATURE_SUPPORTS_IS_SPEAKING` or `PRISM_BACKEND_FEATURE_SUPPORTS_STOP`; calls to the corresponding operations return `PRISM_ERROR_NOT_IMPLEMENTED`.
 

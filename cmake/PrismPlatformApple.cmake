@@ -8,7 +8,11 @@ target_link_libraries(prism PRIVATE ${FOUNDATION_FRAMEWORK}
                                     ${AVFOUNDATION_FRAMEWORK} c++)
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
-  target_link_libraries(prism PRIVATE ${APPKIT_FRAMEWORK})
+  find_library(CORESERVICES_FRAMEWORK CoreServices REQUIRED)
+  find_library(SECURITY_FRAMEWORK Security REQUIRED)
+  target_link_libraries(
+    prism PRIVATE ${APPKIT_FRAMEWORK} ${CORESERVICES_FRAMEWORK}
+                  ${SECURITY_FRAMEWORK})
 elseif(CMAKE_SYSTEM_NAME STREQUAL "watchOS")
   find_library(WATCHKIT_FRAMEWORK WatchKit REQUIRED)
   target_link_libraries(prism PRIVATE ${WATCHKIT_FRAMEWORK})

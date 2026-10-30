@@ -175,36 +175,33 @@ static bool host_permits_legacy_automation() {
   return permitted;
 }
 
-struct LegacyAutomationState {
+struct LegacyAutomationState
+    : std::enable_shared_from_this<LegacyAutomationState> {
   std::atomic_flag usable;
   std::atomic_flag check_pending;
-};
 
-// AEDeterminePermissionToAutomateTarget can block indefinitely, even when not
-// asking the user, so it must stay off the main thread. Speech reads the most
-// recent result, and a stuck check leaves the backend on the announcement path.
-static void
-refresh_legacy_automation_state(std::shared_ptr<LegacyAutomationState> state,
-                                bool ask_user) {
-  if (state->check_pending.test_and_set())
-    return;
-  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-    bool usable = false;
-    if (host_permits_legacy_automation()) {
-      auto *const target = [NSAppleEventDescriptor
-          descriptorWithBundleIdentifier:VOICE_OVER_BUNDLE_ID];
-      usable = AEDeterminePermissionToAutomateTarget(
-                   target.aeDesc, typeWildCard, typeWildCard,
-                   ask_user ? TRUE : FALSE) == noErr;
-    }
-    if (usable) {
-      state->usable.test_and_set();
-    } else {
-      state->usable.clear();
-    }
-    state->check_pending.clear();
-  });
-}
+  void refresh(bool ask_user) {
+    if (check_pending.test_and_set())
+      return;
+    const auto state = shared_from_this();
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+      bool permitted = false;
+      if (host_permits_legacy_automation()) {
+        auto *const target = [NSAppleEventDescriptor
+            descriptorWithBundleIdentifier:VOICE_OVER_BUNDLE_ID];
+        permitted = AEDeterminePermissionToAutomateTarget(
+                        target.aeDesc, typeWildCard, typeWildCard,
+                        ask_user ? TRUE : FALSE) == noErr;
+      }
+      if (permitted) {
+        state->usable.test_and_set();
+      } else {
+        state->usable.clear();
+      }
+      state->check_pending.clear();
+    });
+  }
+};
 #endif
 
 class VoiceOverBackend final : public TextToSpeechBackend {
@@ -218,7 +215,8 @@ private:
   __weak NSWindow *cached_window{nullptr};
   NSAppleScript *legacy_script{nullptr};
   std::shared_ptr<LegacyAutomationState> legacy_state{
-      std::make_shared<LegacyAutomationState>()};
+      std::make_shared<LegacyAutomationState>(),
+  };
   static constexpr double debounce_delay = 0.015;
 #else
   NSMutableArray<NSString *> *queue{nullptr};
@@ -294,7 +292,7 @@ public:
       if ([legacy_script compileAndReturnError:&compileError] == NO) {
         legacy_script = nil;
       } else {
-        refresh_legacy_automation_state(legacy_state, true);
+        legacy_state->refresh(true);
       }
       dispatch_async(dispatch_get_main_queue(), ^{
         NSAccessibilityPostNotification(
@@ -489,7 +487,7 @@ private:
     [pending_text setString:@""];
     const bool delivered = try_invoke_legacy_handler(@"voSpeak", text_to_speak);
     if (legacy_script != nullptr)
-      refresh_legacy_automation_state(legacy_state, false);
+      legacy_state->refresh(false);
     if (delivered)
       return;
     NSWindow *w = cached_window != nullptr ? cached_window : pick_best_window();

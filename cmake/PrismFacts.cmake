@@ -1,4 +1,4 @@
-# SPDX - License - Identifier : MPL - 2.0
+# SPDX-License-Identifier: MPL-2.0
 
 include_guard(GLOBAL)
 include(PrismGuards)
@@ -83,9 +83,7 @@ if(NOT MSVC)
       "
 #include <stop_token>
 #include <thread>
-int main() {
-  std::jthread t([](std::stop_token st) {});
-  return 0; }
+int main() { std::jthread t([](std::stop_token st) {}); return 0; }
 ")
   check_cxx_source_compiles("${_jthread_src}" PRISM_HAS_JTHREAD_NATIVE)
   if(NOT PRISM_HAS_JTHREAD_NATIVE)

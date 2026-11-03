@@ -106,7 +106,7 @@ The configuration struct created by `prism_config_init`. This MAY be `NULL`.
 
 #### Return Value
 
-Returns a pointer to a newly allocated `PrismContext` on success. Returns `NULL` if memory allocation fails or if the configuration's `version` field is greater than the version Prism was built against.
+Returns a pointer to a newly allocated `PrismContext` on success. Returns `NULL` if memory allocation fails, or if the configuration's `version` field is zero or greater than the version Prism was built against.
 
 #### Remarks
 
@@ -167,7 +167,10 @@ If multiple threads are using the same context, the application MUST ensure that
 ```c
 /* At application shutdown */
 if (backend) {
-    prism_backend_stop(backend);
+    PrismError err = prism_backend_stop(backend);
+    if (err != PRISM_OK && err != PRISM_ERROR_NOT_IMPLEMENTED) {
+        fprintf(stderr, "Failed to stop speech: %s\n", prism_error_string(err));
+    }
     prism_backend_free(backend);
     backend = NULL;
 }

@@ -262,4 +262,6 @@ When the library is first initialized by `prism_init`, it inspects the `PRISM_LO
 
 In the absence of both an application-installed handler and the `PRISM_LOG` variable, no handler is installed and all messages are discarded. The default log level in this instance is None. Logging therefore has negligible cost by default.
 
-Because the `PRISM_LOG` handler is installed during `prism_init`, an application that installs its own handler with `prism_set_log_handler` after initialization will replace the standard-error handler. An application that wishes to observe messages produced before its own handler is installed SHOULD either set `PRISM_LOG` or install its handler before the first call to `prism_init`.
+Because the `PRISM_LOG` handler is installed during `prism_init`, an application that installs its own handler with `prism_set_log_handler` after initialization will replace the standard-error handler. An application that wishes to observe messages produced before its own handler is installed SHOULD either set `PRISM_LOG` or install its handler before the first call to `prism_init`. When `PRISM_LOG` is set to a recognized value, the first call to `prism_init` replaces a handler installed before it.
+
+On console platforms, such as Xbox, Prism does not consult `PRISM_LOG`.

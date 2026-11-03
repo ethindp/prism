@@ -2,7 +2,7 @@
 
 This chapter documents preconditions that go beyond the requirement that a backend's underlying speech or accessibility service be running. Backends not listed here have no preconditions beyond that one. Membership in a registry indicates only that a backend was compiled into the library or added at context initialization time, not that its preconditions are met. Applications SHOULD inspect `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` via `prism_backend_get_features` before invoking `prism_backend_initialize`. The flag reflects only the state at the moment of the call; `prism_backend_initialize` MAY still return `PRISM_ERROR_BACKEND_NOT_AVAILABLE` after a positive probe. Backend-specific error codes returned by `prism_backend_initialize` are documented in the relevant section below.
 
-Some backends are designated legacy. Legacy backends are compiled into the official Prism release packages by default. They are NOT compiled into ordinary source builds; enabling a legacy backend in a source build requires the `PRISM_ENABLE_LEGACY_BACKENDS` build option together with the per-backend option named in the affected section.
+Some backends are designated legacy. Legacy backends are compiled into the official Prism release packages by default. They are NOT compiled into ordinary source builds; a source build compiles them when the `PRISM_ENABLE_LEGACY_BACKENDS` build option is enabled. Each MAY then be excluded through its own backend option, such as `PRISM_ENABLE_SYSTEM_ACCESS_BACKEND`, which cannot enable a legacy backend without `PRISM_ENABLE_LEGACY_BACKENDS`.
 
 Note: if an application wishes to be notified asynchronously of a backends availability as it changes, it should utilize the backend availability enumeration system described previously in this manual.
 
@@ -32,14 +32,15 @@ The backend has two delivery mechanisms for announcements: a legacy automation p
 
 During initialization, if the host process is eligible for the legacy path, the backend requests automation access in the background. A host process is eligible if it is not sandboxed and is either not notarized or holds the `com.apple.security.automation.apple-events` entitlement. Initialization neither waits for the user's response nor fails because of it. A speech request uses the legacy path only when all of the following hold:
 
-* The helper script compiled during initialization;
 * VoiceOver is running;
 * The most recent permission check, which runs in the background after each speech request and never prompts, found that automation access has been granted; and
 * The host process is eligible.
 
 Otherwise, the speech request uses the accessibility-announcement path. Because the permission check runs in the background, a change in automation access takes effect from the speech request after the one that observes it, without reinitializing the backend.
 
-The standard macOS accessibility-announcement API does not provide Prism with a completion notification or a way to cancel an announcement after it has been posted. Because the backend may fall back to that path on any speech request, the macOS backend does not advertise `PRISM_BACKEND_FEATURE_SUPPORTS_IS_SPEAKING` or `PRISM_BACKEND_FEATURE_SUPPORTS_STOP`; calls to the corresponding operations return `PRISM_ERROR_NOT_IMPLEMENTED`.
+Apple events are sent from an internal background queue, in the order in which they were requested, and never block the main thread. If VoiceOver does not reply within 2 seconds, or if the event fails, the text is delivered through the accessibility-announcement path instead. A speech request whose event was merely slow MAY therefore be heard twice. After a reply times out, the backend does not use the legacy path for 30 seconds, and speech requests in that interval use the accessibility-announcement path.
+
+The standard macOS accessibility-announcement API does not provide Prism with a completion notification or a way to cancel an announcement after it has been posted. Because the backend may fall back to that path on any speech request, the macOS backend does not advertise `PRISM_BACKEND_SUPPORTS_IS_SPEAKING` or `PRISM_BACKEND_SUPPORTS_STOP`; calls to the corresponding operations return `PRISM_ERROR_NOT_IMPLEMENTED`.
 
 #### iOS, iPadOS, MacCatalyst, tvOS, and visionOS
 
@@ -195,7 +196,7 @@ The runtime-supported probe requires a session D-Bus connection and at least one
 
 A single Spiel voice that declares support for multiple languages appears in the backend's voice list as one entry per language, sharing the same name but with distinct language strings. The voice index selected through `prism_backend_set_voice` therefore identifies a `(voice, language)` pair, not a voice alone.
 
-Note: the native Spiel backend is not currently enabled in release packages or the Python wheels because Spiel is not in the distribution package repositories used to build those artifacts at this time. If you wish to use the native backend on a system where it is not packaged, you will need to build Prism and Spiel from source by hand or using a tool such as [vcpkg](https://github.com/microsoft/vcpkg). Wine bridge availability is determined separately by whether the bridge supplied with the build contains Spiel and whether a compatible provider is reachable at run time.
+Note: the native Spiel backend is not currently enabled in the Python wheels because Spiel is not in the distribution package repositories used to build those artifacts at this time. The release packages and the Godot add-on for Linux include the backend, and load `libspiel-1.0.so.1` at run time when it is present. If you wish to use the native backend from Python, you will need to build Prism and Spiel from source by hand or using a tool such as [vcpkg](https://github.com/microsoft/vcpkg). Wine bridge availability is determined separately by whether the bridge supplied with the build contains Spiel and whether a compatible provider is reachable at run time.
 
 ### Android Text to Speech
 

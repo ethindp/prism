@@ -38,7 +38,9 @@ Functions that accept [printf](https://en.cppreference.com/w/c/io/fprintf)-style
 
 Functions or types that are deprecated are annotated with a message explaining the deprecation and suggesting alternatives. The compiler will warn when deprecated elements are used.
 
-Functions that take NULL-terminated strings are annotated to assist in static analysis. Programmers MAY use these when using more advanced analysis features (such as GCC/Clang's `-fanalyze` command-line argument) to ensure that strings are always NULL-terminated.
+Functions that take NULL-terminated strings are annotated to assist in static analysis. Programmers MAY use these when using more advanced analysis features (such as GCC's `-fanalyzer` command-line argument) to ensure that strings are always NULL-terminated.
+
+No function of the C API lets a C++ exception escape; a failure inside Prism, including a failure to allocate memory, is reported through the function's return value. When `prism.h` is compiled as C++, its functions are accordingly declared `noexcept`.
 
 These annotations are supported on GCC, Clang, and MSVC to varying degrees. On compilers that do not support a particular annotation, that annotation has no effect. Applications SHOULD enable compiler warnings and treat warnings from these annotations as errors during development.
 

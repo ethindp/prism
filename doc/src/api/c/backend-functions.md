@@ -238,7 +238,10 @@ if (err != PRISM_OK) {
     fprintf(stderr, "Speech failed: %s\n", prism_error_string(err));
 }
 /* Queue additional speech */
-prism_backend_speak(backend, "Please check the log for details.", false);
+err = prism_backend_speak(backend, "Please check the log for details.", false);
+if (err != PRISM_OK) {
+    fprintf(stderr, "Speech failed: %s\n", prism_error_string(err));
+}
 ```
 
 ### prism_backend_speak_to_memory

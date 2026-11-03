@@ -195,7 +195,7 @@ An optional pointer receiving the identifier assigned to the backend. This param
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | The backend was added to the builder. |
-| `PRISM_ERROR_INVALID_PARAM` | The vtable's `size` member was zero, the declared feature set was inconsistent with the vtable, or the priority value was negative. |
+| `PRISM_ERROR_INVALID_PARAM` | The vtable's `size` member was zero, the declared feature set contained unknown bits or was inconsistent with the vtable, `name` was empty or hashes to the reserved identifier `PRISM_BACKEND_INVALID`, or the priority value was negative. |
 | `PRISM_ERROR_INVALID_UTF8` | `name` contains invalid UTF-8 sequences. |
 | `PRISM_ERROR_INVALID_OPERATION` | The builder is spent, or a backend with the same name or the same identifier is already present in the builder. |
 | `PRISM_ERROR_MEMORY_FAILURE` | Memory allocation failed. |
@@ -315,8 +315,13 @@ int main(void) {
     }
     PrismBackend *backend = prism_registry_create(ctx, id);
     if (backend) {
-        prism_backend_initialize(backend);
-        prism_backend_speak(backend, "Hello from a custom backend", true);
+        err = prism_backend_initialize(backend);
+        if (err == PRISM_OK) {
+            err = prism_backend_speak(backend, "Hello from a custom backend", true);
+        }
+        if (err != PRISM_OK) {
+            fprintf(stderr, "Speech failed: %s\n", prism_error_string(err));
+        }
         prism_backend_free(backend);
     }
     prism_shutdown(ctx);

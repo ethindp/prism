@@ -33,6 +33,9 @@ jobs:
   build-windows:
     uses: $/.github/workflows/build-windows.yml
 
+  build-xbox:
+    uses: $/.github/workflows/build-xbox.yml
+
   build-linux:
     uses: $/.github/workflows/build-linux.yml
 
@@ -67,7 +70,7 @@ jobs:
     uses: $/.github/workflows/build-sdist.yml
 
   release:
-    needs: [version, build-docs, build-windows, build-linux, build-macos, build-ios, build-tvos, build-visionos, build-watchos, build-android, build-emscripten, build-gdextension, build-wheels, build-sdist]
+    needs: [version, build-docs, build-windows, build-xbox, build-linux, build-macos, build-ios, build-tvos, build-visionos, build-watchos, build-android, build-emscripten, build-gdextension, build-wheels, build-sdist]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -80,11 +83,12 @@ jobs:
         run: |
           tag="${NEEDS_VERSION_OUTPUTS_TAG}"
           sdk="prism-sdk-${tag}"
-          mkdir -p "${sdk}"/{windows/x64,windows/arm64,macos/universal,ios/arm64,ios-simulator/arm64,tvos/arm64,tvos-simulator/arm64,visionos/arm64,visionos-simulator/arm64,watchos/arm64,watchos-simulator/arm64,linux/x64,linux/arm64,android,wasm,include,doc,LICENSES}
+          mkdir -p "${sdk}"/{windows/x64,windows/arm64,xbox,macos/universal,ios/arm64,ios-simulator/arm64,tvos/arm64,tvos-simulator/arm64,visionos/arm64,visionos-simulator/arm64,watchos/arm64,watchos-simulator/arm64,linux/x64,linux/arm64,android,wasm,include,doc,LICENSES}
           cp include/prism.h "${sdk}/include/"
           cp -r artifacts/docs/* "${sdk}/doc/"
           unzip -q artifacts/windows-x64/prism-windows-x64.zip     -d "${sdk}/windows/x64/"
           unzip -q artifacts/windows-arm64/prism-windows-arm64.zip -d "${sdk}/windows/arm64/"
+          unzip -q artifacts/xbox/prism-xbox.zip                   -d "${sdk}/xbox/"
           unzip -q artifacts/macos-universal/prism-macos-universal.zip -d "${sdk}/macos/universal/"
           unzip -q artifacts/ios-arm64/prism-ios-arm64.zip         -d "${sdk}/ios/arm64/"
           unzip -q artifacts/ios-simulator-arm64/prism-ios-simulator-arm64.zip         -d "${sdk}/ios-simulator/arm64/"
@@ -178,6 +182,7 @@ jobs:
             "prismatoid-gdextension-${RELEASE_TAG}.zip" \
             artifacts/windows-x64/prism-windows-x64.zip \
             artifacts/windows-arm64/prism-windows-arm64.zip \
+            artifacts/xbox/prism-xbox.zip \
             artifacts/macos-universal/prism-macos-universal.zip \
             artifacts/ios-arm64/prism-ios-arm64.zip \
             artifacts/ios-simulator-arm64/prism-ios-simulator-arm64.zip \

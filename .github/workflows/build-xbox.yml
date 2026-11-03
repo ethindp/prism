@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
-# Builds Prism's Xbox configuration against the public GDK. The console SDK
-# (GXDK) is not public, so this checks that the Xbox code paths compile; it
-# does not produce console binaries.
+# Builds and packages Prism's Xbox configuration against the public GDK. The
+# console SDK (GXDK) is not public, so the libraries are built with the public
+# GDK's headers and xgameruntime library.
 name: Build Xbox
 on:
   workflow_call:
@@ -53,3 +53,27 @@ jobs:
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             }
           }
+      - name: Package
+        shell: pwsh
+        run: |
+          foreach ($shared in @("ON", "OFF")) {
+            $linkage = if ($shared -eq "ON") { "dynamic" } else { "static" }
+            foreach ($bt in @("Release", "Debug")) {
+              $config = $bt.ToLower()
+              if (Test-Path "dist/${linkage}/${config}") {
+                Remove-Item "dist/${linkage}/${config}" -Recurse -Force
+              }
+              cmake --install "build-${linkage}-${config}" `
+                    --prefix  "dist/${linkage}/${config}" `
+                    --config  $bt
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
+          Copy-Item -Recurse dist/dynamic/release/include dist/include
+          Copy-Item -Recurse LICENSES dist/
+          Copy-Item NOTICE dist/
+          Compress-Archive -Path dist/* -DestinationPath prism-xbox.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: xbox
+          path: prism-xbox.zip

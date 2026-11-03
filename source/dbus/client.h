@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include "../annotations.h"
 #include <dbus/dbus.h>
 #include <expected>
 #include <memory>
@@ -74,7 +75,7 @@ public:
   Connection(Connection &&other) noexcept;
   Connection &operator=(Connection &&other) noexcept;
   ~Connection();
-  void reset() noexcept;
+  PRISM_REINITIALIZES void reset() noexcept;
   explicit operator bool() const noexcept;
   [[nodiscard]] bool connected() const noexcept;
   [[nodiscard]] static Connection open(DBusBusType bus);

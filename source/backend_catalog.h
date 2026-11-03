@@ -1,5 +1,6 @@
 #pragma once
 
+#include "annotations.h"
 #include "backend.h"
 #include "logging.h"
 #include <algorithm>
@@ -125,13 +126,11 @@ template <typename T> struct BackendRegistrar {
 #endif
 
 #define REGISTER_BACKEND(cls, name, priority)                                  \
-  [[gnu::used,                                                                 \
-    gnu::retain]] static ::BackendRegistrar<cls> registrar_##cls##_(name,      \
-                                                                    priority); \
+  PRISM_KEEP static ::BackendRegistrar<cls> registrar_##cls##_(name,           \
+                                                               priority);      \
   PRISM_EMIT_ANCHOR
 
 #define REGISTER_BACKEND_WITH_ID(cls, id, name, priority)                      \
-  [[gnu::used,                                                                 \
-    gnu::retain]] static ::BackendRegistrar<cls> registrar_##cls##_(id, name,  \
-                                                                    priority); \
+  PRISM_KEEP static ::BackendRegistrar<cls> registrar_##cls##_(id, name,       \
+                                                               priority);      \
   PRISM_EMIT_ANCHOR

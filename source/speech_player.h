@@ -2,6 +2,7 @@
 
 #pragma once
 #ifdef _WIN32
+#include "annotations.h"
 #include "backend.h"
 #include "logging.h"
 #include <atlbase.h>
@@ -51,10 +52,13 @@ private:
   std::jthread janitor;
 
 public:
+  PRISM_SUPPRESS("f.6", "creating the janitor thread can fail; that propagates")
   SpeechPlayer();
   ~SpeechPlayer();
   SpeechPlayer(const SpeechPlayer &) = delete;
   SpeechPlayer &operator=(const SpeechPlayer &) = delete;
+  SpeechPlayer(SpeechPlayer &&) = delete;
+  SpeechPlayer &operator=(SpeechPlayer &&) = delete;
 
   BackendResult<> open();
 

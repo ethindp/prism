@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <iterator>
 #include <numeric>
 #include <utility>
@@ -30,17 +31,6 @@ void fill_frame_db(std::span<const float> interleaved, std::size_t channels,
 namespace prism::detail {
 
 // Begin NVGT code
-double range_convert(double v, double a0, double a1, double b0, double b1) {
-  const double t = (v - a0) / (a1 - a0);
-  return std::lerp(b0, b1, t);
-}
-
-float range_convert(float old_value, float old_min, float old_max,
-                    float new_min, float new_max) {
-  return (((old_value - old_min) / (old_max - old_min)) * (new_max - new_min)) +
-         new_min;
-}
-
 float range_convert_midpoint(float old_value, float old_min, float old_midpoint,
                              float old_max, float new_min, float new_midpoint,
                              float new_max) {
@@ -58,11 +48,9 @@ double exp_range_convert(float t, double out_min, double out_mid,
   const double log_min = std::log(out_min);
   const double log_mid = std::log(out_mid);
   const double log_max = std::log(out_max);
-  double log_val;
-  if (t <= 0.5)
-    log_val = log_min + ((log_mid - log_min) * (t / 0.5));
-  else
-    log_val = log_mid + ((log_max - log_mid) * ((t - 0.5) / 0.5));
+  const double log_val =
+      t <= 0.5 ? log_min + ((log_mid - log_min) * (t / 0.5))
+               : log_mid + ((log_max - log_mid) * ((t - 0.5) / 0.5));
   return std::exp(log_val);
 }
 
@@ -71,7 +59,7 @@ float exp_range_convert_inv(double val, double out_min, double out_mid,
   const double log_min = std::log(out_min);
   const double log_mid = std::log(out_mid);
   const double log_max = std::log(out_max);
-  double log_val = std::log(std::clamp(val, out_min, out_max));
+  const double log_val = std::log(std::clamp(val, out_min, out_max));
   if (log_val <= log_mid)
     return static_cast<float>(0.5 * (log_val - log_min) / (log_mid - log_min));
   else
@@ -123,8 +111,11 @@ static inline float percentile(std::span<const float> x, float p,
   const std::size_t n = scratch.size();
   if (n == 1)
     return scratch[0];
-  const auto k = static_cast<std::size_t>(
+  // Through a signed type, so a negative rank clamps instead of being
+  // undefined.
+  const auto rank = static_cast<std::int64_t>(
       std::floor(static_cast<double>(p) * static_cast<double>(n - 1)));
+  const auto k = static_cast<std::size_t>(std::max<std::int64_t>(rank, 0));
   std::nth_element(scratch.begin(),
                    scratch.begin() + static_cast<std::ptrdiff_t>(k),
                    scratch.end());
@@ -404,7 +395,7 @@ trim_silence_rms_gate(std::span<const float> samples_interleaved,
                 static_cast<std::ptrdiff_t>(end * channels),
             out.begin());
   const auto fade_frames = ms_to_frames(P.fade_ms, sample_rate);
-  std::span<float> out_span(out);
+  const std::span<float> out_span(out);
   apply_fade_in(out_span, channels, fade_frames);
   apply_fade_out(out_span, channels, fade_frames);
   return out;

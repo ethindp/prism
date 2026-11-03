@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "logging.h"
+#include "annotations.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -27,6 +28,7 @@ std::once_flag logging_initializer;
 #endif
 } // namespace
 
+PRISM_SUPPRESS("f.6", "starting the drain thread can fail; that propagates")
 Logger::Logger() : drain([this](const std::stop_token &st) { run(st); }) {}
 
 Logger::~Logger() { shutdown(); }
@@ -90,6 +92,7 @@ void Logger::report_drops(const PrismLogHandler &pair) noexcept {
   // NOLINTEND(bugprone-empty-catch)
 }
 
+PRISM_SUPPRESS("f.6", "an exception leaving the drain thread terminates anyway")
 void Logger::run(const std::stop_token &st) noexcept {
   moodycamel::ConsumerToken token(queue);
   std::array<Record, drain_bulk> batch;
@@ -111,6 +114,7 @@ void Logger::flush() {
   lifecycle_cv.wait(lock, [this, target] { return completed >= target; });
 }
 
+PRISM_SUPPRESS("f.6", "the thread is joinable and never the calling thread")
 void Logger::shutdown() noexcept {
   {
     std::unique_lock lock(lifecycle_mtx);

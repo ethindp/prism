@@ -9,6 +9,7 @@ struct InstallLocation {
   const TCHAR *value;
 };
 
+// Never throws: a failure while searching is reported as not found.
 SharedLibrary open_optional_library(const TCHAR *dll,
-                                    const InstallLocation *install);
+                                    const InstallLocation *install) noexcept;
 #endif

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "annotations.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -47,9 +48,16 @@ struct TrimParams {
 
 // These functions are taken from NVGT, and therefore these files are
 // Zlib-licensed.
-double range_convert(double v, double a0, double a1, double b0, double b1);
-float range_convert(float old_value, float old_min, float old_max,
-                    float new_min, float new_max);
+constexpr double range_convert(double v, double a0, double a1, double b0,
+                               double b1) {
+  const double t = (v - a0) / (a1 - a0);
+  return std::lerp(b0, b1, t);
+}
+constexpr float range_convert(float old_value, float old_min, float old_max,
+                              float new_min, float new_max) {
+  return (((old_value - old_min) / (old_max - old_min)) * (new_max - new_min)) +
+         new_min;
+}
 float range_convert_midpoint(float old_value, float old_min, float old_midpoint,
                              float old_max, float new_min, float new_midpoint,
                              float new_max);
@@ -59,7 +67,7 @@ double exp_range_convert(float t, double out_min, double out_mid,
 float exp_range_convert_inv(double val, double out_min, double out_mid,
                             double out_max);
 
-struct TrimView {
+struct PRISM_GSL_POINTER(float) TrimView {
   std::span<float> view; // points into caller memory
   bool speech_detected = false;
 };
@@ -69,10 +77,10 @@ trim_silence_rms_gate(std::span<const float> samples_interleaved,
                       std::size_t channels, std::size_t sample_rate,
                       const TrimParams &P = {});
 
-TrimView trim_silence_rms_gate_inplace(std::span<float> interleaved,
-                                       std::size_t channels,
-                                       std::size_t sample_rate,
-                                       const TrimParams &P = {});
+TrimView
+trim_silence_rms_gate_inplace(std::span<float> interleaved PRISM_LIFETIMEBOUND,
+                              std::size_t channels, std::size_t sample_rate,
+                              const TrimParams &P = {});
 
 } // namespace prism::detail
 

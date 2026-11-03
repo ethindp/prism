@@ -392,7 +392,7 @@ US_EXPORT(const ____wchar_t *) speechGetString(int what) {
     PrismBackend *backend = us_backend_locked(us_resolve_current_locked());
     const char *name = PRISM_SHIM_NULL;
     if (backend != PRISM_SHIM_NULL &&
-        prism_backend_get_voice_name(backend, (size_t)(what - SP_VOICE),
+        prism_backend_get_voice_name(backend, (size_t)what - (size_t)SP_VOICE,
                                      &name) == PRISM_OK)
       result = shim_intern_wide(&us_strings, name);
   }

@@ -130,7 +130,7 @@ public:
     }
   }
 
-  void shutdown() {
+  void shutdown() noexcept {
     if (thread == nullptr && request == nullptr && done == nullptr &&
         !lock_initialized)
       return;
@@ -158,6 +158,11 @@ public:
     }
   }
 
+  BrailleMarshaller() = default;
+  BrailleMarshaller(const BrailleMarshaller &) = delete;
+  BrailleMarshaller &operator=(const BrailleMarshaller &) = delete;
+  BrailleMarshaller(BrailleMarshaller &&) = delete;
+  BrailleMarshaller &operator=(BrailleMarshaller &&) = delete;
   ~BrailleMarshaller() { shutdown(); }
 };
 
@@ -260,7 +265,6 @@ public:
         }
         return {};
       }
-      return {};
     });
   }
 

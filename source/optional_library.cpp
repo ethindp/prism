@@ -7,11 +7,12 @@
 #include <optional>
 #include <string>
 #include <tchar.h>
+#include <utility>
 #include <windows.h>
 
 namespace {
 std::optional<std::filesystem::path> prism_folder() {
-  static const int anchor = 0;
+  static constexpr int anchor = 0;
   HMODULE module = nullptr;
   if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                             GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -47,19 +48,15 @@ install_folder(const InstallLocation &install) {
     return std::nullopt;
   return std::filesystem::path(folder);
 }
-} // namespace
 
-SharedLibrary open_optional_library(const TCHAR *dll,
-                                    const InstallLocation *install) {
+std::optional<SharedLibrary> search_further(const TCHAR *dll,
+                                            const InstallLocation *install) {
   static const LogSource log{"prism/optional_library"};
-  SharedLibrary library{dll};
-  if (library)
-    return library;
   log.trace(_T("{} is not on the DLL search path (LastError={})"), dll,
             SharedLibrary::last_error());
   if (const auto folder = prism_folder()) {
     const auto path = *folder / dll;
-    library = SharedLibrary{path.string<TCHAR>().c_str()};
+    SharedLibrary library{path.string<TCHAR>().c_str()};
     if (library)
       return library;
     log.trace(_T("{} is not in {} (LastError={})"), dll,
@@ -68,7 +65,7 @@ SharedLibrary open_optional_library(const TCHAR *dll,
   if (install != nullptr) {
     if (const auto folder = install_folder(*install)) {
       const auto path = *folder / dll;
-      library = SharedLibrary{path.string<TCHAR>().c_str()};
+      SharedLibrary library{path.string<TCHAR>().c_str()};
       if (library)
         return library;
       log.trace(_T("{} is not in {} (LastError={})"), dll,
@@ -77,6 +74,24 @@ SharedLibrary open_optional_library(const TCHAR *dll,
       log.trace(_T("no install folder for {} in the registry"), dll);
     }
   }
+  return std::nullopt;
+}
+} // namespace
+
+SharedLibrary open_optional_library(const TCHAR *dll,
+                                    const InstallLocation *install) noexcept {
+  SharedLibrary library{dll};
+  if (library)
+    return library;
+  // Paths and the registry allocate; failing there is the same as not finding
+  // the library.
+  // NOLINTBEGIN(bugprone-empty-catch)
+  try {
+    if (auto found = search_further(dll, install))
+      return std::move(*found);
+  } catch (...) {
+  }
+  // NOLINTEND(bugprone-empty-catch)
   return library;
 }
 #endif

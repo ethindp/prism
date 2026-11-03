@@ -6,6 +6,7 @@
 #if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) ||          \
     defined(__amd64) || defined(_M_X64) || defined(_M_IX86) ||                 \
     defined(__i386__)
+#include "../annotations.h"
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../logging.h"
@@ -114,7 +115,7 @@ template <std::size_t... Is> struct SlotTableImpl {
     return nullptr;
   }
 
-  static void release(BoyPCReaderBackend *obj) {
+  static void release(const BoyPCReaderBackend *obj) {
     assert(obj != nullptr);
     std::scoped_lock lock(callback_slots_mtx);
     for (auto &e : entries) {
@@ -163,6 +164,12 @@ private:
   void handle_speak_complete([[maybe_unused]] int reason) { speaking.clear(); }
 
 public:
+  BoyPCReaderBackend() = default;
+  BoyPCReaderBackend(const BoyPCReaderBackend &) = delete;
+  BoyPCReaderBackend &operator=(const BoyPCReaderBackend &) = delete;
+  BoyPCReaderBackend(BoyPCReaderBackend &&) = delete;
+  BoyPCReaderBackend &operator=(BoyPCReaderBackend &&) = delete;
+  PRISM_SUPPRESS("f.6", "releasing the slot only locks a mutex")
   ~BoyPCReaderBackend() override {
     if (complete_callback != nullptr) {
       Slots::release(this);

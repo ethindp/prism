@@ -276,14 +276,15 @@ char *shim_wchar_to_utf8(const wchar_t *src) {
   while (in_pos < in_len) {
     uint32_t cp = (uint32_t)src[in_pos];
     ++in_pos;
-    if ((WCHAR_MAX <= 0xFFFF) && (cp >= 0xD800) && (cp <= 0xDBFF) &&
-        (in_pos < in_len)) {
+#if WCHAR_MAX <= 0xFFFF
+    if ((cp >= 0xD800) && (cp <= 0xDBFF) && (in_pos < in_len)) {
       const uint32_t low = (uint32_t)src[in_pos];
       if ((low >= 0xDC00) && (low <= 0xDFFF)) {
         ++in_pos;
         cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
       }
     }
+#endif
     if (((cp >= 0xD800) && (cp <= 0xDFFF)) || (cp > 0x10FFFF)) {
       cp = 0xFFFD;
     }
@@ -324,7 +325,7 @@ wchar_t *shim_utf8_to_wchar(const char *src) {
     return PRISM_SHIM_NULL;
   }
   const size_t cap = in_len + 1;
-  wchar_t *buf = malloc(cap * sizeof(wchar_t));
+  wchar_t *buf = calloc(cap, sizeof(wchar_t));
   if (buf == PRISM_SHIM_NULL) {
     return PRISM_SHIM_NULL;
   }
@@ -373,19 +374,19 @@ wchar_t *shim_utf8_to_wchar(const char *src) {
       free(buf);
       return PRISM_SHIM_NULL;
     }
-    if (WCHAR_MAX <= 0xFFFF) {
-      if (cp >= 0x10000) {
-        if ((cap - out_pos) < 3) {
-          free(buf);
-          return PRISM_SHIM_NULL;
-        }
-        const uint32_t adjusted = cp - 0x10000;
-        buf[out_pos] = (wchar_t)(0xD800 + (adjusted >> 10));
-        buf[out_pos + 1] = (wchar_t)(0xDC00 + (adjusted & 0x3FF));
-        out_pos += 2;
-        continue;
+#if WCHAR_MAX <= 0xFFFF
+    if (cp >= 0x10000) {
+      if ((cap - out_pos) < 3) {
+        free(buf);
+        return PRISM_SHIM_NULL;
       }
+      const uint32_t adjusted = cp - 0x10000;
+      buf[out_pos] = (wchar_t)(0xD800 + (adjusted >> 10));
+      buf[out_pos + 1] = (wchar_t)(0xDC00 + (adjusted & 0x3FF));
+      out_pos += 2;
+      continue;
     }
+#endif
     if ((cap - out_pos) < 2) {
       free(buf);
       return PRISM_SHIM_NULL;
@@ -580,7 +581,7 @@ bool shim_audio_to_pcm16_mono(const ShimAudioBuffer *buffer,
   if (output_frames == 0 || output_frames > SIZE_MAX / sizeof(int16_t)) {
     return false;
   }
-  int16_t *output = malloc(output_frames * sizeof(*output));
+  int16_t *output = calloc(output_frames, sizeof(*output));
   if (output == PRISM_SHIM_NULL) {
     return false;
   }

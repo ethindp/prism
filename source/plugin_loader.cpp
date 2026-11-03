@@ -43,8 +43,8 @@ static_assert(offsetof(ServicesBlock, services) == 0,
               "PrismPluginServices must be the first member of ServicesBlock");
 
 struct PluginBackendState {
-  ServicesBlock block;
-  PrismPluginInstanceContext ctx;
+  ServicesBlock block{};
+  PrismPluginInstanceContext ctx{};
   std::string name;
 };
 
@@ -111,7 +111,7 @@ LibraryHandle open_library(std::string_view path) {
                            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR);
 }
 
-void close_library(LibraryHandle h) { FreeLibrary(h); }
+void close_library(LibraryHandle h) noexcept { FreeLibrary(h); }
 
 std::string last_library_error() {
   const auto error = GetLastError();
@@ -149,7 +149,7 @@ LibraryHandle open_library(std::string_view path) {
   return dlopen(owned.c_str(), RTLD_NOW | RTLD_LOCAL);
 }
 
-void close_library(LibraryHandle h) { dlclose(h); }
+void close_library(LibraryHandle h) noexcept { dlclose(h); }
 
 std::string last_library_error() {
   // NOLINTNEXTLINE(concurrency-mt-unsafe)
@@ -172,6 +172,8 @@ struct LoadedLibrary {
   LoadedLibrary() = default;
   LoadedLibrary(const LoadedLibrary &) = delete;
   LoadedLibrary &operator=(const LoadedLibrary &) = delete;
+  LoadedLibrary(LoadedLibrary &&) = delete;
+  LoadedLibrary &operator=(LoadedLibrary &&) = delete;
   ~LoadedLibrary() {
     if (handle != nullptr)
       close_library(handle);

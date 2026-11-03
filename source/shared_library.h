@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #pragma once
+#include "annotations.h"
+#include <bit>
 #include <memory>
 #ifdef _WIN32
 #include <type_traits>
@@ -38,11 +40,10 @@ public:
   // Binds one function, typed by the declaration the library's own header
   // gives it, so a changed signature fails to compile.
   template <class Function>
-  [[nodiscard]] bool bind(Function &function, const char *name) const noexcept {
+  [[nodiscard]] bool bind(Function &function, const char *name) const noexcept
+      PRISM_LIFETIME_CAPTURE_BY(function) {
 #ifdef _WIN32
-    // NOLINTNEXTLINE(bugprone-casting-through-void)
-    function = reinterpret_cast<Function>(
-        reinterpret_cast<void *>(GetProcAddress(handle.get(), name)));
+    function = std::bit_cast<Function>(GetProcAddress(handle.get(), name));
 #else
     function = reinterpret_cast<Function>(dlsym(handle.get(), name));
 #endif

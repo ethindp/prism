@@ -23,7 +23,8 @@ private:
   CComPtr<_Application> we_application;
   CComPtr<_Speech> speech_obj;
   CComPtr<_Braille> braille_obj;
-  VARIANT var_opt;
+  // Window-Eyes takes an optional argument as "parameter not found".
+  CComVariant var_opt{DISP_E_PARAMNOTFOUND, VT_ERROR};
   std::atomic_flag initialized;
 
 public:
@@ -34,11 +35,11 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
-    if (auto *const handle =
+    if (const auto *const handle =
             FindWindow(_T("GWMExternalControl"), _T("External Control"));
         handle != INVALID_HANDLE_VALUE && handle != nullptr) {
       IClassFactory *factory = nullptr;
-      HRESULT hr = CoGetClassObject(
+      const HRESULT hr = CoGetClassObject(
           CLSID_Application, CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER,
           nullptr, IID_IClassFactory, reinterpret_cast<void **>(&factory));
       if (SUCCEEDED(hr) && factory != nullptr) {
@@ -73,8 +74,6 @@ public:
       we_application = candidate_application;
       speech_obj = candidate_speech;
       braille_obj = candidate_braille;
-      var_opt.vt = VT_ERROR;
-      var_opt.scode = DISP_E_PARAMNOTFOUND;
       initialized.test_and_set();
       return {};
     }
@@ -84,7 +83,6 @@ public:
     default:
       return std::unexpected(BackendError::Unknown);
     }
-    return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {

@@ -24,6 +24,11 @@ private:
   std::optional<OrcaService> service;
 
 public:
+  OrcaBackend() = default;
+  OrcaBackend(const OrcaBackend &) = delete;
+  OrcaBackend &operator=(const OrcaBackend &) = delete;
+  OrcaBackend(OrcaBackend &&) = delete;
+  OrcaBackend &operator=(OrcaBackend &&) = delete;
   ~OrcaBackend() override = default;
 
   [[nodiscard]] std::string_view get_name() const override { return "Orca"; }
@@ -144,6 +149,11 @@ private:
   const OrcaBridge *api = nullptr;
 
 public:
+  OrcaBackend() = default;
+  OrcaBackend(const OrcaBackend &) = delete;
+  OrcaBackend &operator=(const OrcaBackend &) = delete;
+  OrcaBackend(OrcaBackend &&) = delete;
+  OrcaBackend &operator=(OrcaBackend &&) = delete;
   ~OrcaBackend() override {
     if (instance != nullptr) {
       api->prism_orca_destroy(instance);

@@ -48,6 +48,14 @@ private:
   handle_t controller_handle{nullptr};
   std::atomic_flag supports_is_speaking;
 
+  // RpcStringBindingCompose takes its inputs as mutable strings.
+  static RPC_STATUS compose_binding(std::wstring endpoint, RPC_WSTR *out) {
+    std::wstring protocol = _T("ncalrpc");
+    return RpcStringBindingCompose(
+        nullptr, reinterpret_cast<RPC_WSTR>(protocol.data()), nullptr,
+        reinterpret_cast<RPC_WSTR>(endpoint.data()), nullptr, out);
+  }
+
   static bool server_supports_interface(handle_t binding,
                                         RPC_IF_HANDLE ifspec) {
     RPC_IF_ID_VECTOR *vec = nullptr;
@@ -60,10 +68,8 @@ private:
     bool found = false;
     for (unsigned i = 0; i < vec->Count && !found; ++i) {
       const RPC_IF_ID *id = vec->IfId[i];
-      RPC_STATUS st = RPC_S_OK;
-      if (UuidEqual(const_cast<UUID *>(&wanted), const_cast<UUID *>(&id->Uuid),
-                    &st) != FALSE &&
-          id->VersMajor == wanted_mj && id->VersMinor == wanted_mn) {
+      if (id->Uuid == wanted && id->VersMajor == wanted_mj &&
+          id->VersMinor == wanted_mn) {
         found = true;
       }
     }
@@ -72,6 +78,11 @@ private:
   }
 
 public:
+  NvdaBackend() = default;
+  NvdaBackend(const NvdaBackend &) = delete;
+  NvdaBackend &operator=(const NvdaBackend &) = delete;
+  NvdaBackend(NvdaBackend &&) = delete;
+  NvdaBackend &operator=(NvdaBackend &&) = delete;
   ~NvdaBackend() override {
     if (controller_handle != nullptr) {
       RpcBindingFree(&controller_handle);
@@ -103,12 +114,7 @@ public:
     const auto endpoint =
         fmt::format(_T("NvdaCtlr.{}.{}"), session_id, desktop_name);
     RPC_WSTR string_binding = nullptr;
-    if (RpcStringBindingCompose(
-            nullptr,
-            reinterpret_cast<RPC_WSTR>(const_cast<wchar_t *>(_T("ncalrpc"))),
-            nullptr,
-            reinterpret_cast<RPC_WSTR>(const_cast<wchar_t *>(endpoint.c_str())),
-            nullptr, &string_binding) != RPC_S_OK)
+    if (compose_binding(endpoint, &string_binding) != RPC_S_OK)
       return features;
     handle_t handle = nullptr;
     if (RpcBindingFromStringBinding(string_binding, &handle) != RPC_S_OK) {
@@ -144,16 +150,10 @@ public:
         res == 0)
       return std::unexpected(BackendError::BackendNotAvailable);
     const std::wstring desktop_ns = fmt::format(_T("{}.{}"), sid, desktop_name);
-    RPC_STATUS status;
     handle_t binding = nullptr;
     const auto endpoint = fmt::format(_T("NvdaCtlr.{}"), desktop_ns);
     RPC_WSTR string_binding = nullptr;
-    status = RpcStringBindingCompose(
-        nullptr,
-        reinterpret_cast<RPC_WSTR>(const_cast<wchar_t *>(_T("ncalrpc"))),
-        nullptr,
-        reinterpret_cast<RPC_WSTR>(const_cast<wchar_t *>(endpoint.c_str())),
-        nullptr, &string_binding);
+    RPC_STATUS status = compose_binding(endpoint, &string_binding);
     if (status != RPC_S_OK)
       return std::unexpected(BackendError::BackendNotAvailable);
     status = RpcBindingFromStringBinding(string_binding, &binding);

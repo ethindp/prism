@@ -91,7 +91,7 @@ private:
     batch.encode(encoded);
     COPYDATASTRUCT cds{.dwData = 0x27BF2,
                        .cbData = static_cast<DWORD>(encoded.size()),
-                       .lpData = reinterpret_cast<LPVOID>(encoded.data())};
+                       .lpData = encoded.data()};
     return SendMessageTimeout(window, WM_COPYDATA, 0,
                               reinterpret_cast<LPARAM>(std::addressof(cds)),
                               SMTO_BLOCK, 1000, nullptr) != 0;

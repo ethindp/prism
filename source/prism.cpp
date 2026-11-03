@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "prism.h"
+#include "annotations.h"
 #include "backend_enumerator.h"
 #include "frozen_registry.h"
 #include "logging.h"
@@ -21,6 +22,12 @@
 #include <jni.h>
 #endif
 
+// The C API hands out mutable handles on purpose: almost every call changes
+// the backend or context behind them, even where this layer only forwards.
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(disable : 26461)
+#endif
+
 struct PrismContext {
   FrozenRegistry *registry;
   std::unique_ptr<BackendEnumerator> enumerator;
@@ -28,6 +35,10 @@ struct PrismContext {
   explicit PrismContext(FrozenRegistry *registry) : registry(registry) {
     registry->retain();
   }
+  PrismContext(const PrismContext &) = delete;
+  PrismContext &operator=(const PrismContext &) = delete;
+  PrismContext(PrismContext &&) = delete;
+  PrismContext &operator=(PrismContext &&) = delete;
   ~PrismContext() {
     enumerator.reset();
     registry->release();
@@ -46,18 +57,19 @@ BackendFactory make_custom_factory(const PrismBackendVTable *vtable,
                                    void (*userdata_free)(void *),
                                    std::uint64_t features, std::string name);
 
-static inline PrismError to_prism_error(BackendError e) {
+static constexpr PrismError to_prism_error(BackendError e) {
   return static_cast<PrismError>(std::to_underlying(e));
 }
 
-static inline BackendId to_backend_id(PrismBackendId id) {
+static constexpr BackendId to_backend_id(PrismBackendId id) {
   return static_cast<BackendId>(id);
 }
 
-static inline PrismBackendId to_prism_id(BackendId id) {
+static constexpr PrismBackendId to_prism_id(BackendId id) {
   return std::to_underlying(id);
 }
 
+PRISM_SUPPRESS("r.3", "the C API returns owning handles")
 static PrismBackend *wrap_backend(std::shared_ptr<TextToSpeechBackend> impl) {
   if (!impl)
     return nullptr;
@@ -88,7 +100,7 @@ PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void) {
   return cfg;
 }
 
-PRISM_API PRISM_NODISCARD PrismContext *PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_MALLOC PrismContext *PRISM_CALL
 prism_init(PrismConfig *cfg) {
   init_logging_from_env();
   FrozenRegistry *registry = FrozenRegistry::global();
@@ -171,12 +183,12 @@ prism_registry_get(PrismContext *ctx, PrismBackendId id) {
   return wrap_backend(ctx->registry->get(to_backend_id(id)));
 }
 
-PRISM_API PRISM_NODISCARD PrismBackend *PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_MALLOC PrismBackend *PRISM_CALL
 prism_registry_create(PrismContext *ctx, PrismBackendId id) {
   return wrap_backend(ctx->registry->create(to_backend_id(id)));
 }
 
-PRISM_API PRISM_NODISCARD PrismBackend *PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_MALLOC PrismBackend *PRISM_CALL
 prism_registry_create_best(PrismContext *ctx) {
   return wrap_backend(ctx->registry->create_best());
 }
@@ -191,7 +203,7 @@ prism_registry_acquire_best(PrismContext *ctx) {
   return wrap_backend(ctx->registry->acquire_best());
 }
 
-PRISM_API PRISM_NODISCARD PrismRegistryBuilder *PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_MALLOC PrismRegistryBuilder *PRISM_CALL
 prism_registry_builder_new(void) {
   return reinterpret_cast<PrismRegistryBuilder *>(new (std::nothrow)
                                                       RegistryBuilder());
@@ -249,7 +261,7 @@ prism_registry_builder_add_library(PrismRegistryBuilder *builder,
                      priority_override, out_count);
 }
 
-PRISM_API PRISM_NODISCARD PrismRegistry *PRISM_CALL
+PRISM_API PRISM_NODISCARD PRISM_MALLOC PrismRegistry *PRISM_CALL
 prism_registry_freeze(PrismRegistryBuilder *builder) {
   return reinterpret_cast<PrismRegistry *>(
       reinterpret_cast<RegistryBuilder *>(builder)->freeze());

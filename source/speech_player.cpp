@@ -2,6 +2,7 @@
 
 #ifdef _WIN32
 #include "speech_player.h"
+#include "annotations.h"
 #include "utils.h"
 #include <atlbase.h>
 #include <span>
@@ -47,6 +48,8 @@ struct SpeechPlayer::Utterance final : IXAudio2VoiceCallback {
   }
   void STDMETHODCALLTYPE
   OnLoopEnd([[maybe_unused]] void *context) noexcept override {}
+  PRISM_SUPPRESS(
+      "f.6", "logging is noexcept; format strings are checked at compile time")
   void STDMETHODCALLTYPE OnVoiceError([[maybe_unused]] void *context,
                                       HRESULT error) noexcept override {
     player->logger.error("XAudio2 voice error: {:#010x}",
@@ -54,12 +57,18 @@ struct SpeechPlayer::Utterance final : IXAudio2VoiceCallback {
   }
 };
 
-class SpeechPlayer::EngineCallback final : public IXAudio2EngineCallback {
+class SpeechPlayer::EngineCallback : public IXAudio2EngineCallback {
 private:
   SpeechPlayer &player;
 
 public:
-  explicit EngineCallback(SpeechPlayer &owner) : player(owner) {}
+  explicit EngineCallback(SpeechPlayer &owner PRISM_LIFETIMEBOUND)
+      : player(owner) {}
+  virtual ~EngineCallback() = default;
+  EngineCallback(const EngineCallback &) = delete;
+  EngineCallback &operator=(const EngineCallback &) = delete;
+  EngineCallback(EngineCallback &&) = delete;
+  EngineCallback &operator=(EngineCallback &&) = delete;
   void STDMETHODCALLTYPE OnProcessingPassStart() noexcept override {}
   void STDMETHODCALLTYPE OnProcessingPassEnd() noexcept override {}
   void STDMETHODCALLTYPE OnCriticalError(HRESULT error) noexcept override {
@@ -122,6 +131,7 @@ bool SpeechPlayer::default_device_changed() const {
 
 SpeechPlayer::SpeechPlayer() = default;
 
+PRISM_SUPPRESS("f.6", "the thread is joinable and never the calling thread")
 SpeechPlayer::~SpeechPlayer() {
   {
     std::scoped_lock lock(mutex);
@@ -228,6 +238,7 @@ void SpeechPlayer::play(std::uint64_t request_generation,
   start_head_locked();
 }
 
+PRISM_SUPPRESS("f.6", "splicing lists that share an allocator does not throw")
 void SpeechPlayer::on_buffer_end(Utterance &utterance) noexcept {
   std::scoped_lock lock(mutex);
   utterance.done = true;
@@ -241,6 +252,8 @@ void SpeechPlayer::on_buffer_end(Utterance &utterance) noexcept {
   start_head_locked();
 }
 
+PRISM_SUPPRESS(
+    "f.6", "logging is noexcept; format strings are checked at compile time")
 void SpeechPlayer::on_critical_error(HRESULT error) noexcept {
   logger.error("XAudio2 critical error: {:#010x}",
                static_cast<std::uint32_t>(error));
@@ -256,6 +269,7 @@ void SpeechPlayer::start_head_locked() noexcept {
     (void)queue.front().voice->Start(0);
 }
 
+PRISM_SUPPRESS("f.6", "splicing lists that share an allocator does not throw")
 void SpeechPlayer::retire_all_locked() noexcept {
   if (queue.empty())
     return;

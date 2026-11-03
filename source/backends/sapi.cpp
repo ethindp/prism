@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
+#include "../annotations.h"
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../logging.h"
@@ -55,10 +56,12 @@ struct ComApartmentGuard {
   explicit ComApartmentGuard(HRESULT result) : initialized(SUCCEEDED(result)) {}
   ComApartmentGuard(const ComApartmentGuard &) = delete;
   ComApartmentGuard &operator=(const ComApartmentGuard &) = delete;
+  ComApartmentGuard(ComApartmentGuard &&) = delete;
+  ComApartmentGuard &operator=(ComApartmentGuard &&) = delete;
 };
 
 template <class T>
-const T *lifetime_as_array(const void *p,
+const T *lifetime_as_array(const void *p PRISM_LIFETIMEBOUND,
                            [[maybe_unused]] std::size_t n) noexcept {
 #ifdef __cpp_lib_start_lifetime_as
   static_assert(__cpp_lib_start_lifetime_as >= 202207L,
@@ -81,10 +84,12 @@ constexpr WAVEFORMATEX FALLBACK_FORMAT{
 
 class CaptureStream final : public IStream {
 public:
-  CaptureStream(const SpeechPlayer *player, std::uint64_t generation)
+  CaptureStream(const SpeechPlayer *player PRISM_LIFETIMEBOUND,
+                std::uint64_t generation)
       : player(player), generation(generation) {}
 
-  [[nodiscard]] std::span<const std::byte> bytes() const noexcept {
+  [[nodiscard]] std::span<const std::byte>
+  bytes() const noexcept PRISM_LIFETIMEBOUND {
     return captured;
   }
 
@@ -114,6 +119,7 @@ public:
        [[maybe_unused]] ULONG *read) noexcept override {
     return E_NOTIMPL;
   }
+  PRISM_SUPPRESS("f.6", "reading the generation only locks a mutex")
   HRESULT STDMETHODCALLTYPE Write(const void *data, ULONG size,
                                   ULONG *written) noexcept override {
     if (written != nullptr)
@@ -319,7 +325,7 @@ private:
     CComPtr<IXmlWriter> writer;
     CComPtr<IXmlWriterOutput> output;
     const auto pitch_text = std::to_wstring(pitch_value);
-    LARGE_INTEGER zero{};
+    const LARGE_INTEGER zero{};
     ULARGE_INTEGER end{};
     if (FAILED(CreateXmlWriter(__uuidof(IXmlWriter),
                                reinterpret_cast<void **>(&writer), nullptr)) ||
@@ -347,7 +353,7 @@ private:
     return markup;
   }
 
-  static DWORD speak_flags(LONG pitch_value) {
+  static constexpr DWORD speak_flags(LONG pitch_value) {
     return pitch_value != 0 ? SPF_IS_XML : SPF_IS_NOT_XML;
   }
 
@@ -597,6 +603,12 @@ private:
   }
 
 public:
+  SapiBackend() = default;
+  SapiBackend(const SapiBackend &) = delete;
+  SapiBackend &operator=(const SapiBackend &) = delete;
+  SapiBackend(SapiBackend &&) = delete;
+  SapiBackend &operator=(SapiBackend &&) = delete;
+  PRISM_SUPPRESS("f.6", "the thread is joinable and never the calling thread")
   ~SapiBackend() override {
     if (worker.joinable()) {
       {

@@ -28,10 +28,10 @@ public:
     std::bitset<64> features;
     if (FindWindow(_T("XVSRD"), nullptr) != nullptr) {
       IClassFactory *factory = nullptr;
-      HRESULT hr = CoGetClassObject(__uuidof(SenseReaderApplication),
-                                    CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER,
-                                    nullptr, IID_IClassFactory,
-                                    reinterpret_cast<void **>(&factory));
+      const HRESULT hr = CoGetClassObject(
+          __uuidof(SenseReaderApplication),
+          CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER, nullptr,
+          IID_IClassFactory, reinterpret_cast<void **>(&factory));
       if (SUCCEEDED(hr) && factory != nullptr) {
         factory->Release();
         features |= IS_SUPPORTED_AT_RUNTIME;

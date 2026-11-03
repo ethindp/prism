@@ -6,8 +6,17 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+// fmt trips C4702 (unreachable code) during code generation, which is past
+// where /external:W0 can silence it.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4702)
+#endif
 #include <fmt/format.h>
 #include <fmt/xchar.h>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #include <moodycamel/blockingconcurrentqueue.h>
 #include <mutex>
 #include <new>
@@ -26,6 +35,11 @@ using std::hardware_destructive_interference_size;
 constexpr std::size_t hardware_destructive_interference_size = 64;
 #endif
 
+#ifdef _MSC_VER
+#pragma warning(push)
+// The padding is the point: threshold and dropped get cache lines of their own.
+#pragma warning(disable : 4324)
+#endif
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 class Logger {
 private:
@@ -77,6 +91,8 @@ public:
   Logger(const Logger &) = delete;
 
   Logger &operator=(const Logger &) = delete;
+  Logger(Logger &&) = delete;
+  Logger &operator=(Logger &&) = delete;
 
   PrismLogHandler set_handler(PrismLogHandler next) noexcept;
 
@@ -97,6 +113,10 @@ public:
 
   void shutdown() noexcept;
 };
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 [[nodiscard]] Logger *logger() noexcept;
 

@@ -26,7 +26,7 @@ public:
     using namespace BackendFeature;
     std::bitset<64> features;
     IClassFactory *factory = nullptr;
-    HRESULT hr = CoGetClassObject(
+    const HRESULT hr = CoGetClassObject(
         CLSID_JawsApi, CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER, nullptr,
         IID_IClassFactory, reinterpret_cast<void **>(&factory));
     if (SUCCEEDED(hr) && factory != nullptr) {
@@ -55,7 +55,6 @@ public:
     default:
       return std::unexpected(BackendError::Unknown);
     }
-    return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {

@@ -218,6 +218,10 @@ public:
     mta_usage_retained = SUCCEEDED(CoIncrementMTAUsage(&mta_cookie));
   }
 
+  ComTextToSpeechBackend(const ComTextToSpeechBackend &) = delete;
+  ComTextToSpeechBackend &operator=(const ComTextToSpeechBackend &) = delete;
+  ComTextToSpeechBackend(ComTextToSpeechBackend &&) = delete;
+  ComTextToSpeechBackend &operator=(ComTextToSpeechBackend &&) = delete;
   ~ComTextToSpeechBackend() override {
     if (mta_usage_retained)
       (void)CoDecrementMTAUsage(mta_cookie);

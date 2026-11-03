@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
+#include "../annotations.h"
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../logging.h"
@@ -11,6 +12,7 @@
 #include <concepts>
 #include <condition_variable>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <dr_wav/dr_wav.h>
@@ -25,6 +27,7 @@
 #include <roapi.h>
 #include <simdutf.h>
 #include <span>
+#include <stdexcept>
 #include <tchar.h>
 #include <thread>
 #include <type_traits>
@@ -73,7 +76,7 @@ struct fmt::formatter<winrt::hstring, char>
 inline bool is_current_thread_sta() noexcept {
   APTTYPE type{};
   APTTYPEQUALIFIER qual{};
-  HRESULT hr = CoGetApartmentType(&type, &qual);
+  const HRESULT hr = CoGetApartmentType(&type, &qual);
   if (FAILED(hr))
     return false;
   return type == APTTYPE_STA || type == APTTYPE_MAINSTA;
@@ -92,12 +95,14 @@ struct WinrtApartmentGuard {
   }
   WinrtApartmentGuard(const WinrtApartmentGuard &) = delete;
   WinrtApartmentGuard &operator=(const WinrtApartmentGuard &) = delete;
+  WinrtApartmentGuard(WinrtApartmentGuard &&) = delete;
+  WinrtApartmentGuard &operator=(WinrtApartmentGuard &&) = delete;
   explicit operator bool() const noexcept { return SUCCEEDED(hr); }
 };
 
 struct MtaEventGuard {
   HANDLE h;
-  MtaEventGuard() : h(CreateEvent(nullptr, TRUE, FALSE, nullptr)) {}
+  MtaEventGuard() noexcept : h(CreateEvent(nullptr, TRUE, FALSE, nullptr)) {}
   ~MtaEventGuard() noexcept {
     if (h != nullptr) {
       CloseHandle(h);
@@ -106,6 +111,8 @@ struct MtaEventGuard {
   }
   MtaEventGuard(const MtaEventGuard &) = delete;
   MtaEventGuard &operator=(const MtaEventGuard &) = delete;
+  MtaEventGuard(MtaEventGuard &&) = delete;
+  MtaEventGuard &operator=(MtaEventGuard &&) = delete;
   explicit operator bool() const noexcept { return h != nullptr; }
 };
 
@@ -154,11 +161,16 @@ template <std::invocable F> auto run_on_mta(F &&fn) -> std::invoke_result_t<F> {
       &ctx, nullptr);
   if (!ok)
     throw std::runtime_error("run_on_mta: TrySubmitThreadpoolCallback failed");
-  WaitForSingleObject(evt.h, INFINITE);
+  // The callback still holds ctx, so there is no way to leave before it ends.
+  if (WaitForSingleObject(evt.h, INFINITE) != WAIT_OBJECT_0)
+    std::abort();
   if (ctx.ex)
     std::rethrow_exception(ctx.ex);
-  if constexpr (!std::is_void_v<R>)
+  if constexpr (!std::is_void_v<R>) {
+    if (!ctx.result)
+      throw std::logic_error("run_on_mta: the callback produced no result");
     return std::move(*ctx.result);
+  }
 }
 
 namespace {
@@ -240,10 +252,10 @@ AudioFrame make_frame(std::span<const float> samples) {
 
 struct SpeechRequest {
   hstring text;
-  double rate;
-  double pitch;
+  double rate{};
+  double pitch{};
   VoiceInformation voice{nullptr};
-  std::uint64_t generation;
+  std::uint64_t generation{};
 };
 
 struct QueuedFrame {
@@ -335,6 +347,8 @@ private:
     return std::exchange(active_node, nullptr);
   }
 
+  PRISM_SUPPRESS(
+      "f.6", "logging is noexcept; format strings are checked at compile time")
   void close_node(const AudioFrameInputNode &node) const noexcept {
     if (!node)
       return;
@@ -464,6 +478,8 @@ private:
     }
   }
 
+  PRISM_SUPPRESS("f.6",
+                 "logging is noexcept, and the worker is not this thread")
   void reset_state() noexcept {
     if (worker.joinable()) {
       worker.request_stop();
@@ -548,6 +564,11 @@ private:
   }
 
 public:
+  OneCoreBackend() = default;
+  OneCoreBackend(const OneCoreBackend &) = delete;
+  OneCoreBackend &operator=(const OneCoreBackend &) = delete;
+  OneCoreBackend(OneCoreBackend &&) = delete;
+  OneCoreBackend &operator=(OneCoreBackend &&) = delete;
   ~OneCoreBackend() override { reset_state(); }
 
   [[nodiscard]] std::string_view get_name() const override { return "OneCore"; }

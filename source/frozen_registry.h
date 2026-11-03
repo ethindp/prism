@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #pragma once
+#include "annotations.h"
 #include "backend_catalog.h"
 #include "logging.h"
 #include <atomic>
@@ -24,12 +25,14 @@ public:
   [[nodiscard]] std::size_t count() const noexcept;
   [[nodiscard]] bool has(BackendId id) const noexcept;
   [[nodiscard]] bool has(std::string_view name) const noexcept;
-  [[nodiscard]] std::string_view name(BackendId id) const noexcept;
+  [[nodiscard]] std::string_view
+  name(BackendId id) const noexcept PRISM_LIFETIMEBOUND;
   [[nodiscard]] BackendId id(std::string_view name) const noexcept;
   [[nodiscard]] BackendId id_at(std::size_t index) const noexcept;
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend>
   create_at(std::size_t index);
-  [[nodiscard]] const char *name_at(std::size_t index) const noexcept;
+  [[nodiscard]] const char *
+  name_at(std::size_t index) const noexcept PRISM_LIFETIMEBOUND;
   [[nodiscard]] int priority(BackendId id) const noexcept;
   [[nodiscard]] std::vector<BackendId> list() const;
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend> get(BackendId id);
@@ -51,8 +54,8 @@ private:
   };
   explicit FrozenRegistry(std::vector<Registration> registrations);
   ~FrozenRegistry() = default;
-  [[nodiscard]] Entry *find(BackendId id) noexcept;
-  [[nodiscard]] Entry *find(std::string_view name) noexcept;
+  [[nodiscard]] Entry *find(BackendId id) noexcept PRISM_LIFETIMEBOUND;
+  [[nodiscard]] Entry *find(std::string_view name) noexcept PRISM_LIFETIMEBOUND;
   [[nodiscard]] std::shared_ptr<TextToSpeechBackend> acquire_entry(Entry *e);
 #ifdef __cpp_lib_atomic_lock_free_type_aliases
   std::atomic_unsigned_lock_free refcount;

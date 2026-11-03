@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef PRISM_HAVE_GDK_SPEECH
+#include "../annotations.h"
 #include "../backend_catalog.h"
 #include "../speech_player.h"
 #include "../utils.h"
@@ -73,6 +74,8 @@ std::string format_hresult(HRESULT hr) {
   return fmt::format("HRESULT {:#010x}: {}", code, utf8);
 }
 
+PRISM_SUPPRESS(
+    "f.6", "logging is noexcept; format strings are checked at compile time")
 bool failed(HRESULT hr, std::string_view operation,
             const LogSource &log) noexcept {
   if (SUCCEEDED(hr))
@@ -242,6 +245,8 @@ public:
   StreamGuard() = default;
   StreamGuard(const StreamGuard &) = delete;
   StreamGuard &operator=(const StreamGuard &) = delete;
+  StreamGuard(StreamGuard &&) = delete;
+  StreamGuard &operator=(StreamGuard &&) = delete;
 };
 
 tstring widen(std::string_view text) {
@@ -302,7 +307,7 @@ std::string make_ssml(std::string_view text, std::string_view language,
       failed(writer->Flush(), "IXmlWriter::Flush", log))
     return {};
   STATSTG stat{};
-  LARGE_INTEGER origin{};
+  const LARGE_INTEGER origin{};
   if (failed(stream->Stat(&stat, STATFLAG_NONAME), "IStream::Stat", log) ||
       stat.cbSize.QuadPart > ULONG_MAX ||
       failed(stream->Seek(origin, STREAM_SEEK_SET, nullptr), "IStream::Seek",
@@ -340,9 +345,9 @@ class GdkSpeechBackend final : public GdkBackendBase {
   SpeechPlayer player;
   struct SpeechRequest {
     std::string text;
-    float rate;
-    float pitch;
-    std::uint64_t generation;
+    float rate{};
+    float pitch{};
+    std::uint64_t generation{};
   };
   std::mutex request_mutex;
   std::condition_variable_any request_cv;
@@ -411,7 +416,7 @@ class GdkSpeechBackend final : public GdkBackendBase {
     const bool neutral_pitch =
         std::abs(current_pitch - DEFAULT_PARAMETER) < 1e-6F;
     StreamGuard stream;
-    HRESULT hr;
+    HRESULT hr = E_FAIL;
     if (neutral_rate && neutral_pitch) {
       const std::string owned{text};
       hr = gdk_api().XSpeechSynthesizerCreateStreamFromText(
@@ -589,6 +594,8 @@ class GdkSpeechBackend final : public GdkBackendBase {
   }
 
 public:
+  PRISM_SUPPRESS("f.6",
+                 "acquiring the gaming runtime can fail; that propagates")
   GdkSpeechBackend() {
 #ifdef PRISM_GDK_OWNS_RUNTIME
     HRESULT hr = 0;
@@ -608,6 +615,11 @@ public:
 #endif
   }
 
+  GdkSpeechBackend(const GdkSpeechBackend &) = delete;
+  GdkSpeechBackend &operator=(const GdkSpeechBackend &) = delete;
+  GdkSpeechBackend(GdkSpeechBackend &&) = delete;
+  GdkSpeechBackend &operator=(GdkSpeechBackend &&) = delete;
+  PRISM_SUPPRESS("f.6", "the thread is joinable and never the calling thread")
   ~GdkSpeechBackend() override {
     if (synthesis_thread.joinable()) {
       discard();
@@ -698,7 +710,7 @@ public:
     ready = true;
     logger.info("GDK speech backend initialized");
     std::scoped_lock lock(synth_mutex);
-    if (auto result = cache_format_unlocked(); !result)
+    if (const auto result = cache_format_unlocked(); !result)
       logger.warn(
           "Could not cache GDK speech output format during initialization");
     return {};

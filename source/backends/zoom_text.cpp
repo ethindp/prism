@@ -29,7 +29,7 @@ public:
     using namespace BackendFeature;
     std::bitset<64> features;
     IClassFactory *factory = nullptr;
-    HRESULT hr = CoGetClassObject(
+    const HRESULT hr = CoGetClassObject(
         CLSID_ZoomText, CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER, nullptr,
         IID_IClassFactory, reinterpret_cast<void **>(&factory));
     if (SUCCEEDED(hr) && factory != nullptr) {

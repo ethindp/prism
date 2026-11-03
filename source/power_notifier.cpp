@@ -4,6 +4,7 @@
 #include <utility>
 #if defined(PRISM_ENABLE_POWER_MANAGEMENT) && defined(_WIN32)
 #include <windows.h>
+
 #include <powerbase.h>
 #include <powrprof.h>
 
@@ -17,7 +18,7 @@ private:
 
   static ULONG CALLBACK callback(PVOID context, ULONG type,
                                  [[maybe_unused]] PVOID Setting) {
-    auto *self = static_cast<WindowsPowerNotifier *>(context);
+    const auto *self = static_cast<const WindowsPowerNotifier *>(context);
     switch (type) {
     case PBT_APMSUSPEND:
       if (self->on_suspend)
@@ -46,6 +47,10 @@ public:
                                            &handle);
   }
 
+  WindowsPowerNotifier(const WindowsPowerNotifier &) = delete;
+  WindowsPowerNotifier &operator=(const WindowsPowerNotifier &) = delete;
+  WindowsPowerNotifier(WindowsPowerNotifier &&) = delete;
+  WindowsPowerNotifier &operator=(WindowsPowerNotifier &&) = delete;
   ~WindowsPowerNotifier() override {
     if (handle != nullptr)
       PowerUnregisterSuspendResumeNotification(handle);

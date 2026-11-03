@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #ifdef _WIN32
+#include "../annotations.h"
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include <simdutf.h>
@@ -48,11 +49,13 @@ struct handle_guard {
   handle_guard(HANDLE h) : h(h) {}
   handle_guard(const handle_guard &) = delete;
   handle_guard &operator=(const handle_guard &) = delete;
+  handle_guard(handle_guard &&) = delete;
+  handle_guard &operator=(handle_guard &&) = delete;
 };
 
 struct SpeakCommand {
   std::wstring text;
-  bool interrupt;
+  bool interrupt{};
 };
 
 struct StopCommand {};
@@ -193,9 +196,9 @@ public:
     const auto processing = interrupt
                                 ? NotificationProcessing_ImportantMostRecent
                                 : NotificationProcessing_All;
-    const auto hr = UiaRaiseNotificationEvent(
-        static_cast<IRawElementProviderSimple *>(this),
-        NotificationKind_ActionCompleted, processing, bstr_text, bstr_activity);
+    const auto hr =
+        UiaRaiseNotificationEvent(this, NotificationKind_ActionCompleted,
+                                  processing, bstr_text, bstr_activity);
     SysFreeString(bstr_text);
     SysFreeString(bstr_activity);
     return hr;
@@ -205,7 +208,7 @@ public:
 
 class UiaBackend final : public ComTextToSpeechBackend {
 private:
-  HWND hwnd_in;
+  HWND hwnd_in{};
   std::jthread thread;
   std::atomic<HWND> hwnd;
   std::atomic<HWND> host;
@@ -230,9 +233,7 @@ private:
     case WM_GETOBJECT:
       if (static_cast<long>(lParam) == UiaRootObjectId && self != nullptr &&
           prov != nullptr) {
-        return UiaReturnRawElementProvider(
-            hwnd, wParam, lParam,
-            static_cast<IRawElementProviderSimple *>(prov));
+        return UiaReturnRawElementProvider(hwnd, wParam, lParam, prov);
       }
       break;
     case WM_UIA_EXECUTE_COMMAND: {
@@ -263,7 +264,7 @@ private:
   }
 
   void thread_proc(const std::stop_token &st) {
-    HDESK desktop = target_desktop.load(std::memory_order_acquire);
+    const auto *const desktop = target_desktop.load(std::memory_order_acquire);
     if (desktop != nullptr) {
       if (SetThreadDesktop(target_desktop) == 0) {
         CloseDesktop(target_desktop);
@@ -350,8 +351,8 @@ private:
       PeekMessage(&dummy, nullptr, 0, 0, PM_NOREMOVE);
       bool quit = false;
       while (!quit) {
-        DWORD r = MsgWaitForMultipleObjectsEx(1, &stop_event.h, INFINITE,
-                                              QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+        const DWORD r = MsgWaitForMultipleObjectsEx(
+            1, &stop_event.h, INFINITE, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
         if (r == WAIT_OBJECT_0) {
           break;
         }
@@ -382,6 +383,7 @@ private:
     }
   }
 
+  PRISM_SUPPRESS("f.6", "the thread is joinable and never the calling thread")
   void stop_worker() noexcept {
     thread.request_stop();
     if (HWND w = hwnd.load(std::memory_order_acquire))
@@ -402,7 +404,7 @@ private:
     GetWindowThreadProcessId(hwnd, &pid);
     if (pid != GetCurrentProcessId())
       return false;
-    auto ex_style = GetWindowLong(hwnd, GWL_EXSTYLE);
+    const auto ex_style = GetWindowLong(hwnd, GWL_EXSTYLE);
     if ((ex_style & (WS_EX_TOOLWINDOW | WS_EX_TOPMOST)) > 0)
       return false;
     if (hwnd == GetConsoleWindow())
@@ -418,6 +420,11 @@ private:
   }
 
 public:
+  UiaBackend() = default;
+  UiaBackend(const UiaBackend &) = delete;
+  UiaBackend &operator=(const UiaBackend &) = delete;
+  UiaBackend(UiaBackend &&) = delete;
+  UiaBackend &operator=(UiaBackend &&) = delete;
   ~UiaBackend() override { stop_worker(); }
 
   std::string_view get_name() const override { return "UIA"; }
@@ -490,7 +497,7 @@ public:
         [this](const std::stop_token &st) { this->thread_proc(st); });
     const bool signaled = ready_cv.wait_for(
         lock, std::chrono::seconds(5), [this] { return ready.has_value(); });
-    const HWND w = hwnd.load(std::memory_order_acquire);
+    const auto *const w = hwnd.load(std::memory_order_acquire);
     const auto *p = provider.load(std::memory_order_acquire);
     const bool success =
         signaled && ready.value_or(false) && w != nullptr && p != nullptr;

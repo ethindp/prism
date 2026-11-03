@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include "../annotations.h"
 #include "client.h"
 #include <expected>
 #include <optional>
@@ -12,7 +13,8 @@ class Service {
   const char *speech_path;
 
 public:
-  Service(const Dialect &dialect_value, const char *path) noexcept;
+  Service(const Dialect &dialect_value PRISM_LIFETIMEBOUND,
+          const char *path PRISM_LIFETIMEBOUND) noexcept;
 
   [[nodiscard]] static std::optional<Service>
   detect(const Connection &connection);

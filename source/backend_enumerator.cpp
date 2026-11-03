@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "backend_enumerator.h"
+#include "annotations.h"
 #include "backend.h"
 #include <algorithm>
 #include <chrono>
@@ -16,7 +17,7 @@ namespace {
 constexpr std::uint32_t default_interval = 1000;
 constexpr std::uint32_t default_debounce = 2;
 
-inline PrismBackendId to_prism_id(BackendId id) noexcept {
+constexpr PrismBackendId to_prism_id(BackendId id) noexcept {
   return static_cast<PrismBackendId>(std::to_underlying(id));
 }
 } // namespace
@@ -58,6 +59,8 @@ BackendEnumerator::BackendEnumerator(
   logger.info("Initialization complete");
 }
 
+PRISM_SUPPRESS("f.6",
+               "logging is noexcept, and the poll thread is not this one")
 BackendEnumerator::~BackendEnumerator() {
   logger.info("Shutting down");
 #ifdef PRISM_ENABLE_POWER_MANAGEMENT
@@ -150,8 +153,8 @@ void BackendEnumerator::run(const std::stop_token &stop) {
     if (w == PollWaiter::Wake::Signal)
       continue;
     const bool quiet = poll_once(SweepMode::Normal);
-    interval = quiet ? std::min<std::uint64_t>(
-                           static_cast<std::uint64_t>(interval) * 2, cap)
+    interval = quiet ? static_cast<std::uint32_t>(std::min<std::uint64_t>(
+                           static_cast<std::uint64_t>(interval) * 2, cap))
                      : base;
   }
   instances.clear();

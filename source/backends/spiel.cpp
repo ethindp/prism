@@ -418,6 +418,11 @@ private:
   }
 
 public:
+  SpielBackend() = default;
+  SpielBackend(const SpielBackend &) = delete;
+  SpielBackend &operator=(const SpielBackend &) = delete;
+  SpielBackend(SpielBackend &&) = delete;
+  SpielBackend &operator=(SpielBackend &&) = delete;
   ~SpielBackend() override {
     stop_worker();
     if (init_cancellable != nullptr) {
@@ -799,6 +804,11 @@ private:
   const SpielBridge *api = nullptr;
 
 public:
+  SpielBackend() = default;
+  SpielBackend(const SpielBackend &) = delete;
+  SpielBackend &operator=(const SpielBackend &) = delete;
+  SpielBackend(SpielBackend &&) = delete;
+  SpielBackend &operator=(SpielBackend &&) = delete;
   ~SpielBackend() override {
     if (auto *const h = instance.exchange(nullptr); h != nullptr)
       api->prism_spiel_destroy(h);

@@ -154,6 +154,8 @@ struct CustomRegistration {
   }
   CustomRegistration(const CustomRegistration &) = delete;
   CustomRegistration &operator=(const CustomRegistration &) = delete;
+  CustomRegistration(CustomRegistration &&) = delete;
+  CustomRegistration &operator=(CustomRegistration &&) = delete;
 };
 
 struct MemoryBridge {
@@ -236,6 +238,10 @@ public:
                 void *instance)
       : registration(std::move(registration)), instance(instance) {}
 
+  CustomBackend(const CustomBackend &) = delete;
+  CustomBackend &operator=(const CustomBackend &) = delete;
+  CustomBackend(CustomBackend &&) = delete;
+  CustomBackend &operator=(CustomBackend &&) = delete;
   ~CustomBackend() override {
     if (registration->vtable.create != nullptr &&
         registration->vtable.destroy != nullptr)

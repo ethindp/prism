@@ -149,6 +149,11 @@ private:
   std::string current_module;
 
 public:
+  SpeechDispatcherBackend() = default;
+  SpeechDispatcherBackend(const SpeechDispatcherBackend &) = delete;
+  SpeechDispatcherBackend &operator=(const SpeechDispatcherBackend &) = delete;
+  SpeechDispatcherBackend(SpeechDispatcherBackend &&) = delete;
+  SpeechDispatcherBackend &operator=(SpeechDispatcherBackend &&) = delete;
   ~SpeechDispatcherBackend() override {
     if (conn != nullptr) {
       sd->spd_close(conn);
@@ -615,6 +620,11 @@ private:
   const SpeechdBridge *api = nullptr;
 
 public:
+  SpeechDispatcherBackend() = default;
+  SpeechDispatcherBackend(const SpeechDispatcherBackend &) = delete;
+  SpeechDispatcherBackend &operator=(const SpeechDispatcherBackend &) = delete;
+  SpeechDispatcherBackend(SpeechDispatcherBackend &&) = delete;
+  SpeechDispatcherBackend &operator=(SpeechDispatcherBackend &&) = delete;
   ~SpeechDispatcherBackend() override {
     if (auto *const h = instance.exchange(nullptr); h != nullptr)
       api->prism_speechd_destroy(h);

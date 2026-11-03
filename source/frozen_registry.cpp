@@ -123,7 +123,7 @@ std::vector<BackendId> FrozenRegistry::list() const {
 
 std::shared_ptr<TextToSpeechBackend> FrozenRegistry::get(BackendId id) {
   std::shared_lock lock(cache_mutex);
-  if (auto *e = find(id))
+  if (const auto *e = find(id))
     return e->cached.lock();
   return nullptr;
 }
@@ -131,19 +131,19 @@ std::shared_ptr<TextToSpeechBackend> FrozenRegistry::get(BackendId id) {
 std::shared_ptr<TextToSpeechBackend>
 FrozenRegistry::get(std::string_view name) {
   std::shared_lock lock(cache_mutex);
-  if (auto *e = find(name))
+  if (const auto *e = find(name))
     return e->cached.lock();
   return nullptr;
 }
 
 std::shared_ptr<TextToSpeechBackend> FrozenRegistry::create(BackendId id) {
-  auto *e = find(id);
+  const auto *e = find(id);
   return e != nullptr && e->reg.factory != nullptr ? e->reg.factory() : nullptr;
 }
 
 std::shared_ptr<TextToSpeechBackend>
 FrozenRegistry::create(std::string_view name) {
-  auto *e = find(name);
+  const auto *e = find(name);
   return e != nullptr && e->reg.factory != nullptr ? e->reg.factory() : nullptr;
 }
 
@@ -226,6 +226,7 @@ void FrozenRegistry::clear_cache() {
     e.cached.reset();
 }
 
+PRISM_SUPPRESS("f.6", "copies the catalog; allocation failure propagates")
 RegistryBuilder::RegistryBuilder()
     : registrations(BackendCatalog::instance().snapshot()) {}
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 #include "poll_waiter.h"
+#include "annotations.h"
 #include "logging.h"
 #include <algorithm>
 #include <array>
@@ -8,6 +9,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #if defined(_WIN32) && !defined(PRISM_CONSOLE)
 #include <windows.h>
 
@@ -19,6 +21,7 @@ private:
   LogSource logger{"Poll Waiter/win32"};
 
 public:
+  PRISM_SUPPRESS("f.6", "logging is noexcept; handle failures are logged")
   WindowsWaiter() {
     logger.info("Initializing");
     logger.debug("Creating timer with CreateWaitableTimerEx");
@@ -42,6 +45,12 @@ public:
     logger.info("Initialization complete");
   }
 
+  WindowsWaiter(const WindowsWaiter &) = delete;
+  WindowsWaiter &operator=(const WindowsWaiter &) = delete;
+  WindowsWaiter(WindowsWaiter &&) = delete;
+  WindowsWaiter &operator=(WindowsWaiter &&) = delete;
+  PRISM_SUPPRESS(
+      "f.6", "logging is noexcept; format strings are checked at compile time")
   ~WindowsWaiter() override {
     logger.info("Shutting down");
     if (timer != nullptr)
@@ -62,7 +71,8 @@ public:
     LARGE_INTEGER due;
     due.QuadPart = -static_cast<LONGLONG>(timeout->count()) * 10000;
     const auto tolerable =
-        static_cast<ULONG>(std::max<ULONG>(leeway.count(), 0));
+        static_cast<ULONG>(std::clamp<std::chrono::milliseconds::rep>(
+            leeway.count(), 0, std::numeric_limits<ULONG>::max()));
     logger.debug("Setting timer to time out in {}ns with leeway of {}ns",
                  std::abs(due.QuadPart), tolerable);
     if (SetWaitableTimerEx(timer, &due, 0, nullptr, nullptr, nullptr,
@@ -76,8 +86,8 @@ public:
     logger.debug("Entering wait state for handles {:X} and {:X}",
                  reinterpret_cast<std::uintptr_t>(handles[0]),
                  reinterpret_cast<std::uintptr_t>(handles[1]));
-    const auto r =
-        WaitForMultipleObjects(handles.size(), handles.data(), FALSE, INFINITE);
+    const auto r = WaitForMultipleObjects(static_cast<DWORD>(handles.size()),
+                                          handles.data(), FALSE, INFINITE);
     logger.debug("Woke up with return code {:X}, cancelling timer", r);
     CancelWaitableTimer(timer);
     return (r == WAIT_OBJECT_0) ? Wake::Timer : Wake::Signal;
@@ -98,7 +108,6 @@ std::unique_ptr<PollWaiter> PollWaiter::create() {
 #include <atomic>
 #include <cerrno>
 #include <ctime>
-#include <limits>
 #include <poll.h>
 #include <sys/eventfd.h>
 #include <sys/prctl.h>

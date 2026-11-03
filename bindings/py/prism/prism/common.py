@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, fields
 from enum import IntEnum
-from typing import Self
+from typing import TYPE_CHECKING
 
 from ._prism_cffi import ffi, lib
+
+if TYPE_CHECKING:
+    from typing import Self
 
 
 class BackendId(IntEnum):
@@ -167,6 +170,14 @@ _ERROR_MAP = {
     lib.PRISM_ERROR_LIBRARY_INVALID: PrismLibraryInvalidError,
     lib.PRISM_ERROR_INCOMPATIBLE_ABI: PrismIncompatibleAbiError,
 }
+
+
+def version() -> int:
+    return lib.prism_version()
+
+
+def version_string() -> str:
+    return ffi.string(lib.prism_version_string()).decode("utf-8")
 
 
 def _check_error(error_code: int) -> None:

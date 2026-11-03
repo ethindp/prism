@@ -343,6 +343,12 @@ class Context:
     def exists(self, backend_id: BackendId) -> bool:
         return bool(lib.prism_registry_exists(self._ctx, backend_id))
 
+    def get(self, backend_id: BackendId) -> Backend | None:
+        res = lib.prism_registry_get(self._ctx, int(backend_id))
+        if res == ffi.NULL:
+            return None
+        return Backend(res)
+
     def create(self, backend_id: BackendId) -> Backend:
         res = lib.prism_registry_create(self._ctx, int(backend_id))
         if res == ffi.NULL:

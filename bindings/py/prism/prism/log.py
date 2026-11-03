@@ -7,6 +7,7 @@ from enum import IntEnum
 from typing import Final
 
 from ._prism_cffi import ffi, lib
+from .common import PrismInvalidParamError
 
 
 class LogLevel(IntEnum):
@@ -87,6 +88,25 @@ def uninstall() -> None:
         _installed = False
 
 
-def _shutdown() -> None:
+def write(level: LogLevel, source: str, message: str) -> None:
+    for name, text in (("Source", source), ("Message", message)):
+        if len(text) == 0:
+            raise PrismInvalidParamError(
+                lib.PRISM_ERROR_INVALID_PARAM,
+                f"{name} MUST NOT be empty",
+            )
+        if "\x00" in text:
+            raise PrismInvalidParamError(
+                lib.PRISM_ERROR_INVALID_PARAM,
+                f"{name} MUST NOT contain embedded NULLs",
+            )
+    lib.prism_log(int(level), source.encode("utf-8"), message.encode("utf-8"))
+
+
+def flush() -> None:
     lib.prism_log_flush()
+
+
+def _shutdown() -> None:
+    flush()
     lib.prism_log_shutdown()

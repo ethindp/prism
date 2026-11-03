@@ -13,7 +13,7 @@ def  deviceNames = isArm64 ?
 android {
     namespace = "com.github.ethindp.prism.tests.android.simpleapp"
     compileSdk = 36
-    ndkVersion = '30.0.14904198'
+    ndkVersion = '30.0.16248370'
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21

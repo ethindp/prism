@@ -11,6 +11,7 @@ public final class PrismContext {
   public static void set(Context context) {
     if (context == null) return;
     appContext = context.getApplicationContext();
+    TtsKeepAlive.start(appContext);
   }
 
   public static Context get() {

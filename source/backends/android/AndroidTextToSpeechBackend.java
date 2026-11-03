@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements AutoCloseable {
+  private static final long INITIALIZATION_TIMEOUT_SECONDS = 10;
+
   private volatile TextToSpeech tts;
   private float ttsVolume = 1.0f;
   private float ttsRate = 1.0f;
@@ -119,6 +121,7 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
     if (ctx == null) {
       return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
     }
+    TtsKeepAlive.start(ctx);
     final CountDownLatch initializedLatch = new CountDownLatch(1);
     final int pendingStatus = Integer.MIN_VALUE;
     final int abandonedStatus = Integer.MIN_VALUE + 1;
@@ -138,7 +141,7 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
       return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);
     }
     try {
-      if (!initializedLatch.await(10, TimeUnit.SECONDS)) {
+      if (!initializedLatch.await(INITIALIZATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
         if (initializationStatus.compareAndSet(pendingStatus, abandonedStatus)) {
           shutdownEngine(candidate);
           return Outcome.fromError(BackendError.BACKEND_NOT_AVAILABLE);

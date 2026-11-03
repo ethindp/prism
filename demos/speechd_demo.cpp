@@ -8,20 +8,23 @@ int main() {
     return 1;
   }
   if (!prism_registry_exists(ctx, PRISM_BACKEND_SPEECH_DISPATCHER)) {
-    std::println(
-        "Error: Speech Dispatcher backend was not compiled into this build of Prism");
+    std::println("Error: Speech Dispatcher backend was not compiled into this "
+                 "build of Prism");
     prism_shutdown(ctx);
     return 1;
   }
-  auto *const backend = prism_registry_create(ctx, PRISM_BACKEND_SPEECH_DISPATCHER);
+  auto *const backend =
+      prism_registry_create(ctx, PRISM_BACKEND_SPEECH_DISPATCHER);
   if (backend == nullptr) {
-    std::println("Error: could not instantiate Prism Speech Dispatcher backend");
+    std::println(
+        "Error: could not instantiate Prism Speech Dispatcher backend");
     prism_shutdown(ctx);
     return 1;
   }
   if (const auto res = prism_backend_initialize(backend); res != PRISM_OK) {
-    std::println("Error: could not initialize Prism Speech Dispatcher backend: {}",
-                 prism_error_string(res));
+    std::println(
+        "Error: could not initialize Prism Speech Dispatcher backend: {}",
+        prism_error_string(res));
     prism_backend_free(backend);
     prism_shutdown(ctx);
     return 1;

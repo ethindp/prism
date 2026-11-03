@@ -28,12 +28,8 @@ if(MSVC)
       /external:anglebrackets /external:W0
       "/external:I ${PRISM_SOURCE_ROOT}/source/backends/raw")
   set(PRISM_MSVC_ANALYSIS_OPTIONS
-      /analyze
-      /analyze:external-
-      /analyze:plugin
-      EspXEngine.dll
-      /analyze:ruleset
-      "${CMAKE_CURRENT_LIST_DIR}/PrismAnalysis.ruleset")
+      /analyze /analyze:external- /analyze:plugin EspXEngine.dll
+      /analyze:ruleset "${CMAKE_CURRENT_LIST_DIR}/PrismAnalysis.ruleset")
   if(PRISM_MSVC_ANALYSIS
      AND NOT PRISM_ENABLE_LINTING
      AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

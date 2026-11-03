@@ -42,8 +42,9 @@
 // the declaration or statement it precedes, with the reason the check does not
 // apply. Other compilers do not run these checks.
 #if defined(_MSC_VER) && !defined(__clang__)
+#define PRISM_GSL_SUPPRESS(...) [[gsl::suppress(__VA_ARGS__)]]
 #define PRISM_SUPPRESS(rule, reason)                                           \
-  [[gsl::suppress(rule, justification: reason)]]
+  PRISM_GSL_SUPPRESS(rule, justification : reason)
 #else
 #define PRISM_SUPPRESS(rule, reason)
 #endif

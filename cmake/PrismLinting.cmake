@@ -84,10 +84,7 @@ function(prism_enable_target_linting target)
   set_property(TARGET ${target} PROPERTY COMPILE_WARNING_AS_ERROR ON)
   target_compile_options(
     ${target}
-    PRIVATE /W4
-            ${PRISM_MSVC_EXTERNAL_OPTIONS}
-            ${PRISM_MSVC_ANALYSIS_OPTIONS}
-            /analyze:log
-            "${CMAKE_BINARY_DIR}/nativecodeanalysis/${target}/"
+    PRIVATE /W4 ${PRISM_MSVC_EXTERNAL_OPTIONS} ${PRISM_MSVC_ANALYSIS_OPTIONS}
+            /analyze:log "${CMAKE_BINARY_DIR}/nativecodeanalysis/${target}/"
             /analyze:log:format:sarif)
 endfunction()

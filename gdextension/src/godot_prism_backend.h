@@ -39,10 +39,10 @@ public:
 
   BitField<PrismBackendFeature> get_features() const;
   String get_name() const;
-  PrismError speak(const String &text, bool interrupt = true);
+  PrismError speak(const String &text, bool interrupt = false);
   PrismError speak_to_memory(const String &text, const Callable &callback);
   PrismError braille(const String &text);
-  PrismError output(const String &text, bool interrupt = true);
+  PrismError output(const String &text, bool interrupt = false);
   PrismError stop();
   PrismError pause();
   PrismError resume();

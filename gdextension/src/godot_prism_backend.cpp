@@ -3,6 +3,7 @@
 #include "godot_cpp/variant/array.hpp"
 #include "godot_cpp/variant/utility_functions.hpp"
 
+#include <bit>
 #include <cassert>
 #include <cmath>
 #include <cstring>
@@ -25,8 +26,8 @@ static void speak_to_memory_trampoline(void *userdata,
   acc->samples.insert(acc->samples.end(), samples, samples + sample_count);
 }
 
-static PrismError _synthesise(PrismBackend *backend, const String &text,
-                              SpeakToMemoryAccumulator &acc) {
+static PrismError synthesise(PrismBackend *backend, const String &text,
+                             SpeakToMemoryAccumulator &acc) {
   return prism_backend_speak_to_memory(backend, text.utf8().get_data(),
                                        speak_to_memory_trampoline, &acc);
 }
@@ -48,9 +49,9 @@ void GodotPrismBackend::_init_raw(PrismBackend *raw) {
 
 GodotPrismBackend::~GodotPrismBackend() {
   if (backend != nullptr) {
-    if (features & PRISM_BACKEND_SUPPORTS_STOP) {
-      (void)prism_backend_stop(
-          backend); // Deliberately ignored: we cannot throw here
+    if ((features & PRISM_BACKEND_SUPPORTS_STOP) != 0) {
+      // Deliberately ignored: we cannot throw here
+      [[maybe_unused]] auto const stopped = prism_backend_stop(backend);
     }
     prism_backend_free(backend);
     backend = nullptr;
@@ -60,12 +61,15 @@ GodotPrismBackend::~GodotPrismBackend() {
 bool GodotPrismBackend::is_valid() const { return backend != nullptr; }
 
 BitField<PrismBackendFeature> GodotPrismBackend::get_features() const {
-  return BitField<PrismBackendFeature>(features);
+  if (backend == nullptr) {
+    return {0};
+  }
+  return {std::bit_cast<std::int64_t>(prism_backend_get_features(backend))};
 }
 
 String GodotPrismBackend::get_name() const {
   if (backend == nullptr) {
-    return String();
+    return {};
   }
   return String::utf8(prism_backend_name(backend));
 }
@@ -98,7 +102,7 @@ PrismError GodotPrismBackend::speak_to_memory(const String &text,
     return PRISM_ERROR_NOT_IMPLEMENTED;
   }
   SpeakToMemoryAccumulator acc;
-  auto const err = _synthesise(backend, text, acc);
+  auto const err = synthesise(backend, text, acc);
   if (err != PRISM_OK) {
     return err;
   }
@@ -201,9 +205,9 @@ void GodotPrismBackend::set_volume(float v) {
 float GodotPrismBackend::get_volume() const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_VOLUME) == 0) {
-    return 0.5f;
+    return 0.5F;
   }
-  float v = 0.5f;
+  float v = 0.5F;
   auto const err = prism_backend_get_volume(backend, &v);
   if (err != PRISM_OK) {
     UtilityFunctions::push_error(vformat(
@@ -232,9 +236,9 @@ void GodotPrismBackend::set_pitch(float v) {
 float GodotPrismBackend::get_pitch() const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_PITCH) == 0) {
-    return 0.5f;
+    return 0.5F;
   }
-  float v = 0.5f;
+  float v = 0.5F;
   auto const err = prism_backend_get_pitch(backend, &v);
   if (err != PRISM_OK) {
     UtilityFunctions::push_error(vformat(
@@ -262,9 +266,9 @@ void GodotPrismBackend::set_rate(float v) {
 
 float GodotPrismBackend::get_rate() const {
   if (backend == nullptr || (features & PRISM_BACKEND_SUPPORTS_GET_RATE) == 0) {
-    return 0.5f;
+    return 0.5F;
   }
-  float v = 0.5f;
+  float v = 0.5F;
   auto const err = prism_backend_get_rate(backend, &v);
   if (err != PRISM_OK) {
     UtilityFunctions::push_error(vformat(
@@ -297,13 +301,13 @@ std::int64_t GodotPrismBackend::get_voices_count() const {
 String GodotPrismBackend::get_voice_name(std::int64_t index) const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_VOICE_NAME) == 0) {
-    return String();
+    return {};
   }
   const char *name = nullptr;
   auto const err = prism_backend_get_voice_name(
       backend, static_cast<std::size_t>(index), &name);
   if (err != PRISM_OK || name == nullptr) {
-    return String();
+    return {};
   }
   return String::utf8(name);
 }
@@ -311,13 +315,13 @@ String GodotPrismBackend::get_voice_name(std::int64_t index) const {
 String GodotPrismBackend::get_voice_language(std::int64_t index) const {
   if (backend == nullptr ||
       (features & PRISM_BACKEND_SUPPORTS_GET_VOICE_LANGUAGE) == 0) {
-    return String();
+    return {};
   }
   const char *lang = nullptr;
   auto const err = prism_backend_get_voice_language(
       backend, static_cast<std::size_t>(index), &lang);
   if (err != PRISM_OK || lang == nullptr) {
-    return String();
+    return {};
   }
   return String::utf8(lang);
 }
@@ -394,7 +398,7 @@ Ref<AudioStreamWAV> GodotPrismBackend::speak_to_stream(const String &text) {
     return {};
   }
   SpeakToMemoryAccumulator acc;
-  auto const err = _synthesise(backend, text, acc);
+  auto const err = synthesise(backend, text, acc);
   if (err != PRISM_OK) {
     UtilityFunctions::push_error(
         vformat("Prism: speak_to_stream synthesis failed: %s",
@@ -409,9 +413,9 @@ Ref<AudioStreamWAV> GodotPrismBackend::speak_to_stream(const String &text) {
   uint8_t *dst = pcm.ptrw();
   for (std::size_t i = 0; i < acc.samples.size(); ++i) {
     float s = acc.samples[i];
-    auto v = static_cast<std::int16_t>(s * 32767.0f);
-    dst[i * 2 + 0] = static_cast<uint8_t>(v & 0xFF);
-    dst[i * 2 + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
+    auto v = static_cast<std::int16_t>(s * 32767.0F);
+    dst[(i * 2) + 0] = static_cast<uint8_t>(v & 0xFF);
+    dst[(i * 2) + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
   }
   Ref<AudioStreamWAV> stream;
   stream.instantiate();
@@ -423,8 +427,11 @@ Ref<AudioStreamWAV> GodotPrismBackend::speak_to_stream(const String &text) {
 }
 
 bool GodotPrismBackend::has_feature(BitField<PrismBackendFeature> flag) const {
-  return (features & static_cast<std::uint64_t>(flag)) ==
-         static_cast<std::uint64_t>(flag);
+  if (backend == nullptr) {
+    return false;
+  }
+  auto const wanted = static_cast<std::uint64_t>(flag);
+  return (prism_backend_get_features(backend) & wanted) == wanted;
 }
 
 TypedArray<Dictionary> GodotPrismBackend::get_voices() const {
@@ -491,6 +498,9 @@ void GodotPrismBackend::_bind_methods() {
   BIND_ENUM_CONSTANT(PRISM_ERROR_INVALID_AUDIO_FORMAT);
   BIND_ENUM_CONSTANT(PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED);
   BIND_ENUM_CONSTANT(PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE);
+  BIND_ENUM_CONSTANT(PRISM_ERROR_LIBRARY_LOAD_FAILED);
+  BIND_ENUM_CONSTANT(PRISM_ERROR_LIBRARY_INVALID);
+  BIND_ENUM_CONSTANT(PRISM_ERROR_INCOMPATIBLE_ABI);
   BIND_BITFIELD_FLAG(PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME);
   BIND_BITFIELD_FLAG(PRISM_BACKEND_SUPPORTS_SPEAK);
   BIND_BITFIELD_FLAG(PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY);
@@ -522,13 +532,13 @@ void GodotPrismBackend::_bind_methods() {
   BIND_BITFIELD_FLAG(PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML);
   ClassDB::bind_method(D_METHOD("is_valid"), &GodotPrismBackend::is_valid);
   ClassDB::bind_method(D_METHOD("speak", "text", "interrupt"),
-                       &GodotPrismBackend::speak, DEFVAL(true));
+                       &GodotPrismBackend::speak, DEFVAL(false));
   ClassDB::bind_method(D_METHOD("speak_to_memory", "text", "callback"),
                        &GodotPrismBackend::speak_to_memory);
   ClassDB::bind_method(D_METHOD("braille", "text"),
                        &GodotPrismBackend::braille);
   ClassDB::bind_method(D_METHOD("output", "text", "interrupt"),
-                       &GodotPrismBackend::output, DEFVAL(true));
+                       &GodotPrismBackend::output, DEFVAL(false));
   ClassDB::bind_method(D_METHOD("stop"), &GodotPrismBackend::stop);
   ClassDB::bind_method(D_METHOD("pause"), &GodotPrismBackend::pause);
   ClassDB::bind_method(D_METHOD("resume"), &GodotPrismBackend::resume);

@@ -177,7 +177,7 @@ void init_logging_from_env() noexcept {
     return;
   const std::string_view value{env};
 #endif
-    PrismLogLevel level = PRISM_LOG_LEVEL_NONE;
+    PrismLogLevel level{};
     if (value == "trace")
       level = PRISM_LOG_LEVEL_TRACE;
     else if (value == "debug")
@@ -190,6 +190,8 @@ void init_logging_from_env() noexcept {
       level = PRISM_LOG_LEVEL_INFO;
     else if (value == "none")
       level = PRISM_LOG_LEVEL_NONE;
+    else
+      return;
     Logger *const lg = logger();
     if (lg == nullptr)
       return;

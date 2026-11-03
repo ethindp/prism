@@ -25,6 +25,20 @@ if(NOT EXISTS "${PRISM_GODOT_CPP_SOURCE_DIR}/src")
 endif()
 add_subdirectory("${PRISM_GODOT_CPP_SOURCE_DIR}"
                  "${CMAKE_CURRENT_BINARY_DIR}/godot-cpp" SYSTEM)
+# godot-cpp links libstdc++ for any Clang on Windows, but the GNU-style driver
+# targeting the MSVC runtime, as linting uses, has no libstdc++ to link.
+if(WIN32
+   AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+   AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU"
+   AND NOT MINGW)
+  foreach(_property LINK_OPTIONS INTERFACE_LINK_OPTIONS)
+    get_target_property(_options godot-cpp ${_property})
+    if(_options)
+      list(FILTER _options EXCLUDE REGEX "-lstdc\\+\\+")
+      set_target_properties(godot-cpp PROPERTIES ${_property} "${_options}")
+    endif()
+  endforeach()
+endif()
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${godot-cpp_SOURCE_DIR}/cmake")
 include(GodotCPPModule)
 get_target_property(GODOTCPP_SUFFIX godot::cpp GODOTCPP_SUFFIX)
@@ -54,6 +68,9 @@ if(WIN32)
 endif()
 set_property(TARGET ${LIBNAME} PROPERTY CXX_STANDARD 23)
 set_property(TARGET ${LIBNAME} PROPERTY C_STANDARD 18)
+if(PRISM_ENABLE_LINTING)
+  prism_enable_target_linting(${LIBNAME})
+endif()
 set_target_properties(
   ${LIBNAME}
   PROPERTIES RUNTIME_OUTPUT_DIRECTORY

@@ -21,7 +21,9 @@ args=(
 	-DPRISM_ENABLE_GDEXTENSION=ON
 	-DGODOTCPP_TARGET="${target_type}"
 )
-[[ ${lint} == "ON"  ]] && args+=(-DPRISM_ENABLE_LINTING=ON)
+# Hot reload makes godot-cpp pass GCC's -fno-gnu-unique, which clang-tidy
+# cannot parse.
+[[ ${lint} == "ON"  ]] && args+=(-DPRISM_ENABLE_LINTING=ON -DGODOTCPP_USE_HOT_RELOAD=OFF)
 use_emcmake=false
 case "${platform}-${arch}" in
 	linux-x86_32)
@@ -45,6 +47,11 @@ case "${platform}-${arch}" in
 				;;
 			arm64)
 				args+=(-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=arm64)
+				# clang targets the host unless told otherwise.
+				if [[ ${lint} == "ON" ]]; then
+					args+=(-DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc
+						-DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc)
+				fi
 				;;
 			*)
 				echo "unsupported Windows architecture: ${arch}" >&2

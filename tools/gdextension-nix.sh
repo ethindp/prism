@@ -24,7 +24,9 @@ args=(
 	-DPRISM_GODOT_CPP_SOURCE_DIR="${PRISM_GODOT_CPP_SOURCE_DIR}"
 )
 if [[ ${lint} == "ON"  ]]; then
-	args+=(-DPRISM_ENABLE_LINTING=ON)
+	# Hot reload makes godot-cpp pass GCC's -fno-gnu-unique, which clang-tidy
+	# cannot parse.
+	args+=(-DPRISM_ENABLE_LINTING=ON -DGODOTCPP_USE_HOT_RELOAD=OFF)
 fi
 case "${platform}-${arch}" in
 	linux-x86_64 | linux-arm64)

@@ -5,6 +5,7 @@
 #include "android/jni/AudioCallback.hpp"
 #include "android/jni/BackendError.hpp"
 #include "android/jni/BackendFeatures.hpp"
+#include "android/jni/BackendFeaturesHigh.hpp"
 #include "android/jni/Unit.hpp"
 #include "djinni/support/jni/DataView_jni.hpp"
 #include "djinni/support/jni/Marshal.hpp"
@@ -35,6 +36,14 @@ std::string AbstractTextToSpeechBackend::JavaProxy::get_name() {
     auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_getFeatures);
     ::djinni::jniExceptionCheck(jniEnv);
     return ::prism::jni::BackendFeatures::toCpp(jniEnv, jret);
+}
+::prism::java::BackendFeaturesHigh AbstractTextToSpeechBackend::JavaProxy::get_features_high() {
+    auto jniEnv = ::djinni::jniGetThreadEnv();
+    ::djinni::JniLocalScope jscope(jniEnv, 10);
+    const auto& data = ::djinni::JniClass<::prism::jni::AbstractTextToSpeechBackend>::get();
+    auto jret = jniEnv->CallObjectMethod(Handle::get().get(), data.method_getFeaturesHigh);
+    ::djinni::jniExceptionCheck(jniEnv);
+    return ::prism::jni::BackendFeaturesHigh::toCpp(jniEnv, jret);
 }
 djinni::expected<::prism::java::Unit, ::prism::java::BackendError> AbstractTextToSpeechBackend::JavaProxy::initialize() {
     auto jniEnv = ::djinni::jniGetThreadEnv();

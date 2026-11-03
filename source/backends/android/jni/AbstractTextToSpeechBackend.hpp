@@ -35,6 +35,7 @@ private:
 
         std::string get_name() override;
         ::prism::java::BackendFeatures get_features() override;
+        ::prism::java::BackendFeaturesHigh get_features_high() override;
         djinni::expected<::prism::java::Unit, ::prism::java::BackendError> initialize() override;
         djinni::expected<::prism::java::Unit, ::prism::java::BackendError> speak(const ::djinni::DataView & text, bool interrupt) override;
         djinni::expected<::prism::java::Unit, ::prism::java::BackendError> speak_ssml(const ::djinni::DataView & text, bool interrupt) override;
@@ -69,6 +70,7 @@ private:
     const ::djinni::GlobalRef<jclass> clazz { ::djinni::jniFindClass("com/github/ethindp/prism/AbstractTextToSpeechBackend") };
     const jmethodID method_getName { ::djinni::jniGetMethodID(clazz.get(), "getName", "()Ljava/lang/String;") };
     const jmethodID method_getFeatures { ::djinni::jniGetMethodID(clazz.get(), "getFeatures", "()Ljava/util/EnumSet;") };
+    const jmethodID method_getFeaturesHigh { ::djinni::jniGetMethodID(clazz.get(), "getFeaturesHigh", "()Ljava/util/EnumSet;") };
     const jmethodID method_initialize { ::djinni::jniGetMethodID(clazz.get(), "initialize", "()Lcom/snapchat/djinni/Outcome;") };
     const jmethodID method_speak { ::djinni::jniGetMethodID(clazz.get(), "speak", "(Ljava/nio/ByteBuffer;Z)Lcom/snapchat/djinni/Outcome;") };
     const jmethodID method_speakSsml { ::djinni::jniGetMethodID(clazz.get(), "speakSsml", "(Ljava/nio/ByteBuffer;Z)Lcom/snapchat/djinni/Outcome;") };

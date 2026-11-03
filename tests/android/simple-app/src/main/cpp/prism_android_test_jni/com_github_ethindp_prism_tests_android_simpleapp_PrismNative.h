@@ -47,6 +47,22 @@ JNIEXPORT void JNICALL Java_com_github_ethindp_prism_tests_android_simpleapp_Pri
 JNIEXPORT jint JNICALL Java_com_github_ethindp_prism_tests_android_simpleapp_PrismNative_prism_1backend_1speak
   (JNIEnv *, jclass, jlong, jstring, jboolean);
 
+/*
+ * Class:     com_github_ethindp_prism_tests_android_simpleapp_PrismNative
+ * Method:    prism_registry_count
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_github_ethindp_prism_tests_android_simpleapp_PrismNative_prism_1registry_1count
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_github_ethindp_prism_tests_android_simpleapp_PrismNative
+ * Method:    classification_failures
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_github_ethindp_prism_tests_android_simpleapp_PrismNative_classification_1failures
+  (JNIEnv *, jclass, jlong);
+
 #ifdef __cplusplus
 }
 #endif

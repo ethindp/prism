@@ -17,4 +17,8 @@ public final class PrismNative {
   public static native void prism_backend_free(long backend);
 
   public static native int prism_backend_speak(long backend, String text, boolean interrupt);
+
+  public static native long prism_registry_count(long ctx);
+
+  public static native int classification_failures(long ctx);
 }

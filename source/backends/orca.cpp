@@ -42,7 +42,7 @@ public:
       if (OrcaService::detect(probe))
         features |= IS_SUPPORTED_AT_RUNTIME;
     }
-    return features;
+    return features |= IS_SCREEN_READER;
   }
 
   BackendResult<> initialize() override {
@@ -178,7 +178,7 @@ public:
       }
     }
     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
-    return features;
+    return features |= IS_SCREEN_READER;
   }
 
   BackendResult<> initialize() override {

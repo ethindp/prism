@@ -36,6 +36,11 @@ public final class AndroidScreenReaderBackend extends TextToSpeechBackend {
   }
 
   @Override
+  public EnumSet<BackendFeaturesHigh> getFeaturesHigh() {
+    return EnumSet.of(BackendFeaturesHigh.IS_SCREEN_READER);
+  }
+
+  @Override
   public EnumSet<BackendFeatures> getFeatures() {
     final var features = EnumSet.noneOf(BackendFeatures.class);
     Context context = PrismContext.get();

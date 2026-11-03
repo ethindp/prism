@@ -121,7 +121,8 @@ Certain backend methods have special requirements. To wit:
 
 * The get_name function should nearly always be a function returning a compile-time constant. Hence, it MUST return a std::string_view and be annotated with nodiscard. The sole exception to this is Android backends, which call into Java and get the name from that backend; however, even in that case, it should be something that identifies the backend to a consumer.
 * The get_features function should do a run-time probe to determine if the backend is genuinely available. This differs from initialize which actually stands up the backend. For example, a COM backend should use [CoGetClassObject](https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-cogetclassobject) to determine if the COM CLSID is installed. If your get_features needs to do a full initialization sequence to check backend availability, be sure to tear it down before returning. This function should be entirely self-contained and should NOT set class-level fields.
-* All feature bits other than IS_SUPPORTED_AT_RUNTIME MUST correspond to actual functionality that the backend implements. If your contribution doesn't do this, it will be rejected without exception.
+* All feature bits other than IS_SUPPORTED_AT_RUNTIME and the classification bits MUST correspond to actual functionality that the backend implements. If your contribution doesn't do this, it will be rejected without exception.
+* Every backend MUST set exactly one of IS_SCREEN_READER and IS_SPEECH_ENGINE.
 * The initialize function should do all necessary setup to get the backend up and running. This can be more time-consuming and have much higher computational complexity than get_features. For example, while a COM backend might just check if the CLSID is available, initialize would actually create the COM object.
 
 The synopsis of prism_declare_backend is:

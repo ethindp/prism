@@ -434,7 +434,7 @@ public:
     std::bitset<64> features = SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
     static const UiaRuntime uia_runtime;
     if (!uia_runtime.available()) {
-      return features;
+      return features |= IS_SCREEN_READER;
     }
     BOOL screen_reader = FALSE;
     const bool screen_reader_enabled =
@@ -444,7 +444,7 @@ public:
     if (screen_reader_enabled && uia_runtime.clients_active()) {
       features |= IS_SUPPORTED_AT_RUNTIME;
     }
-    return features;
+    return features |= IS_SCREEN_READER;
   }
 
   BackendResult<> initialize() override {

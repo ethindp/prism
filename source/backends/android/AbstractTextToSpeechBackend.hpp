@@ -14,6 +14,7 @@ namespace prism::java {
 class AudioCallback;
 enum class BackendError;
 enum class BackendFeatures : int32_t;
+enum class BackendFeaturesHigh : int32_t;
 struct Unit;
 
 class AbstractTextToSpeechBackend {
@@ -23,6 +24,8 @@ public:
     virtual std::string get_name() = 0;
 
     virtual BackendFeatures get_features() = 0;
+
+    virtual BackendFeaturesHigh get_features_high() = 0;
 
     virtual djinni::expected<Unit, BackendError> initialize() = 0;
 

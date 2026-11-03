@@ -231,7 +231,7 @@ public:
                 SUPPORTS_GET_VOICE_NAME | SUPPORTS_GET_VOICE_LANGUAGE |
                 SUPPORTS_GET_VOICE | SUPPORTS_SET_VOICE | SUPPORTS_PAUSE |
                 SUPPORTS_RESUME;
-    return features;
+    return features |= IS_SPEECH_ENGINE;
   }
 
   BackendResult<> initialize() override {
@@ -652,7 +652,7 @@ public:
                 SUPPORTS_GET_VOICE_NAME | SUPPORTS_GET_VOICE_LANGUAGE |
                 SUPPORTS_GET_VOICE | SUPPORTS_SET_VOICE | SUPPORTS_PAUSE |
                 SUPPORTS_RESUME;
-    return features;
+    return features |= IS_SPEECH_ENGINE;
   }
 
   BackendResult<> initialize() override {

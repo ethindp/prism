@@ -321,14 +321,16 @@ typedef enum PrismBackendFeature PRISM_FEATURE_BASE {
   PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY = (1ULL << 26),
   PRISM_BACKEND_SUPPORTS_SPEAK_SSML = (1ULL << 27),
   PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML = (1ULL << 28),
-/* Widens the enum to 64 bits where C allows it. C enums on the MSVC ABI
- * are always int, where the value would silently become 0, so there it is a
- * macro instead. */
+/* C enums are int on the MSVC ABI, so these are macros there. */
 #if defined(__cplusplus) || !defined(_MSC_VER)
+  PRISM_BACKEND_IS_SCREEN_READER = (1ULL << 56),
+  PRISM_BACKEND_IS_SPEECH_ENGINE = (1ULL << 57),
   PRISM_BACKEND_FEATURE_MAX_BIT = (1ULL << 63)
 #endif
 } PrismBackendFeature;
 #if !defined(__cplusplus) && defined(_MSC_VER)
+#define PRISM_BACKEND_IS_SCREEN_READER (1ULL << 56)
+#define PRISM_BACKEND_IS_SPEECH_ENGINE (1ULL << 57)
 #define PRISM_BACKEND_FEATURE_MAX_BIT (1ULL << 63)
 #endif
 #ifdef _MSC_VER

@@ -5,8 +5,10 @@
 #include "../backend_catalog.h"
 #include "android/AudioCallback.hpp"
 #include "android/BackendFeatures.hpp"
+#include "android/BackendFeaturesHigh.hpp"
 #include "android/Unit.hpp"
 #include "android/jni/AbstractTextToSpeechBackend.hpp"
+#include "android_features.h"
 #include <atomic>
 #include <cmath>
 #include <jni.h>
@@ -72,9 +74,7 @@ public:
 
   [[nodiscard]] std::bitset<64> get_features() const override try {
     if (backend) {
-      return std::bitset<64>{
-          static_cast<std::uint64_t>(static_cast<std::uint32_t>(
-              std::to_underlying(backend->get_features())))};
+      return combined_features(*backend);
     }
     auto *env = djinni::jniGetThreadEnv();
     if (env == nullptr) {
@@ -109,9 +109,7 @@ public:
     if (!handle) {
       return {};
     }
-    return std::bitset<64>{
-        static_cast<std::uint64_t>(static_cast<std::uint32_t>(
-            std::to_underlying(handle->get_features())))};
+    return combined_features(*handle);
   } catch (...) {
     return {};
   }

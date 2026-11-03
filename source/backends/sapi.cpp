@@ -643,7 +643,7 @@ public:
       factory->Release();
       features |= IS_SUPPORTED_AT_RUNTIME;
     }
-    return features;
+    return features |= IS_SPEECH_ENGINE;
   }
 
   BackendResult<> initialize() override {

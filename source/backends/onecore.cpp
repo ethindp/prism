@@ -594,7 +594,7 @@ public:
     } catch (...) {
       logger.debug("Could not ask whether the speech and audio APIs exist");
     }
-    return features;
+    return features |= IS_SPEECH_ENGINE;
   }
 
   BackendResult<> initialize() override try {

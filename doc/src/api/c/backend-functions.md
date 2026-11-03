@@ -59,7 +59,7 @@ A bitmask of feature information.
 
 This function MAY be called regardless of backend initialization state.
 
-The returned bitmask indicates which functions are implemented by the backend and whether the underlying engine is currently available. If a bit is set, the corresponding function is implemented. If clear, calls to that function return `PRISM_ERROR_NOT_IMPLEMENTED`.
+The returned bitmask indicates which functions are implemented by the backend, whether the underlying engine is currently available, and whether the backend is a screen reader or a speech engine. If a bit that names a function is set, that function is implemented. If clear, calls to that function return `PRISM_ERROR_NOT_IMPLEMENTED`.
 
 To determine runtime availability, this function MAY perform lightweight probes such as COM class factory lookups, RPC endpoint queries, D-Bus name ownership checks, or process enumeration. These operations are minimized but are not cost-free. Callers SHOULD cache the result and re-query only when the `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` bit is relevant.
 
@@ -97,6 +97,10 @@ The following bits are defined:
 | `PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY` | The backend trims leading and trailing silence from the audio stream before delivering it to the audio callback. |
 | `PRISM_BACKEND_SUPPORTS_SPEAK_SSML` | Reserved. |
 | `PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML` | Reserved. |
+| `PRISM_BACKEND_IS_SCREEN_READER` | The backend sends messages to a screen reader. |
+| `PRISM_BACKEND_IS_SPEECH_ENGINE` | The backend synthesizes speech without a screen reader. |
+
+At most one of `PRISM_BACKEND_IS_SCREEN_READER` and `PRISM_BACKEND_IS_SPEECH_ENGINE` is set. [Screen Readers and Speech Engines](../../screen-readers-and-speech-engines.md) describes the distinction.
 
 ### prism_backend_name
 

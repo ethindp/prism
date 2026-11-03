@@ -99,27 +99,27 @@ public:
         SUPPORTS_SPEAK | SUPPORTS_BRAILLE | SUPPORTS_OUTPUT | SUPPORTS_STOP;
     DWORD session_id = 0;
     if (ProcessIdToSessionId(GetCurrentProcessId(), &session_id) == 0)
-      return features;
+      return features |= IS_SCREEN_READER;
     const HANDLE desktop = GetThreadDesktop(GetCurrentThreadId());
     if (desktop == nullptr)
-      return features;
+      return features |= IS_SCREEN_READER;
     std::wstring desktop_name(32, _T('\0'));
     DWORD bytes_written = 0;
     if (GetUserObjectInformation(
             desktop, UOI_NAME, desktop_name.data(),
             static_cast<DWORD>(desktop_name.size() * sizeof(wchar_t)),
             &bytes_written) == 0)
-      return features;
+      return features |= IS_SCREEN_READER;
     desktop_name.resize((bytes_written / sizeof(wchar_t)) - 1);
     const auto endpoint =
         fmt::format(_T("NvdaCtlr.{}.{}"), session_id, desktop_name);
     RPC_WSTR string_binding = nullptr;
     if (compose_binding(endpoint, &string_binding) != RPC_S_OK)
-      return features;
+      return features |= IS_SCREEN_READER;
     handle_t handle = nullptr;
     if (RpcBindingFromStringBinding(string_binding, &handle) != RPC_S_OK) {
       RpcStringFree(&string_binding);
-      return features;
+      return features |= IS_SCREEN_READER;
     }
     RpcStringFree(&string_binding);
     if (server_supports_interface(handle,
@@ -129,7 +129,7 @@ public:
                                   nvdaController_NvdaController3_v1_0_c_ifspec))
       features |= SUPPORTS_IS_SPEAKING;
     RpcBindingFree(&handle);
-    return features;
+    return features |= IS_SCREEN_READER;
   }
 
   BackendResult<> initialize() override {

@@ -442,6 +442,13 @@ static BackendFactory make_factory_impl(const PrismBackendVTable *vtable,
               features & ~BackendFeature::KNOWN);
     return {};
   }
+  if ((features & BackendFeature::IS_SCREEN_READER) != 0 &&
+      (features & BackendFeature::IS_SPEECH_ENGINE) != 0) {
+    static const LogSource log{"CustomBackend"};
+    log.error("Rejecting registration: a backend cannot be both a screen "
+              "reader and a speech engine");
+    return {};
+  }
   if (!vtable_consistent(features, normalized))
     return {};
   std::shared_ptr<CustomRegistration> registration;

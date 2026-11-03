@@ -49,7 +49,7 @@ public:
     }
     features |=
         SUPPORTS_SPEAK | SUPPORTS_BRAILLE | SUPPORTS_OUTPUT | SUPPORTS_STOP;
-    return features;
+    return features |= IS_SCREEN_READER;
   }
 
   BackendResult<> initialize() override {

@@ -150,7 +150,7 @@ public:
       features |= SUPPORTS_SPEAK_TO_MEMORY |
                   PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY;
     }
-    return features;
+    return features |= IS_SPEECH_ENGINE;
   }
 
   BackendResult<> initialize() override {

@@ -45,7 +45,7 @@ Each method corresponds to the member of [`PrismBackendVTable`](../c/custom-back
 
 `EXTRA_FEATURES`
 
-Feature bits that do not arise from overriding a method, such as `performs_silence_trimming_on_speak`. Declaring a bit that corresponds to a method causes `ValueError` to be raised at registration.
+Feature bits that do not arise from overriding a method, such as `performs_silence_trimming_on_speak`, or a classification such as `is_speech_engine`. Declaring a bit that corresponds to a method causes `ValueError` to be raised at registration, and declaring both `is_screen_reader` and `is_speech_engine` causes `PrismInvalidParamError` to be raised.
 
 #### Remarks
 

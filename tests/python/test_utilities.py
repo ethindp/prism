@@ -59,3 +59,28 @@ def test_write_log_is_delivered_through_logging(
 def test_write_log_rejects_unrepresentable_text(source: str, message: str) -> None:
     with pytest.raises(PrismInvalidParamError):
         prism.write_log(prism.LogLevel.INFO, source, message)
+
+
+class _ReaderBackend(_SilentBackend):
+    EXTRA_FEATURES = prism.BackendFeatures(is_screen_reader=True)
+
+
+class _AmbiguousBackend(_SilentBackend):
+    EXTRA_FEATURES = prism.BackendFeatures(is_screen_reader=True, is_speech_engine=True)
+
+
+def test_custom_backend_classification() -> None:
+    with RegistryBuilder() as builder:
+        reader_id = builder.add_backend("Reader", _ReaderBackend)
+        neither_id = builder.add_backend("Neither", _SilentBackend)
+        with pytest.raises(PrismInvalidParamError):
+            builder.add_backend("Ambiguous", _AmbiguousBackend)
+        registry = builder.freeze()
+    with registry:
+        ctx = Context(registry=registry)
+        reader = ctx.create(prism.BackendId(reader_id)).features
+        neither = ctx.create(prism.BackendId(neither_id)).features
+        assert reader.is_screen_reader
+        assert not reader.is_speech_engine
+        assert not neither.is_screen_reader
+        assert not neither.is_speech_engine

@@ -658,10 +658,10 @@ public:
         PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY;
 #ifdef PRISM_GDK_OWNS_RUNTIME
     if (!runtime_initialized)
-      return features;
+      return features |= IS_SPEECH_ENGINE;
 #endif
     if (!gdk_api().available)
-      return features;
+      return features |= IS_SPEECH_ENGINE;
     XSpeechSynthesizerHandle probe_synth{};
     CComPtr<IXAudio2> probe_audio;
     const bool speech_ok =
@@ -674,7 +674,7 @@ public:
       (void)gdk_api().XSpeechSynthesizerCloseHandle(probe_synth);
     if (speech_ok && audio_ok)
       features |= IS_SUPPORTED_AT_RUNTIME;
-    return features;
+    return features |= IS_SPEECH_ENGINE;
   }
 
   BackendResult<> initialize() override {

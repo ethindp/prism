@@ -73,6 +73,8 @@ class BackendFeatures:
     performs_silence_trimming_on_speak_to_memory: bool = False
     supports_speak_ssml: bool = False
     supports_speak_to_memory_ssml: bool = False
+    is_screen_reader: bool = False
+    is_speech_engine: bool = False
 
     @classmethod
     def from_bits(cls, bits: int) -> BackendFeatures: ...

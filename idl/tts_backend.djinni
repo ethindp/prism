@@ -57,6 +57,37 @@ BackendFeatures = flags {
     supports_speak_to_memory_ssml;
 }
 
+# Bits 32 through 63 of the feature set, which do not fit in one 32-bit flags
+# value. Bit n of this value is bit n + 32 of the feature set.
+BackendFeaturesHigh = flags {
+    reserved_32;
+    reserved_33;
+    reserved_34;
+    reserved_35;
+    reserved_36;
+    reserved_37;
+    reserved_38;
+    reserved_39;
+    reserved_40;
+    reserved_41;
+    reserved_42;
+    reserved_43;
+    reserved_44;
+    reserved_45;
+    reserved_46;
+    reserved_47;
+    reserved_48;
+    reserved_49;
+    reserved_50;
+    reserved_51;
+    reserved_52;
+    reserved_53;
+    reserved_54;
+    reserved_55;
+    is_screen_reader;
+    is_speech_engine;
+}
+
 Unit = record {}
 
 AudioCallback = interface +c {
@@ -66,6 +97,7 @@ AudioCallback = interface +c {
 AbstractTextToSpeechBackend = interface +j {
   get_name(): string;
   get_features(): BackendFeatures;
+  get_features_high(): BackendFeaturesHigh;
   initialize(): outcome<Unit, BackendError>;
   speak(text: DataView, interrupt: bool): outcome<Unit, BackendError>;
   speak_ssml(text: DataView, interrupt: bool): outcome<Unit, BackendError>;

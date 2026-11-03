@@ -48,6 +48,11 @@ public class AndroidTextToSpeechBackend extends TextToSpeechBackend implements A
   }
 
   @Override
+  public EnumSet<BackendFeaturesHigh> getFeaturesHigh() {
+    return EnumSet.of(BackendFeaturesHigh.IS_SPEECH_ENGINE);
+  }
+
+  @Override
   public EnumSet<BackendFeatures> getFeatures() {
     final EnumSet<BackendFeatures> features = EnumSet.noneOf(BackendFeatures.class);
     try {

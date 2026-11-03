@@ -8,6 +8,8 @@ A screen reader is an assistive technology which presents the contents of the sc
 
 A speech engine synthesizes audio from text on behalf of whichever program requests it. It has no knowledge of what is on the screen and does not make a system accessible on its own. Examples include SAPI, OneCore, AVSpeech, Speech Dispatcher, and the Web Speech API.
 
+A backend reports which of the two it is through the `PRISM_BACKEND_IS_SCREEN_READER` and `PRISM_BACKEND_IS_SPEECH_ENGINE` bits of `prism_backend_get_features`. Every built-in backend sets exactly one of them. A custom backend MAY set neither, and MUST NOT set both.
+
 An application that communicates with a screen reader asks that screen reader to present a message. The message is then subject to the screen reader's own queue and configuration. An application that communicates with a speech engine instead requests that specific audio be produced, independently of any screen reader that may be running. The two can therefore speak over one another if an application uses a speech engine while the user's screen reader is active.
 
 Applications that present their interface through a platform's accessibility API, such as UI Automation on Windows, NSAccessibility on Apple platforms, or AT-SPI on Linux, are read by the screen reader without using Prism at all. Prism is intended for those circumstances in which that is insufficient or impossible, such as announcements of events which do not coincide with a change of focus, and applications such as games that draw their own interface and expose nothing to the accessibility API.

@@ -328,7 +328,7 @@ public:
     if (is_voiceover_active()) {
       features |= IS_SUPPORTED_AT_RUNTIME;
     }
-    return features;
+    return features |= IS_SCREEN_READER;
   }
 
   BackendResult<> initialize() override {

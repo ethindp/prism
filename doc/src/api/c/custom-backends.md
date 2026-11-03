@@ -195,7 +195,7 @@ An optional pointer receiving the identifier assigned to the backend. This param
 | Value | Meaning |
 | --- | --- |
 | `PRISM_OK` | The backend was added to the builder. |
-| `PRISM_ERROR_INVALID_PARAM` | The vtable's `size` member was zero, the declared feature set contained unknown bits or was inconsistent with the vtable, `name` was empty or hashes to the reserved identifier `PRISM_BACKEND_INVALID`, or the priority value was negative. |
+| `PRISM_ERROR_INVALID_PARAM` | The vtable's `size` member was zero, the declared feature set contained unknown bits, declared both `PRISM_BACKEND_IS_SCREEN_READER` and `PRISM_BACKEND_IS_SPEECH_ENGINE`, or was inconsistent with the vtable, `name` was empty or hashes to the reserved identifier `PRISM_BACKEND_INVALID`, or the priority value was negative. |
 | `PRISM_ERROR_INVALID_UTF8` | `name` contains invalid UTF-8 sequences. |
 | `PRISM_ERROR_INVALID_OPERATION` | The builder is spent, or a backend with the same name or the same identifier is already present in the builder. |
 | `PRISM_ERROR_MEMORY_FAILURE` | Memory allocation failed. |

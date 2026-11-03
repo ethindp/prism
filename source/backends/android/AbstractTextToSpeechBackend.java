@@ -10,6 +10,8 @@ public abstract class AbstractTextToSpeechBackend {
 
     public abstract EnumSet<BackendFeatures> getFeatures();
 
+    public abstract EnumSet<BackendFeaturesHigh> getFeaturesHigh();
+
     public abstract com.snapchat.djinni.Outcome<Unit, BackendError> initialize();
 
     public abstract com.snapchat.djinni.Outcome<Unit, BackendError> speak(java.nio.ByteBuffer text, boolean interrupt);

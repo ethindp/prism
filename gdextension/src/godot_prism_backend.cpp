@@ -534,6 +534,8 @@ void GodotPrismBackend::_bind_methods() {
       PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY);
   BIND_BITFIELD_FLAG(PRISM_BACKEND_SUPPORTS_SPEAK_SSML);
   BIND_BITFIELD_FLAG(PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML);
+  BIND_BITFIELD_FLAG(PRISM_BACKEND_IS_SCREEN_READER);
+  BIND_BITFIELD_FLAG(PRISM_BACKEND_IS_SPEECH_ENGINE);
   ClassDB::bind_method(D_METHOD("is_valid"), &GodotPrismBackend::is_valid);
   ClassDB::bind_method(D_METHOD("speak", "text", "interrupt"),
                        &GodotPrismBackend::speak, DEFVAL(false));

@@ -32,12 +32,13 @@ _TO_PY: Final[dict[int, int]] = {
 
 _lock: Final[threading.Lock] = threading.Lock()
 _installed: bool = False
+_shutdown_registered: bool = False
 _cb: ffi.CData | None = None
 _prev: ffi.CData | None = None
 
 
 def install_logging(logger_name: str = "prism") -> None:
-    global _installed, _cb, _prev
+    global _installed, _cb, _prev, _shutdown_registered
     with _lock:
         if _installed:
             return
@@ -69,7 +70,9 @@ def install_logging(logger_name: str = "prism") -> None:
         _prev = lib.prism_set_log_handler(handler[0])
         _cb = forward
         _installed = True
-        atexit.register(_shutdown)
+        if not _shutdown_registered:
+            atexit.register(_shutdown)
+            _shutdown_registered = True
 
 
 def set_level(level: LogLevel) -> LogLevel:

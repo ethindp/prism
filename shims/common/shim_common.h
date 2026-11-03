@@ -8,10 +8,12 @@
 #include <stdint.h>
 #include <wchar.h>
 
-#ifdef _MSC_VER
-#define PRISM_SHIM_NULL NULL
-#else
+// nullptr is C23, which older compilers lack even when asked for it.
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L &&                \
+    !defined(_MSC_VER)
 #define PRISM_SHIM_NULL nullptr
+#else
+#define PRISM_SHIM_NULL NULL
 #endif
 
 typedef struct ShimFlag {

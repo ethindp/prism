@@ -36,6 +36,12 @@ if(PRISM_PM_FOUND OR TARGET prism_backend_orca)
             ${PRISM_SOURCE_ROOT}/source/dbus/login1.cpp
             ${PRISM_SOURCE_ROOT}/source/dbus/spiel.cpp)
 endif()
+# On aarch64, GCC compiles atomics into calls to helpers that only the static
+# libgcc provides, and g++ links shared libraries against libgcc_s alone.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_PROCESSOR MATCHES
+                                            "^(aarch64|arm64)$")
+  target_link_libraries(prism PRIVATE gcc)
+endif()
 if(PRISM_BUILD_WINELIBS)
   include(ExternalProject)
   ExternalProject_Add(

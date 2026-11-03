@@ -3,6 +3,7 @@
   description = "The the Platform-agnostic Reader Interface for Speech and Messages";
   inputs = {
     nixpkgs.url = "https://channels.nixos.org/nixos-26.05/nixexprs.tar.xz";
+    nixpkgs-compat.url = "https://channels.nixos.org/nixos-22.05/nixexprs.tar.xz";
     godot-cpp = {
       url = "git+https://github.com/godotengine/godot-cpp?ref=4.5";
       flake = false;
@@ -12,6 +13,7 @@
     {
       self,
       nixpkgs,
+      nixpkgs-compat,
       godot-cpp,
     }:
     let
@@ -26,6 +28,7 @@
           f {
             inherit system;
             pkgs = nixpkgs.legacyPackages.${system};
+            compat = nixpkgs-compat.legacyPackages.${system};
           }
         );
       inherit (nixpkgs) lib;
@@ -118,6 +121,34 @@
           ))
         ];
       wineFor = pkgs: [ pkgs.wine64 ];
+      cmakeWithoutSetupHook =
+        pkgs:
+        pkgs.runCommand "cmake-without-setup-hook" { } ''
+          mkdir -p $out/bin
+          ln -s ${pkgs.cmake}/bin/* $out/bin/
+        '';
+      releaseLibsFor =
+        { pkgs, compat }:
+        with compat;
+        [
+          speechd
+          glib
+          dbus
+          gst_all_1.gstreamer
+          gst_all_1.gst-plugins-base
+          (spielFor pkgs)
+        ];
+      releaseToolsFor =
+        { pkgs, compat }:
+        with compat;
+        [
+          (cmakeWithoutSetupHook pkgs)
+          ninja
+          pkg-config
+          git
+          zip
+          python3
+        ];
       prismVersion =
         let
           lines = builtins.filter builtins.isString (
@@ -167,9 +198,25 @@
                                     fi
           '';
         };
+      mkReleaseShell =
+        {
+          pkgs,
+          compat,
+          withWinelibs ? false,
+        }:
+        (compat.mkShell.override { stdenv = compat.gcc12Stdenv; }) {
+          name = "prism" + lib.optionalString withWinelibs "-winelibs";
+          PRISM_GODOT_CPP_SOURCE_DIR = "${godot-cpp}";
+          buildInputs = releaseLibsFor { inherit pkgs compat; };
+          nativeBuildInputs =
+            releaseToolsFor { inherit pkgs compat; } ++ lib.optionals withWinelibs (wineFor pkgs);
+        };
       mkPrism =
         {
           pkgs,
+          stdenv,
+          libs,
+          tools,
           shared ? true,
           buildType ? "Release",
           withWinelibs ? false,
@@ -177,13 +224,7 @@
           withSpiel ? false,
           provider ? "BUNDLED",
         }:
-        pkgs.stdenv.mkDerivation {
-          pname = "prism";
-          version = prismVersion;
-          src = self;
-          buildInputs = libsFor pkgs;
-          nativeBuildInputs = toolsFor pkgs ++ lib.optionals withWinelibs (wineFor pkgs);
-
+        let
           cmakeFlags = [
             "-GNinja"
             "-DCMAKE_BUILD_TYPE=${buildType}"
@@ -200,19 +241,51 @@
             "-DPRISM_CONCURRENTQUEUE_PROVIDER=BUNDLED"
           ]
           ++ lib.optionals withGdextension [ "-DPRISM_GODOT_CPP_SOURCE_DIR=${godot-cpp}" ];
+        in
+        stdenv.mkDerivation {
+          pname = "prism";
+          version = prismVersion;
+          src = self;
+          buildInputs = libs;
+          nativeBuildInputs = tools ++ lib.optionals withWinelibs (wineFor pkgs);
+          configurePhase = ''
+            runHook preConfigure
+            cmake -S . -B build -DCMAKE_INSTALL_PREFIX=$out ${lib.escapeShellArgs cmakeFlags}
+            runHook postConfigure
+          '';
+          buildPhase = ''
+            runHook preBuild
+            cmake --build build --parallel $NIX_BUILD_CORES
+            runHook postBuild
+          '';
+          installPhase = ''
+            runHook preInstall
+            cmake --install build
+            runHook postInstall
+          '';
           meta = {
             description = "Cross-platform screen reader and TTS abstraction library";
             license = lib.licenses.mpl20;
             platforms = systems;
           };
         };
+      mkReleasePrism =
+        { pkgs, compat, ... }@args:
+        mkPrism (
+          builtins.removeAttrs args [ "compat" ]
+          // {
+            stdenv = compat.gcc12Stdenv;
+            libs = releaseLibsFor { inherit pkgs compat; };
+            tools = releaseToolsFor { inherit pkgs compat; };
+          }
+        );
     in
     {
       devShells = forAllSystems (
-        { pkgs, ... }: {
-          default = mkShell { inherit pkgs; };
-          winelibs = mkShell {
-            inherit pkgs;
+        { pkgs, compat, ... }: {
+          default = mkReleaseShell { inherit pkgs compat; };
+          winelibs = mkReleaseShell {
+            inherit pkgs compat;
             withWinelibs = true;
           };
           lint = mkShell {
@@ -222,6 +295,10 @@
           winelibs-lint = mkShell {
             inherit pkgs;
             withWinelibs = true;
+            withLint = true;
+          };
+          gdextension-lint = mkShell {
+            inherit pkgs;
             withLint = true;
           };
           emscripten = mkShell {
@@ -236,22 +313,25 @@
         }
       );
       packages = forAllSystems (
-        { pkgs, ... }: {
-          default = mkPrism { inherit pkgs; };
-          prism-static = mkPrism {
-            inherit pkgs;
+        { pkgs, compat, ... }: {
+          default = mkReleasePrism { inherit pkgs compat; };
+          prism-static = mkReleasePrism {
+            inherit pkgs compat;
             shared = false;
           };
-          prism-debug = mkPrism {
-            inherit pkgs;
+          prism-debug = mkReleasePrism {
+            inherit pkgs compat;
             buildType = "Debug";
           };
           prism-system = mkPrism {
             inherit pkgs;
+            inherit (pkgs) stdenv;
+            libs = libsFor pkgs;
+            tools = toolsFor pkgs;
             provider = "SYSTEM";
           };
-          gdextension = mkPrism {
-            inherit pkgs;
+          gdextension = mkReleasePrism {
+            inherit pkgs compat;
             withGdextension = true;
           };
           libspiel = spielFor pkgs;
@@ -259,13 +339,14 @@
         }
       );
       checks = forAllSystems (
-        { pkgs, system }:
+        { system, ... }:
         self.packages.${system}
         // {
           shell-default = self.devShells.${system}.default;
           shell-winelibs = self.devShells.${system}.winelibs;
           shell-lint = self.devShells.${system}.lint;
           shell-winelibs-lint = self.devShells.${system}.winelibs-lint;
+          shell-gdextension-lint = self.devShells.${system}.gdextension-lint;
           shell-emscripten = self.devShells.${system}.emscripten;
           shell-emscripten-lint = self.devShells.${system}.emscripten-lint;
         }

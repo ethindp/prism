@@ -30,10 +30,23 @@
         "url": "https://channels.nixos.org/nixos-26.05/nixexprs.tar.xz"
       }
     },
+    "nixpkgs-compat": {
+      "locked": {
+        "lastModified": 1690895067,
+        "narHash": "sha256-gosYWvsTx3bR91jmpAZ7MT9RywQmPHujSMKh8fIXXts=",
+        "type": "tarball",
+        "url": "https://releases.nixos.org/nixos/22.05/nixos-22.05.4694.380be19fbd2d/nixexprs.tar.xz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://channels.nixos.org/nixos-22.05/nixexprs.tar.xz"
+      }
+    },
     "root": {
       "inputs": {
         "godot-cpp": "godot-cpp",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-compat": "nixpkgs-compat"
       }
     }
   },

@@ -19,6 +19,8 @@
 #endif
 #include <atomic>
 #include <bitset>
+#include <chrono>
+#include <cstdint>
 #include <memory>
 #include <string_view>
 #if TARGET_OS_OSX
@@ -130,16 +132,59 @@ static NSWindow *pick_best_window() {
   return app.windows.firstObject;
 }
 
-static constexpr NSString *const VOICE_OVER_APPLE_SCRIPT_SOURCE =
-    @"on voSpeak(theText)\n"
-    @"    tell application \"VoiceOver\" to output theText\n"
-    @"end voSpeak\n"
-    @"\n"
-    @"on voStop()\n"
-    @"    tell application \"VoiceOver\" to output \"\"\n"
-    @"end voStop\n";
-
 static constexpr NSString *const VOICE_OVER_BUNDLE_ID = @"com.apple.VoiceOver";
+
+consteval FourCharCode four_char_code(std::string_view code) {
+  return (static_cast<std::uint32_t>(code[0]) << 24U) |
+         (static_cast<std::uint32_t>(code[1]) << 16U) |
+         (static_cast<std::uint32_t>(code[2]) << 8U) |
+         static_cast<std::uint32_t>(code[3]);
+}
+
+static constexpr AEEventClass VOICE_OVER_EVENT_CLASS = four_char_code("VOAS");
+static constexpr AEEventID VOICE_OVER_OUTPUT_EVENT = four_char_code("outp");
+static constexpr std::int32_t LEGACY_REPLY_TIMEOUT_TICKS = 120;
+static constexpr std::chrono::seconds LEGACY_RETRY_DELAY{30};
+
+static OSStatus send_voice_over_output(NSString *text) {
+  auto *const running = [NSRunningApplication
+      runningApplicationsWithBundleIdentifier:VOICE_OVER_BUNDLE_ID];
+  auto *const voice_over = running.firstObject;
+  if (voice_over == nil)
+    return procNotFound;
+  auto *const target = [NSAppleEventDescriptor
+      descriptorWithProcessIdentifier:voice_over.processIdentifier];
+  auto *const event =
+      [NSAppleEventDescriptor appleEventWithEventClass:VOICE_OVER_EVENT_CLASS
+                                               eventID:VOICE_OVER_OUTPUT_EVENT
+                                      targetDescriptor:target
+                                              returnID:kAutoGenerateReturnID
+                                         transactionID:kAnyTransactionID];
+  [event setParamDescriptor:[NSAppleEventDescriptor descriptorWithString:text]
+                 forKeyword:keyDirectObject];
+  AEDesc reply_desc{};
+  const OSStatus status = AESendMessage(event.aeDesc, &reply_desc, kAEWaitReply,
+                                        LEGACY_REPLY_TIMEOUT_TICKS);
+  if (status != noErr) {
+    (void)AEDisposeDesc(&reply_desc);
+    return status;
+  }
+  auto *const reply =
+      [[NSAppleEventDescriptor alloc] initWithAEDescNoCopy:&reply_desc];
+  auto *const error = [reply paramDescriptorForKeyword:keyErrorNumber];
+  return error != nil ? static_cast<OSStatus>(error.int32Value) : noErr;
+}
+
+static void post_announcement(NSWindow *window, NSString *text) {
+  if (window == nullptr)
+    return;
+  NSAccessibilityPostNotificationWithUserInfo(
+      window, NSAccessibilityAnnouncementRequestedNotification, @{
+        NSAccessibilityAnnouncementKey : text,
+        // NOLINTNEXTLINE(readability-redundant-parentheses)
+        NSAccessibilityPriorityKey : @(NSAccessibilityPriorityHigh),
+      });
+}
 
 static bool host_has_entitlement(CFStringRef entitlement) {
   auto *const task = SecTaskCreateFromSelf(kCFAllocatorDefault);
@@ -179,6 +224,31 @@ struct LegacyAutomationState
     : std::enable_shared_from_this<LegacyAutomationState> {
   std::atomic_flag usable;
   std::atomic_flag check_pending;
+  std::atomic<std::chrono::steady_clock::time_point> retry_after;
+  dispatch_queue_t delivery_queue{
+      dispatch_queue_create("com.github.ethindp.prism.voiceover",
+                            DISPATCH_QUEUE_SERIAL),
+  };
+
+  void deliver(NSString *text) {
+    const auto state = shared_from_this();
+    dispatch_async(delivery_queue, ^{
+      OSStatus status = errAEEventNotPermitted;
+      if (state->usable.test() &&
+          std::chrono::steady_clock::now() >= state->retry_after.load()) {
+        status = send_voice_over_output(text);
+      }
+      if (status == errAETimeout) {
+        state->retry_after.store(std::chrono::steady_clock::now() +
+                                 LEGACY_RETRY_DELAY);
+      }
+      if (status != noErr) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+          post_announcement(pick_best_window(), text);
+        });
+      }
+    });
+  }
 
   void refresh(bool ask_user) {
     if (check_pending.test_and_set())
@@ -213,7 +283,6 @@ private:
   NSMutableString *pending_text{nullptr};
   dispatch_block_t debounce_block{nullptr};
   __weak NSWindow *cached_window{nullptr};
-  NSAppleScript *legacy_script{nullptr};
   std::shared_ptr<LegacyAutomationState> legacy_state{
       std::make_shared<LegacyAutomationState>(),
   };
@@ -286,14 +355,7 @@ public:
       cached_window = w;
       [pending_text setString:@""];
       cancel_debounce();
-      legacy_script =
-          [[NSAppleScript alloc] initWithSource:VOICE_OVER_APPLE_SCRIPT_SOURCE];
-      NSDictionary *compileError = nil;
-      if ([legacy_script compileAndReturnError:&compileError] == NO) {
-        legacy_script = nil;
-      } else {
-        legacy_state->refresh(true);
-      }
+      legacy_state->refresh(true);
       dispatch_async(dispatch_get_main_queue(), ^{
         NSAccessibilityPostNotification(
             w, NSAccessibilityWindowCreatedNotification);
@@ -410,7 +472,6 @@ private:
     cancel_debounce();
     [pending_text setString:@""];
     cached_window = nullptr;
-    legacy_script = nil;
 #else
     if (observer != nullptr) {
       [[NSNotificationCenter defaultCenter] removeObserver:observer];
@@ -443,39 +504,6 @@ private:
         dispatch_get_main_queue(), debounce_block);
   }
 
-  bool try_invoke_legacy_handler(NSString *handlerName, NSString *argument) {
-    if (legacy_script == nullptr)
-      return false;
-    if (!is_voiceover_active() || !legacy_state->usable.test())
-      return false;
-    ProcessSerialNumber psn = {
-        .highLongOfPSN = 0,
-        .lowLongOfPSN = kCurrentProcess,
-    };
-    auto *const target = [NSAppleEventDescriptor
-        descriptorWithDescriptorType:typeProcessSerialNumber
-                               bytes:&psn
-                              length:sizeof(psn)];
-    auto *const event =
-        [NSAppleEventDescriptor appleEventWithEventClass:kASAppleScriptSuite
-                                                 eventID:kASSubroutineEvent
-                                        targetDescriptor:target
-                                                returnID:kAutoGenerateReturnID
-                                           transactionID:kAnyTransactionID];
-    [event setParamDescriptor:[NSAppleEventDescriptor
-                                  descriptorWithString:handlerName]
-                   forKeyword:keyASSubroutineName];
-    auto *const args = [NSAppleEventDescriptor listDescriptor];
-    if (argument != nullptr) {
-      [args insertDescriptor:[NSAppleEventDescriptor
-                                 descriptorWithString:argument]
-                     atIndex:1];
-    }
-    [event setParamDescriptor:args forKeyword:keyDirectObject];
-    NSDictionary *errorInfo = nil;
-    return [legacy_script executeAppleEvent:event error:&errorInfo] != nil;
-  }
-
   void fire_announcement_now() {
     if (!initialized.test())
       return;
@@ -485,21 +513,17 @@ private:
       return;
     NSString *const text_to_speak = [pending_text copy];
     [pending_text setString:@""];
-    const bool delivered = try_invoke_legacy_handler(@"voSpeak", text_to_speak);
-    if (legacy_script != nullptr)
-      legacy_state->refresh(false);
-    if (delivered)
+    const bool use_legacy_path = legacy_state->usable.test();
+    legacy_state->refresh(false);
+    if (use_legacy_path) {
+      legacy_state->deliver(text_to_speak);
       return;
+    }
     NSWindow *w = cached_window != nullptr ? cached_window : pick_best_window();
     if (w == nullptr)
       return;
     cached_window = w;
-    NSAccessibilityPostNotificationWithUserInfo(
-        w, NSAccessibilityAnnouncementRequestedNotification, @{
-          NSAccessibilityAnnouncementKey : text_to_speak,
-          // NOLINTNEXTLINE(readability-redundant-parentheses)
-          NSAccessibilityPriorityKey : @(NSAccessibilityPriorityHigh),
-        });
+    post_announcement(w, text_to_speak);
   }
 #elif !TARGET_OS_WATCH
   void pump_if_needed() {

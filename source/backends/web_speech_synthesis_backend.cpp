@@ -4,7 +4,6 @@
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../utils.h"
-#include <atomic>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 #include <simdutf.h>
@@ -22,19 +21,17 @@ private:
   float volume{1.0f};
   float rate{0.5f};
   float pitch{0.5f};
-  std::atomic_flag speaking{false};
-  std::atomic_flag paused{false};
 
-  val create_callback(void (WebSpeechSynthesisBackend::*handler)()) {
-    auto self = this;
-    auto fn = [self, handler](val) { (self->*handler)(); };
-    return val(std::function<void(val)>(fn));
+  bool paused{false};
+
+  [[nodiscard]] bool synth_busy() const {
+    return synth["speaking"].as<bool>() || synth["pending"].as<bool>();
   }
 
 public:
   ~WebSpeechSynthesisBackend() override {
     if (!synth.isNull())
-      synth.call<void>("cancel");
+      (void)stop();
   }
 
   std::string_view get_name() const override { return "Web Speech Synthesis"; }
@@ -81,7 +78,9 @@ public:
       if (const auto r = stop(); !r)
         return std::unexpected(r.error());
     }
-    val utterance = val::global("SpeechSynthesisUtterance").new_(text);
+    // embind binds std::string, but not std::string_view.
+    val utterance =
+        val::global("SpeechSynthesisUtterance").new_(std::string{text});
     if (utterance.isNull() || utterance.isUndefined())
       return std::unexpected(BackendError::InternalBackendError);
     utterance.set("volume", volume);
@@ -91,19 +90,9 @@ public:
                                                   1.0f, 2.0f));
     if (!voices.empty() && current_voice < voices.size())
       utterance.set("voice", voices[current_voice]);
-    utterance.set("onstart",
-                  create_callback(&WebSpeechSynthesisBackend::handleStart));
-    utterance.set("onend",
-                  create_callback(&WebSpeechSynthesisBackend::handleEnd));
-    utterance.set("onerror",
-                  create_callback(&WebSpeechSynthesisBackend::handleError));
-    utterance.set("onpause",
-                  create_callback(&WebSpeechSynthesisBackend::handlePause));
-    utterance.set("onresume",
-                  create_callback(&WebSpeechSynthesisBackend::handleResume));
+    // Held so the browser cannot collect the utterance while it plays.
     current_utterance = utterance;
     synth.call<void>("speak", utterance);
-    speaking.test_and_set();
     return {};
   }
 
@@ -114,36 +103,38 @@ public:
   BackendResult<bool> is_speaking() override {
     if (synth.isNull())
       return std::unexpected(BackendError::NotInitialized);
-    return synth["speaking"].as<bool>() || synth["pending"].as<bool>();
+    return synth_busy();
   }
 
   BackendResult<> stop() override {
     if (synth.isNull())
       return std::unexpected(BackendError::NotInitialized);
+    if (paused)
+      synth.call<void>("resume");
     synth.call<void>("cancel");
-    speaking.clear();
-    paused.clear();
+    paused = false;
     return {};
   }
 
   BackendResult<> pause() override {
     if (synth.isNull())
       return std::unexpected(BackendError::NotInitialized);
-    if (!speaking.test())
-      return std::unexpected(BackendError::NotSpeaking);
-    if (paused.test())
+    if (paused)
       return std::unexpected(BackendError::AlreadyPaused);
+    if (!synth_busy())
+      return std::unexpected(BackendError::NotSpeaking);
     synth.call<void>("pause");
-    paused.test_and_set();
+    paused = true;
     return {};
   }
 
   BackendResult<> resume() override {
     if (synth.isNull())
       return std::unexpected(BackendError::NotInitialized);
-    if (!paused.test())
+    if (!paused)
       return std::unexpected(BackendError::NotPaused);
     synth.call<void>("resume");
+    paused = false;
     return {};
   }
 
@@ -248,19 +239,6 @@ public:
       return std::unexpected(BackendError::NoVoices);
     return current_voice;
   }
-
-private:
-  void handleStart() { speaking.test_and_set(); }
-  void handleEnd() {
-    speaking.clear();
-    paused.clear();
-  }
-  void handleError() {
-    speaking.clear();
-    paused.clear();
-  }
-  void handlePause() { paused.test_and_set(); }
-  void handleResume() { paused.clear(); }
 };
 
 REGISTER_BACKEND_WITH_ID(WebSpeechSynthesisBackend,

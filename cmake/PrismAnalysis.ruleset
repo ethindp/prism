@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RuleSet Name="Prism" Description="Every MSVC code analysis rule, less those that require the GSL or forbid what a C ABI must do" ToolsVersion="17.0">
+  <IncludeAll Action="Warning" />
+  <Rules AnalyzerId="Microsoft.Analyzers.NativeCodeAnalysis" RuleNamespace="Microsoft.Rules.Native">
+    <!-- Prism does not depend on the GSL. -->
+    <Rule Id="C26403" Action="None" /> <!-- gsl::owner -->
+    <Rule Id="C26429" Action="None" /> <!-- gsl::not_null -->
+    <Rule Id="C26446" Action="None" /> <!-- gsl::at -->
+    <Rule Id="C26472" Action="None" /> <!-- gsl::narrow_cast -->
+    <Rule Id="C26821" Action="None" /> <!-- gsl::span -->
+    <!-- Opaque handles, caller buffers and COM objects. -->
+    <Rule Id="C26409" Action="None" /> <!-- explicit new/delete -->
+    <Rule Id="C26481" Action="None" /> <!-- pointer arithmetic -->
+    <Rule Id="C26482" Action="None" /> <!-- non-constant array index -->
+    <Rule Id="C26485" Action="None" /> <!-- array-to-pointer decay -->
+    <Rule Id="C26490" Action="None" /> <!-- reinterpret_cast -->
+    <!-- Style with no bearing on behaviour. -->
+    <Rule Id="C26440" Action="None" /> <!-- "can be declared noexcept" -->
+    <Rule Id="C26457" Action="None" /> <!-- (void) instead of std::ignore -->
+  </Rules>
+</RuleSet>

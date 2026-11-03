@@ -55,50 +55,19 @@ if(NOT MSVC)
   endforeach()
   return()
 endif()
-if(NOT DEFINED ENV{VSINSTALLDIR})
-  message(
-    FATAL_ERROR
-      "VSINSTALLDIR is not set. Run from a Developer Command Prompt, or set "
-      "-DPRISM_ENABLE_LINTING=OFF.")
-endif()
-set(_ruleset_dir
-    "$ENV{VSINSTALLDIR}Team Tools\\Static Analysis Tools\\Rule Sets")
-if(NOT EXISTS "${_ruleset_dir}")
-  message(FATAL_ERROR "VS ruleset directory not found at: ${_ruleset_dir}")
-endif()
-set(RULESET_IMPORTS "")
-foreach(
-  _r
-  NativeRecommendedRules
-  ConcurrencyCheckRules
-  ConcurrencyRules
-  CppCoreCheckRules
-  ExtendedCorrectnessRules
-  ExtendedDesignGuidelineRules
-  GlobalizationRules
-  SecurityRules)
-  string(
-    APPEND
-    RULESET_IMPORTS
-    "    <Include Path=\"${_ruleset_dir}\\${_r}.ruleset\" Action=\"Default\" />\n"
-  )
-endforeach()
-set(PRISM_MERGED_RULESET "${CMAKE_BINARY_DIR}/PrismCombinedRuleset.ruleset")
-configure_file("${PRISM_SOURCE_ROOT}/cmake/PrismRulesetTemplate.ruleset.in"
-               "${PRISM_MERGED_RULESET}" @ONLY)
+# The same analysis PRISM_MSVC_ANALYSIS runs (see PrismWarnings), as errors.
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nativecodeanalysis")
 target_compile_options(
   prism_common
   INTERFACE
-    /external:anglebrackets
-    /external:W0
+    ${PRISM_MSVC_EXTERNAL_OPTIONS}
     "/external:I ${CMAKE_BINARY_DIR}/generated"
-    "/external:I ${PRISM_SOURCE_ROOT}/source/backends/raw"
-    "$<$<COMPILE_LANGUAGE:CXX>:/analyze;/analyze:external-;/analyze:log;${CMAKE_BINARY_DIR}/nativecodeanalysis/;/analyze:log:format:sarif;/analyze:ruleset;${PRISM_MERGED_RULESET}>"
+    # Prism's only C sources are the unlintable ones below.
+    "$<$<COMPILE_LANGUAGE:CXX>:/W4>"
+    "$<$<COMPILE_LANGUAGE:CXX>:${PRISM_MSVC_ANALYSIS_OPTIONS};/analyze:log;${CMAKE_BINARY_DIR}/nativecodeanalysis/;/analyze:log:format:sarif>"
 )
 foreach(_t prism ${PRISM_BACKEND_TARGETS})
   set_property(TARGET ${_t} PROPERTY COMPILE_WARNING_AS_ERROR ON)
-  set_property(TARGET ${_t} PROPERTY COMPILE_WARNING_LEVEL 4)
 endforeach()
 foreach(_src IN LISTS PRISM_UNLINTABLE)
   set_property(
@@ -113,16 +82,12 @@ function(prism_enable_target_linting target)
   endif()
   file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nativecodeanalysis/${target}")
   set_property(TARGET ${target} PROPERTY COMPILE_WARNING_AS_ERROR ON)
-  set_property(TARGET ${target} PROPERTY COMPILE_WARNING_LEVEL 4)
   target_compile_options(
     ${target}
-    PRIVATE /external:anglebrackets
-            /external:W0
-            /analyze
-            /analyze:external-
+    PRIVATE /W4
+            ${PRISM_MSVC_EXTERNAL_OPTIONS}
+            ${PRISM_MSVC_ANALYSIS_OPTIONS}
             /analyze:log
             "${CMAKE_BINARY_DIR}/nativecodeanalysis/${target}/"
-            /analyze:log:format:sarif
-            /analyze:ruleset
-            "${PRISM_MERGED_RULESET}")
+            /analyze:log:format:sarif)
 endfunction()

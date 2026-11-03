@@ -26,6 +26,10 @@ option(PRISM_ENABLE_LINTING
        OFF)
 option(PRISM_DIAGNOSE_VECTORIZATION
        "Emit vectorization reports for optimized builds" OFF)
+option(PRISM_MSVC_ANALYSIS
+       "Run MSVC code analysis (/W4 and /analyze) on Prism's own code (slow)"
+       OFF)
+
 option(PRISM_REGENERATE_DJINNI
        "Re-derive the committed Djinni bindings from the IDL (MAINTAINER ONLY)"
        OFF)

@@ -3,10 +3,12 @@
 #include "godot_cpp/variant/array.hpp"
 #include "godot_cpp/variant/utility_functions.hpp"
 
+#include <algorithm>
 #include <bit>
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 struct SpeakToMemoryAccumulator {
@@ -350,7 +352,7 @@ std::int64_t GodotPrismBackend::get_voice() const {
   }
   std::size_t voice_id = 0;
   auto const err = prism_backend_get_voice(backend, &voice_id);
-  return (err == PRISM_OK) ? static_cast<int>(voice_id) : -1;
+  return (err == PRISM_OK) ? static_cast<std::int64_t>(voice_id) : -1;
 }
 
 std::int64_t GodotPrismBackend::get_channels() const {
@@ -360,7 +362,7 @@ std::int64_t GodotPrismBackend::get_channels() const {
   }
   std::size_t ch = 0;
   auto const err = prism_backend_get_channels(backend, &ch);
-  return (err == PRISM_OK) ? static_cast<int>(ch) : -1;
+  return (err == PRISM_OK) ? static_cast<std::int64_t>(ch) : -1;
 }
 
 std::int64_t GodotPrismBackend::get_sample_rate() const {
@@ -370,7 +372,7 @@ std::int64_t GodotPrismBackend::get_sample_rate() const {
   }
   std::size_t sr = 0;
   auto const err = prism_backend_get_sample_rate(backend, &sr);
-  return (err == PRISM_OK) ? static_cast<int>(sr) : -1;
+  return (err == PRISM_OK) ? static_cast<std::int64_t>(sr) : -1;
 }
 
 std::int64_t GodotPrismBackend::get_bit_depth() const {
@@ -380,7 +382,7 @@ std::int64_t GodotPrismBackend::get_bit_depth() const {
   }
   std::size_t bd = 0;
   auto const err = prism_backend_get_bit_depth(backend, &bd);
-  return (err == PRISM_OK) ? static_cast<int>(bd) : -1;
+  return (err == PRISM_OK) ? static_cast<std::int64_t>(bd) : -1;
 }
 
 Ref<AudioStreamWAV> GodotPrismBackend::speak_to_stream(const String &text) {
@@ -412,10 +414,12 @@ Ref<AudioStreamWAV> GodotPrismBackend::speak_to_stream(const String &text) {
   pcm.resize(static_cast<std::int64_t>(acc.samples.size()) * 2);
   uint8_t *dst = pcm.ptrw();
   for (std::size_t i = 0; i < acc.samples.size(); ++i) {
-    float s = acc.samples[i];
-    auto v = static_cast<std::int16_t>(s * 32767.0F);
-    dst[(i * 2) + 0] = static_cast<uint8_t>(v & 0xFF);
-    dst[(i * 2) + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
+    const float s = acc.samples[i];
+    const float clamped = std::isfinite(s) ? std::clamp(s, -1.0F, 1.0F) : 0.0F;
+    const auto v = static_cast<std::uint16_t>(
+        static_cast<std::int16_t>(clamped * 32767.0F));
+    dst[(i * 2) + 0] = static_cast<uint8_t>(v & 0xFFU);
+    dst[(i * 2) + 1] = static_cast<uint8_t>(v >> 8U);
   }
   Ref<AudioStreamWAV> stream;
   stream.instantiate();

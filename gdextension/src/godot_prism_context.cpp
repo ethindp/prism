@@ -301,7 +301,8 @@ String GodotPrismContext::name_of(std::int64_t id) const {
   if (bid == PRISM_BACKEND_INVALID) {
     return {};
   }
-  return String::utf8(prism_registry_name(ctx, bid));
+  const char *const name = prism_registry_name(ctx, bid);
+  return name != nullptr ? String::utf8(name) : String{};
 }
 
 std::int64_t GodotPrismContext::priority_of(std::int64_t id) const {

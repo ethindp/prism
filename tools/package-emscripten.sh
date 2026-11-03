@@ -6,8 +6,7 @@ for config in release debug; do
 	rm -rf "dist/static/${config}"
 	cmake --install "build-${config}" --prefix "dist/static/${config}" --config "${bt}"
 done
-mv dist/static/release/include dist/include
-rm -rf dist/static/debug/include
+cp -r dist/static/release/include dist/include
 cp -r LICENSES dist
 cp NOTICE dist
 cd dist && zip -r ../prism-wasm.zip .

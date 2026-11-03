@@ -10,8 +10,7 @@ for linkage in dynamic static; do
 			--prefix "dist/${linkage}/${config}" --config "${bt}"
 	done
 done
-mv dist/dynamic/release/include dist/include
-rm -rf dist/dynamic/debug/include dist/static/release/include dist/static/debug/include
+cp -r dist/dynamic/release/include dist/include
 cp -r LICENSES dist
 cp NOTICE dist
 cd dist && zip -r "../prism-linux-${ARCH}.zip" .

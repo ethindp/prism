@@ -70,9 +70,7 @@ jobs:
                     --config  $bt
             }
           }
-          Move-Item dist/dynamic/release/include dist/include
-          Remove-Item dist/dynamic/debug/include,dist/static/release/include,dist/static/debug/include `
-            -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Recurse dist/dynamic/release/include dist/include
           Copy-Item -Recurse LICENSES dist/
           Copy-Item NOTICE dist/
           Compress-Archive -Path dist/* -DestinationPath "prism-windows-${{ matrix.name }}.zip"

@@ -531,7 +531,7 @@ prism_declare_backend(
   DOC
   "Android screen readers")
 prism_declare_backend(
-  web_speech_synthesis_backend
+  web_speech_synthesis
   SOURCE
   web_speech_synthesis_backend.cpp
   PLATFORM

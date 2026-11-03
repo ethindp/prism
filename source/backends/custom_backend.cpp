@@ -444,17 +444,32 @@ static BackendFactory make_factory_impl(const PrismBackendVTable *vtable,
   }
   if (!vtable_consistent(features, normalized))
     return {};
-  auto registration = std::make_shared<CustomRegistration>(
-      normalized, userdata, userdata_free, std::move(owner), features,
-      std::move(name));
-  return [registration] -> std::shared_ptr<TextToSpeechBackend> {
-    void *instance = registration->vtable.create != nullptr
-                         ? registration->vtable.create(registration->userdata)
-                         : registration->userdata;
-    if (registration->vtable.create != nullptr && instance == nullptr)
-      return nullptr;
-    return std::make_shared<CustomBackend>(registration, instance);
-  };
+  std::shared_ptr<CustomRegistration> registration;
+  try {
+    registration = std::make_shared<CustomRegistration>(
+        normalized, userdata, userdata_free, std::move(owner), features,
+        std::move(name));
+    return [registration] -> std::shared_ptr<TextToSpeechBackend> {
+      const auto &vt = registration->vtable;
+      void *instance = vt.create != nullptr ? vt.create(registration->userdata)
+                                            : registration->userdata;
+      if (vt.create != nullptr && instance == nullptr)
+        return nullptr;
+      try {
+        return std::make_shared<CustomBackend>(registration, instance);
+      } catch (...) {
+        if (vt.create != nullptr && vt.destroy != nullptr)
+          vt.destroy(instance);
+        throw;
+      }
+    };
+  } catch (...) {
+    // The caller still owns userdata if no factory is returned, so the
+    // registration must not free it on the way out.
+    if (registration)
+      registration->userdata_free = nullptr;
+    throw;
+  }
 }
 
 BackendFactory make_custom_factory(const PrismBackendVTable *vtable,

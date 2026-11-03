@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <new>
 #include <simdutf.h>
 #include <string>
 #include <string_view>
@@ -364,6 +365,9 @@ PrismError load_plugin(RegistryBuilder &builder, const char *path,
     if (out_count != nullptr)
       *out_count = added;
     return PRISM_OK;
+  } catch (const std::bad_alloc &) {
+    builder.rollback_to(mark);
+    return PRISM_ERROR_MEMORY_FAILURE;
   } catch (const std::exception &ex) {
     builder.rollback_to(mark);
     log.error("Failed to load '{}': {}", path, ex.what());

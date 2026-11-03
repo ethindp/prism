@@ -66,6 +66,12 @@ extern "C" {
 #else
 #define PRISM_RESTRICT restrict
 #endif
+/* No function of the C API lets an exception escape. */
+#if defined(__cplusplus)
+#define PRISM_NOEXCEPT noexcept
+#else
+#define PRISM_NOEXCEPT
+#endif
 #if defined(__cplusplus)
 #define PRISM_STATIC_ASSERT static_assert
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
@@ -342,204 +348,224 @@ PRISM_STATIC_ASSERT(offsetof(PrismPluginHost, abi_version) == 0,
 PRISM_STATIC_ASSERT(offsetof(PrismPluginHost, struct_size) == 8,
                     "PrismPluginHost.struct_size must be at offset 8");
 
-PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void);
+PRISM_API PRISM_NODISCARD PrismConfig PRISM_CALL prism_config_init(void)
+    PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_MALLOC PrismContext *PRISM_CALL
-prism_init(PrismConfig *cfg);
+prism_init(PrismConfig *cfg) PRISM_NOEXCEPT;
 
 PRISM_API
-void PRISM_CALL prism_shutdown(PrismContext *ctx);
+void PRISM_CALL prism_shutdown(PrismContext *ctx) PRISM_NOEXCEPT;
 
-PRISM_API void PRISM_CALL prism_availability_poll_pause(PrismContext *ctx);
+PRISM_API void PRISM_CALL prism_availability_poll_pause(PrismContext *ctx)
+    PRISM_NOEXCEPT;
 
-PRISM_API void PRISM_CALL prism_availability_poll_resume(PrismContext *ctx);
+PRISM_API void PRISM_CALL prism_availability_poll_resume(PrismContext *ctx)
+    PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD bool PRISM_CALL
-prism_availability_auto_power_supported(void);
+prism_availability_auto_power_supported(void) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) size_t PRISM_CALL
-    prism_registry_count(PrismContext *ctx);
+    prism_registry_count(PrismContext *ctx) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismBackendId PRISM_CALL
-    prism_registry_id_at(PrismContext *ctx, size_t index);
+    prism_registry_id_at(PrismContext *ctx, size_t index) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
     PRISM_NULL_TERMINATED_STRING_ARG(2) PrismBackendId PRISM_CALL
-    prism_registry_id(PrismContext *ctx, const char *PRISM_RESTRICT name);
+    prism_registry_id(PrismContext *ctx,
+                      const char *PRISM_RESTRICT name) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) const char *PRISM_CALL
-    prism_registry_name(PrismContext *ctx, PrismBackendId id);
+    prism_registry_name(PrismContext *ctx, PrismBackendId id) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) int PRISM_CALL
-    prism_registry_priority(PrismContext *ctx, PrismBackendId id);
+    prism_registry_priority(PrismContext *ctx,
+                            PrismBackendId id) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) bool PRISM_CALL
-    prism_registry_exists(PrismContext *ctx, PrismBackendId id);
+    prism_registry_exists(PrismContext *ctx, PrismBackendId id) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismBackend *PRISM_CALL
-    prism_registry_get(PrismContext *ctx, PrismBackendId id);
+    prism_registry_get(PrismContext *ctx, PrismBackendId id) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_MALLOC PRISM_NONNULL(1) PrismBackend *PRISM_CALL
-    prism_registry_create(PrismContext *ctx, PrismBackendId id);
+    prism_registry_create(PrismContext *ctx, PrismBackendId id) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_MALLOC PRISM_NONNULL(1) PrismBackend *PRISM_CALL
-    prism_registry_create_best(PrismContext *ctx);
+    prism_registry_create_best(PrismContext *ctx) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismBackend *PRISM_CALL
-    prism_registry_acquire(PrismContext *ctx, PrismBackendId id);
+    prism_registry_acquire(PrismContext *ctx, PrismBackendId id) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismBackend *PRISM_CALL
-    prism_registry_acquire_best(PrismContext *ctx);
+    prism_registry_acquire_best(PrismContext *ctx) PRISM_NOEXCEPT;
 
 PRISM_API
-void PRISM_CALL prism_backend_free(PrismBackend *backend);
+void PRISM_CALL prism_backend_free(PrismBackend *backend) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) const char *PRISM_CALL
-    prism_backend_name(PrismBackend *backend);
+    prism_backend_name(PrismBackend *backend) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) uint64_t PRISM_CALL
-    prism_backend_get_features(PrismBackend *backend);
+    prism_backend_get_features(PrismBackend *backend) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
-    prism_backend_initialize(PrismBackend *backend);
+    prism_backend_initialize(PrismBackend *backend) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
     PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
     prism_backend_speak(PrismBackend *backend, const char *PRISM_RESTRICT text,
-                        bool interrupt);
+                        bool interrupt) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2, 3)
     PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
     prism_backend_speak_to_memory(PrismBackend *backend,
                                   const char *PRISM_RESTRICT text,
-                                  PrismAudioCallback callback, void *userdata);
+                                  PrismAudioCallback callback,
+                                  void *userdata) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
     PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
     prism_backend_braille(PrismBackend *backend,
-                          const char *PRISM_RESTRICT text);
+                          const char *PRISM_RESTRICT text) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
     PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
     prism_backend_output(PrismBackend *backend, const char *PRISM_RESTRICT text,
-                         bool interrupt);
+                         bool interrupt) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
-    prism_backend_stop(PrismBackend *backend);
+    prism_backend_stop(PrismBackend *backend) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
-    prism_backend_pause(PrismBackend *backend);
+    prism_backend_pause(PrismBackend *backend) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
-    prism_backend_resume(PrismBackend *backend);
+    prism_backend_resume(PrismBackend *backend) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
     prism_backend_is_speaking(PrismBackend *backend,
-                              bool *PRISM_RESTRICT out_speaking);
+                              bool *PRISM_RESTRICT out_speaking) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
-    prism_backend_set_volume(PrismBackend *backend, float volume);
+    prism_backend_set_volume(PrismBackend *backend,
+                             float volume) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
-    prism_backend_set_rate(PrismBackend *backend, float rate);
+    prism_backend_set_rate(PrismBackend *backend, float rate) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
-    prism_backend_set_pitch(PrismBackend *backend, float pitch);
+    prism_backend_set_pitch(PrismBackend *backend, float pitch) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
     prism_backend_get_volume(PrismBackend *backend,
-                             float *PRISM_RESTRICT out_volume);
+                             float *PRISM_RESTRICT out_volume) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
     prism_backend_get_rate(PrismBackend *backend,
-                           float *PRISM_RESTRICT out_rate);
+                           float *PRISM_RESTRICT out_rate) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
     prism_backend_get_pitch(PrismBackend *backend,
-                            float *PRISM_RESTRICT out_pitch);
+                            float *PRISM_RESTRICT out_pitch) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
-    prism_backend_refresh_voices(PrismBackend *backend);
+    prism_backend_refresh_voices(PrismBackend *backend) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
     prism_backend_count_voices(PrismBackend *backend,
-                               size_t *PRISM_RESTRICT out_count);
+                               size_t *PRISM_RESTRICT out_count) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 3) PrismError PRISM_CALL
     prism_backend_get_voice_name(PrismBackend *backend, size_t voice_id,
-                                 const char **PRISM_RESTRICT out_name);
+                                 const char **PRISM_RESTRICT out_name)
+        PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 3) PrismError PRISM_CALL
     prism_backend_get_voice_language(PrismBackend *backend, size_t voice_id,
-                                     const char **PRISM_RESTRICT out_language);
+                                     const char **PRISM_RESTRICT out_language)
+        PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1) PrismError PRISM_CALL
-    prism_backend_set_voice(PrismBackend *backend, size_t voice_id);
+    prism_backend_set_voice(PrismBackend *backend,
+                            size_t voice_id) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
     prism_backend_get_voice(PrismBackend *backend,
-                            size_t *PRISM_RESTRICT out_voice_id);
+                            size_t *PRISM_RESTRICT out_voice_id) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
     prism_backend_get_channels(PrismBackend *backend,
-                               size_t *PRISM_RESTRICT out_channels);
+                               size_t *PRISM_RESTRICT out_channels)
+        PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
     prism_backend_get_sample_rate(PrismBackend *backend,
-                                  size_t *PRISM_RESTRICT out_sample_rate);
+                                  size_t *PRISM_RESTRICT out_sample_rate)
+        PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2) PrismError PRISM_CALL
     prism_backend_get_bit_depth(PrismBackend *backend,
-                                size_t *PRISM_RESTRICT out_bit_depth);
+                                size_t *PRISM_RESTRICT out_bit_depth)
+        PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD const char *PRISM_CALL
-prism_error_string(PrismError error);
+prism_error_string(PrismError error) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_MALLOC PrismRegistryBuilder *PRISM_CALL
-prism_registry_builder_new(void);
+prism_registry_builder_new(void) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2, 5)
     PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
-    prism_registry_builder_add_backend(
-        PrismRegistryBuilder *builder, const char *name, int priority,
-        uint64_t features, const PrismBackendVTable *vtable, void *userdata,
-        void(PRISM_CALL *userdata_free)(void *), PrismBackendId *out_id);
+    prism_registry_builder_add_backend(PrismRegistryBuilder *builder,
+                                       const char *name, int priority,
+                                       uint64_t features,
+                                       const PrismBackendVTable *vtable,
+                                       void *userdata,
+                                       void(PRISM_CALL *userdata_free)(void *),
+                                       PrismBackendId *out_id) PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NODISCARD PRISM_NONNULL(1, 2)
     PRISM_NULL_TERMINATED_STRING_ARG(2) PrismError PRISM_CALL
-    prism_registry_builder_add_library(PrismRegistryBuilder *builder,
-                                       const char *PRISM_RESTRICT path,
-                                       int priority_override,
-                                       size_t *PRISM_RESTRICT out_count);
+    prism_registry_builder_add_library(
+        PrismRegistryBuilder *builder, const char *PRISM_RESTRICT path,
+        int priority_override, size_t *PRISM_RESTRICT out_count) PRISM_NOEXCEPT;
 
 PRISM_API
 PRISM_NODISCARD PRISM_MALLOC PRISM_NONNULL(1) PrismRegistry *PRISM_CALL
-    prism_registry_freeze(PrismRegistryBuilder *builder);
+    prism_registry_freeze(PrismRegistryBuilder *builder) PRISM_NOEXCEPT;
 
 PRISM_API void PRISM_CALL
-prism_registry_builder_free(PrismRegistryBuilder *builder);
+prism_registry_builder_free(PrismRegistryBuilder *builder) PRISM_NOEXCEPT;
 
 PRISM_API PrismRegistry *PRISM_CALL
-prism_registry_retain(PrismRegistry *registry);
+prism_registry_retain(PrismRegistry *registry) PRISM_NOEXCEPT;
 
-PRISM_API void PRISM_CALL prism_registry_release(PrismRegistry *registry);
+PRISM_API void PRISM_CALL prism_registry_release(PrismRegistry *registry)
+    PRISM_NOEXCEPT;
 
 PRISM_API PrismLogHandler PRISM_CALL
-prism_set_log_handler(PrismLogHandler handler);
+prism_set_log_handler(PrismLogHandler handler) PRISM_NOEXCEPT;
 
-PRISM_API PrismLogLevel PRISM_CALL prism_set_log_level(PrismLogLevel level);
+PRISM_API PrismLogLevel PRISM_CALL prism_set_log_level(PrismLogLevel level)
+    PRISM_NOEXCEPT;
 
 PRISM_API PRISM_NONNULL(2, 3) PRISM_NULL_TERMINATED_STRING_ARG(2)
     PRISM_NULL_TERMINATED_STRING_ARG(3) void PRISM_CALL
-    prism_log(PrismLogLevel level, const char *source, const char *message);
+    prism_log(PrismLogLevel level, const char *source,
+              const char *message) PRISM_NOEXCEPT;
 
-PRISM_API void PRISM_CALL prism_log_flush(void);
+PRISM_API void PRISM_CALL prism_log_flush(void) PRISM_NOEXCEPT;
 
-PRISM_API void PRISM_CALL prism_log_shutdown(void);
+PRISM_API void PRISM_CALL prism_log_shutdown(void) PRISM_NOEXCEPT;
 
-PRISM_API PRISM_NODISCARD uint32_t PRISM_CALL prism_version(void);
+PRISM_API PRISM_NODISCARD uint32_t PRISM_CALL prism_version(void)
+    PRISM_NOEXCEPT;
 
-PRISM_API PRISM_NODISCARD const char *PRISM_CALL prism_version_string(void);
+PRISM_API PRISM_NODISCARD const char *PRISM_CALL prism_version_string(void)
+    PRISM_NOEXCEPT;
 
 #if defined(__cplusplus)
 }

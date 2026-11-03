@@ -10,6 +10,7 @@
 #ifdef PRISM_HAVE_BACKEND_ANCHORS
 #include "backend_anchors.h"
 #endif
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -634,7 +635,7 @@ PRISM_API PRISM_NODISCARD PrismError PRISM_CALL prism_backend_get_bit_depth(
 
 PRISM_API PRISM_NODISCARD const char *PRISM_CALL
 prism_error_string(PrismError error) PRISM_NOEXCEPT {
-  static const char *const strings[] = {
+  static constexpr std::array strings = {
       "Success",
       "Not initialized",
       "Invalid parameter",

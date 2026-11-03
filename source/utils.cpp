@@ -290,8 +290,8 @@ compute_trim_bounds_rms_gate(std::span<const float> samples_interleaved,
   const auto tail_frames = std::min<std::size_t>(
       n, std::max<std::size_t>(std::size_t{1},
                                ms_to_frames(P.tail_ms, sample_rate) / hop));
-  const std::span<const float> head(db.data(), head_frames);
-  const std::span<const float> tail(db.data() + (n - tail_frames), tail_frames);
+  const auto head = std::span<const float>{db}.first(head_frames);
+  const auto tail = std::span<const float>{db}.last(tail_frames);
   W.scratch.reserve(std::max(head_frames, tail_frames));
   float floor_db = std::min(percentile(head, 0.20F, W.scratch),
                             percentile(tail, 0.20F, W.scratch));

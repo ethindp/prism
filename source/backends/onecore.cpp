@@ -33,6 +33,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <version>
 #include <windows.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Foundation.Metadata.h>
@@ -201,7 +202,12 @@ std::vector<std::uint8_t> read_stream(const SpeechSynthesisStream &stream) {
             .get();
     if (chunk.Length() == 0)
       break;
-    bytes.insert(bytes.end(), chunk.data(), chunk.data() + chunk.Length());
+    const std::span received{chunk.data(), chunk.Length()};
+#ifdef __cpp_lib_containers_ranges
+    bytes.append_range(received);
+#else
+    bytes.insert(bytes.end(), received.begin(), received.end());
+#endif
   }
   return bytes;
 }

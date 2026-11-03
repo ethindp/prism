@@ -129,8 +129,12 @@ public:
     if (player != nullptr && player->generation() != generation)
       return E_ABORT;
     try {
-      const auto *first = static_cast<const std::byte *>(data);
-      captured.insert(captured.end(), first, first + size);
+      const std::span bytes{static_cast<const std::byte *>(data), size};
+#ifdef __cpp_lib_containers_ranges
+      captured.append_range(bytes);
+#else
+      captured.insert(captured.end(), bytes.begin(), bytes.end());
+#endif
     } catch (...) {
       return E_OUTOFMEMORY;
     }

@@ -9,6 +9,7 @@
 #include <ranges>
 #include <raw/fsapi.h>
 #include <simdutf.h>
+#include <span>
 #include <tchar.h>
 #include <windows.h>
 
@@ -91,21 +92,17 @@ public:
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(total_len));
     if (bstr == nullptr)
       return std::unexpected(BackendError::MemoryFailure);
-    wchar_t *ptr = bstr;
-    std::ranges::copy(prefix, ptr);
-    ptr += prefix.size();
-    if (text_len > 0 &&
-        simdutf::convert_valid_utf8_to_utf16(
-            text.data(), text.size(), reinterpret_cast<char16_t *>(ptr)) == 0) {
+    const std::span<wchar_t> buffer{bstr, total_len};
+    const auto body = buffer.subspan(prefix.size(), text_len);
+    std::ranges::copy(prefix, buffer.begin());
+    if (text_len > 0 && simdutf::convert_valid_utf8_to_utf16(
+                            text.data(), text.size(),
+                            reinterpret_cast<char16_t *>(body.data())) == 0) {
       SysFreeString(bstr);
       return std::unexpected(BackendError::InvalidUtf8);
     }
-    for (size_t i = 0; i < text_len; ++i) {
-      if (ptr[i] == _T('"'))
-        ptr[i] = _T('\'');
-    }
-    ptr += text_len;
-    std::ranges::copy(suffix, ptr);
+    std::ranges::replace(body, _T('"'), _T('\''));
+    std::ranges::copy(suffix, buffer.last(suffix.size()).begin());
     VARIANT_BOOL result = VARIANT_FALSE;
     const bool succeeded = SUCCEEDED(controller->RunFunction(bstr, &result));
     SysFreeString(bstr);

@@ -24,8 +24,8 @@ enum class BackendId : std::uint64_t {};
 
 constexpr BackendId operator""_bid(const char *str, std::size_t len) {
   std::uint64_t hash = 0xCBF29CE484222325;
-  for (std::size_t i = 0; i < len; ++i) {
-    hash ^= static_cast<std::uint64_t>(str[i]);
+  for (const char c : std::string_view{str, len}) {
+    hash ^= static_cast<std::uint64_t>(c);
     hash *= 0x100000001B3;
   }
   return static_cast<BackendId>(hash);

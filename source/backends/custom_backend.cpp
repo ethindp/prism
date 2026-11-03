@@ -10,10 +10,12 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
+#include <version>
 
 namespace {
 BackendError from_prism_error(PrismError error) noexcept {
@@ -169,7 +171,12 @@ void PRISM_CALL memory_trampoline(void *userdata, const float *samples,
                                   std::size_t channels,
                                   std::size_t sample_rate) {
   auto *bridge = static_cast<MemoryBridge *>(userdata);
-  bridge->scratch.assign(samples, samples + sample_count);
+  const std::span input{samples, sample_count};
+#ifdef __cpp_lib_containers_ranges
+  bridge->scratch.assign_range(input);
+#else
+  bridge->scratch.assign(input.begin(), input.end());
+#endif
   for (float &sample : bridge->scratch)
     sample = std::isfinite(sample) ? std::clamp(sample, -1.0F, 1.0F) : 0.0F;
   (*bridge->callback)(bridge->userdata, bridge->scratch.data(), sample_count,

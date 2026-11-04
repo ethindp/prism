@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: MPL-2.0
 
+"""Custom backends and registries.
+
+A :class:`RegistryBuilder` produces a :class:`Registry` containing the
+compiled-in backends, backends implemented as subclasses of
+:class:`CustomBackend`, and backends loaded from shared libraries. A registry
+is passed to :class:`prism.Context`.
+"""
+
 from __future__ import annotations
 
 import os
@@ -49,84 +57,391 @@ _METHOD_BITS: Final[int] = reduce(or_, _FEATURE_BIT.values(), 0)
 
 
 class CustomBackend:
-    """Base class for a Python-implemented Prism backend.
+    """Base class of backends implemented in Python.
 
-    Override only the operations you actually support.
+    A subclass is registered with :meth:`RegistryBuilder.add_backend` and is
+    then used like any other backend. Prism instantiates the subclass with no
+    arguments for each backend instance it creates, so the subclass MUST be
+    constructible without arguments, and state shared between instances MUST be
+    synchronized.
+
+    A subclass overrides the operations it supports. The feature bit of an
+    operation is set exactly when the subclass overrides the method of the same
+    name; operations that are not overridden raise
+    :class:`prism.common.PrismNotImplementedError` without calling Python.
+    Methods are named after the members of ``PrismBackendVTable``:
+    :attr:`prism.Backend.speaking` is implemented by :meth:`is_speaking`, and
+    :attr:`prism.Backend.volume` by :meth:`get_volume` and :meth:`set_volume`.
+
+    Each method MUST behave as described for the corresponding member of
+    :class:`prism.Backend`. Prism validates arguments first, so a method never
+    receives text that is not valid UTF-8 or a voice parameter outside
+    [0.0, 1.0]. A method MAY receive empty text from callers of the C API.
+
+    An exception raised by a method is printed to standard error and reported
+    as an error: a :class:`prism.PrismError` as its own code,
+    ``NotImplementedError`` as ``PRISM_ERROR_NOT_IMPLEMENTED``, ``UnicodeError``
+    as ``PRISM_ERROR_INVALID_UTF8``, ``ValueError`` as
+    ``PRISM_ERROR_INVALID_PARAM``, and any other exception as
+    ``PRISM_ERROR_INTERNAL``. An exception raised by :meth:`is_supported` is
+    reported as ``False``.
+
+    The methods of one instance are never called concurrently, but MAY be
+    called on any thread. Methods of different instances MAY be called
+    concurrently.
+
+    Attributes:
+        EXTRA_FEATURES: Feature bits that no method determines: the
+            silence-trimming bits and the classification bits. A subclass that
+            presents messages through a screen reader SHOULD set
+            ``is_screen_reader``; one that synthesizes speech SHOULD set
+            ``is_speech_engine``. Setting a bit that corresponds to a method
+            raises ``ValueError`` at registration, and setting both
+            classification bits raises
+            :class:`prism.common.PrismInvalidParamError`.
+
+    Example:
+        A backend that writes speech requests to standard output::
+
+            import prism
+
+            class Printer(prism.CustomBackend):
+                def speak(self, text, interrupt):
+                    print(text)
+
+            with prism.RegistryBuilder() as builder:
+                printer_id = builder.add_backend("Printer", Printer, priority=10)
+                registry = builder.freeze()
+            context = prism.Context(registry)
+            backend = context.create(prism.BackendId(printer_id))
+            backend.speak("Hello from a custom backend")
     """
 
     EXTRA_FEATURES: BackendFeatures = BackendFeatures()
 
-    def initialize(self) -> None: ...
+    def initialize(self) -> None:
+        """Prepares the instance for use.
+
+        Called once, after construction and before any operation other than
+        :meth:`is_supported`. The default does nothing. An implementation whose
+        screen reader or speech engine is unavailable SHOULD raise
+        :class:`prism.common.PrismBackendNotAvailableError`.
+        """
+
     def is_supported(self) -> bool:
+        """Reports whether the backend is available.
+
+        The result is reported as
+        :attr:`prism.BackendFeatures.is_supported_at_runtime`, and is sampled by
+        availability monitoring. This method MAY be called before
+        :meth:`initialize`, and MUST NOT assume the instance is initialized. It is
+        called on the sampling thread of contexts that monitor availability, and
+        SHOULD return quickly.
+
+        Returns:
+            Whether the backend is available. The default is ``True``.
+        """
         return True
 
     def speak(self, text: str, interrupt: bool) -> None:
+        """Speaks text.
+
+        Implements :meth:`prism.Backend.speak`.
+
+        Args:
+            text: The text to speak.
+            interrupt: Whether to interrupt speech in progress.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def speak_to_memory(self, text: str, emit: AudioCallback) -> None:
+        """Synthesizes text and passes the audio to ``emit``.
+
+        Implements :meth:`prism.Backend.speak_to_memory`. The method MUST NOT return
+        until all audio has been passed to ``emit``. Prism clamps samples to
+        [-1.0, 1.0] and replaces non-finite values with 0.0 before delivering them.
+        The channel count and sample rate passed to ``emit`` SHOULD match
+        :meth:`get_channels` and :meth:`get_sample_rate`.
+
+        Args:
+            text: The text to synthesize.
+            emit: A function that takes the next portion of audio, as described
+                under :data:`prism.AudioCallback`.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def braille(self, text: str) -> None:
+        """Shows text on a braille display.
+
+        Implements :meth:`prism.Backend.braille`.
+
+        Args:
+            text: The text to show.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def output(self, text: str, interrupt: bool) -> None:
+        """Presents text through speech and braille.
+
+        Implements :meth:`prism.Backend.output`. Prism does not derive this operation from :meth:`speak` and :meth:`braille`; a backend that supports output MUST override it.
+
+        Args:
+            text: The text to present.
+            interrupt: Whether to interrupt output in progress.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def stop(self) -> None:
+        """Stops speech and discards queued speech.
+
+        Implements :meth:`prism.Backend.stop`.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def pause(self) -> None:
+        """Pauses speech.
+
+        Implements :meth:`prism.Backend.pause`.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def resume(self) -> None:
+        """Resumes paused speech.
+
+        Implements :meth:`prism.Backend.resume`.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def is_speaking(self) -> bool:
+        """Reports whether speech is in progress.
+
+        Implements :attr:`prism.Backend.speaking`.
+
+        Returns:
+            Whether speech is in progress.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def set_volume(self, volume: float) -> None:
+        """Sets the volume.
+
+        Implements :attr:`prism.Backend.volume`.
+
+        Args:
+            volume: The volume, from 0.0 to 1.0.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def get_volume(self) -> float:
+        """Returns the volume.
+
+        Implements :attr:`prism.Backend.volume`.
+
+        Returns:
+            The volume, from 0.0 to 1.0.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def set_rate(self, rate: float) -> None:
+        """Sets the rate.
+
+        Implements :attr:`prism.Backend.rate`.
+
+        Args:
+            rate: The rate, from 0.0 to 1.0.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def get_rate(self) -> float:
+        """Returns the rate.
+
+        Implements :attr:`prism.Backend.rate`.
+
+        Returns:
+            The rate, from 0.0 to 1.0.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def set_pitch(self, pitch: float) -> None:
+        """Sets the pitch.
+
+        Implements :attr:`prism.Backend.pitch`.
+
+        Args:
+            pitch: The pitch, from 0.0 to 1.0.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def get_pitch(self) -> float:
+        """Returns the pitch.
+
+        Implements :attr:`prism.Backend.pitch`.
+
+        Returns:
+            The pitch, from 0.0 to 1.0.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def refresh_voices(self) -> None:
+        """Reloads the list of voices.
+
+        Implements :meth:`prism.Backend.refresh_voices`.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def count_voices(self) -> int:
+        """Returns the number of voices.
+
+        Implements :attr:`prism.Backend.voices_count`.
+
+        Returns:
+            The number of voices.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def get_voice_name(self, voice_id: int) -> str:
+        """Returns the name of a voice.
+
+        Implements :meth:`prism.Backend.get_voice_name`.
+
+        Args:
+            voice_id: The index of the voice.
+
+        Returns:
+            The name of the voice. It MUST NOT contain a NUL character.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def get_voice_language(self, voice_id: int) -> str:
+        """Returns the language of a voice.
+
+        Implements :meth:`prism.Backend.get_voice_language`.
+
+        Args:
+            voice_id: The index of the voice.
+
+        Returns:
+            The language of the voice, preferably a BCP 47 tag. It MUST NOT contain a NUL character.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def set_voice(self, voice_id: int) -> None:
+        """Selects a voice.
+
+        Implements :attr:`prism.Backend.voice`.
+
+        Args:
+            voice_id: The index of the voice.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def get_voice(self) -> int:
+        """Returns the index of the selected voice.
+
+        Implements :attr:`prism.Backend.voice`.
+
+        Returns:
+            The index of the selected voice.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def get_channels(self) -> int:
+        """Returns the number of audio channels.
+
+        Implements :attr:`prism.Backend.channels`.
+
+        Returns:
+            The number of channels.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def get_sample_rate(self) -> int:
+        """Returns the audio sample rate.
+
+        Implements :attr:`prism.Backend.sample_rate`.
+
+        Returns:
+            The sample rate, in hertz.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
     def get_bit_depth(self) -> int:
+        """Returns the native audio bit depth.
+
+        Implements :attr:`prism.Backend.bit_depth`.
+
+        Returns:
+            The bit depth.
+
+        Raises:
+            NotImplementedError: Unless overridden.
+        """
         raise NotImplementedError
 
 
@@ -333,7 +648,28 @@ class _Registration:
 
 
 class RegistryBuilder:
+    """Builds a registry.
+
+    This class wraps ``prism_registry_builder_new`` and
+    ``prism_registry_builder_free``, and MAY be used as a context manager. A new
+    builder contains the compiled-in backends, whose names and identifiers
+    therefore cannot be used by other backends. Adding a backend creates no
+    instance of it.
+
+    :meth:`freeze` moves the builder's backends to a new registry and spends the
+    builder; a spent builder can only be closed. The builder is closed by
+    :meth:`close`, when the object is destroyed, or at the end of a ``with``
+    statement.
+
+    A builder is not thread-safe.
+    """
+
     def __init__(self) -> None:
+        """Creates a builder containing the compiled-in backends.
+
+        Raises:
+            MemoryError: If the builder cannot be created.
+        """
         self._ptr = lib.prism_registry_builder_new()
         if self._ptr == ffi.NULL:
             msg = "prism_registry_builder_new failed"
@@ -347,6 +683,35 @@ class RegistryBuilder:
         *,
         priority: int = 100,
     ) -> int:
+        """Adds a backend implemented in Python.
+
+        This method wraps ``prism_registry_builder_add_backend``. The backend's
+        features are derived from ``backend`` as described under
+        :class:`CustomBackend`. ``backend`` is kept alive for as long as the
+        registry or any instance created from it.
+
+        Args:
+            name: The name of the backend. It MUST be non-empty and unique in the
+                builder. It determines the identifier.
+            backend: The subclass of :class:`CustomBackend` that implements the
+                backend.
+            priority: The priority of the backend. It MUST NOT be negative. The
+                priorities of built-in backends are available from
+                :meth:`prism.Context.priority_of`.
+
+        Returns:
+            The identifier of the backend, which :class:`prism.BackendId` converts.
+
+        Raises:
+            TypeError: If ``backend`` is not a subclass of :class:`CustomBackend`.
+            RuntimeError: If the builder is spent or closed.
+            ValueError: If ``EXTRA_FEATURES`` sets a bit that corresponds to a
+                method.
+            prism.common.PrismInvalidParamError: If ``name`` is empty, ``priority`` is
+                negative, or both classification bits are set.
+            prism.common.PrismInvalidOperationError: If the builder already contains a
+                backend with the same name or identifier.
+        """
         if not (isinstance(backend, type) and issubclass(backend, CustomBackend)):
             msg = "backend must be a CustomBackend subclass"
             raise TypeError(msg)
@@ -377,6 +742,47 @@ class RegistryBuilder:
         *,
         priority_override: int | None = None,
     ) -> int:
+        """Adds the backends of a shared library plugin.
+
+        This method wraps ``prism_registry_builder_add_library``. If any error
+        occurs, no backend is added and the library is unloaded. Otherwise one
+        backend is added for each backend the plugin describes, in the plugin's
+        order. The library remains loaded while the registry or any instance created
+        from it exists.
+
+        Loading a library runs its code with the privileges of the application,
+        before Prism checks that it is a plugin. Applications MUST load only trusted
+        libraries, from locations that less privileged users cannot write.
+
+        The identifiers of the added backends are determined by their names, and
+        are available from :meth:`prism.Context.id_of` once the registry is frozen.
+
+        Args:
+            path: The path of the library.
+            priority_override: A non-negative priority for every backend in the
+                library, or ``None`` to use the priorities the library declares.
+
+        Returns:
+            The number of backends added.
+
+        Raises:
+            RuntimeError: If the builder is spent or closed.
+            TypeError: If ``path`` is not a ``str`` or a path-like object yielding
+                one.
+            prism.common.PrismInvalidParamError: If ``path`` is empty or contains a
+                NUL character, or the library describes an inconsistent backend.
+            ValueError: If ``priority_override`` is negative.
+            prism.common.PrismNotImplementedError: If the platform does not support
+                shared library backends.
+            prism.common.PrismLibraryLoadFailedError: If the library cannot be
+                opened.
+            prism.common.PrismLibraryInvalidError: If the library is not a Prism
+                plugin.
+            prism.common.PrismIncompatibleAbiError: If the plugin is incompatible
+                with this version of Prism.
+            prism.common.PrismInvalidOperationError: If the builder already contains a
+                backend with the name or identifier of one in the library.
+        """
         if self._frozen or self._ptr == ffi.NULL:
             msg = "builder is spent"
             raise RuntimeError(msg)
@@ -416,6 +822,18 @@ class RegistryBuilder:
         return int(out_count[0])
 
     def freeze(self) -> Registry:
+        """Creates a registry from the builder.
+
+        This method wraps ``prism_registry_freeze``. The builder's backends are
+        moved to the registry, and the builder is spent.
+
+        Returns:
+            The registry.
+
+        Raises:
+            RuntimeError: If the builder is spent or closed, or the registry cannot
+                be created.
+        """
         if self._frozen or self._ptr == ffi.NULL:
             msg = "builder is spent"
             raise RuntimeError(msg)
@@ -427,6 +845,12 @@ class RegistryBuilder:
         return Registry(ptr)
 
     def close(self) -> None:
+        """Releases the builder.
+
+        This method wraps ``prism_registry_builder_free``. Backends in a builder
+        closed without being frozen are discarded. Closing a closed builder does
+        nothing.
+        """
         if getattr(self, "_ptr", ffi.NULL) != ffi.NULL:
             lib.prism_registry_builder_free(self._ptr)
             self._ptr = ffi.NULL
@@ -434,17 +858,43 @@ class RegistryBuilder:
     __del__ = close
 
     def __enter__(self) -> Self:
+        """Returns the builder.
+
+        Returns:
+            This builder.
+        """
         return self
 
     def __exit__(self, *_exc: object) -> None:
+        """Closes the builder."""
         self.close()
 
 
 class Registry:
+    """A registry produced by :meth:`RegistryBuilder.freeze`.
+
+    A registry is passed to :class:`prism.Context`, and cannot be changed. The
+    object holds a reference to the registry, released through
+    ``prism_registry_release`` by :meth:`close`, when the object is destroyed, or
+    at the end of a ``with`` statement. Each context holds a reference of its
+    own, so the object MAY be closed once the registry is in use by a context.
+    """
+
     def __init__(self, ptr: ffi.CData) -> None:
+        """Takes ownership of a registry reference.
+
+        Used by :meth:`RegistryBuilder.freeze`.
+
+        Args:
+            ptr: A ``PrismRegistry *`` whose reference the object owns.
+        """
         self._ptr = ptr
 
     def close(self) -> None:
+        """Releases the object's reference to the registry.
+
+        Closing a closed registry does nothing.
+        """
         if getattr(self, "_ptr", ffi.NULL) != ffi.NULL:
             lib.prism_registry_release(self._ptr)
             self._ptr = ffi.NULL
@@ -452,7 +902,13 @@ class Registry:
     __del__ = close
 
     def __enter__(self) -> Self:
+        """Returns the registry.
+
+        Returns:
+            This registry.
+        """
         return self
 
     def __exit__(self, *_exc: object) -> None:
+        """Closes the registry."""
         self.close()

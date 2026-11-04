@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
+"""Generate the C source of the binding's cffi extension module from ``prism.h``."""
+
 from __future__ import annotations
 
 import argparse
@@ -55,6 +57,16 @@ class _CdefPreprocessor(Preprocessor):
 
 
 def preprocess_header(header: Path) -> str:
+    """Preprocess a header into declarations that cffi can parse.
+
+    Pragmas are removed, since cffi does not accept them.
+
+    Args:
+        header: The path of the header.
+
+    Returns:
+        The preprocessed declarations.
+    """
     preprocessor = _CdefPreprocessor()
     preprocessor.parse(header.read_text(encoding="utf-8"), str(header))
     sink = StringIO()
@@ -63,6 +75,12 @@ def preprocess_header(header: Path) -> str:
 
 
 def generate(header: Path, output: Path) -> None:
+    """Write the C source of the ``prism._prism_cffi`` extension module.
+
+    Args:
+        header: The path of ``prism.h``.
+        output: The path of the C file to write.
+    """
     ffi = FFI()
     ffi.cdef(preprocess_header(header))
     ffi.set_source(MODULE_NAME, f'#include "{header.name}"')
@@ -77,6 +95,11 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
+    """Run the generator from the command line.
+
+    Args:
+        argv: The command-line arguments, or ``None`` for ``sys.argv``.
+    """
     args = _parse_args(argv)
     generate(args.header, args.output)
 

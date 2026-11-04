@@ -1,3 +1,10 @@
+"""Speak text typed into a WinUI 3 window through the UI Automation backend.
+
+The backend raises UI Automation notifications from the window, which a
+running screen reader announces. Requires Windows and the ``win32more``
+package.
+"""
+
 from typing import override
 
 import prism
@@ -12,6 +19,8 @@ from win32more.winui3 import XamlApplication
 
 
 class App(XamlApplication):
+    """A window with a text box and a button that speaks its contents."""
+
     @override
     def OnLaunched(self, args: LaunchActivatedEventArgs) -> None:
         self.win = Window()

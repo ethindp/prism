@@ -1,3 +1,5 @@
+"""Speak a sentence through the best backend available."""
+
 import prism
 
 context = prism.Context()

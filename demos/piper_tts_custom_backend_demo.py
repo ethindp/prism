@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: MPL-2.0
 # Note: this code is (NOT) production-quality! If you use it in your applications, you have been warned!
 
+"""Speak through a custom backend that runs a Piper neural voice in Python.
+
+Requires the ``piper-tts``, ``numpy`` and ``sounddevice`` packages, and a
+Piper voice model in ONNX format.
+"""
+
 import argparse
 import sys
 from collections.abc import Iterator
@@ -40,18 +46,38 @@ def _synthesize(voice: object, text: str) -> Iterator[tuple[np.ndarray, int]]:
 
 
 class PiperBackend(CustomBackend):
+    """A speech engine backend that synthesizes with Piper and plays the result.
+
+    Attributes:
+        model_path: The path of the Piper voice model, shared by every
+            instance. It is set before the backend is registered.
+    """
+
     model_path: str = ""
 
     def __init__(self) -> None:
+        """Create an instance with no voice loaded."""
         self.voice: object = None
 
     def initialize(self) -> None:
+        """Load the voice model, or reuse it if another instance loaded it."""
         self.voice = _load_voice(self.model_path)
 
     def is_supported(self) -> bool:
+        """Report whether the voice model exists.
+
+        Returns:
+            Whether ``model_path`` names an existing file.
+        """
         return bool(self.model_path) and Path(self.model_path).exists()
 
     def speak(self, text: str, interrupt: bool) -> None:
+        """Synthesize text and play it, blocking until playback finishes.
+
+        Args:
+            text: The text to speak.
+            interrupt: Whether to stop audio that is already playing.
+        """
         if interrupt:
             sounddevice.stop()
         chunks = []
@@ -64,10 +90,16 @@ class PiperBackend(CustomBackend):
         sounddevice.play(np.concatenate(chunks), samplerate=rate, blocking=True)
 
     def stop(self) -> None:
+        """Stop audio that is playing."""
         sounddevice.stop()
 
 
 def main() -> int:
+    """Register the Piper backend and speak through it.
+
+    Returns:
+        The process exit status.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True, help="path to a Piper .onnx voice")
     parser.add_argument(

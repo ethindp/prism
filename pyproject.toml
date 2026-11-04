@@ -187,15 +187,22 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-extend-select = ["ERA", "YTT", "ANN", "ASYNC", "S", "BLE", "B", "A", "COM", "C4", "DTZ", "T10", "EXE", "FIX", "FA", "ISC", "ICN", "LOG", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SIM", "SLOT", "TID", "TD", "TC", "ARG", "PTH", "FLY", "I", "C90", "NPY", "PD", "N", "PERF", "W", "F", "PGH", "PL", "UP", "FURB", "RUF"]
+# The DOC rules are in preview. explicit-preview-rules keeps preview from
+# enabling anything not named here.
+preview = true
+explicit-preview-rules = true
+extend-select = ["D", "DOC201", "DOC202", "DOC402", "DOC403", "DOC501", "ERA", "YTT", "ANN", "ASYNC", "S", "BLE", "B", "A", "COM", "C4", "DTZ", "T10", "EXE", "FIX", "FA", "ISC", "ICN", "LOG", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SIM", "SLOT", "TID", "TD", "TC", "ARG", "PTH", "FLY", "I", "C90", "NPY", "PD", "N", "PERF", "W", "F", "PGH", "PL", "UP", "FURB", "RUF"]
 ignore = ["COM812", "PLW0603"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.pylint]
 max-args = 8
 
 [tool.ruff.lint.per-file-ignores]
 "demos/**" = ["T201"]
-"tests/**" = ["S101"]
+"tests/**" = ["S101", "D1"]
 
 [tool.cibuildwheel.android]
 environment = { SKBUILD_WHEEL_PY_API = "", CMAKE_BUILD_PARALLEL_LEVEL = "4" }

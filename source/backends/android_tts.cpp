@@ -312,8 +312,9 @@ public:
       if (val < 0)
         return std::unexpected(BackendError::InternalBackendError);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 
   BackendResult<std::string> get_voice_name(std::size_t id) override {
@@ -360,8 +361,9 @@ public:
       if (val < 0)
         return std::unexpected(BackendError::RangeOutOfBounds);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 
   BackendResult<std::size_t> get_channels() override {
@@ -372,8 +374,9 @@ public:
       if (val < 0)
         return std::unexpected(BackendError::RangeOutOfBounds);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 
   BackendResult<std::size_t> get_sample_rate() override {
@@ -384,8 +387,9 @@ public:
       if (val < 0)
         return std::unexpected(BackendError::RangeOutOfBounds);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 
   BackendResult<std::size_t> get_bit_depth() override {
@@ -396,8 +400,9 @@ public:
       if (val < 0)
         return std::unexpected(BackendError::RangeOutOfBounds);
       return static_cast<std::size_t>(val);
-    } else
+    } else {
       return std::unexpected(static_cast<BackendError>(res.error()));
+    }
   }
 };
 

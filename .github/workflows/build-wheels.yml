@@ -46,11 +46,11 @@ jobs:
         if: runner.os == 'Windows'
         uses: $/.github/actions/install-gdk
       - name: Install current CMake
-        uses: lukka/get-cmake@a89e43e22a96abafcd7a62db652a65ecd33052c9 # v4.4.4
+        uses: lukka/get-cmake@f86dd60acae0d132056913e248bdabf0e0580b7a # v4.4.5
         with:
           cmakeVersion: latest
       - name: Build wheels
-        uses: pypa/cibuildwheel@b3395e271a35f73dad77f21802abe9b986dfe299 # v4.3.1
+        uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
         env:
           PRISM_GDK_ROOT: ${{ steps.gdk.outputs.root }}
           ANDROID_API_LEVEL: 26

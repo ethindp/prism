@@ -1,5 +1,9 @@
 #include "godot_prism_context.h"
 
+#include "godot_cpp/classes/dir_access.hpp"
+#include "godot_cpp/classes/file_access.hpp"
+#include "godot_cpp/classes/hashing_context.hpp"
+#include "godot_cpp/classes/os.hpp"
 #include "godot_cpp/classes/project_settings.hpp"
 #include "godot_cpp/core/object.hpp"
 #include "godot_cpp/variant/utility_functions.hpp"
@@ -108,14 +112,68 @@ bool GodotPrismContext::is_backend_available(std::int64_t id) {
   return (features & PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME) != 0;
 }
 
+// The platform loader cannot open a library inside the project's PCK, so one
+// that exists only there is copied to user:// first. The copy is named after a
+// hash of its contents, so each version is written once and a loaded copy is
+// never replaced.
+static PrismError resolve_library_path(const String &path, String &resolved) {
+  auto const global_path =
+      ProjectSettings::get_singleton()->globalize_path(path);
+  if (!path.begins_with("res://") || FileAccess::file_exists(global_path)) {
+    resolved = global_path;
+    return PRISM_OK;
+  }
+  auto const bytes = FileAccess::get_file_as_bytes(path);
+  if (bytes.is_empty()) {
+    return PRISM_ERROR_LIBRARY_LOAD_FAILED;
+  }
+  Ref<HashingContext> hashing;
+  hashing.instantiate();
+  if (hashing->start(HashingContext::HASH_SHA256) != OK ||
+      hashing->update(bytes) != OK) {
+    return PRISM_ERROR_INTERNAL;
+  }
+  auto const directory =
+      String("user://prism/backends").path_join(hashing->finish().hex_encode());
+  auto const target = directory.path_join(path.get_file());
+  if (!FileAccess::file_exists(target)) {
+    if (DirAccess::make_dir_recursive_absolute(directory) != OK) {
+      return PRISM_ERROR_INTERNAL;
+    }
+    // Another instance of the application may be extracting the same file,
+    // so it is written under a name of this process's own and then renamed.
+    auto const partial =
+        vformat("%s.%d", target, OS::get_singleton()->get_process_id());
+    auto file = FileAccess::open(partial, FileAccess::WRITE);
+    if (file.is_null()) {
+      return PRISM_ERROR_INTERNAL;
+    }
+    auto const written = file->store_buffer(bytes);
+    file->close();
+    if (!written || (DirAccess::rename_absolute(partial, target) != OK &&
+                     !FileAccess::file_exists(target))) {
+      DirAccess::remove_absolute(partial);
+      return PRISM_ERROR_INTERNAL;
+    }
+    if (FileAccess::file_exists(partial)) {
+      DirAccess::remove_absolute(partial);
+    }
+  }
+  resolved = ProjectSettings::get_singleton()->globalize_path(target);
+  return PRISM_OK;
+}
+
 PrismError
 GodotPrismContext::load_backend_library(const String &path,
                                         std::int64_t priority_override) {
   if (path.is_empty() || priority_override > std::numeric_limits<int>::max()) {
     return PRISM_ERROR_INVALID_PARAM;
   }
-  auto const global_path =
-      ProjectSettings::get_singleton()->globalize_path(path);
+  String global_path;
+  if (auto const err = resolve_library_path(path, global_path);
+      err != PRISM_OK) {
+    return err;
+  }
   std::vector<BackendLibrary> libraries = backend_libraries;
   libraries.push_back(BackendLibrary{
       .path = std::string(global_path.utf8().get_data()),

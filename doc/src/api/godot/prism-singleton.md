@@ -329,7 +329,7 @@ func load_backend_library(path: String, priority_override: int = -1) -> PrismErr
 
 `path`
 
-The path to the shared library. The `res://` and `user://` prefixes MAY be used where they refer to real filesystem locations; a library within an exported project's PCK file cannot be loaded.
+The path to the shared library. The `res://` and `user://` prefixes MAY be used, including for a library within an exported project's PCK file.
 
 `priority_override`
 
@@ -342,6 +342,8 @@ Returns `PRISM_OK` on success. Returns `PRISM_ERROR_INVALID_PARAM` if `path` is 
 #### Remarks
 
 Since a registry cannot change once it is frozen, a successful call constructs a new registry, containing the libraries loaded by earlier calls, and replaces the singleton's context. Availability monitoring is restarted if it was active, which establishes a new baseline. Backends obtained before the call remain valid. On failure, the singleton is unchanged, with one exception: if the libraries load but availability monitoring cannot be restarted, the new registry is retained, monitoring remains stopped, and the method returns `PRISM_ERROR_INTERNAL`.
+
+A library that exists only within the PCK file cannot be opened by the platform's loader, so it is first copied to `user://prism/backends`, in a directory named after the SHA-256 hash of its contents, and loaded from there. Each version of a library is therefore written once, and the copy is reused by later calls and later runs. Libraries on which the plugin itself depends are not copied, and MUST be resolvable through the platform's library search order. On macOS, a library loaded this way MUST be signed before it is packed, by the same team as the application if library validation is enforced. Applications MAY delete the directory to reclaim space while no copy is loaded.
 
 The requirements in the section on [security and deployment](../c/shared-library-backends.md#security-and-deployment) apply.
 

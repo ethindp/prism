@@ -4,18 +4,21 @@
 
 The Godot binding is distributed as an add-on, which requires Godot 4.5 or later. Installation is described in the Getting Started chapter.
 
-This reference documents only what is particular to Godot. Each entry names the C function or type on which it is built, and the semantics of the operation, including its preconditions, threading behavior, and backend-specific behavior, are those given in the [C API Reference](../c/overview.md), which is not repeated here. The requirements of individual backends are given in the [backend-specific notes](../c/backend-notes.md), and the thread-safety rules for backend instances are given in the chapter on [thread safety](../c/thread-safety.md).
+The binding consists of two classes: `GodotPrismContext`, of which the extension registers one instance as the singleton `Prism`, and `GodotPrismBackend`. Both are documented in the editor's help. The chapters that follow are generated from the same class reference. Requirements of individual backends are given in the [backend-specific notes](../c/backend-notes.md).
+
+## Correspondence with the C API
+
+The `Prism` singleton owns a context, so the application neither creates nor destroys one. Registry functions are methods of the singleton, and backend functions are methods of `GodotPrismBackend`, named without their prefix: `prism_registry_create_best(ctx)` is `Prism.create_best()`, and `prism_backend_speak(backend, text, interrupt)` is `backend.speak(text, interrupt)`. A pair of functions that gets and sets a value is a property, as `backend.volume` is for `prism_backend_get_volume` and `prism_backend_set_volume`.
+
+Constants keep their C names and are constants of the class that uses them. `PrismError` values and `PrismBackendFeature` flags are constants of `GodotPrismBackend`, as in `GodotPrismBackend.PRISM_OK`. `PrismLogLevel` values are constants of `GodotPrismContext`, as in `GodotPrismContext.PRISM_LOG_LEVEL_WARN`. Backend identifiers are constants of `GodotPrismContext` without the `PRISM_BACKEND_` prefix: `PRISM_BACKEND_NVDA` is `GodotPrismContext.NVDA`.
+
+Backend identifiers are `int` values. Godot integers are signed, so an identifier whose highest bit is set is negative. Identifiers SHOULD be treated as opaque.
 
 ## Differences from the C API
 
-The binding differs from the C API in the following respects:
-
-* The application does not create or destroy a context. The extension creates the [`Prism` singleton](./prism-singleton.md) when it is loaded, and destroys it when it is unloaded.
-* Backends are initialized when they are obtained, so the binding has no equivalent of `prism_backend_initialize`. An application retries after a failure by obtaining the backend again.
-* Operations that can fail return a `PrismError` value, as described in [Error Values](./errors.md), and applications SHOULD inspect it. Getters and setters instead report failures through Godot's error log.
-* A backend is released when the last reference to it is released, and any speech in progress is stopped if the backend supports doing so. An application MUST therefore retain a reference to a backend for as long as it expects speech to continue, which generally means holding it in a member variable rather than a local variable.
-* Availability changes and log messages are delivered through signals on the main thread, not through callbacks on Prism's internal threads. A signal MAY consequently be emitted slightly after the event it reports.
-
-Backend identifiers are represented as `int` values. Since Godot's integers are signed, an identifier whose highest bit is set is represented as a negative number, and SHOULD be treated as opaque.
-
-The binding consists of two classes: [`GodotPrismContext`](./prism-singleton.md), the class of the `Prism` singleton, of which applications SHOULD NOT create further instances, and [`GodotPrismBackend`](./backend.md), a backend instance.
+* Backends are initialized when they are obtained. There is no equivalent of `prism_backend_initialize`; to retry after a failure, obtain the backend again.
+* Methods that can fail return a `PrismError` value. Property getters and setters print errors instead.
+* A backend is released with its last reference, and speech in progress is stopped first if the backend supports stopping. A reference MUST be kept for as long as speech is expected to continue.
+* Availability changes and log messages are delivered through signals emitted on the main thread.
+* Custom backends cannot be written in GDScript. Plugins can be loaded from shared libraries, including from the project's PCK.
+* `speak_to_stream` synthesizes speech to an `AudioStreamWAV`.

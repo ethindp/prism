@@ -133,7 +133,7 @@ The following features are available:
 
 The manual is included in the `doc` directory of the SDK archive on the [releases page](https://github.com/ethindp/prism/releases), so you don't need to install anything to read it. Its Getting Started and Application Deployment chapters are the best places to begin, the latter of which covers what your users need installed. The API Reference covers C, Python, and Godot.
 
-The manual uses [mdbook](https://github.com/rust-lang/mdBook). To build it yourself, install mdbook and then run `mdbook serve` from the doc directory.
+The manual uses [mdbook](https://github.com/rust-lang/mdBook). To build it yourself, install mdbook and [uv](https://docs.astral.sh/uv/) and then run `mdbook serve` from the doc directory. The Python and Godot references are generated from the binding's docstrings and the extension's class reference, so a running Python and the Godot editor's help show the same documentation.
 
 ## API
 

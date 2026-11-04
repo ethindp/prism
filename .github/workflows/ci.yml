@@ -36,6 +36,9 @@ jobs:
           filters: |
             docs:
               - 'doc/**'
+              - 'bindings/py/**'
+              - 'gdextension/doc_classes/**'
+              - 'tools/mdbook_reference.py'
             gdext_src:
               - 'gdextension/**'
             windows:

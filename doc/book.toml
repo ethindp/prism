@@ -2,3 +2,8 @@
 title = "Prism Manual"
 authors = ["Ethin Probst"]
 language = "en"
+
+# Renders the Python and Godot references from the binding's docstrings and the
+# extension's class reference. Requires uv.
+[preprocessor.reference]
+command = "uv run --no-project --with griffe==2.4.1 python ../tools/mdbook_reference.py"

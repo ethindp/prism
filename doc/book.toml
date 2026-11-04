@@ -3,6 +3,11 @@ title = "Prism Manual"
 authors = ["Ethin Probst"]
 language = "en"
 
+[output.html]
+# The manual is published at https://ethindp.github.io/prism/.
+site-url = "/prism/"
+git-repository-url = "https://github.com/ethindp/prism"
+
 # Renders the Python and Godot references from the binding's docstrings and the
 # extension's class reference. Requires uv.
 [preprocessor.reference]

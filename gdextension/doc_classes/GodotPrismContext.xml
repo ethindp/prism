@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="GodotPrismContext" inherits="Object" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Provides access to the user's screen reader and to speech engines.
+	</brief_description>
+	<description>
+		The extension registers one instance of this class as the singleton [code]Prism[/code], created when the extension is loaded and freed when it is unloaded. Further instances should not be created.
+		The singleton holds a registry of backends. Each backend is a screen reader or a speech engine, and is obtained as a [GodotPrismBackend]. The registry contains the backends compiled into the extension for the current platform, and those loaded with [method load_backend_library]. Backends are ordered by priority, and screen readers have higher priority than speech engines, so [method create_best] returns the user's screen reader if one is running, and a speech engine otherwise.
+		[codeblock]
+		extends Node
+
+		var backend: GodotPrismBackend
+
+		func _ready() -&gt; void:
+		    backend = Prism.create_best()
+		    if backend == null:
+		        push_error("No speech backend is available.")
+		        return
+		    var err := backend.output("Hello from Prism.")
+		    if err != GodotPrismBackend.PRISM_OK:
+		        push_error("Output failed: %s" % Prism.get_error_string(err))
+		[/codeblock]
+		Backend identifiers are [int] values: the [enum PrismBackendId] constants for built-in backends, and a hash of the name for others. An identifier whose highest bit is set is negative, so identifiers should be compared and stored, not used in arithmetic.
+		Availability changes and log messages are delivered through signals emitted on the main thread. See [method start_availability_monitoring] and [method set_log_signal_enabled].
+		Backends cannot be implemented in GDScript, because Prism calls backend implementations on other threads. Custom backends must be built as shared libraries and loaded with [method load_backend_library].
+	</description>
+	<tutorials>
+		<link title="Prism manual">https://ethindp.github.io/prism/</link>
+	</tutorials>
+	<methods>
+		<method name="acquire">
+			<return type="GodotPrismBackend" />
+			<param index="0" name="id" type="int" />
+			<description>
+				Returns the shared instance of the backend [param id], creating and initializing it if necessary, or [code]null[/code] if the registry does not contain the backend or it cannot be created. All objects returned by [method acquire], [method acquire_best], and [method get_backend] for the same backend share one instance, including its settings. Use [method create] unless sharing is intended.
+				If initialization fails, the error is printed and the backend is still returned; its methods then return [constant GodotPrismBackend.PRISM_ERROR_NOT_INITIALIZED].
+			</description>
+		</method>
+		<method name="acquire_best">
+			<return type="GodotPrismBackend" />
+			<description>
+				Returns the shared instance of the highest-priority backend that can be initialized, or [code]null[/code] if none can. Existing shared instances are used where they exist. Use [method create_best] unless sharing is intended.
+			</description>
+		</method>
+		<method name="create">
+			<return type="GodotPrismBackend" />
+			<param index="0" name="id" type="int" />
+			<description>
+				Creates and initializes a new instance of the backend [param id]. Returns [code]null[/code] if the registry does not contain the backend or it cannot be created. Initialization may take noticeable time.
+				If initialization fails, for example because the backend's screen reader is not running, the error is printed and the backend is still returned; its methods then return [constant GodotPrismBackend.PRISM_ERROR_NOT_INITIALIZED]. Create the backend again to retry. [method create_best] skips backends that cannot be initialized.
+			</description>
+		</method>
+		<method name="create_best">
+			<return type="GodotPrismBackend" />
+			<description>
+				Creates and initializes the highest-priority backend that can be initialized, or returns [code]null[/code] if none can. The result is the user's screen reader if one is running, and a speech engine otherwise. [code]null[/code] is a normal result on a system without a speech engine, and must be handled.
+				The choice is not revisited if a screen reader starts or stops later. See [method start_availability_monitoring].
+			</description>
+		</method>
+		<method name="flush_log" qualifiers="static">
+			<return type="void" />
+			<description>
+				Waits until every log message written so far has been passed to the log handler. Returns immediately if no handler is installed. [signal log_message_received] is emitted for these messages during the next idle frame, after this method returns.
+			</description>
+		</method>
+		<method name="get_available_backends" qualifiers="const">
+			<return type="Dictionary[]" />
+			<description>
+				Returns a [Dictionary] for each backend in the registry, in priority order, with the keys [code]"id"[/code], [code]"name"[/code], and [code]"priority"[/code]. The result includes backends that cannot currently be used; see [method is_backend_available].
+			</description>
+		</method>
+		<method name="get_backend">
+			<return type="GodotPrismBackend" />
+			<param index="0" name="id" type="int" />
+			<description>
+				Returns the shared instance of the backend [param id], or [code]null[/code] if there is none. Unlike [method acquire], this method never creates an instance.
+			</description>
+		</method>
+		<method name="get_error_string" qualifiers="static">
+			<return type="String" />
+			<param index="0" name="error" type="int" enum="PrismError" />
+			<description>
+				Returns an English description of [param error], or [code]"Unknown error"[/code] if it is not a [enum GodotPrismBackend.PrismError] value.
+			</description>
+		</method>
+		<method name="get_version" qualifiers="static">
+			<return type="int" />
+			<description>
+				Returns the version of the Prism library, encoded as [code](major &lt;&lt; 16) | (minor &lt;&lt; 8) | patch[/code]. Version 1.4.7 is [code]0x010407[/code]. Encoded versions compare in version order.
+			</description>
+		</method>
+		<method name="get_version_string" qualifiers="static">
+			<return type="String" />
+			<description>
+				Returns the version of the Prism library as a string, such as [code]"1.4.7"[/code].
+			</description>
+		</method>
+		<method name="has" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="id" type="int" />
+			<description>
+				Returns [code]true[/code] if the registry contains the backend [param id]. This does not mean the backend can be used; see [method is_backend_available].
+			</description>
+		</method>
+		<method name="id_at" qualifiers="const">
+			<return type="int" />
+			<param index="0" name="index" type="int" />
+			<description>
+				Returns the identifier of the backend at [param index] in the registry, or [constant INVALID] if [param index] is out of range. Index [code]0[/code] is the highest-priority backend.
+			</description>
+		</method>
+		<method name="id_of" qualifiers="const">
+			<return type="int" />
+			<param index="0" name="name" type="String" />
+			<description>
+				Returns the identifier of the backend named [param name], or [constant INVALID] if [param name] is empty or no backend has that name. The comparison is case-sensitive.
+			</description>
+		</method>
+		<method name="is_auto_power_management_supported" qualifiers="static">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if the [code]auto_power_manage[/code] argument of [method start_availability_monitoring] has an effect on this platform. Otherwise, monitoring continues while the system is suspended unless [method pause_availability_monitoring] is called.
+			</description>
+		</method>
+		<method name="is_availability_monitoring" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if availability monitoring is active, including while it is paused.
+			</description>
+		</method>
+		<method name="is_backend_available">
+			<return type="bool" />
+			<param index="0" name="id" type="int" />
+			<description>
+				Returns [code]true[/code] if the backend [param id] can currently be used. A temporary instance is created and queried, without being initialized. The result is advisory: initialization may still fail. Returns [code]false[/code] if the registry does not contain the backend.
+			</description>
+		</method>
+		<method name="is_log_signal_enabled" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if log messages are delivered through [signal log_message_received].
+			</description>
+		</method>
+		<method name="load_backend_library">
+			<return type="int" enum="PrismError" />
+			<param index="0" name="path" type="String" />
+			<param index="1" name="priority_override" type="int" default="-1" />
+			<description>
+				Loads the backends of the shared library plugin at [param path]. [param path] may be absolute or begin with [code]res://[/code] or [code]user://[/code], and may refer to a file in the project's PCK. If [param priority_override] is not negative, it replaces the priority of every backend in the plugin.
+				Returns [constant GodotPrismBackend.PRISM_OK] on success. Returns [constant GodotPrismBackend.PRISM_ERROR_INVALID_PARAM] if [param path] is empty or [param priority_override] is too large, [constant GodotPrismBackend.PRISM_ERROR_NOT_IMPLEMENTED] if the platform does not support shared library backends, [constant GodotPrismBackend.PRISM_ERROR_LIBRARY_LOAD_FAILED] if the library cannot be opened, [constant GodotPrismBackend.PRISM_ERROR_LIBRARY_INVALID] if it is not a Prism plugin, [constant GodotPrismBackend.PRISM_ERROR_INCOMPATIBLE_ABI] if it is incompatible with this version of Prism, and [constant GodotPrismBackend.PRISM_ERROR_INVALID_OPERATION] if one of its backends has the name of a backend already in the registry.
+				A successful call replaces the singleton's registry with one that also contains the new backends. Backends obtained earlier remain valid. Active availability monitoring is restarted, and [signal availability_baseline_established] is emitted again. If the call fails, nothing changes, except that if the library loads but monitoring cannot be restarted, the new registry is kept, monitoring is stopped, and [constant GodotPrismBackend.PRISM_ERROR_INTERNAL] is returned.
+				A library inside the PCK is first copied to [code]user://prism/backends/[/code], into a directory named after the SHA-256 hash of its contents, and loaded from there. The copy is reused by later calls. Libraries the plugin depends on are not copied, and must be found through the platform's library search path. On macOS, the library must be signed before it is packed, by the project's team if library validation is enforced. The directory may be deleted while no copy is loaded.
+				Loading a library runs its code with the project's privileges. Only load trusted libraries.
+			</description>
+		</method>
+		<method name="name_of" qualifiers="const">
+			<return type="String" />
+			<param index="0" name="id" type="int" />
+			<description>
+				Returns the name of the backend [param id], such as [code]"NVDA"[/code], or an empty [String] if the registry does not contain it.
+			</description>
+		</method>
+		<method name="pause_availability_monitoring">
+			<return type="void" />
+			<description>
+				Pauses availability monitoring. While paused, monitoring uses no processor time. Does nothing if monitoring is not active.
+			</description>
+		</method>
+		<method name="priority_of" qualifiers="const">
+			<return type="int" />
+			<param index="0" name="id" type="int" />
+			<description>
+				Returns the priority of the backend [param id], or [code]-1[/code] if the registry does not contain it. Higher priorities are tried first by [method create_best]. The priorities of built-in backends may change between releases.
+			</description>
+		</method>
+		<method name="resume_availability_monitoring">
+			<return type="void" />
+			<description>
+				Resumes paused availability monitoring. Every backend is sampled immediately, and [signal backend_availability_changed] is emitted for each whose availability differs from what was last reported. A change that occurred and reverted while paused is not reported. Does nothing if monitoring is not active.
+			</description>
+		</method>
+		<method name="set_log_level" qualifiers="static">
+			<return type="int" enum="PrismLogLevel" />
+			<param index="0" name="level" type="int" enum="PrismLogLevel" />
+			<description>
+				Sets the least severe level of log message delivered, and returns the previous level. The initial level is [constant PRISM_LOG_LEVEL_NONE], which delivers nothing. The level applies to the whole process.
+			</description>
+		</method>
+		<method name="set_log_signal_enabled">
+			<return type="void" />
+			<param index="0" name="enabled" type="bool" />
+			<description>
+				If [param enabled] is [code]true[/code], log messages are delivered through [signal log_message_received], replacing the log handler in effect, including the one installed for the [code]PRISM_LOG[/code] environment variable. If [code]false[/code], the previous handler is restored.
+				No messages are delivered until [method set_log_level] lowers the level.
+				[codeblock]
+				func _ready() -&gt; void:
+				    Prism.log_message_received.connect(_on_log_message)
+				    Prism.set_log_signal_enabled(true)
+				    Prism.set_log_level(GodotPrismContext.PRISM_LOG_LEVEL_INFO)
+
+				func _on_log_message(level: int, source: String, message: String) -&gt; void:
+				    print("%s: %s" % [source, message])
+				[/codeblock]
+			</description>
+		</method>
+		<method name="start_availability_monitoring">
+			<return type="int" enum="PrismError" />
+			<param index="0" name="poll_interval_ms" type="int" default="0" />
+			<param index="1" name="debounce_samples" type="int" default="0" />
+			<param index="2" name="backoff_max_ms" type="int" default="0" />
+			<param index="3" name="auto_power_manage" type="bool" default="true" />
+			<description>
+				Starts sampling the availability of every backend on a background thread. [signal backend_availability_changed] is emitted when a backend becomes available or unavailable.
+				[param poll_interval_ms] is the base interval between samples in milliseconds; [code]0[/code] selects 1000. [param debounce_samples] is the number of consecutive samples that must agree before a change is reported; [code]0[/code] selects 2, and [code]1[/code] reports changes immediately. [param backoff_max_ms] is the longest interval, to which the interval doubles while nothing changes; [code]0[/code], or a value not greater than [param poll_interval_ms], keeps the interval constant. If [param auto_power_manage] is [code]true[/code], sampling stops while the system is suspended, where [method is_auto_power_management_supported] returns [code]true[/code].
+				The first sample of each backend sets a baseline and is not reported. [signal availability_baseline_established] is emitted once the baseline is set.
+				Returns [constant GodotPrismBackend.PRISM_OK] on success, [constant GodotPrismBackend.PRISM_ERROR_RANGE_OUT_OF_BOUNDS] if an integer argument is negative or greater than [code]4294967295[/code], [constant GodotPrismBackend.PRISM_ERROR_INVALID_OPERATION] if monitoring is already active, and [constant GodotPrismBackend.PRISM_ERROR_INTERNAL] if monitoring cannot be started.
+				[codeblock]
+				func _ready() -&gt; void:
+				    Prism.backend_availability_changed.connect(_on_availability_changed)
+				    var err := Prism.start_availability_monitoring()
+				    if err != GodotPrismBackend.PRISM_OK:
+				        push_error("Monitoring failed: %s" % Prism.get_error_string(err))
+
+				func _on_availability_changed(id: int, backend_name: String, available: bool) -&gt; void:
+				    print("%s: %s" % [backend_name, available])
+				[/codeblock]
+			</description>
+		</method>
+		<method name="stop_availability_monitoring">
+			<return type="void" />
+			<description>
+				Stops availability monitoring. Does nothing if monitoring is not active.
+			</description>
+		</method>
+		<method name="write_log" qualifiers="static">
+			<return type="int" enum="PrismError" />
+			<param index="0" name="level" type="int" enum="PrismLogLevel" />
+			<param index="1" name="source" type="String" />
+			<param index="2" name="message" type="String" />
+			<description>
+				Writes [param message] to Prism's log, from the component [param source], at [param level]. The message is queued and delivered with Prism's own messages; it is dropped if the queue is full. [param level] must not be [constant PRISM_LOG_LEVEL_NONE].
+				Returns [constant GodotPrismBackend.PRISM_OK], or [constant GodotPrismBackend.PRISM_ERROR_INVALID_PARAM] if [param source] or [param message] is empty.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="backends_count" type="int" setter="" getter="get_backends_count">
+			The number of backends in the registry, including backends that cannot currently be used. It changes only when [method load_backend_library] succeeds.
+		</member>
+	</members>
+	<signals>
+		<signal name="availability_baseline_established">
+			<description>
+				Emitted once each time availability monitoring starts, after every backend has been sampled once and before any [signal backend_availability_changed].
+				A change between a check made with [method is_backend_available] and the first sample of the same backend is part of the baseline and is not reported. If such a check was made before this signal and its result kept, the check should be repeated when this signal is emitted. A later [signal backend_availability_changed] may then report a change the repeated check already observed.
+			</description>
+		</signal>
+		<signal name="backend_availability_changed">
+			<param index="0" name="id" type="int" />
+			<param index="1" name="name" type="String" />
+			<param index="2" name="available" type="bool" />
+			<description>
+				Emitted when the backend [param id], named [param name], becomes available ([param available] is [code]true[/code]) or unavailable ([param available] is [code]false[/code]), while availability monitoring is active. Backends already obtained are not affected.
+				Emitted on the main thread during idle processing, which may be slightly after the change.
+			</description>
+		</signal>
+		<signal name="log_message_received">
+			<param index="0" name="level" type="int" />
+			<param index="1" name="source" type="String" />
+			<param index="2" name="message" type="String" />
+			<description>
+				Emitted for each log message while [method set_log_signal_enabled] is on. [param level] is a [enum PrismLogLevel] value, and [param source] is the component that wrote the message.
+				Emitted on the main thread during idle processing. Messages written faster than they are delivered are dropped, and a warning reports how many.
+			</description>
+		</signal>
+	</signals>
+	<constants>
+		<constant name="INVALID" value="0" enum="PrismBackendId">
+			Never identifies a backend. Returned by methods that find no backend.
+		</constant>
+		<constant name="SAPI" value="2120622734136241766" enum="PrismBackendId">
+			Microsoft Speech API (SAPI), on Windows.
+		</constant>
+		<constant name="AV_SPEECH" value="2946271790952897572" enum="PrismBackendId">
+			AVSpeechSynthesizer, on Apple platforms.
+		</constant>
+		<constant name="VOICE_OVER" value="-3798619614742230069" enum="PrismBackendId">
+			The VoiceOver screen reader, on Apple platforms.
+		</constant>
+		<constant name="SPEECH_DISPATCHER" value="-2029161259604513794" enum="PrismBackendId">
+			Speech Dispatcher, on Linux and BSD.
+		</constant>
+		<constant name="NVDA" value="-8517404458065585578" enum="PrismBackendId">
+			The NVDA screen reader, on Windows.
+		</constant>
+		<constant name="JAWS" value="-6035561368583359170" enum="PrismBackendId">
+			The JAWS screen reader, on Windows.
+		</constant>
+		<constant name="ONE_CORE" value="7464667106434960564" enum="PrismBackendId">
+			Windows OneCore speech synthesis, on Windows 10 and later.
+		</constant>
+		<constant name="ORCA" value="1200807161653361004" enum="PrismBackendId">
+			The Orca screen reader, on Linux and BSD.
+		</constant>
+		<constant name="ANDROID_TTS" value="-4893345499418663476" enum="PrismBackendId">
+			The Android text-to-speech engine.
+		</constant>
+		<constant name="ANDROID_SCREEN_READER" value="-3343428537155827381" enum="PrismBackendId">
+			The active Android screen reader, such as TalkBack.
+		</constant>
+		<constant name="WEB_SPEECH" value="3851232497565452943" enum="PrismBackendId">
+			The Web Speech API, on the web.
+		</constant>
+		<constant name="UIA" value="7077670808258580366" enum="PrismBackendId">
+			UI Automation notifications, announced by any running Windows screen reader.
+		</constant>
+		<constant name="ZDSR" value="4437107128196344366" enum="PrismBackendId">
+			The Zhengdu screen reader (ZDSR), on Windows.
+		</constant>
+		<constant name="ZOOM_TEXT" value="-5889690839739067271" enum="PrismBackendId">
+			ZoomText, on Windows.
+		</constant>
+		<constant name="BOY_PC_READER" value="2907841139227963407" enum="PrismBackendId">
+			The Boy PC Reader screen reader, on Windows.
+		</constant>
+		<constant name="PC_TALKER" value="3768269449491363893" enum="PrismBackendId">
+			The PC-Talker screen reader, on Windows.
+		</constant>
+		<constant name="SENSE_READER" value="-1349003421657218318" enum="PrismBackendId">
+			The Sense Reader screen reader, on Windows.
+		</constant>
+		<constant name="SYSTEM_ACCESS" value="-8970903673761939786" enum="PrismBackendId">
+			The System Access screen reader, on Windows. Available only in builds that enable legacy backends.
+		</constant>
+		<constant name="WINDOW_EYES" value="-7989147587171558381" enum="PrismBackendId">
+			The Window-Eyes screen reader, on Windows. Available only in builds that enable legacy backends.
+		</constant>
+		<constant name="SPIEL" value="5155290001588869276" enum="PrismBackendId">
+			Spiel, on Linux.
+		</constant>
+		<constant name="GDK_SPEECH" value="-3198251574740554991" enum="PrismBackendId">
+			Speech synthesis of the Microsoft Game Development Kit, on Windows and Xbox.
+		</constant>
+		<constant name="PRISM_LOG_LEVEL_TRACE" value="0" enum="PrismLogLevel">
+			Trace messages, the least severe level.
+		</constant>
+		<constant name="PRISM_LOG_LEVEL_DEBUG" value="1" enum="PrismLogLevel">
+			Debug messages.
+		</constant>
+		<constant name="PRISM_LOG_LEVEL_INFO" value="2" enum="PrismLogLevel">
+			Informational messages.
+		</constant>
+		<constant name="PRISM_LOG_LEVEL_WARN" value="3" enum="PrismLogLevel">
+			Warnings.
+		</constant>
+		<constant name="PRISM_LOG_LEVEL_ERROR" value="4" enum="PrismLogLevel">
+			Errors, the most severe level.
+		</constant>
+		<constant name="PRISM_LOG_LEVEL_NONE" value="5" enum="PrismLogLevel">
+			Above every severity. As the level passed to [method set_log_level], delivers nothing.
+		</constant>
+	</constants>
+</class>

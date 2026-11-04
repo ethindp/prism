@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="GodotPrismBackend" inherits="RefCounted" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		A screen reader or speech engine.
+	</brief_description>
+	<description>
+		A backend presents text through the user's screen reader or through a speech engine. Backends are obtained from the [code]Prism[/code] singleton, a [GodotPrismContext], and are initialized before they are returned. An instance created with [code]new()[/code] refers to no backend, and [method is_valid] returns [code]false[/code] for it.
+		The backend is released with its last reference. Speech in progress is stopped first, if the backend supports [method stop]. Keep a reference for as long as speech should continue, for example in a member variable.
+		Backends support different operations; [member features] reports which. An unsupported operation returns [constant PRISM_ERROR_NOT_IMPLEMENTED]. Methods that can fail return a [enum PrismError] value, described by [method GodotPrismContext.get_error_string]. Property setters and getters print errors instead, and getters then return the value documented for the property.
+		A backend must not be used from more than one thread at a time. Backends returned by [method GodotPrismContext.acquire] share an instance, and this applies to all of them.
+		Use [method output] for messages to the user; it reaches both speech and braille. The [member rate], [member pitch], and [member volume] of screen reader backends cannot be changed.
+	</description>
+	<tutorials>
+		<link title="Prism manual">https://ethindp.github.io/prism/</link>
+	</tutorials>
+	<methods>
+		<method name="braille">
+			<return type="int" enum="PrismError" />
+			<param index="0" name="text" type="String" />
+			<description>
+				Shows [param text] on the user's braille display, according to the screen reader's braille settings. Braille output does not affect speech.
+				Returns [constant PRISM_ERROR_INVALID_PARAM] if [param text] is empty, and [constant PRISM_ERROR_NOT_IMPLEMENTED] if the backend does not support braille, as no speech engine does. Some backends succeed when no display is connected and others fail, so the result does not indicate whether a display is present.
+			</description>
+		</method>
+		<method name="find_voice" qualifiers="const">
+			<return type="int" />
+			<param index="0" name="pattern" type="String" />
+			<description>
+				Returns the index of the first voice whose name contains [param pattern], ignoring case, or [code]-1[/code] if [param pattern] is empty or no voice matches.
+			</description>
+		</method>
+		<method name="find_voice_by_language" qualifiers="const">
+			<return type="int" />
+			<param index="0" name="prefix" type="String" />
+			<description>
+				Returns the index of the first voice whose language begins with [param prefix], ignoring case, or [code]-1[/code] if [param prefix] is empty or no voice matches. [code]"en"[/code] matches [code]"en-US"[/code] and [code]"en-GB"[/code].
+			</description>
+		</method>
+		<method name="get_voice_language" qualifiers="const">
+			<return type="String" />
+			<param index="0" name="index" type="int" />
+			<description>
+				Returns the language of the voice at [param index], usually a BCP 47 tag such as [code]"en-US"[/code]. Returns an empty [String] if the backend does not support voices, [param index] is out of range, or the query fails.
+			</description>
+		</method>
+		<method name="get_voice_name" qualifiers="const">
+			<return type="String" />
+			<param index="0" name="index" type="int" />
+			<description>
+				Returns the name of the voice at [param index], such as [code]"Microsoft David"[/code]. Returns an empty [String] if the backend does not support voices, [param index] is out of range, or the query fails.
+			</description>
+		</method>
+		<method name="get_voices" qualifiers="const">
+			<return type="Dictionary[]" />
+			<description>
+				Returns a [Dictionary] for each voice, in index order, with the keys [code]"index"[/code], [code]"name"[/code], and [code]"language"[/code]. Returns an empty array if the backend does not support voices.
+			</description>
+		</method>
+		<method name="has_feature" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="flag" type="int" enum="PrismBackendFeature" is_bitfield="true" />
+			<description>
+				Returns [code]true[/code] if the backend has every feature in [param flag]. The backend is queried on each call.
+				[codeblock]
+				if backend.has_feature(GodotPrismBackend.PRISM_BACKEND_SUPPORTS_IS_SPEAKING):
+				    print(backend.speaking)
+				[/codeblock]
+			</description>
+		</method>
+		<method name="is_valid" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if the object refers to a backend. A backend that failed to initialize is valid; its methods return [constant PRISM_ERROR_NOT_INITIALIZED].
+			</description>
+		</method>
+		<method name="output">
+			<return type="int" enum="PrismError" />
+			<param index="0" name="text" type="String" />
+			<param index="1" name="interrupt" type="bool" default="false" />
+			<description>
+				Presents [param text] through speech and braille. A screen reader backend speaks the text and shows it on the braille display; a speech engine speaks it. [param interrupt] has the same meaning as for [method speak].
+				Returns [constant PRISM_ERROR_INVALID_PARAM] if [param text] is empty. May return [constant PRISM_OK] when one of speech and braille fails.
+			</description>
+		</method>
+		<method name="pause">
+			<return type="int" enum="PrismError" />
+			<description>
+				Pauses speech. Queued speech is kept, and [method resume] continues from the same position. While paused, [member speaking] is [code]false[/code].
+				Returns [constant PRISM_ERROR_NOT_SPEAKING] if no speech is in progress, [constant PRISM_ERROR_ALREADY_PAUSED] if speech is already paused, and [constant PRISM_ERROR_NOT_IMPLEMENTED] if the backend does not support pausing.
+			</description>
+		</method>
+		<method name="refresh_voices">
+			<return type="int" enum="PrismError" />
+			<description>
+				Reloads the list of voices from the system. Voices installed while the project runs appear only after a refresh. Voice indices may change, so a stored choice of voice should be identified by name, for example with [method find_voice].
+				Returns [constant PRISM_ERROR_NOT_IMPLEMENTED] if the backend does not support voices, as no screen reader does.
+			</description>
+		</method>
+		<method name="resume">
+			<return type="int" enum="PrismError" />
+			<description>
+				Resumes speech paused by [method pause]. Returns [constant PRISM_ERROR_NOT_PAUSED] if speech is not paused, including after [method stop], and [constant PRISM_ERROR_NOT_IMPLEMENTED] if the backend does not support resuming.
+			</description>
+		</method>
+		<method name="speak">
+			<return type="int" enum="PrismError" />
+			<param index="0" name="text" type="String" />
+			<param index="1" name="interrupt" type="bool" default="false" />
+			<description>
+				Speaks [param text] with the current voice, rate, pitch, and volume. Depending on the backend, returns when speech starts or when it ends.
+				If [param interrupt] is [code]true[/code], speech in progress is stopped and queued speech is discarded first. If [code]false[/code], most backends queue the text; some mix it with speech in progress, and screen readers may apply their own setting.
+				Returns [constant PRISM_ERROR_INVALID_PARAM] if [param text] is empty, [constant PRISM_ERROR_NOT_IMPLEMENTED] if the backend does not support speech, and [constant PRISM_ERROR_SPEAK_FAILURE] if synthesis fails. Some backends limit the length of text, so long text should be divided.
+				[codeblock]
+				var err := backend.speak("Hello from Prism.", true)
+				if err != GodotPrismBackend.PRISM_OK:
+				    push_error("Speech failed: %s" % Prism.get_error_string(err))
+				[/codeblock]
+			</description>
+		</method>
+		<method name="speak_to_memory">
+			<return type="int" enum="PrismError" />
+			<param index="0" name="text" type="String" />
+			<param index="1" name="callback" type="Callable" />
+			<description>
+				Synthesizes [param text] and calls [param callback] once with the audio: a [PackedFloat32Array] of interleaved samples from [code]-1.0[/code] to [code]1.0[/code], the number of channels, and the sample rate in hertz. [param callback] is called on the calling thread before the method returns, and is not called if synthesis fails. The method may take noticeable time for long text.
+				Returns [constant PRISM_ERROR_INVALID_PARAM] if [param text] is empty or [param callback] is invalid, and [constant PRISM_ERROR_NOT_IMPLEMENTED] if the backend does not support synthesis to memory, as no screen reader does. See also [method speak_to_stream].
+			</description>
+		</method>
+		<method name="speak_to_stream">
+			<return type="AudioStreamWAV" />
+			<param index="0" name="text" type="String" />
+			<description>
+				Synthesizes [param text] and returns the audio as a 16-bit [AudioStreamWAV], which can be played through an [AudioStreamPlayer] or a positional player.
+				Returns [code]null[/code] if [param text] is empty, the backend does not support synthesis to memory, synthesis fails, or no audio is produced. Failures other than empty text and empty audio are printed. The stream is stereo if the backend produces more than one channel; more than two channels are not represented correctly.
+				[codeblock]
+				var stream := backend.speak_to_stream("Behind you.")
+				if stream != null:
+				    $AudioStreamPlayer3D.stream = stream
+				    $AudioStreamPlayer3D.play()
+				[/codeblock]
+			</description>
+		</method>
+		<method name="stop">
+			<return type="int" enum="PrismError" />
+			<description>
+				Stops speech and discards queued speech. A screen reader backend stops only speech it produced.
+				Returns [constant PRISM_ERROR_NOT_IMPLEMENTED] if the backend does not support stopping. Some backends return [constant PRISM_ERROR_NOT_SPEAKING] if no speech is in progress; most return [constant PRISM_OK].
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="bit_depth" type="int" setter="" getter="get_bit_depth">
+			The bit depth of the speech engine's native audio, commonly 8 or 16. [method speak_to_memory] always delivers floating-point samples. [code]-1[/code] if the backend does not support synthesis to memory or the query fails.
+		</member>
+		<member name="channels" type="int" setter="" getter="get_channels">
+			The number of channels in synthesized audio, usually [code]1[/code]. It depends on the [member voice]. [code]-1[/code] if the backend does not support synthesis to memory or the query fails.
+		</member>
+		<member name="features" type="int" setter="" getter="get_features" enum="PrismBackendFeature" is_bitfield="true">
+			The backend's [enum PrismBackendFeature] flags. The backend is queried each time the property is read.
+		</member>
+		<member name="name" type="String" setter="" getter="get_name">
+			The name of the backend, such as [code]"NVDA"[/code].
+		</member>
+		<member name="pitch" type="float" setter="set_pitch" getter="get_pitch">
+			The pitch of speech, from [code]0.0[/code] (lowest) to [code]1.0[/code] (highest). [code]0.5[/code] is the backend's default. A new value applies to subsequent speech. Not supported by screen readers, or by speech engines whose voices have a fixed pitch.
+			Reads [code]0.5[/code] if unsupported and [code]NAN[/code] if the query fails. Setting a value outside the range, or setting it on a backend that does not support it, prints an error.
+		</member>
+		<member name="rate" type="float" setter="set_rate" getter="get_rate">
+			The rate of speech, from [code]0.0[/code] (slowest) to [code]1.0[/code] (fastest). [code]0.5[/code] is always the backend's default. A new value applies to subsequent speech. Not supported by screen readers.
+			Reads [code]0.5[/code] if unsupported and [code]NAN[/code] if the query fails. Setting a value outside the range, or setting it on a backend that does not support it, prints an error.
+		</member>
+		<member name="sample_rate" type="int" setter="" getter="get_sample_rate">
+			The sample rate of synthesized audio, in hertz. It depends on the [member voice]. [code]-1[/code] if the backend does not support synthesis to memory or the query fails.
+		</member>
+		<member name="speaking" type="bool" setter="" getter="get_speaking">
+			[code]true[/code] while speech is in progress. Paused speech is not in progress. Reads [code]false[/code] if the backend cannot report its state, as most screen readers cannot, or if the query fails; check [constant PRISM_BACKEND_SUPPORTS_IS_SPEAKING] before relying on [code]false[/code].
+		</member>
+		<member name="voice" type="int" setter="set_voice" getter="get_voice">
+			The index of the voice used for speech, from [code]0[/code] to [member voices_count] minus one. Initially the backend's default voice. A new voice applies to subsequent speech, and may change [member channels], [member sample_rate], and [member bit_depth].
+			Reads [code]-1[/code] if the backend does not support voices or the query fails. Setting an index out of range, or setting it on a backend that does not support voices, prints an error.
+		</member>
+		<member name="voices_count" type="int" setter="" getter="get_voices_count">
+			The number of voices, as of the last [method refresh_voices]. [code]0[/code] if no voices are installed, the backend does not support voices, or the query fails.
+		</member>
+		<member name="volume" type="float" setter="set_volume" getter="get_volume">
+			The volume of speech, from [code]0.0[/code] (silent) to [code]1.0[/code] (loudest), independent of the system volume. [code]0.5[/code] is the backend's default. A new value applies to subsequent speech. Not supported by screen readers.
+			Reads [code]0.5[/code] if unsupported and [code]NAN[/code] if the query fails. Setting a value outside the range, or setting it on a backend that does not support it, prints an error.
+		</member>
+	</members>
+	<constants>
+		<constant name="PRISM_OK" value="0" enum="PrismError">
+			The operation succeeded.
+		</constant>
+		<constant name="PRISM_ERROR_NOT_INITIALIZED" value="1" enum="PrismError">
+			The backend failed to initialize when it was obtained.
+		</constant>
+		<constant name="PRISM_ERROR_INVALID_PARAM" value="2" enum="PrismError">
+			An argument is invalid.
+		</constant>
+		<constant name="PRISM_ERROR_NOT_IMPLEMENTED" value="3" enum="PrismError">
+			The backend does not support the operation.
+		</constant>
+		<constant name="PRISM_ERROR_NO_VOICES" value="4" enum="PrismError">
+			The backend has no voices.
+		</constant>
+		<constant name="PRISM_ERROR_VOICE_NOT_FOUND" value="5" enum="PrismError">
+			The voice does not exist.
+		</constant>
+		<constant name="PRISM_ERROR_SPEAK_FAILURE" value="6" enum="PrismError">
+			Speech synthesis failed.
+		</constant>
+		<constant name="PRISM_ERROR_MEMORY_FAILURE" value="7" enum="PrismError">
+			Memory allocation failed.
+		</constant>
+		<constant name="PRISM_ERROR_RANGE_OUT_OF_BOUNDS" value="8" enum="PrismError">
+			An argument is outside its valid range.
+		</constant>
+		<constant name="PRISM_ERROR_INTERNAL" value="9" enum="PrismError">
+			An internal error occurred.
+		</constant>
+		<constant name="PRISM_ERROR_NOT_SPEAKING" value="10" enum="PrismError">
+			No speech is in progress.
+		</constant>
+		<constant name="PRISM_ERROR_NOT_PAUSED" value="11" enum="PrismError">
+			Speech is not paused.
+		</constant>
+		<constant name="PRISM_ERROR_ALREADY_PAUSED" value="12" enum="PrismError">
+			Speech is already paused.
+		</constant>
+		<constant name="PRISM_ERROR_INVALID_UTF8" value="13" enum="PrismError">
+			A string is not valid UTF-8.
+		</constant>
+		<constant name="PRISM_ERROR_INVALID_OPERATION" value="14" enum="PrismError">
+			The operation is invalid in the current state.
+		</constant>
+		<constant name="PRISM_ERROR_ALREADY_INITIALIZED" value="15" enum="PrismError">
+			The backend is already initialized. Not returned by this extension's methods.
+		</constant>
+		<constant name="PRISM_ERROR_BACKEND_NOT_AVAILABLE" value="16" enum="PrismError">
+			The backend's screen reader or speech engine is not installed or not running.
+		</constant>
+		<constant name="PRISM_ERROR_UNKNOWN" value="17" enum="PrismError">
+			An unclassified error occurred.
+		</constant>
+		<constant name="PRISM_ERROR_INVALID_AUDIO_FORMAT" value="18" enum="PrismError">
+			The backend's audio format is not one Prism can convert.
+		</constant>
+		<constant name="PRISM_ERROR_INTERNAL_BACKEND_LIMIT_EXCEEDED" value="19" enum="PrismError">
+			The backend allows only a fixed number of instances, and another would exceed it.
+		</constant>
+		<constant name="PRISM_ERROR_BACKEND_ENTERED_UNDEFINED_STATE" value="20" enum="PrismError">
+			The backend is in an undefined state and must not be used further.
+		</constant>
+		<constant name="PRISM_ERROR_LIBRARY_LOAD_FAILED" value="21" enum="PrismError">
+			A shared library could not be opened.
+		</constant>
+		<constant name="PRISM_ERROR_LIBRARY_INVALID" value="22" enum="PrismError">
+			A shared library is not a Prism plugin.
+		</constant>
+		<constant name="PRISM_ERROR_INCOMPATIBLE_ABI" value="23" enum="PrismError">
+			A plugin is incompatible with this version of Prism.
+		</constant>
+		<constant name="PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME" value="1" enum="PrismBackendFeature" is_bitfield="true">
+			The backend's screen reader or speech engine is available. Advisory; initialization may still fail.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_SPEAK" value="4" enum="PrismBackendFeature" is_bitfield="true">
+			[method speak] is supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY" value="8" enum="PrismBackendFeature" is_bitfield="true">
+			[method speak_to_memory] and [method speak_to_stream] are supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_BRAILLE" value="16" enum="PrismBackendFeature" is_bitfield="true">
+			[method braille] is supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_OUTPUT" value="32" enum="PrismBackendFeature" is_bitfield="true">
+			[method output] is supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_IS_SPEAKING" value="64" enum="PrismBackendFeature" is_bitfield="true">
+			[member speaking] reports the backend's state.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_STOP" value="128" enum="PrismBackendFeature" is_bitfield="true">
+			[method stop] is supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_PAUSE" value="256" enum="PrismBackendFeature" is_bitfield="true">
+			[method pause] is supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_RESUME" value="512" enum="PrismBackendFeature" is_bitfield="true">
+			[method resume] is supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_SET_VOLUME" value="1024" enum="PrismBackendFeature" is_bitfield="true">
+			[member volume] can be set.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_GET_VOLUME" value="2048" enum="PrismBackendFeature" is_bitfield="true">
+			[member volume] can be read.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_SET_RATE" value="4096" enum="PrismBackendFeature" is_bitfield="true">
+			[member rate] can be set.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_GET_RATE" value="8192" enum="PrismBackendFeature" is_bitfield="true">
+			[member rate] can be read.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_SET_PITCH" value="16384" enum="PrismBackendFeature" is_bitfield="true">
+			[member pitch] can be set.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_GET_PITCH" value="32768" enum="PrismBackendFeature" is_bitfield="true">
+			[member pitch] can be read.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_REFRESH_VOICES" value="65536" enum="PrismBackendFeature" is_bitfield="true">
+			[method refresh_voices] is supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_COUNT_VOICES" value="131072" enum="PrismBackendFeature" is_bitfield="true">
+			[member voices_count] reports the number of voices.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_GET_VOICE_NAME" value="262144" enum="PrismBackendFeature" is_bitfield="true">
+			[method get_voice_name] is supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_GET_VOICE_LANGUAGE" value="524288" enum="PrismBackendFeature" is_bitfield="true">
+			[method get_voice_language] is supported.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_GET_VOICE" value="1048576" enum="PrismBackendFeature" is_bitfield="true">
+			[member voice] can be read.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_SET_VOICE" value="2097152" enum="PrismBackendFeature" is_bitfield="true">
+			[member voice] can be set.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_GET_CHANNELS" value="4194304" enum="PrismBackendFeature" is_bitfield="true">
+			[member channels] can be read.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_GET_SAMPLE_RATE" value="8388608" enum="PrismBackendFeature" is_bitfield="true">
+			[member sample_rate] can be read.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_GET_BIT_DEPTH" value="16777216" enum="PrismBackendFeature" is_bitfield="true">
+			[member bit_depth] can be read.
+		</constant>
+		<constant name="PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK" value="33554432" enum="PrismBackendFeature" is_bitfield="true">
+			The backend removes leading and trailing silence from speech.
+		</constant>
+		<constant name="PRISM_BACKEND_PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY" value="67108864" enum="PrismBackendFeature" is_bitfield="true">
+			The backend removes leading and trailing silence from synthesized audio.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_SPEAK_SSML" value="134217728" enum="PrismBackendFeature" is_bitfield="true">
+			Reserved.
+		</constant>
+		<constant name="PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML" value="268435456" enum="PrismBackendFeature" is_bitfield="true">
+			Reserved.
+		</constant>
+		<constant name="PRISM_BACKEND_IS_SCREEN_READER" value="72057594037927936" enum="PrismBackendFeature" is_bitfield="true">
+			The backend sends messages to a screen reader. Every built-in backend has exactly one of this flag and [constant PRISM_BACKEND_IS_SPEECH_ENGINE].
+		</constant>
+		<constant name="PRISM_BACKEND_IS_SPEECH_ENGINE" value="144115188075855872" enum="PrismBackendFeature" is_bitfield="true">
+			The backend synthesizes speech without a screen reader.
+		</constant>
+	</constants>
+</class>

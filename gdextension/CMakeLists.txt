@@ -66,6 +66,17 @@ if(WIN32)
   target_compile_definitions(${LIBNAME} PRIVATE TYPED_METHOD_BIND)
   target_compile_definitions(godot-cpp PUBLIC TYPED_METHOD_BIND)
 endif()
+# The class reference for the editor's help. The editor loads the debug library,
+# so the release library has no use for it.
+if(NOT GODOTCPP_TARGET STREQUAL "template_release")
+  target_doc_sources(
+    ${LIBNAME}
+    "${CMAKE_CURRENT_LIST_DIR}/doc_classes/GodotPrismBackend.xml;${CMAKE_CURRENT_LIST_DIR}/doc_classes/GodotPrismContext.xml"
+  )
+  # Generated outside the source tree, where no .clang-tidy applies.
+  set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/gen/doc_source.cpp"
+                              PROPERTIES SKIP_LINTING ON)
+endif()
 set_property(TARGET ${LIBNAME} PROPERTY CXX_STANDARD 23)
 set_property(TARGET ${LIBNAME} PROPERTY C_STANDARD 18)
 if(PRISM_ENABLE_LINTING)

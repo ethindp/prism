@@ -8,7 +8,7 @@ import traceback
 from typing import TYPE_CHECKING, Final
 
 from ._prism_cffi import ffi, lib
-from .common import PrismInvalidParamError
+from .common import PrismError, PrismInvalidParamError
 from .core import AudioCallback, BackendFeatures, _check_error
 
 if TYPE_CHECKING:
@@ -131,6 +131,8 @@ class CustomBackend:
 
 
 def _error_for(exc: BaseException) -> int:
+    if isinstance(exc, PrismError):
+        return exc.code
     if isinstance(exc, NotImplementedError):
         return lib.PRISM_ERROR_NOT_IMPLEMENTED
     if isinstance(exc, UnicodeError):

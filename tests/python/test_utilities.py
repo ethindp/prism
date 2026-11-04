@@ -7,7 +7,7 @@ import logging
 import prism
 import pytest
 from prism import Context, CustomBackend, RegistryBuilder
-from prism.common import PrismInvalidParamError
+from prism.common import PrismBackendNotAvailableError, PrismInvalidParamError
 
 
 class _SilentBackend(CustomBackend):
@@ -84,3 +84,20 @@ def test_custom_backend_classification() -> None:
         assert not reader.is_speech_engine
         assert not neither.is_screen_reader
         assert not neither.is_speech_engine
+
+
+class _UnavailableBackend(CustomBackend):
+    def speak(self, _text: str, _interrupt: bool) -> None:
+        raise PrismBackendNotAvailableError(
+            prism.common.lib.PRISM_ERROR_BACKEND_NOT_AVAILABLE
+        )
+
+
+def test_custom_backend_reports_the_prism_error_it_raises() -> None:
+    with RegistryBuilder() as builder:
+        backend_id = builder.add_backend("Unavailable", _UnavailableBackend)
+        registry = builder.freeze()
+    with registry:
+        backend = Context(registry=registry).create(prism.BackendId(backend_id))
+        with pytest.raises(PrismBackendNotAvailableError):
+            backend.speak("hello")

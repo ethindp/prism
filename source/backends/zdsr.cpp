@@ -105,26 +105,27 @@ public:
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
     std::bitset<64> features;
+    // ZDSRMain.exe is the reader and ZDSRDaemon.exe is the daemon it runs;
+    // both must be running for ZDSR to be usable.
     constexpr auto zdsr_processes = std::to_array<std::wstring_view>(
-        {_T("ZDSRDaemon.exe"), _T("ZDSRMain.exe"), _T("ZDSRMain_x64.exe"),
-         _T("ZDSRMainService.exe"), _T("ZDSRMultiEngine.exe"),
-         _T("ZDSRStart.exe")});
+        {_T("ZDSRMain.exe"), _T("ZDSRDaemon.exe")});
+    std::bitset<zdsr_processes.size()> found;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot != INVALID_HANDLE_VALUE) {
       PROCESSENTRY32 entry{};
       entry.dwSize = sizeof(entry);
       if (Process32First(snapshot, &entry)) {
         do {
-          if (std::ranges::any_of(zdsr_processes, [entry](const auto &p) {
-                return std::wstring_view{entry.szExeFile} == p;
-              })) {
-            features |= IS_SUPPORTED_AT_RUNTIME;
-            break;
-          }
+          const std::wstring_view name{entry.szExeFile};
+          if (const auto it = std::ranges::find(zdsr_processes, name);
+              it != zdsr_processes.end())
+            found.set(static_cast<std::size_t>(it - zdsr_processes.begin()));
         } while (Process32Next(snapshot, &entry));
       }
       CloseHandle(snapshot);
     }
+    if (found.all())
+      features |= IS_SUPPORTED_AT_RUNTIME;
     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING |
                 SUPPORTS_STOP | SUPPORTS_BRAILLE;
     return features |= IS_SCREEN_READER;

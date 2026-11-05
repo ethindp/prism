@@ -62,6 +62,17 @@ const Zdsr *zdsr() {
   static const std::optional<Zdsr> api = load_zdsr();
   return api ? &*api : nullptr;
 }
+
+[[nodiscard]] BackendError map_speak_result(int result) noexcept {
+  switch (result) {
+  case 1: // version mismatch
+  case 2: // ZDSR is not running or not authorized
+  case 9: // independent channel is not ready yet
+    return BackendError::BackendNotAvailable;
+  default:
+    return BackendError::InternalBackendError;
+  }
+}
 } // namespace
 
 class ZdsrBackend final : public TextToSpeechBackend {
@@ -74,12 +85,12 @@ private:
     case 3:
       return true;
     case 4:
+    case 9: // independent channel is not ready yet; nothing is speaking
       return false;
     case 1:
     case 2:
       return std::unexpected(BackendError::BackendNotAvailable);
     case 8:
-    case 9:
       return std::unexpected(BackendError::InternalBackendError);
     default:
       return std::unexpected(BackendError::Unknown);
@@ -146,7 +157,7 @@ public:
       return std::unexpected(BackendError::InvalidUtf8);
     if (const auto res = api->Speak(wstr.c_str(), static_cast<BOOL>(interrupt));
         res > 0)
-      return std::unexpected(BackendError::InternalBackendError);
+      return std::unexpected(map_speak_result(res));
     return {};
   }
 

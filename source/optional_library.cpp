@@ -49,11 +49,9 @@ install_folder(const InstallLocation &install) {
   return std::filesystem::path(folder);
 }
 
-std::optional<SharedLibrary> search_further(const TCHAR *dll,
-                                            const InstallLocation *install) {
+std::optional<SharedLibrary> search_explicitly(const TCHAR *dll,
+                                               const InstallLocation *install) {
   static const LogSource log{"prism/optional_library"};
-  log.trace(_T("{} is not on the DLL search path (LastError={})"), dll,
-            SharedLibrary::last_error());
   if (const auto folder = prism_folder()) {
     const auto path = *folder / dll;
     SharedLibrary library{path.string<TCHAR>().c_str()};
@@ -80,18 +78,28 @@ std::optional<SharedLibrary> search_further(const TCHAR *dll,
 
 SharedLibrary open_optional_library(const TCHAR *dll,
                                     const InstallLocation *install) noexcept {
-  SharedLibrary library{dll};
-  if (library)
-    return library;
-  // Paths and the registry allocate; failing there is the same as not finding
-  // the library.
+  // Prefer an app-local copy, then the explicitly registered product copy.
+  // Only fall back to Windows' ambient DLL search path after those locations,
+  // so a stale same-named DLL in the working directory or PATH cannot shadow
+  // the installed library.
   // NOLINTBEGIN(bugprone-empty-catch)
   try {
-    if (auto found = search_further(dll, install))
+    if (auto found = search_explicitly(dll, install))
       return std::move(*found);
   } catch (...) {
   }
   // NOLINTEND(bugprone-empty-catch)
+
+  SharedLibrary library{dll};
+  if (!library) {
+    try {
+      static const LogSource log{"prism/optional_library"};
+      log.trace(_T("{} is not on the DLL search path (LastError={})"), dll,
+                SharedLibrary::last_error());
+    } catch (...) {
+      return library;
+    }
+  }
   return library;
 }
 #endif

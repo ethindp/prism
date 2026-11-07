@@ -110,7 +110,13 @@ The PC-Talker backend communicates with PC-Talker through a client library distr
 
 ### ZDSR
 
-The ZDSR backend communicates with ZDSR through a client library distributed with ZDSR. The host process MUST be running on Windows, and the library MUST be resolvable through the host process's library search order; if it is not, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`. The runtime-supported probe reflects only the presence of a running ZDSR process and does not load the library.
+The ZDSR backend communicates with ZDSR through ZDSRAPI. The host process MUST be running on Windows, and the API library MUST be loadable; otherwise, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
+
+The runtime-supported probe requires both `ZDSRMain.exe` and `ZDSRDaemon.exe` to be running. It only checks for those processes and does not load ZDSRAPI. The ZDSR service processes are not used as a proxy for the reader, because they can remain running when the reader is not.
+
+The parameters in `ZDSRAPI.ini` take precedence over the arguments Prism passes to `InitTTS`. If `type=1` selects an independent channel, that channel may still be starting when initialization queries the speech state. In that transient state, ZDSR reports status 9 (independent channel not ready); Prism treats it as not speaking, so `prism_backend_initialize` succeeds and `prism_backend_is_speaking` returns `false`. A `prism_backend_speak` call made before the channel is ready returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`; applications MAY retry after the channel becomes ready. Reinitialization is not required.
+
+Some ZDSR API versions do not export the `Braille` function. After initialization, the ZDSR backend advertises `PRISM_BACKEND_SUPPORTS_BRAILLE` only if the loaded API provides it. Otherwise `prism_backend_braille` returns `PRISM_ERROR_NOT_IMPLEMENTED`, and `prism_backend_output` outputs speech only. Before initialization, the ZDSR backend does not advertise Braille support.
 
 ### BoyPCReader
 

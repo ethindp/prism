@@ -49,12 +49,12 @@ std::optional<Zdsr> load_zdsr() {
   const bool complete = library.bind(api.InitTTS, "InitTTS") &&
                         library.bind(api.Speak, "Speak") &&
                         library.bind(api.GetSpeakState, "GetSpeakState") &&
-                        library.bind(api.StopSpeak, "StopSpeak") &&
-                        library.bind(api.Braille, "Braille");
+                        library.bind(api.StopSpeak, "StopSpeak");
   if (!complete) {
     log.debug(_T("{} is missing a function prism needs"), zdsr_dll);
     return std::nullopt;
   }
+  (void)library.bind(api.Braille, "Braille");
   return api;
 }
 
@@ -78,6 +78,7 @@ const Zdsr *zdsr() {
 class ZdsrBackend final : public TextToSpeechBackend {
 private:
   std::atomic_flag initialized;
+  std::atomic_flag braille_supported;
   const Zdsr *api = nullptr;
 
   [[nodiscard]] BackendResult<bool> query_speaking() const {
@@ -127,7 +128,9 @@ public:
     if (found.all())
       features |= IS_SUPPORTED_AT_RUNTIME;
     features |= SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING |
-                SUPPORTS_STOP | SUPPORTS_BRAILLE;
+                SUPPORTS_STOP;
+    if (braille_supported.test(std::memory_order_acquire))
+      features |= SUPPORTS_BRAILLE;
     return features |= IS_SCREEN_READER;
   }
 
@@ -141,6 +144,8 @@ public:
       return std::unexpected(BackendError::BackendNotAvailable);
     if (const auto state = query_speaking(); !state)
       return std::unexpected(state.error());
+    if (api->Braille != nullptr)
+      braille_supported.test_and_set(std::memory_order_acq_rel);
     initialized.test_and_set(std::memory_order_release);
     return {};
   }
@@ -165,6 +170,8 @@ public:
   BackendResult<> braille(std::string_view text) override {
     if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
+    if (!braille_supported.test(std::memory_order_acquire))
+      return std::unexpected(BackendError::NotImplemented);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
     wstr.resize(len);
@@ -181,6 +188,8 @@ public:
   BackendResult<> output(std::string_view text, bool interrupt) override {
     if (const auto res = speak(text, interrupt); !res)
       return res;
+    if (!braille_supported.test(std::memory_order_acquire))
+      return {};
     if (const auto res = braille(text); !res)
       return res;
     return {};

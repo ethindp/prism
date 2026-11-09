@@ -56,7 +56,7 @@ Returns the backend ID at the specified index on success. Returns `PRISM_BACKEND
 
 #### Remarks
 
-Backends are stored in the registry in descending priority order. Index 0 corresponds to the highest-priority backend, index 1 to the second-highest, and so on. This ordering is determined by the priority values, which are assigned at compile time for built-in backends and at registration time for custom backends.
+Backends are stored in the registry in descending priority order. Index 0 corresponds to the highest-priority backend, index 1 to the second-highest, and so on. This ordering is determined by the priority values, which are assigned at compile time for built-in backends and at registration time for custom backends. Backends of equal priority are ordered by name, in ascending order of the bytes of their UTF-8 encodings.
 
 The priority ordering reflects a general preference hierarchy. Screen reader backends (such as NVDA, JAWS, and Orca) typically have higher priority than standalone TTS backends (such as SAPI and OneCore) because, when a screen reader is running, applications generally want to route speech through it rather than speaking independently. However, applications that have specific requirements MAY ignore this ordering and select backends by ID or name.
 
@@ -291,7 +291,7 @@ Returns a pointer to a newly created and initialized backend instance on success
 
 #### Remarks
 
-This function iterates through all registered backends in descending priority order. For each backend, it attempts to create an instance and initialize it. If initialization succeeds, that backend is returned immediately. If initialization fails, the instance is discarded and the next backend is tried.
+This function iterates through the registered backends in descending priority order, omitting every backend that reports `PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION`. For each backend, it attempts to create an instance and initialize it. If initialization succeeds, that backend is returned immediately. If initialization fails, the instance is discarded and the next backend is tried. A backend that requires explicit selection is obtained only through `prism_registry_create` or `prism_registry_acquire`.
 
 Unlike `prism_registry_create`, the returned backend is already initialized. Applications do not need to call `prism_backend_initialize` and SHOULD NOT do so, as it will return `PRISM_ERROR_ALREADY_INITIALIZED`.
 
@@ -361,7 +361,7 @@ Note: A program that does not have a specific reason to share backend state with
 
 This function combines the automatic backend selection of `prism_registry_create_best` with the caching behavior of `prism_registry_acquire`.
 
-The function examines registered backend identifiers in descending priority order. If a cache entry contains a live instance, Prism ensures that retained instance is initialized before returning it. This includes an instance that was originally created by `prism_registry_acquire` and subsequently initialized through `prism_backend_initialize`. If the cached instance cannot be initialized, selection continues with the next backend.
+The function examines registered backend identifiers in descending priority order, omitting every backend that reports `PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION`, even when a live instance of that backend is cached. If a cache entry contains a live instance, Prism ensures that retained instance is initialized before returning it. This includes an instance that was originally created by `prism_registry_acquire` and subsequently initialized through `prism_backend_initialize`. If the cached instance cannot be initialized, selection continues with the next backend.
 
 For an uncached identifier, construction MAY occur without holding the cache lock. If another caller installs a live instance for the same identifier while that construction or initialization is in progress, the cache entry determines the shared identity: Prism returns or initializes the retained cached instance rather than replacing it with a second live instance. Speculatively constructed instances that lose this race are destroyed when their references are released. Backends whose construction or initialization fails are not installed as new cache entries.
 

@@ -8,7 +8,7 @@ A screen reader is an assistive technology which presents the contents of the sc
 
 A speech engine synthesizes audio from text on behalf of whichever program requests it. It has no knowledge of what is on the screen and does not make a system accessible on its own. Examples include SAPI, OneCore, AVSpeech, Speech Dispatcher, and the Web Speech API.
 
-A backend reports which of the two it is through the `PRISM_BACKEND_IS_SCREEN_READER` and `PRISM_BACKEND_IS_SPEECH_ENGINE` bits of `prism_backend_get_features`. Every built-in backend sets exactly one of them. A custom backend MAY set neither, and MUST NOT set both.
+A backend reports which of the two it is through the `PRISM_BACKEND_IS_SCREEN_READER` and `PRISM_BACKEND_IS_SPEECH_ENGINE` bits of `prism_backend_get_features`. Every built-in backend sets exactly one of them, with two exceptions: the Clipboard backend, which places text on the system clipboard, and the No Speech backend, which produces no output at all. Neither presents text to the user through a screen reader or synthesizes speech, so both set neither bit. A custom backend MAY set neither, and MUST NOT set both.
 
 An application that communicates with a screen reader asks that screen reader to present a message. The message is then subject to the screen reader's own queue and configuration. An application that communicates with a speech engine instead requests that specific audio be produced, independently of any screen reader that may be running. The two can therefore speak over one another if an application uses a speech engine while the user's screen reader is active.
 
@@ -17,6 +17,10 @@ Applications that present their interface through a platform's accessibility API
 ## Backend selection
 
 Each backend in a registry has a priority, which can be retrieved through `prism_registry_priority`. Screen reader backends generally have a higher priority than speech engine backends. `prism_registry_create_best` and `prism_registry_acquire_best` attempt the backends in descending priority order and return the first which initializes successfully. A screen reader backend is unable to initialize when its screen reader is not running. Consequently, a program which uses these functions communicates with the user's screen reader if there is one, and otherwise falls back on a speech engine. This is the appropriate behavior for most applications, and applications SHOULD NOT replace it without a specific reason.
+
+The exception is a backend that reports `PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION`, which these functions never attempt. Such a backend imposes requirements on the host application that a caller of the best-selection functions cannot be assumed to meet, and is available only to an application that requests it by identifier or name. The screen reader it serves, if any, is therefore not reached by best selection. The chapter on backend-specific notes identifies these backends and the screen readers concerned.
+
+`PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` does not indicate that a screen reader is running, since speech engines report it whenever they are installed. An application that needs to know whether the user is running a screen reader MUST look for a backend that reports both `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` and `PRISM_BACKEND_IS_SCREEN_READER`.
 
 An application MAY present a choice of backend to its users. The application SHOULD enumerate the registry for this purpose rather than assuming that a particular backend is present, since the set of backends varies according to the platform and the options with which Prism was built. Membership in a registry does not imply that a backend can be used; applications SHOULD inspect `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` before offering a backend, and MUST be prepared for its initialization to fail regardless.
 

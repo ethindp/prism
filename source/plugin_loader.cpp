@@ -323,8 +323,8 @@ PrismError load_plugin(RegistryBuilder &builder, const char *path,
         return PRISM_ERROR_INVALID_PARAM;
       }
       BackendId id{};
-      switch (builder.add(std::string{name_view}, priority, std::move(factory),
-                          &id)) {
+      switch (builder.add(std::string{name_view}, priority, d.features,
+                          std::move(factory), &id)) {
       case BuilderResult::Ok:
         break;
       case BuilderResult::InvalidUtf8: {

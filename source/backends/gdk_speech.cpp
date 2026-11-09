@@ -924,6 +924,5 @@ public:
   }
 };
 
-REGISTER_BACKEND_WITH_ID(GdkSpeechBackend, Backends::GdkSpeech, "GdkSpeech",
-                         100)
+REGISTER_BACKEND_WITH_ID(GdkSpeechBackend, Backends::GdkSpeech, "GdkSpeech", 99)
 #endif

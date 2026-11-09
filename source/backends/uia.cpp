@@ -256,6 +256,15 @@ private:
       PostQuitMessage(0);
       return 0;
     case WM_DESTROY:
+      if (self != nullptr) {
+        self->hwnd.store(nullptr, std::memory_order_release);
+        if (auto *p =
+                self->provider.exchange(nullptr, std::memory_order_acq_rel);
+            p != nullptr) {
+          UiaDisconnectProvider(p);
+          p->Release();
+        }
+      }
       return 0;
     default:
       return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -420,6 +429,7 @@ private:
   }
 
 public:
+  static constexpr bool requires_explicit_selection = true;
   UiaBackend() = default;
   UiaBackend(const UiaBackend &) = delete;
   UiaBackend &operator=(const UiaBackend &) = delete;
@@ -431,7 +441,8 @@ public:
 
   [[nodiscard]] std::bitset<64> get_features() const override {
     using namespace BackendFeature;
-    std::bitset<64> features = SUPPORTS_SPEAK | SUPPORTS_OUTPUT | SUPPORTS_STOP;
+    std::bitset<64> features = SUPPORTS_SPEAK | SUPPORTS_OUTPUT |
+                               SUPPORTS_STOP | REQUIRES_EXPLICIT_SELECTION;
     static const UiaRuntime uia_runtime;
     if (!uia_runtime.available()) {
       return features |= IS_SCREEN_READER;
@@ -515,7 +526,8 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     const HWND w = hwnd.load(std::memory_order_acquire);
     const auto *p = provider.load(std::memory_order_acquire);
-    if (w == nullptr || p == nullptr)
+    if (w == nullptr || p == nullptr ||
+        IsWindow(host.load(std::memory_order_relaxed)) == FALSE)
       return std::unexpected(BackendError::NotInitialized);
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
@@ -543,7 +555,7 @@ public:
     if (!initialized.test())
       return std::unexpected(BackendError::NotInitialized);
     const HWND w = hwnd.load(std::memory_order_acquire);
-    if (w == nullptr)
+    if (w == nullptr || IsWindow(host.load(std::memory_order_relaxed)) == FALSE)
       return std::unexpected(BackendError::NotInitialized);
     StopCommand cmd{};
     uia_command_queue.enqueue(cmd);

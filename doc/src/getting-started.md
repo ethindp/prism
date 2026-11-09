@@ -116,6 +116,74 @@ func _ready() -> void:
 
 Operations that can fail return a `PrismError` value, which applications SHOULD inspect. The backend is held in a member variable because a backend held only by a local variable is released when the function returns, which, on some backends, discards the speech it has queued.
 
+## Long-running applications
+
+The programs above select a backend once. `prism_registry_create_best` chooses among the backends available at the moment it is called, and the backend it returns is not replaced if the circumstances change afterwards. A program that starts before the user's screen reader continues to use a speech engine once the screen reader is running, and a program whose screen reader exits holds a backend that returns errors. A short-lived program can ignore this. An application that remains running for the length of a user's session, such as a chat client or a game, MUST NOT treat its first selection as permanent.
+
+Such an application SHOULD keep one context for its whole lifetime, configure it with an availability callback, and select its backend again whenever the callback reports a change or an operation reports that the backend has become unusable. The following C fragment shows the pattern:
+
+```c
+#include <prism.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+
+static PrismContext *ctx;
+static PrismBackend *backend;
+static atomic_bool reselect = true;
+
+static void PRISM_CALL on_availability(void *userdata, PrismBackendId id,
+                                       const char *name, bool available) {
+    (void)userdata;
+    (void)id;
+    (void)name;
+    (void)available;
+    atomic_store(&reselect, true);
+}
+
+static void PRISM_CALL on_baseline(void *userdata) {
+    (void)userdata;
+    atomic_store(&reselect, true);
+}
+
+bool start_speech(void) {
+    PrismConfig cfg = prism_config_init();
+    cfg.availability_callback = on_availability;
+    cfg.availability_baseline_callback = on_baseline;
+    ctx = prism_init(&cfg);
+    return ctx != NULL;
+}
+
+void announce(const char *text) {
+    if (atomic_exchange(&reselect, false)) {
+        prism_backend_free(backend);
+        backend = prism_registry_create_best(ctx);
+    }
+    if (backend == NULL) {
+        return;
+    }
+    PrismError err = prism_backend_output(backend, text, false);
+    if (err == PRISM_ERROR_BACKEND_NOT_AVAILABLE ||
+        err == PRISM_ERROR_NOT_INITIALIZED) {
+        prism_backend_free(backend);
+        backend = prism_registry_create_best(ctx);
+        if (backend != NULL) {
+            err = prism_backend_output(backend, text, false);
+        }
+    }
+}
+
+void stop_speech(void) {
+    prism_backend_free(backend);
+    backend = NULL;
+    prism_shutdown(ctx);
+    ctx = NULL;
+}
+```
+
+The callbacks run on a thread owned by Prism, so they do no more than record that a selection is due. The backend is replaced on the thread that uses it, as the chapter on thread safety requires. The baseline callback requests a further selection because the first selection may take place before the poll thread has established its baseline, and a change in that interval would otherwise never be reported; the chapter on background availability enumeration describes this condition. An error from an operation is checked as well because availability is sampled periodically, and a screen reader that has exited is detected by the next operation sooner than by the next sample.
+
+The fragment passes `false` as the `interrupt` argument, since an application's announcements generally ought not to discard whatever the user is listening to. The chapter on screen readers and speech engines describes when interrupting is appropriate.
+
 ## Next steps
 
 The Screen Readers and Speech Engines chapter explains which backend a program will receive and how an application should use it. The API Reference documents the C, Python, and Godot interfaces, and the Application Deployment chapter describes what is required for the application to function on other systems.

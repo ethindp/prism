@@ -26,6 +26,8 @@ Prism defines constants for all known backend identifiers. These constants are 6
 | `PRISM_BACKEND_WINDOW_EYES` | WindowEyes screen reader (windows) (only available if explicitly enabled at build time) |
 | `PRISM_BACKEND_GDK_SPEECH` | Microsoft GDK speech synthesis (Windows, Xbox) |
 | `PRISM_BACKEND_SPIEL` | Spiel (Linux/BSD, win32 via Wine) |
+| `PRISM_BACKEND_CLIPBOARD` | System clipboard (Windows, macOS, iOS, iPadOS, Mac Catalyst, visionOS, Linux/BSD, Android, web) |
+| `PRISM_BACKEND_NO_SPEECH` | Backend that produces no output (all platforms) |
 
 The availability of any given backend depends on the platform Prism is running on and how Prism was compiled. The presence of a constant does not guarantee that the corresponding backend is available at runtime. Use `prism_registry_exists` to check availability.
 

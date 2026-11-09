@@ -56,6 +56,8 @@ The watchOS VoiceOver backend supports the speak and output operations. No other
 
 The UIA backend delivers announcements through Microsoft UI Automation notification events. Current versions of NVDA, JAWS, and Windows Narrator all observe these notifications.
 
+The backend reports `PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION`, and is therefore never selected by `prism_registry_create_best` or `prism_registry_acquire_best`. Its window requirements, described below, cannot be met by an arbitrary caller of those functions. NVDA and JAWS have dedicated backends that best selection reaches, but Windows Narrator does not: under best selection, a user of Narrator receives a speech engine backend, which speaks independently of Narrator. An application that wishes to reach Narrator MUST request the UIA backend by identifier or name.
+
 A notification event produces speech only when an assistive technology consumes it. The backend therefore reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` only when both of the following hold at the moment of the query:
 
 * The system screen reader flag, as retrieved through `SystemParametersInfo` with `SPI_GETSCREENREADER`, is set.
@@ -84,13 +86,13 @@ The root owner of the selected window MUST also belong to the host process; if i
 
 The host process MUST also be running on an interactive desktop reachable through `GetThreadDesktop`. Services running in non-interactive sessions cannot use this backend even if they synthesize their own window. If no qualifying window can be found, `prism_backend_initialize` returns `PRISM_ERROR_INVALID_PARAM`. If a qualifying window is found but the backend's internal worker fails to initialize within a 5-second deadline, `prism_backend_initialize` returns `PRISM_ERROR_INTERNAL`.
 
-The backend captures the qualifying window at initialization and does not rebind to a different window thereafter. If the captured window is destroyed during the lifetime of the backend instance, subsequent operations return `PRISM_ERROR_NOT_INITIALIZED`, and applications SHOULD destroy and re-create the backend.
+The backend captures the root owner of the qualifying window at initialization and does not rebind to a different window thereafter. Because no window qualifies until it is visible and not minimized, an application SHOULD initialize the backend after its window has been shown. If the captured window is destroyed during the lifetime of the backend instance, subsequent operations return `PRISM_ERROR_NOT_INITIALIZED`, and applications SHOULD destroy and re-create the backend.
 
 ### NVDA
 
 The NVDA backend communicates with NVDA through a local RPC endpoint whose name is keyed by the user's logon session identifier and the calling thread's desktop name. NVDA MUST therefore be running in the same logon session and on the same desktop as the calling thread. Cross-session and cross-desktop announcements are not supported.
 
-The endpoint binding established at initialization is fixed for the lifetime of the backend instance and is never retried. If NVDA terminates after a successful initialization, subsequent operations return `PRISM_ERROR_INTERNAL`. The backend does not automatically reconnect when NVDA is restarted; applications SHOULD destroy and re-create the backend.
+The endpoint binding established at initialization is fixed for the lifetime of the backend instance and is never retried. If NVDA terminates after a successful initialization, subsequent operations return `PRISM_ERROR_BACKEND_NOT_AVAILABLE`. The backend does not automatically reconnect when NVDA is restarted; applications SHOULD destroy and re-create the backend.
 
 ### JAWS
 
@@ -217,3 +219,48 @@ The application-context and Java VM attachment requirements of the Android Text 
 ### Web Speech
 
 In browsing contexts that enforce an autoplay policy, the first call to an instance of the web speech backend to produce speech MUST originate from a user-initiated event handler such as a `click` or `keydown` listener. This is a property of the browsing context, not of Prism. The set of available voices is populated asynchronously by the browser. The voice list reported by the backend MAY be briefly empty after initialization on first page load. Applications SHOULD invoke `prism_backend_refresh_voices` if the voice list is unexpectedly empty, or arrange to do so in response to the browser's `voiceschanged` event.
+
+### Clipboard
+
+The Clipboard backend places text on the system clipboard instead of presenting it to the user. It is available on Windows; on macOS, iOS, iPadOS, Mac Catalyst, and visionOS; on Linux and BSD; on Android; and on the web. It sets neither `PRISM_BACKEND_IS_SCREEN_READER` nor `PRISM_BACKEND_IS_SPEECH_ENGINE`, and reports `PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION`, so it is obtained only by requesting it by identifier or name.
+
+The backend implements `prism_backend_speak` and `prism_backend_output`, which behave identically. Each call replaces the contents of the clipboard with the text supplied. Since the clipboard holds a single text, the `interrupt` argument has no effect. Every other operation returns `PRISM_ERROR_NOT_IMPLEMENTED`. A call that cannot place the text on the clipboard returns `PRISM_ERROR_SPEAK_FAILURE`. Except where stated otherwise below, the text remains on the clipboard after the backend instance is freed.
+
+#### Windows
+
+The backend places the text on the clipboard in the `CF_UNICODETEXT` format, from which the system synthesizes the other text formats. The clipboard is opened for the duration of each call through a message-only window that the call creates and destroys, so the backend imposes no requirement on the host process's windows or threads. If another process holds the clipboard open, the call retries for approximately 100 milliseconds before failing. The backend always reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME`.
+
+#### Apple platforms
+
+On macOS, the backend writes the text to the general pasteboard as `public.utf8-plain-text`. On iOS, iPadOS, Mac Catalyst, and visionOS, it sets the string of the general pasteboard. The backend uses the Objective-C runtime directly and calls the pasteboard from the calling thread. It reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` when the pasteboard class of the platform is available. tvOS and watchOS have no general pasteboard, and on them the backend is never available. On macOS, a process that is not running in a user's graphical session cannot reach the pasteboard, and its calls fail.
+
+#### Linux and BSD
+
+A clipboard on these systems belongs to the client that last set it, and is available only for as long as that client serves it. Each initialized backend instance therefore opens its own connection to the display server and serves the clipboard from an internal thread, which is created at initialization and joined when the instance is freed. The libraries concerned are loaded at run time, so none of them is required for Prism to load. The backend uses the first of the following that can be established at initialization:
+
+* a Wayland connection, through `libwayland-client.so.0`, when the `WAYLAND_DISPLAY` environment variable is set and non-empty and the compositor implements `ext-data-control-v1` or `zwlr-data-control-unstable-v1`; and
+* an X11 connection, through `libxcb.so.1`, when the `DISPLAY` environment variable is set and non-empty.
+
+A Wayland compositor that implements neither data control protocol does not permit an application without a focused window to set the clipboard. Under such a compositor, of which GNOME Shell is an example, the backend uses X11 through Xwayland when `DISPLAY` is set, and the compositor transfers the clipboard between Xwayland and its Wayland clients. `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE` when neither connection can be established, and the backend reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` under the same conditions. A text console has no clipboard, and the backend is not available in a session without a display server.
+
+Under Wayland, the text is offered as `text/plain;charset=utf-8`, `text/plain`, `UTF8_STRING`, `TEXT`, and `STRING`. Under X11, the CLIPBOARD selection offers the targets `UTF8_STRING`, `TEXT`, `text/plain;charset=utf-8`, and `text/plain`, together with `TARGETS`; ownership is taken at `CurrentTime`, and text too large for a single request is transferred with the `INCR` protocol. The PRIMARY selection is not set.
+
+Each call hands the text to the serving thread and returns without waiting for it, so a successful return indicates that the text was submitted, not that the clipboard was changed. When several calls are made before the serving thread runs, only the last text is placed on the clipboard. A call made after the connection to the display server has been lost returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`, and applications SHOULD destroy and re-create the backend. Because the text is served by the backend instance, it does not remain on the clipboard after the instance is freed unless another program preserves it. Under X11, when the instance is freed while it owns the clipboard and a clipboard manager holds the `CLIPBOARD_MANAGER` selection, the backend asks the manager to preserve the text through the `SAVE_TARGETS` protocol and waits up to 1 second for it to do so. Wayland provides no equivalent protocol; some compositors and clipboard managers preserve the clipboard of a client that disconnects, and others do not. The text likewise does not survive the termination of the process.
+
+#### Android
+
+The backend sets the primary clip of the system clipboard service to a plain text clip. It requires the application context described under the Android Text to Speech backend, and reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` when the clipboard service can be obtained from it. Android 13 and later display a confirmation to the user when an application places content on the clipboard. The size of a clip is limited by the binder transaction limit, and a call whose text exceeds it fails.
+
+#### Web
+
+The backend submits the text to the Async Clipboard API, `navigator.clipboard.writeText`, on the browser's main thread, to which a call made on another thread is proxied. The API is available only in a secure context, and the backend reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` only when it is present. A call made while the document does not have focus fails. The API completes asynchronously, and browsers MAY refuse a request that does not originate from a user-initiated event handler, as described for the Web Speech backend; such a refusal occurs after the call has returned, and is reported through the Prism logger at the warning level rather than to the caller. A successful return therefore indicates that the request was submitted, not that the clipboard was changed.
+
+### No Speech
+
+The No Speech backend produces no output. It is available on every platform. It is intended for testing, and for applications that need to hold a backend while presenting nothing. It sets neither `PRISM_BACKEND_IS_SCREEN_READER` nor `PRISM_BACKEND_IS_SPEECH_ENGINE`, and reports `PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION`, so it is obtained only by requesting it by identifier or name. It always reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME`, and reports every bit that designates an operation, other than the reserved SSML bits. Every operation succeeds unless the contract of the function requires an error, such as `PRISM_ERROR_NOT_SPEAKING` from `prism_backend_pause` when nothing is being spoken, or `PRISM_ERROR_NOT_INITIALIZED` before initialization.
+
+So that the functions concerned with the state of speech behave as they would on a speech engine, the backend models each utterance as lasting for a period determined by its text. At the default rate of 0.5, an utterance lasts 60 milliseconds for each Unicode code point it contains. The rate scales the speed of speech linearly from half the default speed at 0.0 to the default speed at 0.5, and from the default speed at 0.5 to three times the default speed at 1.0. The rate in effect when `prism_backend_speak` is called applies to that utterance. `prism_backend_is_speaking` reports `true` from the return of `prism_backend_speak` until the modeled period has elapsed, unless speech is paused or stopped in the interim. Speech submitted without interruption begins when the preceding speech ends; speech submitted without interruption while speech is paused begins after speech is resumed and the paused speech ends. `prism_backend_pause`, `prism_backend_resume`, and `prism_backend_stop` act on the modeled speech as described in the chapter on backend functions. No thread is created for this purpose.
+
+`prism_backend_speak_to_memory` delivers silence: one channel at 22050 Hz, with one frame for each sample period of the duration that `prism_backend_speak` would model for the same text at the same rate. The audio is delivered in chunks of at most 4096 frames, and the callback is not invoked when the duration is zero. `prism_backend_get_bit_depth` reports 16.
+
+The backend has one voice, named `No Speech`, whose language is `und`. The volume, rate, and pitch each default to 0.5 and retain the value most recently set. Volume and pitch have no effect. `prism_backend_braille` discards its text.

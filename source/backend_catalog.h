@@ -62,6 +62,8 @@ inline constexpr auto SystemAccess = "SystemAccess"_bid;
 inline constexpr auto WindowEyes = "WindowEyes"_bid;
 inline constexpr auto Spiel = "Spiel"_bid;
 inline constexpr auto GdkSpeech = "GdkSpeech"_bid;
+inline constexpr auto Clipboard = "Clipboard"_bid;
+inline constexpr auto NoSpeech = "NoSpeech"_bid;
 } // namespace Backends
 
 using BackendFactory = std::function<std::shared_ptr<TextToSpeechBackend>()>;
@@ -71,6 +73,7 @@ struct Registration {
   std::string name;
   int priority;
   BackendFactory factory;
+  bool requires_explicit_selection{};
 };
 
 class BackendCatalog {
@@ -94,6 +97,7 @@ template <typename T> struct BackendRegistrar {
           .name = std::string{name},
           .priority = priority,
           .factory = [] { return std::make_shared<T>(); },
+          .requires_explicit_selection = T::requires_explicit_selection,
       });
     } catch (...) {
     }
@@ -109,6 +113,7 @@ template <typename T> struct BackendRegistrar {
           .name = std::move(owned),
           .priority = priority,
           .factory = [] { return std::make_shared<T>(); },
+          .requires_explicit_selection = T::requires_explicit_selection,
       });
     } catch (...) {
     }

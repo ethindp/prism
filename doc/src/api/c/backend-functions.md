@@ -99,8 +99,13 @@ The following bits are defined:
 | `PRISM_BACKEND_SUPPORTS_SPEAK_TO_MEMORY_SSML` | Reserved. |
 | `PRISM_BACKEND_IS_SCREEN_READER` | The backend sends messages to a screen reader. |
 | `PRISM_BACKEND_IS_SPEECH_ENGINE` | The backend synthesizes speech without a screen reader. |
+| `PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION` | The backend is never selected by `prism_registry_create_best` or `prism_registry_acquire_best`, and is obtained only by requesting it by identifier or name. |
 
 At most one of `PRISM_BACKEND_IS_SCREEN_READER` and `PRISM_BACKEND_IS_SPEECH_ENGINE` is set. [Screen Readers and Speech Engines](../../screen-readers-and-speech-engines.md) describes the distinction.
+
+`PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` reports only that a backend's underlying service is available. It is set for a speech engine whenever that engine is installed, and therefore does not indicate that a screen reader is running. An application that needs to determine whether a screen reader is running MUST test for the conjunction of `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` and `PRISM_BACKEND_IS_SCREEN_READER`.
+
+`PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION` is a property of the backend rather than of its current state, and its value for a given backend never changes.
 
 ### prism_backend_name
 
@@ -398,6 +403,7 @@ Specifies whether to interrupt current output. If `true`, any output in progress
 | `PRISM_ERROR_INVALID_UTF8` | `text` contains invalid UTF-8 sequences. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support this operation. |
 | `PRISM_ERROR_SPEAK_FAILURE` | Output failed. |
+| `PRISM_ERROR_BACKEND_NOT_AVAILABLE` | The backend's system component is no longer available. |
 
 #### Remarks
 
@@ -430,6 +436,7 @@ The backend instance. This parameter MUST NOT be `NULL`.
 | `PRISM_OK` | Speech was stopped or no speech was playing. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend does not support stopping. |
+| `PRISM_ERROR_BACKEND_NOT_AVAILABLE` | The backend's system component is no longer available. |
 | `PRISM_ERROR_INTERNAL` | An internal error occurred. |
 
 #### Remarks
@@ -544,6 +551,7 @@ Pointer to receive the speaking state. This parameter MUST NOT be `NULL`. On suc
 | `PRISM_OK` | The speaking state was retrieved. |
 | `PRISM_ERROR_NOT_INITIALIZED` | The backend has not been initialized. |
 | `PRISM_ERROR_NOT_IMPLEMENTED` | The backend cannot report speaking state. |
+| `PRISM_ERROR_BACKEND_NOT_AVAILABLE` | The backend's system component is no longer available. |
 
 #### Remarks
 

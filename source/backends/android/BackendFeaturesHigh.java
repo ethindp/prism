@@ -34,5 +34,6 @@ public enum BackendFeaturesHigh {
     RESERVED_55,
     IS_SCREEN_READER,
     IS_SPEECH_ENGINE,
+    REQUIRES_EXPLICIT_SELECTION,
     ;
 }

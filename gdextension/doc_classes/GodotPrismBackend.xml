@@ -345,10 +345,13 @@
 			Reserved.
 		</constant>
 		<constant name="PRISM_BACKEND_IS_SCREEN_READER" value="72057594037927936" enum="PrismBackendFeature" is_bitfield="true">
-			The backend sends messages to a screen reader. Every built-in backend has exactly one of this flag and [constant PRISM_BACKEND_IS_SPEECH_ENGINE].
+			The backend sends messages to a screen reader. Every built-in backend has exactly one of this flag and [constant PRISM_BACKEND_IS_SPEECH_ENGINE], except [constant GodotPrismContext.CLIPBOARD] and [constant GodotPrismContext.NO_SPEECH], which have neither.
 		</constant>
 		<constant name="PRISM_BACKEND_IS_SPEECH_ENGINE" value="144115188075855872" enum="PrismBackendFeature" is_bitfield="true">
 			The backend synthesizes speech without a screen reader.
+		</constant>
+		<constant name="PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION" value="288230376151711744" enum="PrismBackendFeature" is_bitfield="true">
+			The backend is never returned by [method GodotPrismContext.create_best] or [method GodotPrismContext.acquire_best]. It is obtained only by requesting it by identifier or name.
 		</constant>
 	</constants>
 </class>

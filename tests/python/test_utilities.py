@@ -101,3 +101,32 @@ def test_custom_backend_reports_the_prism_error_it_raises() -> None:
         backend = Context(registry=registry).create(prism.BackendId(backend_id))
         with pytest.raises(PrismBackendNotAvailableError):
             backend.speak("hello")
+
+
+class _ExplicitBackend(_SilentBackend):
+    EXTRA_FEATURES = prism.BackendFeatures(requires_explicit_selection=True)
+
+
+def test_best_selection_skips_backends_requiring_explicit_selection() -> None:
+    with RegistryBuilder() as builder:
+        explicit_id = builder.add_backend("Explicit", _ExplicitBackend, priority=1000)
+        builder.add_backend("Fallback", _SilentBackend, priority=999)
+        registry = builder.freeze()
+    with registry:
+        ctx = Context(registry=registry)
+        assert ctx.create_best().name == "Fallback"
+        explicit = ctx.acquire(prism.BackendId(explicit_id))
+        assert explicit.features.requires_explicit_selection
+        assert ctx.acquire_best().name == "Fallback"
+        assert ctx.create(prism.BackendId(explicit_id)).name == "Explicit"
+
+
+def test_equal_priorities_are_ordered_by_name() -> None:
+    with RegistryBuilder() as builder:
+        zeta_id = builder.add_backend("Zeta", _SilentBackend, priority=1000)
+        alpha_id = builder.add_backend("Alpha", _SilentBackend, priority=1000)
+        registry = builder.freeze()
+    with registry:
+        ctx = Context(registry=registry)
+        assert ctx.id_of(0) == prism.BackendId(alpha_id)
+        assert ctx.id_of(1) == prism.BackendId(zeta_id)

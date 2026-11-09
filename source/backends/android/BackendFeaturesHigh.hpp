@@ -34,6 +34,7 @@ enum class BackendFeaturesHigh : int32_t {
     RESERVED_55 = 1 << 23,
     IS_SCREEN_READER = 1 << 24,
     IS_SPEECH_ENGINE = 1 << 25,
+    REQUIRES_EXPLICIT_SELECTION = 1 << 26,
 };
 constexpr BackendFeaturesHigh operator|(BackendFeaturesHigh lhs, BackendFeaturesHigh rhs) noexcept {
     return static_cast<BackendFeaturesHigh>(static_cast<int32_t>(lhs) | static_cast<int32_t>(rhs));

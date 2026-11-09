@@ -54,6 +54,7 @@
 			<return type="GodotPrismBackend" />
 			<description>
 				Creates and initializes the highest-priority backend that can be initialized, or returns [code]null[/code] if none can. The result is the user's screen reader if one is running, and a speech engine otherwise. [code]null[/code] is a normal result on a system without a speech engine, and must be handled.
+				A backend that has [constant GodotPrismBackend.PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION] is never tried by this method or by [method acquire_best], and is obtained only through [method create] or [method acquire].
 				The choice is not revisited if a screen reader starts or stops later. See [method start_availability_monitoring].
 			</description>
 		</method>
@@ -340,6 +341,12 @@
 		</constant>
 		<constant name="GDK_SPEECH" value="-3198251574740554991" enum="PrismBackendId">
 			Speech synthesis of the Microsoft Game Development Kit, on Windows and Xbox.
+		</constant>
+		<constant name="CLIPBOARD" value="8094816319418530193" enum="PrismBackendId">
+			The system clipboard, on Windows, Apple platforms other than tvOS and watchOS, Linux, Android, and the web. Text is placed on the clipboard rather than spoken. Obtained only by requesting it explicitly.
+		</constant>
+		<constant name="NO_SPEECH" value="-4413269589973555728" enum="PrismBackendId">
+			A backend that produces no output and reports every operation as successful, on every platform. Obtained only by requesting it explicitly.
 		</constant>
 		<constant name="PRISM_LOG_LEVEL_TRACE" value="0" enum="PrismLogLevel">
 			Trace messages, the least severe level.

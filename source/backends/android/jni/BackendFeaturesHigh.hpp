@@ -16,7 +16,7 @@ public:
     using Boxed = BackendFeaturesHigh;
 
     static CppType toCpp(JNIEnv* jniEnv, JniType j) { return static_cast<CppType>(::djinni::JniClass<BackendFeaturesHigh>::get().flags(jniEnv, j)); }
-    static ::djinni::LocalRef<JniType> fromCpp(JNIEnv* jniEnv, CppType c) { return ::djinni::JniClass<BackendFeaturesHigh>::get().create(jniEnv, static_cast<unsigned>(c), 26); }
+    static ::djinni::LocalRef<JniType> fromCpp(JNIEnv* jniEnv, CppType c) { return ::djinni::JniClass<BackendFeaturesHigh>::get().create(jniEnv, static_cast<unsigned>(c), 27); }
 
 private:
     BackendFeaturesHigh() : JniFlags("com/github/ethindp/prism/BackendFeaturesHigh") {}

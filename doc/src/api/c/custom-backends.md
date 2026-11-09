@@ -14,7 +14,7 @@ For the purposes of this chapter, the following terms have the meanings given be
 
 ### General
 
-A custom backend participates in a registry on the same terms as a compiled-in backend. It has an identifier derived from its name by the hash function described in the chapter on backend identifiers, a priority, and a declared feature set, and it participates in the priority-ordered selection performed by `prism_registry_create_best` and `prism_registry_acquire_best`. No restriction is placed on the priority of a custom backend relative to the compiled-in backends.
+A custom backend participates in a registry on the same terms as a compiled-in backend. It has an identifier derived from its name by the hash function described in the chapter on backend identifiers, a priority, and a declared feature set, and it participates in the priority-ordered selection performed by `prism_registry_create_best` and `prism_registry_acquire_best`, unless its declared feature set contains `PRISM_BACKEND_REQUIRES_EXPLICIT_SELECTION`, in which case those functions never select it. No restriction is placed on the priority of a custom backend relative to the compiled-in backends.
 
 Custom backends are never present in the global registry. An application wishing to use one constructs a registry as follows:
 

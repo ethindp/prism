@@ -127,7 +127,7 @@ if (backend != NULL) {
     const uint64_t features = prism_backend_get_features(backend);
     if ((features & PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME) != 0) {
         PrismError err = prism_backend_initialize(backend);
-        if (err == PRISM_OK && err != PRISM_ERROR_ALREADY_INITIALIZED) {
+        if (err == PRISM_OK || err == PRISM_ERROR_ALREADY_INITIALIZED) {
             /* Use the backend through the ordinary Prism API. */
         }
     }

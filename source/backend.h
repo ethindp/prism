@@ -80,6 +80,7 @@ inline constexpr auto SUPPORTS_SPEAK_SSML = (1ULL << 27);
 inline constexpr auto SUPPORTS_SPEAK_TO_MEMORY_SSML = (1ULL << 28);
 inline constexpr auto IS_SCREEN_READER = (1ULL << 56);
 inline constexpr auto IS_SPEECH_ENGINE = (1ULL << 57);
+inline constexpr auto REQUIRES_EXPLICIT_SELECTION = (1ULL << 58);
 inline constexpr auto KNOWN =
     IS_SUPPORTED_AT_RUNTIME | SUPPORTS_SPEAK | SUPPORTS_SPEAK_TO_MEMORY |
     SUPPORTS_BRAILLE | SUPPORTS_OUTPUT | SUPPORTS_IS_SPEAKING | SUPPORTS_STOP |
@@ -91,7 +92,7 @@ inline constexpr auto KNOWN =
     SUPPORTS_GET_CHANNELS | SUPPORTS_GET_SAMPLE_RATE | SUPPORTS_GET_BIT_DEPTH |
     PERFORMS_SILENCE_TRIMMING_ON_SPEAK |
     PERFORMS_SILENCE_TRIMMING_ON_SPEAK_TO_MEMORY | IS_SCREEN_READER |
-    IS_SPEECH_ENGINE;
+    IS_SPEECH_ENGINE | REQUIRES_EXPLICIT_SELECTION;
 static_assert((KNOWN & SUPPORTS_SPEAK_SSML) == 0);
 static_assert((KNOWN & SUPPORTS_SPEAK_TO_MEMORY_SSML) == 0);
 static_assert((KNOWN & (1ULL << 1)) == 0, "bit 1 has never been assigned");
@@ -105,6 +106,7 @@ private:
 public:
   using AudioCallback = std::function<void(void *, const float *, std::size_t,
                                            std::size_t, std::size_t)>;
+  static constexpr bool requires_explicit_selection = false;
   virtual ~TextToSpeechBackend() = default;
   BackendResult<> initialize_tracked() {
     std::scoped_lock lock(initialization_mtx);

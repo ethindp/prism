@@ -81,8 +81,8 @@ enum class BuilderResult : std::uint8_t {
 class RegistryBuilder {
 public:
   RegistryBuilder(); // seeded with the compiled-in backends from the catalog
-  BuilderResult add(std::string name, int priority, BackendFactory factory,
-                    BackendId *out_id);
+  BuilderResult add(std::string name, int priority, std::uint64_t features,
+                    BackendFactory factory, BackendId *out_id);
   [[nodiscard]] FrozenRegistry *freeze();
   [[nodiscard]] bool spent() const noexcept { return is_spent; }
   [[nodiscard]] std::size_t count() const noexcept {

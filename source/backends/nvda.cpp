@@ -56,6 +56,17 @@ private:
         reinterpret_cast<RPC_WSTR>(endpoint.data()), nullptr, out);
   }
 
+  static BackendError rpc_error(error_status_t status) noexcept {
+    switch (status) {
+    case RPC_S_SERVER_UNAVAILABLE:
+    case RPC_S_CALL_FAILED:
+    case RPC_S_CALL_FAILED_DNE:
+      return BackendError::BackendNotAvailable;
+    default:
+      return BackendError::InternalBackendError;
+    }
+  }
+
   static bool server_supports_interface(handle_t binding,
                                         RPC_IF_HANDLE ifspec) {
     RPC_IF_ID_VECTOR *vec = nullptr;
@@ -179,8 +190,9 @@ public:
     if (controller_handle == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (interrupt) {
-      if (nvdaController_cancelSpeech(controller_handle) != ERROR_SUCCESS)
-        return std::unexpected(BackendError::InternalBackendError);
+      if (const auto status = nvdaController_cancelSpeech(controller_handle);
+          status != ERROR_SUCCESS)
+        return std::unexpected(rpc_error(status));
     }
     const auto len = simdutf::utf16_length_from_utf8(text.data(), text.size());
     std::wstring wstr;
@@ -190,9 +202,10 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (nvdaController_speakText(controller_handle, wstr.c_str()) !=
-        ERROR_SUCCESS)
-      return std::unexpected(BackendError::InternalBackendError);
+    if (const auto status =
+            nvdaController_speakText(controller_handle, wstr.c_str());
+        status != ERROR_SUCCESS)
+      return std::unexpected(rpc_error(status));
     return {};
   }
 
@@ -207,9 +220,10 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (nvdaController_brailleMessage(controller_handle, wstr.c_str()) !=
-        ERROR_SUCCESS)
-      return std::unexpected(BackendError::InternalBackendError);
+    if (const auto status =
+            nvdaController_brailleMessage(controller_handle, wstr.c_str());
+        status != ERROR_SUCCESS)
+      return std::unexpected(rpc_error(status));
     return {};
   }
 
@@ -224,8 +238,9 @@ public:
   BackendResult<> stop() override {
     if (controller_handle == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
-    if (nvdaController_cancelSpeech(controller_handle) != ERROR_SUCCESS)
-      return std::unexpected(BackendError::InternalBackendError);
+    if (const auto status = nvdaController_cancelSpeech(controller_handle);
+        status != ERROR_SUCCESS)
+      return std::unexpected(rpc_error(status));
     return {};
   }
 
@@ -235,9 +250,10 @@ public:
     if (!supports_is_speaking.test())
       return std::unexpected(BackendError::NotImplemented);
     BOOLEAN speaking = FALSE;
-    if (nvdaController_isSpeaking(controller_handle, &speaking) !=
-        ERROR_SUCCESS)
-      return std::unexpected(BackendError::InternalBackendError);
+    if (const auto status =
+            nvdaController_isSpeaking(controller_handle, &speaking);
+        status != ERROR_SUCCESS)
+      return std::unexpected(rpc_error(status));
     return static_cast<bool>(speaking);
   }
 };

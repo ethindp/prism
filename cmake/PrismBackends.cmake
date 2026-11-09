@@ -538,6 +538,103 @@ prism_declare_backend(
   EMSCRIPTEN
   DOC
   "Web Speech API")
+# One backend, implemented once per platform. Each declaration matches only its
+# own platform, so they share the name, and with it the
+# PRISM_ENABLE_CLIPBOARD_BACKEND option.
+prism_declare_backend(
+  clipboard
+  SOURCE
+  clipboard_windows.cpp
+  PLATFORM
+  WINDOWS
+  DOC
+  "System clipboard")
+prism_declare_backend(
+  clipboard
+  SOURCE
+  clipboard_apple.cpp
+  PLATFORM
+  APPLE
+  LANGUAGE
+  OBJCXX
+  DOC
+  "System clipboard")
+prism_declare_backend(
+  clipboard
+  SOURCE
+  clipboard_android.cpp
+  PLATFORM
+  ANDROID
+  DOC
+  "System clipboard")
+prism_declare_backend(
+  clipboard
+  SOURCE
+  clipboard_web.cpp
+  PLATFORM
+  EMSCRIPTEN
+  DOC
+  "System clipboard")
+prism_declare_backend(
+  clipboard
+  SOURCE
+  clipboard_linux.cpp
+  PLATFORM
+  UNIX
+  DOC
+  "System clipboard"
+  RUNTIME_PKG_CONFIG
+  "xcb"
+  "wayland-client>=1.20"
+  "wayland-scanner>=1.20")
+if(TARGET prism_backend_clipboard
+   AND UNIX
+   AND NOT APPLE
+   AND NOT ANDROID
+   AND NOT EMSCRIPTEN)
+  # The data control protocols are generated into the backend, together with
+  # the core interfaces they refer to, so that nothing but functions is taken
+  # from libwayland-client, which the backend loads itself.
+  pkg_get_variable(_prism_wayland_scanner wayland-scanner wayland_scanner)
+  pkg_get_variable(_prism_wayland_datadir wayland-scanner pkgdatadir)
+  set(_prism_wayland_out "${CMAKE_CURRENT_BINARY_DIR}/generated/wayland")
+  file(MAKE_DIRECTORY "${_prism_wayland_out}")
+  set(_prism_wayland_generated "")
+  foreach(
+    _xml IN
+    ITEMS "${PRISM_SOURCE_ROOT}/third_party/wayland-protocols/ext-data-control-v1.xml"
+          "${PRISM_SOURCE_ROOT}/third_party/wayland-protocols/wlr-data-control-unstable-v1.xml"
+          "${_prism_wayland_datadir}/wayland.xml")
+    get_filename_component(_base "${_xml}" NAME_WE)
+    set(_code "${_prism_wayland_out}/${_base}-protocol.c")
+    add_custom_command(
+      OUTPUT "${_code}"
+      COMMAND "${_prism_wayland_scanner}" private-code "${_xml}" "${_code}"
+      DEPENDS "${_xml}"
+      VERBATIM)
+    list(APPEND _prism_wayland_generated "${_code}")
+    # The core header comes with libwayland-client itself.
+    if(NOT _base STREQUAL "wayland")
+      set(_header "${_prism_wayland_out}/${_base}-client-protocol.h")
+      add_custom_command(
+        OUTPUT "${_header}"
+        COMMAND "${_prism_wayland_scanner}" client-header "${_xml}"
+                "${_header}"
+        DEPENDS "${_xml}"
+        VERBATIM)
+      list(APPEND _prism_wayland_generated "${_header}")
+    endif()
+  endforeach()
+  target_sources(prism_backend_clipboard PRIVATE ${_prism_wayland_generated})
+  target_include_directories(prism_backend_clipboard
+                             PRIVATE "${_prism_wayland_out}")
+endif()
+prism_declare_backend(
+  no_speech
+  SOURCE
+  no_speech.cpp
+  DOC
+  "Backend that produces no output")
 if(NOT PRISM_BACKEND_TARGETS)
   if(PRISM_CONSOLE)
     message(

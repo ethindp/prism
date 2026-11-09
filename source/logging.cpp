@@ -13,15 +13,28 @@
 #include <memory>
 #include <mutex>
 #include <simdutf.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/console.h>
+#endif
 
 namespace {
 #ifndef PRISM_CONSOLE
-void PRISM_CALL stderr_sink([[maybe_unused]] void *ud, PrismLogLevel level,
-                            const char *source, const char *message) {
+// On the web, stderr would reach console.error whatever the level, so records
+// go to console.log instead.
+void PRISM_CALL default_sink([[maybe_unused]] void *ud, PrismLogLevel level,
+                             const char *source, const char *message) {
   constexpr auto names = std::to_array<std::string_view>(
       {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "UNKNOWN"});
   const auto i = std::min<unsigned>(static_cast<unsigned>(level), 5U);
+#ifdef __EMSCRIPTEN__
+  try {
+    emscripten_console_log(
+        fmt::format("[prism {}] {}: {}", names[i], source, message).c_str());
+  } catch (...) {
+  }
+#else
   fmt::println(stderr, "[prism {}] {}: {}", names[i], source, message);
+#endif
 }
 
 std::once_flag logging_initializer;
@@ -195,7 +208,7 @@ void init_logging_from_env() noexcept {
     Logger *const lg = logger();
     if (lg == nullptr)
       return;
-    lg->set_handler(PrismLogHandler{.fn = &stderr_sink, .userdata = nullptr});
+    lg->set_handler(PrismLogHandler{.fn = &default_sink, .userdata = nullptr});
     lg->set_level(level);
   });
 #endif

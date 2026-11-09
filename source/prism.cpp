@@ -300,7 +300,7 @@ prism_registry_builder_add_backend(PrismRegistryBuilder *builder,
   BuilderResult result{};
   try {
     result = reinterpret_cast<RegistryBuilder *>(builder)->add(
-        std::string{name}, priority, std::move(factory), &id);
+        std::string{name}, priority, features, std::move(factory), &id);
   } catch (...) {
     return PRISM_ERROR_MEMORY_FAILURE;
   }

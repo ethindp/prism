@@ -494,6 +494,12 @@ void GodotPrismContext::_bind_methods() {
   ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId",
                                  "GDK_SPEECH",
                                  id_to_godot(PRISM_BACKEND_GDK_SPEECH));
+  ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId",
+                                 "CLIPBOARD",
+                                 id_to_godot(PRISM_BACKEND_CLIPBOARD));
+  ClassDB::bind_integer_constant(get_class_static(), "PrismBackendId",
+                                 "NO_SPEECH",
+                                 id_to_godot(PRISM_BACKEND_NO_SPEECH));
   BIND_ENUM_CONSTANT(PRISM_LOG_LEVEL_TRACE);
   BIND_ENUM_CONSTANT(PRISM_LOG_LEVEL_DEBUG);
   BIND_ENUM_CONSTANT(PRISM_LOG_LEVEL_INFO);

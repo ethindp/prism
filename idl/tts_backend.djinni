@@ -86,6 +86,7 @@ BackendFeaturesHigh = flags {
     reserved_55;
     is_screen_reader;
     is_speech_engine;
+    requires_explicit_selection;
 }
 
 Unit = record {}

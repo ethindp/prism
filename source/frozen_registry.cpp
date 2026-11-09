@@ -26,8 +26,11 @@ FrozenRegistry::FrozenRegistry(std::vector<Registration> registrations)
     }
     entries.push_back(Entry{.reg = std::move(reg), .cached = {}});
   }
-  std::ranges::stable_sort(entries, std::ranges::greater{},
-                           [](const Entry &e) { return e.reg.priority; });
+  std::ranges::sort(entries, [](const Entry &a, const Entry &b) {
+    if (a.reg.priority != b.reg.priority)
+      return a.reg.priority > b.reg.priority;
+    return a.reg.name < b.reg.name;
+  });
 }
 
 FrozenRegistry *
@@ -149,7 +152,7 @@ FrozenRegistry::create(std::string_view name) {
 
 std::shared_ptr<TextToSpeechBackend> FrozenRegistry::create_best() {
   for (auto &e : entries) {
-    if (!e.reg.factory)
+    if (!e.reg.factory || e.reg.requires_explicit_selection)
       continue;
     if (auto b = e.reg.factory(); b && b->ensure_initialized()) {
       return b;
@@ -189,6 +192,8 @@ FrozenRegistry::acquire(std::string_view name) {
 
 std::shared_ptr<TextToSpeechBackend> FrozenRegistry::acquire_best() {
   for (auto &e : entries) {
+    if (e.reg.requires_explicit_selection)
+      continue;
     std::shared_ptr<TextToSpeechBackend> cached;
     {
       std::shared_lock lock(cache_mutex);
@@ -231,6 +236,7 @@ RegistryBuilder::RegistryBuilder()
     : registrations(BackendCatalog::instance().snapshot()) {}
 
 BuilderResult RegistryBuilder::add(std::string name, int priority,
+                                   std::uint64_t features,
                                    BackendFactory factory, BackendId *out_id) {
   if (is_spent)
     return BuilderResult::Spent;
@@ -254,6 +260,8 @@ BuilderResult RegistryBuilder::add(std::string name, int priority,
       .name = std::move(name),
       .priority = priority,
       .factory = std::move(factory),
+      .requires_explicit_selection =
+          (features & BackendFeature::REQUIRES_EXPLICIT_SELECTION) != 0,
   });
   if (out_id != nullptr)
     *out_id = new_id;

@@ -92,10 +92,13 @@ class CustomBackend:
 
     Attributes:
         EXTRA_FEATURES: Feature bits that no method determines: the
-            silence-trimming bits and the classification bits. A subclass that
-            presents messages through a screen reader SHOULD set
-            ``is_screen_reader``; one that synthesizes speech SHOULD set
-            ``is_speech_engine``. Setting a bit that corresponds to a method
+            silence-trimming bits, the classification bits, and
+            ``requires_explicit_selection``. A subclass that presents
+            messages through a screen reader SHOULD set ``is_screen_reader``;
+            one that synthesizes speech SHOULD set ``is_speech_engine``. A
+            subclass that sets ``requires_explicit_selection`` is never
+            returned by :meth:`prism.Context.create_best` or
+            :meth:`prism.Context.acquire_best`. Setting a bit that corresponds to a method
             raises ``ValueError`` at registration, and setting both
             classification bits raises
             :class:`prism.common.PrismInvalidParamError`.

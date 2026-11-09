@@ -32,7 +32,7 @@ The release packages and the Godot add-on require glibc, and do not function on 
 
 ### Backend dependencies
 
-The Orca backend requires a session D-Bus connection and a running Orca 49 or later, the first release to implement Orca's remote-control interface. The Speech Dispatcher backend requires `libspeechd.so.2` from Speech Dispatcher 0.11.1 or later and a reachable Speech Dispatcher service. The Spiel backend requires `libspiel-1.0.so.1`, a session D-Bus connection, and at least one speech provider.
+The Orca backend requires a session D-Bus connection and a running Orca 49 or later, the first release to implement Orca's remote-control interface. The Speech Dispatcher backend requires `libspeechd.so.2` from Speech Dispatcher 0.11.1 or later and a reachable Speech Dispatcher service. The Spiel backend requires `libspiel-1.0.so.1`, a session D-Bus connection, and at least one speech provider. The Clipboard backend requires `libwayland-client.so.0` and a compositor implementing a data control protocol, or `libxcb.so.1` and an X11 server or Xwayland, as described in the chapter on backend-specific notes.
 
 None of these are required for Prism to load, and Prism does not require that any particular one be present. A system on which only Speech Dispatcher is available, for instance because its distribution packages an older release of Orca, is a fully supported configuration. Applications therefore SHOULD NOT state that any of these backends is required, unless the application has selected a specific backend deliberately.
 
@@ -74,7 +74,7 @@ An application SHOULD declare `prismatoid` as a dependency, which also installs 
 
 ## Building from source
 
-A source build requires a C++23 compiler, of which GCC 12 is the oldest version of GCC known to function, and CMake 3.24 or later. On Linux, the development files are located through `pkg-config`: `dbus-1` for the Orca backend and power management, `speech-dispatcher` for the Speech Dispatcher backend, and `gio-2.0` and `spiel-1.0` for the Spiel backend. Only the headers of `speech-dispatcher` and `spiel-1.0` are used, since those libraries are loaded at run time.
+A source build requires a C++23 compiler, of which GCC 12 is the oldest version of GCC known to function, and CMake 3.24 or later. On Linux, the development files are located through `pkg-config`: `dbus-1` for the Orca backend and power management, `speech-dispatcher` for the Speech Dispatcher backend, `gio-2.0` and `spiel-1.0` for the Spiel backend, and `xcb` and `wayland-client` 1.20 or later for the Clipboard backend. Only the headers of `speech-dispatcher`, `spiel-1.0`, `xcb`, and `wayland-client` are used, since those libraries are loaded at run time.
 
 Under the default setting of `PRISM_BACKEND_DEFAULT`, a backend whose development files are absent is omitted from the build. The build does not fail, and the resulting library lacks the backend. The outcome is reported in the `Prism backends:` line of the CMake output, which distributors SHOULD inspect. A distributor that expects a particular backend to be present SHOULD set its option, such as `PRISM_ENABLE_ORCA_BACKEND`, to `ON`, in which case the absence of its development files causes the configuration to fail.
 

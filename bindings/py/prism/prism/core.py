@@ -831,7 +831,9 @@ class Context:
         priority order, and the first that initializes is returned. A screen reader
         backend initializes only while its screen reader is running, so the result
         is the user's screen reader if one is running, and otherwise a speech
-        engine.
+        engine. A backend whose features include ``requires_explicit_selection``
+        is never tried, and is obtained only through :meth:`create` or
+        :meth:`acquire`.
 
         The choice is not revisited: a backend obtained while no screen reader was
         running remains a speech engine if one is started later. Availability

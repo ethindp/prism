@@ -58,6 +58,8 @@ class BackendId(IntEnum):
     WINDOW_EYES = 0x9120D89908785C13
     SPIEL = 0x478B44F14AD3D89C
     GDK_SPEECH = 0xD39D872349416B11
+    CLIPBOARD = 0x7056908DE8F9F991
+    NO_SPEECH = 0xC2C0EAB0BF97A5F0
 
     @classmethod
     def _missing_(cls, value: object) -> Self | None:
@@ -360,8 +362,14 @@ class BackendFeatures:
 
     ``is_screen_reader`` is ``True`` for a backend that sends messages to a
     screen reader, and ``is_speech_engine`` for one that synthesizes speech
-    itself. At most one is ``True``. Every built-in backend sets exactly one; a
-    custom backend MAY set neither.
+    itself. At most one is ``True``. Every built-in backend sets exactly one,
+    except :attr:`BackendId.CLIPBOARD` and :attr:`BackendId.NO_SPEECH`, which
+    set neither; a custom backend MAY set neither.
+
+    ``requires_explicit_selection`` is ``True`` for a backend that
+    :meth:`prism.Context.create_best` and :meth:`prism.Context.acquire_best`
+    never select. Such a backend is obtained only by requesting it by
+    identifier or name.
 
     Instances are immutable and compare equal when all fields are equal.
     """
@@ -396,6 +404,7 @@ class BackendFeatures:
     supports_speak_to_memory_ssml: bool = _bit(28)
     is_screen_reader: bool = _bit(56)
     is_speech_engine: bool = _bit(57)
+    requires_explicit_selection: bool = _bit(58)
 
     @classmethod
     def from_bits(cls, bits: int) -> BackendFeatures:

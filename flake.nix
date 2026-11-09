@@ -95,6 +95,9 @@
       libsFor =
         pkgs: with pkgs; [
           speechd
+          wayland
+          wayland-scanner
+          libxcb
           glib
           dbus
           gst_all_1.gstreamer
@@ -111,6 +114,7 @@
           meson
           git
           zip
+          wayland-scanner
           gobject-introspection
           gi-docgen
           (python3.withPackages (
@@ -132,6 +136,8 @@
         with compat;
         [
           speechd
+          wayland
+          xorg.libxcb
           glib
           dbus
           gst_all_1.gstreamer
@@ -145,6 +151,7 @@
           (cmakeWithoutSetupHook pkgs)
           ninja
           pkg-config
+          wayland
           git
           zip
           python3

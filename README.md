@@ -85,6 +85,7 @@ Prism requires the following to be met to function properly. If your system does
   * The Orca backend requires Orca 49 or later.
   * The Speech Dispatcher backend loads `libspeechd.so.2` at runtime. It will work with any version of speech dispatcher that supports ABI version 2 (which means that versions 0.11.1 and on will definitely work).
   * The Spiel backend loads `libspiel-1.0.so.1` at runtime.
+  * The Clipboard backend loads `libwayland-client.so.0` under a Wayland compositor that implements a data control protocol, and `libxcb.so.1` under X11 or Xwayland.
 * Android requires version 8/API level 26 or later.
 * Web requires that the browser implement the [WebSpeech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API) to be implemented.
 * The GDK speech backend requires Microsoft Gaming Services to be installed. On desktop Windows, it also requires `xgameruntime.thunks.dll` from the Microsoft GDK to be on the application's library search path or beside the Prism library. Prism does not distribute this library, as the GDK's license permits only a title to redistribute it; applications that use the backend must ship it themselves. Building the backend requires the GDK's headers; on Xbox, it also requires the GDK's `xgameruntime` library.

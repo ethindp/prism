@@ -232,7 +232,7 @@ The backend places the text on the clipboard in the `CF_UNICODETEXT` format, fro
 
 #### Apple platforms
 
-On macOS, the backend writes the text to the general pasteboard as `public.utf8-plain-text`. On iOS, iPadOS, Mac Catalyst, and visionOS, it sets the string of the general pasteboard. The backend uses the Objective-C runtime directly and calls the pasteboard from the calling thread. It reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME` when the pasteboard class of the platform is available. tvOS and watchOS have no general pasteboard, and on them the backend is never available. On macOS, a process that is not running in a user's graphical session cannot reach the pasteboard, and its calls fail.
+On macOS, the backend writes the text to the general pasteboard as `public.utf8-plain-text`. On iOS, iPadOS, Mac Catalyst, and visionOS, it sets the string of the general pasteboard. The backend calls the pasteboard from the calling thread and always reports `PRISM_BACKEND_IS_SUPPORTED_AT_RUNTIME`. tvOS and watchOS have no general pasteboard, so the backend is not built for them. On macOS, a process that is not running in a user's graphical session cannot reach the pasteboard, and its calls fail.
 
 #### Linux and BSD
 

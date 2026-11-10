@@ -54,10 +54,9 @@ function(prism_declare_backend NAME)
     elseif(EMSCRIPTEN)
       set(_this EMSCRIPTEN)
     elseif(APPLE)
-      set(_this APPLE)
-      if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        list(APPEND _this DARWIN)
-      endif()
+      # Also DARWIN, IOS, TVOS, WATCHOS or VISIONOS.
+      string(TOUPPER "${CMAKE_SYSTEM_NAME}" _apple_system)
+      set(_this APPLE ${_apple_system})
     elseif(UNIX)
       set(_this UNIX)
     endif()
@@ -554,7 +553,9 @@ prism_declare_backend(
   SOURCE
   clipboard_apple.cpp
   PLATFORM
-  APPLE
+  DARWIN
+  IOS
+  VISIONOS
   LANGUAGE
   OBJCXX
   DOC
@@ -592,9 +593,9 @@ if(TARGET prism_backend_clipboard
    AND NOT APPLE
    AND NOT ANDROID
    AND NOT EMSCRIPTEN)
-  # The data control protocols are generated into the backend, together with
-  # the core interfaces they refer to, so that nothing but functions is taken
-  # from libwayland-client, which the backend loads itself.
+  # The data control protocols are generated into the backend, together with the
+  # core interfaces they refer to, so that nothing but functions is taken from
+  # libwayland-client, which the backend loads itself.
   pkg_get_variable(_prism_wayland_scanner wayland-scanner wayland_scanner)
   pkg_get_variable(_prism_wayland_datadir wayland-scanner pkgdatadir)
   set(_prism_wayland_out "${CMAKE_CURRENT_BINARY_DIR}/generated/wayland")
@@ -602,9 +603,10 @@ if(TARGET prism_backend_clipboard
   set(_prism_wayland_generated "")
   foreach(
     _xml IN
-    ITEMS "${PRISM_SOURCE_ROOT}/third_party/wayland-protocols/ext-data-control-v1.xml"
-          "${PRISM_SOURCE_ROOT}/third_party/wayland-protocols/wlr-data-control-unstable-v1.xml"
-          "${_prism_wayland_datadir}/wayland.xml")
+    ITEMS
+      "${PRISM_SOURCE_ROOT}/third_party/wayland-protocols/ext-data-control-v1.xml"
+      "${PRISM_SOURCE_ROOT}/third_party/wayland-protocols/wlr-data-control-unstable-v1.xml"
+      "${_prism_wayland_datadir}/wayland.xml")
     get_filename_component(_base "${_xml}" NAME_WE)
     set(_code "${_prism_wayland_out}/${_base}-protocol.c")
     add_custom_command(
@@ -618,23 +620,20 @@ if(TARGET prism_backend_clipboard
       set(_header "${_prism_wayland_out}/${_base}-client-protocol.h")
       add_custom_command(
         OUTPUT "${_header}"
-        COMMAND "${_prism_wayland_scanner}" client-header "${_xml}"
-                "${_header}"
+        COMMAND "${_prism_wayland_scanner}" client-header "${_xml}" "${_header}"
         DEPENDS "${_xml}"
         VERBATIM)
       list(APPEND _prism_wayland_generated "${_header}")
     endif()
   endforeach()
   target_sources(prism_backend_clipboard PRIVATE ${_prism_wayland_generated})
+  set_source_files_properties(${_prism_wayland_generated}
+                              PROPERTIES SKIP_LINTING ON)
   target_include_directories(prism_backend_clipboard
                              PRIVATE "${_prism_wayland_out}")
 endif()
-prism_declare_backend(
-  no_speech
-  SOURCE
-  no_speech.cpp
-  DOC
-  "Backend that produces no output")
+prism_declare_backend(no_speech SOURCE no_speech.cpp DOC
+                      "Backend that produces no output")
 if(NOT PRISM_BACKEND_TARGETS)
   if(PRISM_CONSOLE)
     message(

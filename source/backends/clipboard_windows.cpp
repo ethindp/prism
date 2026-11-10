@@ -9,6 +9,7 @@
 #include <simdutf.h>
 #include <string_view>
 #include <thread>
+#include <tuple>
 #include <type_traits>
 #include <windows.h>
 
@@ -93,7 +94,7 @@ public:
     CloseClipboard();
     if (!placed)
       return std::unexpected(BackendError::SpeakFailure);
-    static_cast<void>(memory.release());
+    std::ignore = memory.release();
     return {};
   }
 

@@ -7,13 +7,12 @@
 #include <TargetConditionals.h>
 #if TARGET_OS_OSX
 #import <AppKit/AppKit.h>
-#elif TARGET_OS_IOS || TARGET_OS_VISION
+#else
 #import <UIKit/UIKit.h>
 #endif
 #include <bitset>
 #include <string_view>
 
-#if TARGET_OS_OSX || TARGET_OS_IOS || TARGET_OS_VISION
 class ClipboardBackend final : public TextToSpeechBackend {
 private:
   bool initialized = false;
@@ -52,7 +51,7 @@ public:
 #if TARGET_OS_OSX
       NSPasteboard *const pasteboard = NSPasteboard.generalPasteboard;
       [pasteboard clearContents];
-      if (![pasteboard setString:string forType:NSPasteboardTypeString])
+      if ([pasteboard setString:string forType:NSPasteboardTypeString] == NO)
         return std::unexpected(BackendError::SpeakFailure);
 #else
       UIPasteboard.generalPasteboard.string = string;
@@ -67,5 +66,4 @@ public:
 };
 
 REGISTER_BACKEND_WITH_ID(ClipboardBackend, Backends::Clipboard, "Clipboard", 0);
-#endif
 #endif

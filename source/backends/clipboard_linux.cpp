@@ -28,11 +28,15 @@
 #include <unistd.h>
 #include <utility>
 #include <variant>
+#include <version>
 #include <wayland-client-core.h>
 #include <xcb/xcb.h>
 
 namespace {
-const LogSource clipboard_log{"Clipboard"};
+const LogSource &clipboard_log() {
+  static const LogSource log{"Clipboard"};
+  return log;
+}
 
 struct WaylandClient {
   SharedLibrary library;
@@ -58,8 +62,8 @@ struct WaylandClient {
 std::optional<WaylandClient> load_wayland_client() {
   WaylandClient api{.library = SharedLibrary{"libwayland-client.so.0"}};
   if (!api.library) {
-    clipboard_log.debug("libwayland-client.so.0 could not be loaded: {}",
-                        SharedLibrary::last_error());
+    clipboard_log().debug("libwayland-client.so.0 could not be loaded: {}",
+                          SharedLibrary::last_error());
     return std::nullopt;
   }
   const SharedLibrary &library = api.library;
@@ -82,7 +86,7 @@ std::optional<WaylandClient> load_wayland_client() {
       library.bind(api.wl_proxy_set_user_data, "wl_proxy_set_user_data") &&
       library.bind(api.wl_proxy_get_user_data, "wl_proxy_get_user_data");
   if (!complete) {
-    clipboard_log.debug(
+    clipboard_log().debug(
         "libwayland-client.so.0 is missing a function prism needs");
     return std::nullopt;
   }
@@ -152,8 +156,8 @@ struct Xcb {
 std::optional<Xcb> load_xcb() {
   Xcb api{.library = SharedLibrary{"libxcb.so.1"}};
   if (!api.library) {
-    clipboard_log.debug("libxcb.so.1 could not be loaded: {}",
-                        SharedLibrary::last_error());
+    clipboard_log().debug("libxcb.so.1 could not be loaded: {}",
+                          SharedLibrary::last_error());
     return std::nullopt;
   }
   const SharedLibrary &library = api.library;
@@ -184,7 +188,7 @@ std::optional<Xcb> load_xcb() {
       library.bind(api.xcb_get_maximum_request_length,
                    "xcb_get_maximum_request_length");
   if (!complete) {
-    clipboard_log.debug("libxcb.so.1 is missing a function prism needs");
+    clipboard_log().debug("libxcb.so.1 is missing a function prism needs");
     return std::nullopt;
   }
   return api;
@@ -209,14 +213,19 @@ void block_signals() {
   pthread_sigmask(SIG_BLOCK, &all, nullptr);
 }
 
+bool has_event(const pollfd &fd, short event) {
+  return (static_cast<unsigned>(fd.revents) & static_cast<unsigned>(event)) !=
+         0;
+}
+
 static_assert(std::atomic<std::string *>::is_always_lock_free &&
               std::atomic<bool>::is_always_lock_free);
 
 class WaylandClipboard {
 private:
   static constexpr std::array<const char *, 5> mime_types{
-      "text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "TEXT",
-      "STRING"};
+      "text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "TEXT", "STRING",
+  };
   static constexpr auto send_timeout = std::chrono::seconds(2);
 
   wl_display *display = nullptr;
@@ -251,7 +260,9 @@ private:
                                [[maybe_unused]] std::uint32_t name) {}
 
   static constexpr wl_registry_listener registry_listener{
-      .global = &on_global, .global_remove = &on_global_remove};
+      .global = &on_global,
+      .global_remove = &on_global_remove,
+  };
 
   static void on_data_offer([[maybe_unused]] void *data,
                             [[maybe_unused]] ext_data_control_device_v1 *device,
@@ -274,7 +285,8 @@ private:
       .data_offer = &on_data_offer,
       .selection = &on_selection,
       .finished = &on_finished,
-      .primary_selection = &on_selection};
+      .primary_selection = &on_selection,
+  };
 
   static void on_send(void *data, ext_data_control_source_v1 *source,
                       [[maybe_unused]] const char *mime_type, std::int32_t fd) {
@@ -290,11 +302,16 @@ private:
   }
 
   static constexpr ext_data_control_source_v1_listener source_listener{
-      .send = &on_send, .cancelled = &on_cancelled};
+      .send = &on_send,
+      .cancelled = &on_cancelled,
+  };
 
   static void write_all(int fd, std::string_view data) {
     const int flags = fcntl(fd, F_GETFL);
-    if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+    if (flags < 0 ||
+        fcntl(fd, F_SETFL,
+              static_cast<int>(static_cast<unsigned>(flags) |
+                               static_cast<unsigned>(O_NONBLOCK))) < 0)
       return;
     const auto deadline = std::chrono::steady_clock::now() + send_timeout;
     while (!data.empty()) {
@@ -336,8 +353,11 @@ private:
 
   void serve(const std::stop_token &stop) {
     const std::array<pollfd, 2> watched{
-        {{.fd = wl_display_get_fd(display), .events = POLLIN, .revents = 0},
-         {.fd = wake_fd, .events = POLLIN, .revents = 0}}};
+        {
+            {.fd = wl_display_get_fd(display), .events = POLLIN, .revents = 0},
+            {.fd = wake_fd, .events = POLLIN, .revents = 0},
+        },
+    };
     while (!stop.stop_requested()) {
       while (wl_display_prepare_read(display) != 0)
         if (wl_display_dispatch_pending(display) < 0)
@@ -350,15 +370,15 @@ private:
           continue;
         return;
       }
-      if ((ready[0].revents & POLLIN) != 0) {
+      if (has_event(ready[0], POLLIN)) {
         if (wl_display_read_events(display) < 0)
           return;
       } else {
         wl_display_cancel_read(display);
-        if ((ready[0].revents & (POLLERR | POLLHUP)) != 0)
+        if (has_event(ready[0], POLLERR) || has_event(ready[0], POLLHUP))
           return;
       }
-      if ((ready[1].revents & POLLIN) != 0) {
+      if (has_event(ready[1], POLLIN)) {
         eventfd_t count = 0;
         eventfd_read(wake_fd, &count);
       }
@@ -383,7 +403,7 @@ private:
     if (wl_display_roundtrip(display) < 0 || seat == nullptr)
       return false;
     if (ext_manager_name == 0 && wlr_manager_name == 0) {
-      clipboard_log.debug(
+      clipboard_log().debug(
           "the Wayland compositor offers no data control protocol");
       return false;
     }
@@ -453,9 +473,9 @@ public:
       serve(stop);
       serving.store(false, std::memory_order_relaxed);
     });
-    clipboard_log.debug("serving the clipboard through {}",
-                        ext ? "ext-data-control-v1"
-                            : "wlr-data-control-unstable-v1");
+    clipboard_log().debug("serving the clipboard through {}",
+                          ext ? "ext-data-control-v1"
+                              : "wlr-data-control-unstable-v1");
     return true;
   }
 
@@ -472,7 +492,7 @@ public:
 
 class X11Clipboard {
 private:
-  enum Atom : std::size_t {
+  enum Atom : std::uint8_t {
     Clipboard,
     Targets,
     Utf8String,
@@ -483,7 +503,7 @@ private:
     Manager,
     SaveTargets,
     SaveProperty,
-    AtomCount
+    AtomCount,
   };
   static constexpr std::array<std::string_view, AtomCount> atom_names{
       "CLIPBOARD",
@@ -495,7 +515,8 @@ private:
       "INCR",
       "CLIPBOARD_MANAGER",
       "SAVE_TARGETS",
-      "PRISM_CLIPBOARD_SAVE"};
+      "PRISM_CLIPBOARD_SAVE",
+  };
   static constexpr auto transfer_lifetime = std::chrono::seconds(10);
   static constexpr auto save_timeout = std::chrono::seconds(1);
   static constexpr std::size_t chunk_limit = std::size_t{256} * 1024;
@@ -565,12 +586,13 @@ private:
     const auto size = static_cast<std::uint32_t>(text.size());
     api->xcb_change_property(connection, XCB_PROP_MODE_REPLACE, requestor,
                              property, atoms[Incr], 32, 1, &size);
-    transfers.insert_or_assign(
-        std::pair{requestor, property},
-        Transfer{.text = text,
-                 .type = type,
-                 .offset = 0,
-                 .touched = std::chrono::steady_clock::now()});
+    transfers.insert_or_assign(std::pair{requestor, property},
+                               Transfer{
+                                   .text = text,
+                                   .type = type,
+                                   .offset = 0,
+                                   .touched = std::chrono::steady_clock::now(),
+                               });
   }
 
   void answer(const xcb_selection_request_event_t &request) {
@@ -580,9 +602,10 @@ private:
     bool answered = false;
     if (request.selection == atoms[Clipboard]) {
       if (target == atoms[Targets]) {
-        const std::array<xcb_atom_t, 5> offered{atoms[Targets],
-                                                atoms[Utf8String], atoms[Text],
-                                                atoms[MimeUtf8], atoms[Mime]};
+        const std::array<xcb_atom_t, 5> offered{
+            atoms[Targets],  atoms[Utf8String], atoms[Text],
+            atoms[MimeUtf8], atoms[Mime],
+        };
         api->xcb_change_property(connection, XCB_PROP_MODE_REPLACE,
                                  request.requestor, property, XCB_ATOM_ATOM, 32,
                                  static_cast<std::uint32_t>(offered.size()),
@@ -683,11 +706,14 @@ private:
           return;
       }
       std::array<pollfd, 2> ready{
-          {{.fd = display_fd, .events = POLLIN, .revents = 0},
-           {.fd = wake_fd, .events = POLLIN, .revents = 0}}};
+          {
+              {.fd = display_fd, .events = POLLIN, .revents = 0},
+              {.fd = wake_fd, .events = POLLIN, .revents = 0},
+          },
+      };
       if (poll(ready.data(), ready.size(), timeout) < 0 && errno != EINTR)
         return;
-      if ((ready[1].revents & POLLIN) != 0) {
+      if (has_event(ready[1], POLLIN)) {
         eventfd_t count = 0;
         eventfd_read(wake_fd, &count);
       }
@@ -700,8 +726,12 @@ private:
     if (selection_owner(atoms[Clipboard]) != window ||
         selection_owner(atoms[Manager]) == XCB_NONE)
       return false;
-    const std::array<xcb_atom_t, 4> targets{atoms[Utf8String], atoms[Text],
-                                            atoms[MimeUtf8], atoms[Mime]};
+    const std::array<xcb_atom_t, 4> targets{
+        atoms[Utf8String],
+        atoms[Text],
+        atoms[MimeUtf8],
+        atoms[Mime],
+    };
     api->xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window,
                              atoms[SaveProperty], XCB_ATOM_ATOM, 32,
                              static_cast<std::uint32_t>(targets.size()),
@@ -741,12 +771,17 @@ private:
         atoms[index] = reply->atom;
       std::free(reply);
     }
+#ifdef __cpp_lib_ranges_contains
     if (std::ranges::contains(atoms, XCB_NONE))
+#else
+    if (std::ranges::find(atoms, XCB_NONE) != atoms.end())
+#endif
       return false;
     // The request length is in four-byte units, less a property change header.
     chunk = std::min(
         chunk_limit,
-        std::size_t{api->xcb_get_maximum_request_length(connection)} * 4 - 64);
+        (std::size_t{api->xcb_get_maximum_request_length(connection)} * 4) -
+            64);
     return true;
   }
 
@@ -790,7 +825,7 @@ public:
       serve(stop);
       serving.store(false, std::memory_order_relaxed);
     });
-    clipboard_log.debug("serving the clipboard through X11");
+    clipboard_log().debug("serving the clipboard through X11");
     return true;
   }
 

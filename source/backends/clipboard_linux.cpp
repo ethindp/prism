@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
-#if defined(__unix__) && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#if (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) ||      \
+     defined(__OpenBSD__) || defined(__DragonFly__)) &&                        \
+    !defined(__ANDROID__)
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../logging.h"
@@ -33,11 +35,6 @@
 #include <xcb/xcb.h>
 
 namespace {
-const LogSource &clipboard_log() {
-  static const LogSource log{"Clipboard"};
-  return log;
-}
-
 struct WaylandClient {
   SharedLibrary library;
   decltype(&::wl_display_connect) wl_display_connect = nullptr;
@@ -60,10 +57,11 @@ struct WaylandClient {
 };
 
 std::optional<WaylandClient> load_wayland_client() {
+  static const LogSource log{"Clipboard"};
   WaylandClient api{.library = SharedLibrary{"libwayland-client.so.0"}};
   if (!api.library) {
-    clipboard_log().debug("libwayland-client.so.0 could not be loaded: {}",
-                          SharedLibrary::last_error());
+    log.debug("libwayland-client.so.0 could not be loaded: {}",
+              SharedLibrary::last_error());
     return std::nullopt;
   }
   const SharedLibrary &library = api.library;
@@ -86,8 +84,7 @@ std::optional<WaylandClient> load_wayland_client() {
       library.bind(api.wl_proxy_set_user_data, "wl_proxy_set_user_data") &&
       library.bind(api.wl_proxy_get_user_data, "wl_proxy_get_user_data");
   if (!complete) {
-    clipboard_log().debug(
-        "libwayland-client.so.0 is missing a function prism needs");
+    log.debug("libwayland-client.so.0 is missing a function prism needs");
     return std::nullopt;
   }
   return api;
@@ -154,10 +151,11 @@ struct Xcb {
 };
 
 std::optional<Xcb> load_xcb() {
+  static const LogSource log{"Clipboard"};
   Xcb api{.library = SharedLibrary{"libxcb.so.1"}};
   if (!api.library) {
-    clipboard_log().debug("libxcb.so.1 could not be loaded: {}",
-                          SharedLibrary::last_error());
+    log.debug("libxcb.so.1 could not be loaded: {}",
+              SharedLibrary::last_error());
     return std::nullopt;
   }
   const SharedLibrary &library = api.library;
@@ -188,7 +186,7 @@ std::optional<Xcb> load_xcb() {
       library.bind(api.xcb_get_maximum_request_length,
                    "xcb_get_maximum_request_length");
   if (!complete) {
-    clipboard_log().debug("libxcb.so.1 is missing a function prism needs");
+    log.debug("libxcb.so.1 is missing a function prism needs");
     return std::nullopt;
   }
   return api;
@@ -218,10 +216,42 @@ bool has_event(const pollfd &fd, short event) {
          0;
 }
 
-static_assert(std::atomic<std::string *>::is_always_lock_free &&
-              std::atomic<bool>::is_always_lock_free);
+// What a caller and the thread serving its display connection share.
+struct Channel {
+  enum class State : std::uint8_t { Connecting, Connected, Failed, Abandoned };
 
-class WaylandClipboard {
+  int wake_fd = -1;
+  int ready_fd = -1;
+  std::atomic<State> state{State::Connecting};
+  std::atomic<std::string *> pending{nullptr};
+  std::atomic<bool> serving{false};
+
+  Channel() = default;
+  Channel(const Channel &) = delete;
+  Channel &operator=(const Channel &) = delete;
+  Channel(Channel &&) = delete;
+  Channel &operator=(Channel &&) = delete;
+
+  ~Channel() {
+    if (wake_fd >= 0)
+      close(wake_fd);
+    if (ready_fd >= 0)
+      close(ready_fd);
+    delete pending.load(std::memory_order_relaxed);
+  }
+
+  void wake() const {
+    if (wake_fd >= 0)
+      eventfd_write(wake_fd, 1);
+  }
+};
+
+static_assert(std::atomic<std::string *>::is_always_lock_free &&
+              std::atomic<bool>::is_always_lock_free &&
+              std::atomic<Channel::State>::is_always_lock_free &&
+              std::atomic<int>::is_always_lock_free);
+
+class WaylandSession final : public Channel {
 private:
   static constexpr std::array<const char *, 5> mime_types{
       "text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "TEXT", "STRING",
@@ -236,14 +266,10 @@ private:
   ext_data_control_manager_v1 *manager = nullptr;
   ext_data_control_device_v1 *device = nullptr;
   std::map<ext_data_control_source_v1 *, std::string> sources;
-  int wake_fd = -1;
-  std::atomic<std::string *> pending{nullptr};
-  std::atomic<bool> serving{false};
-  std::jthread thread;
 
   static void on_global(void *data, wl_registry *registry, std::uint32_t name,
                         const char *interface, std::uint32_t version) {
-    auto *self = static_cast<WaylandClipboard *>(data);
+    auto *self = static_cast<WaylandSession *>(data);
     const std::string_view kind{interface};
     if (kind == wl_seat_interface.name && self->seat == nullptr)
       self->seat = static_cast<wl_seat *>(
@@ -278,7 +304,7 @@ private:
 
   static void on_finished(void *data, ext_data_control_device_v1 *device) {
     ext_data_control_device_v1_destroy(device);
-    static_cast<WaylandClipboard *>(data)->device = nullptr;
+    static_cast<WaylandSession *>(data)->device = nullptr;
   }
 
   static constexpr ext_data_control_device_v1_listener device_listener{
@@ -290,14 +316,14 @@ private:
 
   static void on_send(void *data, ext_data_control_source_v1 *source,
                       [[maybe_unused]] const char *mime_type, std::int32_t fd) {
-    const auto &sources = static_cast<WaylandClipboard *>(data)->sources;
+    const auto &sources = static_cast<WaylandSession *>(data)->sources;
     if (const auto found = sources.find(source); found != sources.end())
       write_all(fd, found->second);
     close(fd);
   }
 
   static void on_cancelled(void *data, ext_data_control_source_v1 *source) {
-    static_cast<WaylandClipboard *>(data)->sources.erase(source);
+    static_cast<WaylandSession *>(data)->sources.erase(source);
     ext_data_control_source_v1_destroy(source);
   }
 
@@ -334,11 +360,6 @@ private:
     }
   }
 
-  void wake() const {
-    if (wake_fd >= 0)
-      eventfd_write(wake_fd, 1);
-  }
-
   void publish(std::string text) {
     auto *const source =
         ext_data_control_manager_v1_create_data_source(manager);
@@ -349,6 +370,69 @@ private:
     for (const char *mime_type : mime_types)
       ext_data_control_source_v1_offer(source, mime_type);
     ext_data_control_device_v1_set_selection(device, source);
+  }
+
+public:
+  WaylandSession() = default;
+  WaylandSession(const WaylandSession &) = delete;
+  WaylandSession &operator=(const WaylandSession &) = delete;
+  WaylandSession(WaylandSession &&) = delete;
+  WaylandSession &operator=(WaylandSession &&) = delete;
+
+  ~WaylandSession() {
+    for (const auto &entry : sources)
+      ext_data_control_source_v1_destroy(entry.first);
+    if (device != nullptr)
+      ext_data_control_device_v1_destroy(device);
+    if (manager != nullptr)
+      ext_data_control_manager_v1_destroy(manager);
+    if (seat != nullptr)
+      wl_seat_destroy(seat);
+    if (registry != nullptr)
+      wl_registry_destroy(registry);
+    if (display != nullptr) {
+      wl_display_flush(display);
+      wl_display_disconnect(display);
+    }
+  }
+
+  bool connect() {
+    static const LogSource log{"Clipboard"};
+    if (!environment_has("WAYLAND_DISPLAY") || wayland_client() == nullptr)
+      return false;
+    display = wl_display_connect(nullptr);
+    if (display == nullptr)
+      return false;
+    registry = wl_display_get_registry(display);
+    if (registry == nullptr)
+      return false;
+    wl_registry_add_listener(registry, &registry_listener, this);
+    if (wl_display_roundtrip(display) < 0 || seat == nullptr)
+      return false;
+    if (ext_manager_name == 0 && wlr_manager_name == 0) {
+      log.debug("the Wayland compositor offers no data control protocol");
+      return false;
+    }
+    // ext-data-control-v1 is wlr-data-control-unstable-v1 renamed, with the
+    // same messages, so a wlr manager is bound by its own name and then used
+    // through the ext functions.
+    const bool ext = ext_manager_name != 0;
+    manager = static_cast<ext_data_control_manager_v1 *>(
+        wl_registry_bind(registry, ext ? ext_manager_name : wlr_manager_name,
+                         ext ? &ext_data_control_manager_v1_interface
+                             : &zwlr_data_control_manager_v1_interface,
+                         1));
+    if (manager == nullptr)
+      return false;
+    device = ext_data_control_manager_v1_get_data_device(manager, seat);
+    if (device == nullptr)
+      return false;
+    ext_data_control_device_v1_add_listener(device, &device_listener, this);
+    if (wl_display_roundtrip(display) < 0 || device == nullptr)
+      return false;
+    log.debug("connected to the compositor through {}",
+              ext ? "ext-data-control-v1" : "wlr-data-control-unstable-v1");
+    return true;
   }
 
   void serve(const std::stop_token &stop) {
@@ -389,108 +473,9 @@ private:
         publish(std::move(*text));
     }
   }
-
-  bool connect() {
-    if (!environment_has("WAYLAND_DISPLAY") || wayland_client() == nullptr)
-      return false;
-    display = wl_display_connect(nullptr);
-    if (display == nullptr)
-      return false;
-    registry = wl_display_get_registry(display);
-    if (registry == nullptr)
-      return false;
-    wl_registry_add_listener(registry, &registry_listener, this);
-    if (wl_display_roundtrip(display) < 0 || seat == nullptr)
-      return false;
-    if (ext_manager_name == 0 && wlr_manager_name == 0) {
-      clipboard_log().debug(
-          "the Wayland compositor offers no data control protocol");
-      return false;
-    }
-    return true;
-  }
-
-public:
-  WaylandClipboard() = default;
-  WaylandClipboard(const WaylandClipboard &) = delete;
-  WaylandClipboard &operator=(const WaylandClipboard &) = delete;
-  WaylandClipboard(WaylandClipboard &&) = delete;
-  WaylandClipboard &operator=(WaylandClipboard &&) = delete;
-
-  ~WaylandClipboard() {
-    if (thread.joinable()) {
-      thread.request_stop();
-      wake();
-      thread.join();
-    }
-    for (const auto &entry : sources)
-      ext_data_control_source_v1_destroy(entry.first);
-    if (device != nullptr)
-      ext_data_control_device_v1_destroy(device);
-    if (manager != nullptr)
-      ext_data_control_manager_v1_destroy(manager);
-    if (seat != nullptr)
-      wl_seat_destroy(seat);
-    if (registry != nullptr)
-      wl_registry_destroy(registry);
-    if (display != nullptr) {
-      wl_display_flush(display);
-      wl_display_disconnect(display);
-    }
-    if (wake_fd >= 0)
-      close(wake_fd);
-    delete pending.load(std::memory_order_relaxed);
-  }
-
-  static bool available() { return WaylandClipboard{}.connect(); }
-
-  bool open() {
-    if (!connect())
-      return false;
-    // ext-data-control-v1 is wlr-data-control-unstable-v1 renamed, with the
-    // same messages, so a wlr manager is bound by its own name and then used
-    // through the ext functions.
-    const bool ext = ext_manager_name != 0;
-    manager = static_cast<ext_data_control_manager_v1 *>(
-        wl_registry_bind(registry, ext ? ext_manager_name : wlr_manager_name,
-                         ext ? &ext_data_control_manager_v1_interface
-                             : &zwlr_data_control_manager_v1_interface,
-                         1));
-    if (manager == nullptr)
-      return false;
-    device = ext_data_control_manager_v1_get_data_device(manager, seat);
-    if (device == nullptr)
-      return false;
-    ext_data_control_device_v1_add_listener(device, &device_listener, this);
-    if (wl_display_roundtrip(display) < 0 || device == nullptr)
-      return false;
-    wake_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-    if (wake_fd < 0)
-      return false;
-    serving.store(true, std::memory_order_relaxed);
-    thread = std::jthread([this](const std::stop_token &stop) {
-      block_signals();
-      serve(stop);
-      serving.store(false, std::memory_order_relaxed);
-    });
-    clipboard_log().debug("serving the clipboard through {}",
-                          ext ? "ext-data-control-v1"
-                              : "wlr-data-control-unstable-v1");
-    return true;
-  }
-
-  BackendResult<> set(std::string_view text) {
-    if (!serving.load(std::memory_order_relaxed))
-      return std::unexpected(BackendError::BackendNotAvailable);
-    auto next = std::make_unique<std::string>(text);
-    const std::unique_ptr<std::string> replaced{
-        pending.exchange(next.release(), std::memory_order_acq_rel)};
-    wake();
-    return {};
-  }
 };
 
-class X11Clipboard {
+class X11Session final : public Channel {
 private:
   enum Atom : std::uint8_t {
     Clipboard,
@@ -542,10 +527,6 @@ private:
   std::size_t chunk = 0;
   std::string text;
   std::map<std::pair<xcb_window_t, xcb_atom_t>, Transfer> transfers;
-  int wake_fd = -1;
-  std::atomic<std::string *> pending{nullptr};
-  std::atomic<bool> serving{false};
-  std::jthread thread;
 
   template <class Specific>
   static Specific event_as(const xcb_generic_event_t &event) {
@@ -665,9 +646,44 @@ private:
     return true;
   }
 
-  void wake() const {
-    if (wake_fd >= 0)
-      eventfd_write(wake_fd, 1);
+  // Asks a clipboard manager to keep the text. Returns false if there is no
+  // manager or nothing of Prism's to keep.
+  bool hand_off_to_manager() {
+    if (selection_owner(atoms[Clipboard]) != window ||
+        selection_owner(atoms[Manager]) == XCB_NONE)
+      return false;
+    const std::array<xcb_atom_t, 4> targets{
+        atoms[Utf8String],
+        atoms[Text],
+        atoms[MimeUtf8],
+        atoms[Mime],
+    };
+    api->xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window,
+                             atoms[SaveProperty], XCB_ATOM_ATOM, 32,
+                             static_cast<std::uint32_t>(targets.size()),
+                             targets.data());
+    api->xcb_convert_selection(connection, window, atoms[Manager],
+                               atoms[SaveTargets], atoms[SaveProperty],
+                               XCB_CURRENT_TIME);
+    return true;
+  }
+
+public:
+  X11Session() = default;
+  X11Session(const X11Session &) = delete;
+  X11Session &operator=(const X11Session &) = delete;
+  X11Session(X11Session &&) = delete;
+  X11Session &operator=(X11Session &&) = delete;
+
+  ~X11Session() {
+    if (connection != nullptr) {
+      if (window != XCB_NONE &&
+          api->xcb_connection_has_error(connection) == 0) {
+        api->xcb_destroy_window(connection, window);
+        api->xcb_flush(connection);
+      }
+      api->xcb_disconnect(connection);
+    }
   }
 
   // Replies are awaited only before the queue is drained, so that no event
@@ -720,29 +736,8 @@ private:
     }
   }
 
-  // Asks a clipboard manager to keep the text. Returns false if there is no
-  // manager or nothing of Prism's to keep.
-  bool hand_off_to_manager() {
-    if (selection_owner(atoms[Clipboard]) != window ||
-        selection_owner(atoms[Manager]) == XCB_NONE)
-      return false;
-    const std::array<xcb_atom_t, 4> targets{
-        atoms[Utf8String],
-        atoms[Text],
-        atoms[MimeUtf8],
-        atoms[Mime],
-    };
-    api->xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window,
-                             atoms[SaveProperty], XCB_ATOM_ATOM, 32,
-                             static_cast<std::uint32_t>(targets.size()),
-                             targets.data());
-    api->xcb_convert_selection(connection, window, atoms[Manager],
-                               atoms[SaveTargets], atoms[SaveProperty],
-                               XCB_CURRENT_TIME);
-    return true;
-  }
-
   bool connect() {
+    static const LogSource log{"Clipboard"};
     if (!environment_has("DISPLAY") || api == nullptr)
       return false;
     int screen_number = 0;
@@ -782,63 +777,121 @@ private:
         chunk_limit,
         (std::size_t{api->xcb_get_maximum_request_length(connection)} * 4) -
             64);
+    log.debug("connected to the X server");
     return true;
+  }
+};
+
+// Connects a session on its own thread, which then serves it. A display server
+// can accept the connection and never answer, so the connection has a
+// deadline. A thread still connecting at the deadline is abandoned: it deletes
+// its session if the server ever answers, and until then no new attempt is
+// made.
+template <class Session> class Served {
+private:
+  static constexpr auto connect_timeout = std::chrono::seconds(2);
+  static inline std::atomic<int> abandoned{0};
+
+  Session *session = nullptr;
+  std::jthread thread;
+
+  static void run(const std::stop_token &stop, Session *session) {
+    block_signals();
+    const bool connected = session->connect();
+    session->serving.store(connected, std::memory_order_relaxed);
+    if (session->state.exchange(
+            connected ? Channel::State::Connected : Channel::State::Failed,
+            std::memory_order_acq_rel) == Channel::State::Abandoned) {
+      delete session;
+      abandoned.fetch_sub(1, std::memory_order_relaxed);
+      return;
+    }
+    eventfd_write(session->ready_fd, 1);
+    if (!connected)
+      return;
+    session->serve(stop);
+    session->serving.store(false, std::memory_order_relaxed);
+  }
+
+  [[nodiscard]] bool await_connection() const {
+    const auto deadline = std::chrono::steady_clock::now() + connect_timeout;
+    for (;;) {
+      const auto left = std::chrono::ceil<std::chrono::milliseconds>(
+          deadline - std::chrono::steady_clock::now());
+      if (left.count() <= 0)
+        return false;
+      pollfd ready{.fd = session->ready_fd, .events = POLLIN, .revents = 0};
+      const int result = poll(&ready, 1, static_cast<int>(left.count()));
+      if (result > 0)
+        return true;
+      if (result == 0 || errno != EINTR)
+        return false;
+    }
   }
 
 public:
-  X11Clipboard() = default;
-  X11Clipboard(const X11Clipboard &) = delete;
-  X11Clipboard &operator=(const X11Clipboard &) = delete;
-  X11Clipboard(X11Clipboard &&) = delete;
-  X11Clipboard &operator=(X11Clipboard &&) = delete;
+  Served() = default;
+  Served(const Served &) = delete;
+  Served &operator=(const Served &) = delete;
+  Served(Served &&) = delete;
+  Served &operator=(Served &&) = delete;
 
-  ~X11Clipboard() {
+  ~Served() {
     if (thread.joinable()) {
       thread.request_stop();
-      wake();
+      session->wake();
       thread.join();
     }
-    if (connection != nullptr) {
-      if (window != XCB_NONE &&
-          api->xcb_connection_has_error(connection) == 0) {
-        api->xcb_destroy_window(connection, window);
-        api->xcb_flush(connection);
-      }
-      api->xcb_disconnect(connection);
-    }
-    if (wake_fd >= 0)
-      close(wake_fd);
-    delete pending.load(std::memory_order_relaxed);
+    delete session;
   }
 
-  static bool available() { return X11Clipboard{}.connect(); }
+  static bool available() { return Served{}.open(); }
 
   bool open() {
-    if (!connect())
+    static const LogSource log{"Clipboard"};
+    if (abandoned.load(std::memory_order_relaxed) != 0)
       return false;
-    wake_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-    if (wake_fd < 0)
+    auto owned = std::make_unique<Session>();
+    owned->wake_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+    owned->ready_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+    if (owned->wake_fd < 0 || owned->ready_fd < 0)
       return false;
-    serving.store(true, std::memory_order_relaxed);
-    thread = std::jthread([this](const std::stop_token &stop) {
-      block_signals();
-      serve(stop);
-      serving.store(false, std::memory_order_relaxed);
-    });
-    clipboard_log().debug("serving the clipboard through X11");
-    return true;
+    thread = std::jthread(&Served::run, owned.get());
+    session = owned.release();
+    if (!await_connection()) {
+      auto expected = Channel::State::Connecting;
+      if (session->state.compare_exchange_strong(
+              expected, Channel::State::Abandoned, std::memory_order_acq_rel)) {
+        abandoned.fetch_add(1, std::memory_order_relaxed);
+        log.warn("the display server did not answer within {} seconds",
+                 connect_timeout.count());
+        thread.detach();
+        session = nullptr;
+        return false;
+      }
+    }
+    if (session->state.load(std::memory_order_acquire) ==
+        Channel::State::Connected)
+      return true;
+    thread.join();
+    delete session;
+    session = nullptr;
+    return false;
   }
 
-  BackendResult<> set(std::string_view value) {
-    if (!serving.load(std::memory_order_relaxed))
+  BackendResult<> set(std::string_view text) {
+    if (session == nullptr || !session->serving.load(std::memory_order_relaxed))
       return std::unexpected(BackendError::BackendNotAvailable);
-    auto next = std::make_unique<std::string>(value);
-    const std::unique_ptr<std::string> replaced{
-        pending.exchange(next.release(), std::memory_order_acq_rel)};
-    wake();
+    auto next = std::make_unique<std::string>(text);
+    const std::unique_ptr<std::string> replaced(
+        session->pending.exchange(next.release(), std::memory_order_acq_rel));
+    session->wake();
     return {};
   }
 };
+
+using WaylandClipboard = Served<WaylandSession>;
+using X11Clipboard = Served<X11Session>;
 } // namespace
 
 class ClipboardBackend final : public TextToSpeechBackend {
@@ -847,6 +900,8 @@ private:
 
 public:
   static constexpr bool requires_explicit_selection = true;
+
+  ~ClipboardBackend() override = default;
 
   [[nodiscard]] std::string_view get_name() const override {
     return "Clipboard";

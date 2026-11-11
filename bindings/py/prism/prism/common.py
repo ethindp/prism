@@ -300,9 +300,11 @@ def version() -> int:
     native library, which MAY differ from the version of the ``prismatoid``
     package. It is encoded as ``(major << 16) | (minor << 8) | patch``, so
     version 1.4.7 is ``0x010407``; bits 24 through 31 are zero. Encoded versions
-    compare in the same order as the versions they encode. Prism follows
-    Semantic Versioning, and while the major version is 0, minor releases MUST
-    NOT be assumed compatible.
+    compare in the same order as their major, minor, and patch components. The
+    prerelease identifier and build metadata are not encoded, so ``1.0.0-rc.1``
+    and ``1.0.0`` have the same encoded value; use :func:`version_string` to
+    distinguish them. Prism follows Semantic Versioning, and while the major version is 0,
+    minor releases MUST NOT be assumed compatible.
 
     Returns:
         The encoded version.
@@ -313,8 +315,10 @@ def version() -> int:
 def version_string() -> str:
     """Returns the version of the Prism library in use, as a string.
 
-    This function wraps ``prism_version_string``. The result has the form
-    ``"1.4.7"``, and is also available as ``prism.__version__``.
+    This function wraps ``prism_version_string``. The result is a Semantic
+    Versioning 2.0.0 version string, including the prerelease identifier and
+    build metadata if the version has them, such as ``"1.4.7"`` or
+    ``"1.0.0-rc.1"``. It is also available as ``prism.__version__``.
 
     Returns:
         The version string.

@@ -16,7 +16,8 @@ class _SilentBackend(CustomBackend):
 
 
 def test_version_matches_string_and_dunder() -> None:
-    major, minor, patch = (int(part) for part in prism.version_string().split("."))
+    core = prism.version_string().partition("+")[0].partition("-")[0]
+    major, minor, patch = (int(part) for part in core.split("."))
     assert prism.version() == (major << 16) | (minor << 8) | patch
     assert prism.__version__ == prism.version_string()
 

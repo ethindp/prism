@@ -3,6 +3,7 @@
 #ifdef _WIN32
 #include "../backend.h"
 #include "../backend_catalog.h"
+#include <atomic>
 #include <bitset>
 #include <chrono>
 #include <memory>
@@ -29,7 +30,7 @@ private:
   static constexpr int open_attempts = 10;
   static constexpr auto open_retry_delay = std::chrono::milliseconds(10);
 
-  bool initialized = false;
+  std::atomic_flag initialized;
 
   static bool open_clipboard(HWND owner) {
     for (int attempt = 0; attempt < open_attempts; ++attempt) {
@@ -44,6 +45,8 @@ private:
 public:
   static constexpr bool requires_explicit_selection = true;
 
+  ~ClipboardBackend() override = default;
+
   [[nodiscard]] std::string_view get_name() const override {
     return "Clipboard";
   }
@@ -55,15 +58,15 @@ public:
   }
 
   BackendResult<> initialize() override {
-    if (initialized)
+    if (initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::AlreadyInitialized);
-    initialized = true;
+    initialized.test_and_set(std::memory_order_release);
     return {};
   }
 
   BackendResult<> speak(std::string_view text,
                         [[maybe_unused]] bool interrupt) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     if (!simdutf::validate_utf8(text.data(), text.size()))
       return std::unexpected(BackendError::InvalidUtf8);

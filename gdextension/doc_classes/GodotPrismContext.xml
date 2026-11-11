@@ -87,13 +87,13 @@
 		<method name="get_version" qualifiers="static">
 			<return type="int" />
 			<description>
-				Returns the version of the Prism library, encoded as [code](major &lt;&lt; 16) | (minor &lt;&lt; 8) | patch[/code]. Version 1.4.7 is [code]0x010407[/code]. Encoded versions compare in version order.
+				Returns the version of the Prism library, encoded as [code](major &lt;&lt; 16) | (minor &lt;&lt; 8) | patch[/code]. Version 1.4.7 is [code]0x010407[/code]. Encoded versions compare in the order of their major, minor, and patch components. The prerelease identifier and build metadata are not encoded, so [code]1.0.0-rc.1[/code] and [code]1.0.0[/code] have the same encoded value; use [method get_version_string] to distinguish them.
 			</description>
 		</method>
 		<method name="get_version_string" qualifiers="static">
 			<return type="String" />
 			<description>
-				Returns the version of the Prism library as a string, such as [code]"1.4.7"[/code].
+				Returns the version of the Prism library as a Semantic Versioning 2.0.0 version string, including the prerelease identifier and build metadata if the version has them, such as [code]"1.4.7"[/code] or [code]"1.0.0-rc.1"[/code].
 			</description>
 		</method>
 		<method name="has" qualifiers="const">

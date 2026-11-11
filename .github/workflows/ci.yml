@@ -104,6 +104,7 @@ jobs:
               - 'third_party/highway/**'
               - 'third_party/fmt/**'
               - 'CMakeLists.txt'
+              - 'VERSION'
               - 'cmake/**'
               - 'shims/**'
             ci_core:

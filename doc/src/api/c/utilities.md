@@ -61,7 +61,7 @@ Returns the version of the loaded Prism library as an unsigned 32-bit integer. T
 
 This function reports the release version of the Prism library that is actually linked into or loaded by the calling process. The returned value describes the library binary, not the version of the Prism headers with which the application was compiled. This distinction is particularly important when Prism is used as a shared library, since the version of Prism installed on the user's system MAY differ from the version against which the application was originally built.
 
-Prism follows [Semantic Versioning](https://semver.org/). A Prism release version therefore consists of major, minor, and patch components. Once Prism has reached a stable major version, an increment to the major component indicates an incompatible change to the public API, an increment to the minor component indicates the addition of functionality in a backward-compatible manner, and an increment to the patch component indicates a backward-compatible correction. While the major version is zero, Prism is considered to be under initial development in accordance with Semantic Versioning, and compatibility between minor releases MUST NOT be assumed merely because the major version remains zero.
+Prism follows [Semantic Versioning](https://semver.org/). A Prism version therefore consists of major, minor, and patch components, optionally followed by a prerelease identifier and build metadata. Once Prism has reached a stable major version, an increment to the major component indicates an incompatible change to the public API, an increment to the minor component indicates the addition of functionality in a backward-compatible manner, and an increment to the patch component indicates a backward-compatible correction. While the major version is zero, Prism is considered to be under initial development in accordance with Semantic Versioning, and compatibility between minor releases MUST NOT be assumed merely because the major version remains zero.
 
 The value returned by `prism_version` encodes the major, minor, and patch components of the Prism release version into the low 24 bits of the returned integer. The major version occupies bits 16 through 23, the minor version occupies bits 8 through 15, and the patch version occupies bits 0 through 7. Bits 24 through 31 are reserved and are currently zero. The encoded representation is equivalent to:
 
@@ -72,6 +72,8 @@ The value returned by `prism_version` encodes the major, minor, and patch compon
 For example, Prism version `1.4.7` is represented by the value `0x00010407`.
 
 The encoded representation also permits the core major, minor, and patch version to be compared using an ordinary unsigned integer comparison. Because the major component occupies the most significant portion of the representation, followed by the minor and patch components, the numeric ordering of encoded values is the same as the Semantic Versioning ordering of their corresponding major, minor, and patch components. An application that requires at least Prism version `1.4.0`, for example, MAY compare the result of `prism_version` against the value representing `1.4.0`.
+
+The prerelease identifier and build metadata are not encoded, so `1.0.0-rc.1` and `1.0.0` are both represented by `0x00010000`. Applications that need to distinguish a prerelease from the corresponding release MUST use `prism_version_string`.
 
 The version is determined when Prism is built and remains constant for the lifetime of the loaded library. Repeated calls therefore return the same value.
 
@@ -98,5 +100,9 @@ Returns a pointer to a null-terminated string containing the release version of 
 #### Remarks
 
 This function provides the human-readable representation of the Prism release version reported numerically by `prism_version`. The returned string identifies the Prism library that is actually linked into or loaded by the current process. It therefore reflects the version of the library binary at runtime rather than necessarily reflecting the version of the Prism headers that were used when the calling application was compiled.
+
+The returned string is the full [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) version, including the prerelease identifier and build metadata when the version has them: for example, `1.4.7`, `1.0.0-rc.1`, or `1.0.0-rc.1+build.5`.
+
+The version of the headers is available from `prism_version.h`, which defines `PRISM_VERSION_MAJOR`, `PRISM_VERSION_MINOR`, and `PRISM_VERSION_PATCH` as integer constants, and `PRISM_VERSION_PRERELEASE`, `PRISM_VERSION_BUILD`, and `PRISM_VERSION_STRING` as string literals. `PRISM_VERSION_PRERELEASE` and `PRISM_VERSION_BUILD` are empty when the version has no prerelease identifier or build metadata.
 
 The returned string is owned by Prism and is statically allocated. It remains valid for the lifetime of the loaded library. Applications MUST NOT modify the contents of the returned string and MUST NOT attempt to free or otherwise deallocate the returned pointer. An application that requires a modifiable copy of the version string MUST copy it into storage owned by the application.

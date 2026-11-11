@@ -4,6 +4,7 @@
 #include "../backend.h"
 #include "../backend_catalog.h"
 #include "../logging.h"
+#include <atomic>
 #include <bitset>
 #include <emscripten/bind.h>
 #include <emscripten/proxying.h>
@@ -15,11 +16,13 @@
 
 using emscripten::val;
 
-static void report_refused_clipboard_write(const val &reason) {
+namespace {
+void report_refused_clipboard_write(const val &reason) {
   static const LogSource log{"Clipboard"};
   log.warn("the browser refused to write to the clipboard: {}",
            val::global("String")(reason).as<std::string>());
 }
+} // namespace
 
 EMSCRIPTEN_BINDINGS(prism_clipboard) {
   emscripten::function("prism_clipboard_write_refused",
@@ -28,7 +31,7 @@ EMSCRIPTEN_BINDINGS(prism_clipboard) {
 
 class ClipboardBackend final : public TextToSpeechBackend {
 private:
-  bool initialized = false;
+  std::atomic_flag initialized;
 
   template <class Function> static auto on_main_thread(Function function) {
     if (emscripten_is_main_runtime_thread())
@@ -61,6 +64,8 @@ private:
 public:
   static constexpr bool requires_explicit_selection = true;
 
+  ~ClipboardBackend() override = default;
+
   [[nodiscard]] std::string_view get_name() const override {
     return "Clipboard";
   }
@@ -75,17 +80,17 @@ public:
   }
 
   BackendResult<> initialize() override {
-    if (initialized)
+    if (initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::AlreadyInitialized);
     if (!clipboard_available())
       return std::unexpected(BackendError::BackendNotAvailable);
-    initialized = true;
+    initialized.test_and_set(std::memory_order_release);
     return {};
   }
 
   BackendResult<> speak(std::string_view text,
                         [[maybe_unused]] bool interrupt) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return on_main_thread([value = std::string{text}]() -> BackendResult<> {
       const val clipboard = clipboard_api();

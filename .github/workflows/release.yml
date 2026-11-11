@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       prerelease:
-        description: Mark as pre-release
+        description: Mark as pre-release (always set when VERSION has a prerelease part)
         type: boolean
         default: true
 permissions:
@@ -16,6 +16,7 @@ jobs:
     outputs:
       version: ${{ steps.extract.outputs.version }}
       tag: ${{ steps.extract.outputs.tag }}
+      prerelease: ${{ steps.extract.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -23,9 +24,24 @@ jobs:
       - name: Extract version
         id: extract
         run: |
-          version=$(sed -n 's/^[[:space:]]*VERSION[[:space:]]\+\([0-9.]\+\).*/\1/p' CMakeLists.txt | head -1)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          version=$(head -n 1 VERSION | tr -d '[:space:]')
+          identifier='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+          semver="^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-${identifier}(\.${identifier})*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$"
+          if ! grep -Eq "$semver" <<< "$version"; then
+            echo "::error file=VERSION::'$version' is not a Semantic Versioning 2.0.0 version"
+            exit 1
+          fi
+          core=${version%%+*}
+          if [[ $core == *-* ]]; then
+            prerelease=true
+          else
+            prerelease=false
+          fi
+          {
+            echo "version=$version"
+            echo "tag=v${version}"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
 
   build-docs:
     uses: $/.github/workflows/build-docs.yml
@@ -172,9 +188,10 @@ jobs:
           RELEASE_TAG: ${{ needs.version.outputs.tag }}
           RELEASE_NAME: PRISM ${{ needs.version.outputs.tag }}
           PRERELEASE: ${{ inputs.prerelease }}
+          VERSION_PRERELEASE: ${{ needs.version.outputs.prerelease }}
         run: |
           args=(release create "$RELEASE_TAG" --title "$RELEASE_NAME" --generate-notes)
-          if [ "$PRERELEASE" = "true" ]; then
+          if [ "$PRERELEASE" = "true" ] || [ "$VERSION_PRERELEASE" = "true" ]; then
             args+=(--prerelease)
           fi
           gh "${args[@]}" \

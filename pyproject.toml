@@ -49,6 +49,7 @@ wheel.packages = ["bindings/py/prism/prism"]
 wheel.py-api = "cp310"
 sdist.include = [
   "CMakeLists.txt",
+  "VERSION",
   "cmake/**",
   "include/**",
   "source/**",
@@ -177,8 +178,8 @@ environment = { CMAKE_SYSTEM_PROCESSOR = "ARM64", CMAKE_BUILD_PARALLEL_LEVEL = "
 
    [tool.scikit-build.metadata.version]
    provider = "scikit_build_core.metadata.regex"
-   input = "CMakeLists.txt"
-   regex = '''project\(\s*prism\s+VERSION\s+(?P<value>[0-9.]+)'''
+   input = "VERSION"
+   regex = '''^\s*(?P<value>\S+)'''
 
 [tool.ruff]
 extend-exclude = [

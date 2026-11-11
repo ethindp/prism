@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
+#ifdef __OBJC__
 #ifdef __APPLE__
 #include "../backend.h"
 #include "../backend_catalog.h"
@@ -10,15 +11,18 @@
 #else
 #import <UIKit/UIKit.h>
 #endif
+#include <atomic>
 #include <bitset>
 #include <string_view>
 
 class ClipboardBackend final : public TextToSpeechBackend {
 private:
-  bool initialized = false;
+  std::atomic_flag initialized;
 
 public:
   static constexpr bool requires_explicit_selection = true;
+
+  ~ClipboardBackend() override = default;
 
   [[nodiscard]] std::string_view get_name() const override {
     return "Clipboard";
@@ -31,15 +35,15 @@ public:
   }
 
   BackendResult<> initialize() override {
-    if (initialized)
+    if (initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::AlreadyInitialized);
-    initialized = true;
+    initialized.test_and_set(std::memory_order_release);
     return {};
   }
 
   BackendResult<> speak(std::string_view text,
                         [[maybe_unused]] bool interrupt) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     @autoreleasepool {
       NSString *const string =
@@ -66,4 +70,5 @@ public:
 };
 
 REGISTER_BACKEND_WITH_ID(ClipboardBackend, Backends::Clipboard, "Clipboard", 0);
+#endif
 #endif

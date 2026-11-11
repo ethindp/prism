@@ -4,6 +4,7 @@
 #include "../backend_catalog.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bitset>
 #include <chrono>
 #include <cmath>
@@ -12,16 +13,19 @@
 #include <string>
 #include <string_view>
 
-static constexpr std::size_t no_speech_sample_rate = 22050;
-static constexpr std::size_t no_speech_frames_per_code_point = 1323;
-static constexpr std::size_t no_speech_chunk_frames = 4096;
-static const std::array<float, no_speech_chunk_frames> no_speech_silence{};
+namespace {
+constexpr std::size_t sample_rate = 22050;
+// 60 milliseconds at the default rate.
+constexpr std::size_t frames_per_code_point = 1323;
+constexpr std::size_t chunk_frames = 4096;
+const std::array<float, chunk_frames> silence{};
+} // namespace
 
 class NoSpeechBackend final : public TextToSpeechBackend {
 private:
   using Clock = std::chrono::steady_clock;
 
-  bool initialized = false;
+  std::atomic_flag initialized;
   bool paused = false;
   Clock::time_point end;
   Clock::duration remaining{};
@@ -35,15 +39,14 @@ private:
                              : 1.0 + ((static_cast<double>(rate) - 0.5) * 4.0);
     const auto code_points = simdutf::count_utf8(text.data(), text.size());
     return static_cast<std::size_t>(std::llround(
-        static_cast<double>(code_points * no_speech_frames_per_code_point) /
-        speed));
+        static_cast<double>(code_points * frames_per_code_point) / speed));
   }
 
   void enqueue(std::string_view text, bool interrupt) {
     const auto now = Clock::now();
     const auto length = std::chrono::duration_cast<Clock::duration>(
         std::chrono::duration<double>(static_cast<double>(frames_for(text)) /
-                                      no_speech_sample_rate));
+                                      sample_rate));
     if (interrupt) {
       paused = false;
       remaining = {};
@@ -83,14 +86,14 @@ public:
   }
 
   BackendResult<> initialize() override {
-    if (initialized)
+    if (initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::AlreadyInitialized);
-    initialized = true;
+    initialized.test_and_set(std::memory_order_release);
     return {};
   }
 
   BackendResult<> speak(std::string_view text, bool interrupt) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     enqueue(text, interrupt);
     return {};
@@ -98,19 +101,18 @@ public:
 
   BackendResult<> speak_to_memory(std::string_view text, AudioCallback callback,
                                   void *userdata) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     for (auto frames = frames_for(text); frames > 0;) {
-      const auto count = std::min(frames, no_speech_chunk_frames);
-      callback(userdata, no_speech_silence.data(), count, 1,
-               no_speech_sample_rate);
+      const auto count = std::min(frames, chunk_frames);
+      callback(userdata, silence.data(), count, 1, sample_rate);
       frames -= count;
     }
     return {};
   }
 
   BackendResult<> braille([[maybe_unused]] std::string_view text) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return {};
   }
@@ -120,13 +122,13 @@ public:
   }
 
   BackendResult<bool> is_speaking() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return !paused && Clock::now() < end;
   }
 
   BackendResult<> stop() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     paused = false;
     remaining = {};
@@ -135,7 +137,7 @@ public:
   }
 
   BackendResult<> pause() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     if (paused)
       return std::unexpected(BackendError::AlreadyPaused);
@@ -148,7 +150,7 @@ public:
   }
 
   BackendResult<> resume() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     if (!paused)
       return std::unexpected(BackendError::NotPaused);
@@ -159,58 +161,58 @@ public:
   }
 
   BackendResult<> set_volume(float value) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     volume = value;
     return {};
   }
 
   BackendResult<float> get_volume() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return volume;
   }
 
   BackendResult<> set_rate(float value) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     rate = value;
     return {};
   }
 
   BackendResult<float> get_rate() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return rate;
   }
 
   BackendResult<> set_pitch(float value) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     pitch = value;
     return {};
   }
 
   BackendResult<float> get_pitch() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return pitch;
   }
 
   BackendResult<> refresh_voices() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return {};
   }
 
   BackendResult<std::size_t> count_voices() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return 1;
   }
 
   BackendResult<std::string> get_voice_name(std::size_t id) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     if (id != 0)
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -218,7 +220,7 @@ public:
   }
 
   BackendResult<std::string> get_voice_language(std::size_t id) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     if (id != 0)
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -226,7 +228,7 @@ public:
   }
 
   BackendResult<> set_voice(std::size_t id) override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     if (id != 0)
       return std::unexpected(BackendError::RangeOutOfBounds);
@@ -234,25 +236,25 @@ public:
   }
 
   BackendResult<std::size_t> get_voice() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return 0;
   }
 
   BackendResult<std::size_t> get_channels() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return 1;
   }
 
   BackendResult<std::size_t> get_sample_rate() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
-    return no_speech_sample_rate;
+    return sample_rate;
   }
 
   BackendResult<std::size_t> get_bit_depth() override {
-    if (!initialized)
+    if (!initialized.test(std::memory_order_acquire))
       return std::unexpected(BackendError::NotInitialized);
     return 16;
   }

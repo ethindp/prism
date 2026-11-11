@@ -1,12 +1,17 @@
 # SPDX-License-Identifier: MPL-2.0
 cmake_minimum_required(VERSION 3.24)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/PrismVersion.cmake")
 project(
   prism
-  VERSION 0.18.3
+  VERSION ${PRISM_VERSION_CORE}
   DESCRIPTION "The Platform-agnostic Reader Interface for Speech and Messages"
   LANGUAGES C CXX)
 set(PRISM_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+set_property(
+  DIRECTORY
+  APPEND
+  PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(PrismGuards)

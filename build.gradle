@@ -18,15 +18,13 @@ allprojects {
 }
 def  gitVersion = providers.exec {
     commandLine 'git', 'describe', '--tags', '--always', '--dirty'
+    ignoreExitValue = true
 }.standardOutput.asText.map {
-    it.trim().replaceFirst('^v', '')
+    it.trim().replaceFirst('^v', '') ?: null
 }
-def  cmakeVersion = providers.fileContents(layout.projectDirectory.file('CMakeLists.txt'))
-        .asText.map {text ->
-    def  match = text =~ /project\s*\(\s*\w+\s+VERSION\s+(\d+\.\d+\.\d+)/
-    match.find() ? (match.group = 1) : null
-}
-def  prismVersion = gitVersion.orElse(cmakeVersion).orElse('0.0.0')
+def  fileVersion = providers.fileContents(layout.projectDirectory.file('VERSION'))
+        .asText.map {it.trim() ?: null}
+def  prismVersion = gitVersion.orElse(fileVersion).orElse('0.0.0')
 android {
     lint {
         textReport = true

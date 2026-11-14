@@ -98,6 +98,8 @@ The endpoint binding established at initialization is fixed for the lifetime of 
 
 The JAWS backend communicates with JAWS through a COM interface registered by the JAWS installer. The host process MUST be running on Windows, and the COM interface MUST be registered on the system; if it is not, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.
 
+Braille reaches JAWS as a call to its `BrailleString` script function. JAWS does not run a script call longer than 255 UTF-16 code units, yet reports success, so the backend cuts the text it brailles to the first 238 UTF-16 code units, never inside a character. A longer text therefore shows only its beginning on the braille display. This applies to `prism_backend_braille` and to the braille half of `prism_backend_output`; speech is never cut.
+
 ### ZoomText
 
 The ZoomText backend communicates with ZoomText through a COM interface registered by the ZoomText installer. The host process MUST be running on Windows, and the COM interface MUST be registered on the system; if it is not, `prism_backend_initialize` returns `PRISM_ERROR_BACKEND_NOT_AVAILABLE`.

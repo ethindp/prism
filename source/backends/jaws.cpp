@@ -6,12 +6,24 @@
 #include <algorithm>
 #include <atlbase.h>
 #include <atomic>
+#include <cstddef>
 #include <ranges>
 #include <raw/fsapi.h>
 #include <simdutf.h>
 #include <span>
+#include <string>
+#include <string_view>
 #include <tchar.h>
 #include <windows.h>
+
+namespace {
+
+// The longest script call, in UTF-16 code units, that JAWS runs through
+// IJawsApi::RunFunction. JAWS drops a longer call without running it, while
+// RunFunction still reports success, so a caller cannot detect the loss.
+constexpr std::size_t max_function_call_length = 255;
+
+} // namespace
 
 class JawsBackend final : public ComTextToSpeechBackend {
 private:
@@ -86,23 +98,30 @@ public:
       return std::unexpected(BackendError::NotInitialized);
     constexpr std::wstring_view prefix = _T("BrailleString(\"");
     constexpr std::wstring_view suffix = _T("\")");
-    const auto text_len =
-        simdutf::utf16_length_from_utf8(text.data(), text.size());
-    const auto total_len = prefix.size() + text_len + suffix.size();
+    std::wstring body(simdutf::utf16_length_from_utf8(text.data(), text.size()),
+                      _T('\0'));
+    if (!body.empty() && simdutf::convert_valid_utf8_to_utf16(
+                             text.data(), text.size(),
+                             reinterpret_cast<char16_t *>(body.data())) == 0)
+      return std::unexpected(BackendError::InvalidUtf8);
+    // JAWS drops a script call longer than max_function_call_length while
+    // reporting success, so cut the text to fit, without leaving half of a
+    // surrogate pair: the start of a long text is better than nothing on the
+    // display.
+    constexpr std::size_t max_text_len =
+        max_function_call_length - prefix.size() - suffix.size();
+    if (body.size() > max_text_len)
+      body.resize(simdutf::trim_partial_utf16(
+          reinterpret_cast<const char16_t *>(body.data()), max_text_len));
+    std::ranges::replace(body, _T('"'), _T('\''));
+    const auto total_len = prefix.size() + body.size() + suffix.size();
     auto *bstr = SysAllocStringLen(nullptr, static_cast<UINT>(total_len));
     if (bstr == nullptr)
       return std::unexpected(BackendError::MemoryFailure);
     const std::span<wchar_t> buffer{bstr, total_len};
-    const auto body = buffer.subspan(prefix.size(), text_len);
-    std::ranges::copy(prefix, buffer.begin());
-    if (text_len > 0 && simdutf::convert_valid_utf8_to_utf16(
-                            text.data(), text.size(),
-                            reinterpret_cast<char16_t *>(body.data())) == 0) {
-      SysFreeString(bstr);
-      return std::unexpected(BackendError::InvalidUtf8);
-    }
-    std::ranges::replace(body, _T('"'), _T('\''));
-    std::ranges::copy(suffix, buffer.last(suffix.size()).begin());
+    auto out = std::ranges::copy(prefix, buffer.begin()).out;
+    out = std::ranges::copy(body, out).out;
+    std::ranges::copy(suffix, out);
     VARIANT_BOOL result = VARIANT_FALSE;
     const bool succeeded = SUCCEEDED(controller->RunFunction(bstr, &result));
     SysFreeString(bstr);

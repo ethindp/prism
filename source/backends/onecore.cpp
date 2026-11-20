@@ -35,6 +35,7 @@
 #include <vector>
 #include <version>
 #include <windows.h>
+#include <winrt/Windows.Devices.Enumeration.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Foundation.Metadata.h>
 #include <winrt/Windows.Foundation.h>
@@ -48,6 +49,7 @@
 #include <winrt/base.h>
 
 using namespace winrt;
+using namespace winrt::Windows::Devices::Enumeration;
 using namespace winrt::Windows::Foundation::Metadata;
 using namespace winrt::Windows::Media;
 using namespace winrt::Windows::Media::Audio;
@@ -367,6 +369,11 @@ private:
 
   [[nodiscard]] AudioGraph build_graph_locked() {
     AudioGraphSettings settings(AudioRenderCategory::Speech);
+    if (const auto render_id =
+            MediaDevice::GetDefaultAudioRenderId(AudioDeviceRole::Default);
+        !render_id.empty())
+      settings.PrimaryRenderDevice(
+          DeviceInformation::CreateFromIdAsync(render_id).get());
     const auto created = AudioGraph::CreateAsync(settings).get();
     if (created.Status() != AudioGraphCreationStatus::Success)
       throw hresult_error(created.ExtendedError(),

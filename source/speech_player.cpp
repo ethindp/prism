@@ -90,10 +90,11 @@ BackendResult<> SpeechPlayer::create_engine() {
                  static_cast<std::uint32_t>(hr));
     return std::unexpected(BackendError::BackendNotAvailable);
   }
+  auto device = default_device_id();
   IXAudio2MasteringVoice *next_mastering = nullptr;
-  hr = next->CreateMasteringVoice(&next_mastering, XAUDIO2_DEFAULT_CHANNELS,
-                                  XAUDIO2_DEFAULT_SAMPLERATE, 0, nullptr,
-                                  nullptr, AudioCategory_Speech);
+  hr = next->CreateMasteringVoice(
+      &next_mastering, XAUDIO2_DEFAULT_CHANNELS, XAUDIO2_DEFAULT_SAMPLERATE, 0,
+      device.empty() ? nullptr : device.c_str(), nullptr, AudioCategory_Speech);
   if (FAILED(hr) || next_mastering == nullptr) {
     logger.error("CreateMasteringVoice failed: {:#010x}",
                  static_cast<std::uint32_t>(hr));
@@ -101,7 +102,6 @@ BackendResult<> SpeechPlayer::create_engine() {
   }
   auto callback = std::make_unique<EngineCallback>(*this);
   (void)next->RegisterForCallbacks(callback.get());
-  auto device = default_device_id();
   std::scoped_lock lock(mutex);
   engine = std::move(next);
   mastering = next_mastering;

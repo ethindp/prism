@@ -486,7 +486,9 @@ if(PRISM_GDK_SPEECH_LINKS AND NOT PRISM_ENABLE_GDK_SPEECH_BACKEND STREQUAL
   if(TARGET prism_backend_gdk_speech)
     target_include_directories(prism_backend_gdk_speech
                                PRIVATE "${PRISM_GDK_INCLUDE_DIR}")
-    target_link_libraries(prism PRIVATE xmllite ole32)
+    if(NOT PRISM_XBOX)
+      target_link_libraries(prism PRIVATE xmllite ole32)
+    endif()
     if(PRISM_XBOX)
       target_link_libraries(prism_backend_gdk_speech PRIVATE prism_gdk_runtime)
       target_link_libraries(prism PRIVATE prism_gdk_runtime)

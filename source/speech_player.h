@@ -5,7 +5,6 @@
 #include "annotations.h"
 #include "backend.h"
 #include "logging.h"
-#include <atlbase.h>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +15,7 @@
 #include <thread>
 #include <vector>
 #include <windows.h>
+#include <wrl/client.h>
 #include <xaudio2.h>
 
 class SpeechPlayer {
@@ -37,7 +37,7 @@ private:
   mutable std::mutex mutex;
   std::condition_variable_any janitor_cv;
   std::condition_variable_any graveyard_cv;
-  CComPtr<IXAudio2> engine;
+  Microsoft::WRL::ComPtr<IXAudio2> engine;
   IXAudio2MasteringVoice *mastering = nullptr;
   std::unique_ptr<EngineCallback> engine_callback;
   std::wstring engine_device;

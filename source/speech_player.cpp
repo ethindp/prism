@@ -4,28 +4,34 @@
 #include "speech_player.h"
 #include "annotations.h"
 #include "utils.h"
-#include <atlbase.h>
 #include <span>
 #include <utility>
 #ifndef PRISM_XBOX
+#include <combaseapi.h>
+#include <memory>
 #include <mmdeviceapi.h>
 #endif
+
+using Microsoft::WRL::ComPtr;
 
 namespace {
 std::wstring default_device_id() {
 #ifdef PRISM_XBOX
   return {};
 #else
-  CComPtr<IMMDeviceEnumerator> enumerator;
-  CComPtr<IMMDevice> endpoint;
-  CComHeapPtr<WCHAR> id;
-  if (FAILED(enumerator.CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
-                                         CLSCTX_INPROC_SERVER)) ||
+  ComPtr<IMMDeviceEnumerator> enumerator;
+  ComPtr<IMMDevice> endpoint;
+  LPWSTR raw_id = nullptr;
+  if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
+                              CLSCTX_INPROC_SERVER,
+                              IID_PPV_ARGS(&enumerator))) ||
       FAILED(
           enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &endpoint)) ||
-      FAILED(endpoint->GetId(&id)))
+      FAILED(endpoint->GetId(&raw_id)))
     return {};
-  return std::wstring{id};
+  const std::unique_ptr<WCHAR, decltype(&CoTaskMemFree)> id{raw_id,
+                                                            &CoTaskMemFree};
+  return std::wstring{id.get()};
 #endif
 }
 } // namespace
@@ -77,7 +83,7 @@ public:
 };
 
 BackendResult<> SpeechPlayer::create_engine() {
-  CComPtr<IXAudio2> next;
+  ComPtr<IXAudio2> next;
   HRESULT hr = XAudio2Create(&next, 0, XAUDIO2_USE_DEFAULT_PROCESSOR);
   if (FAILED(hr) || next == nullptr) {
     logger.error("XAudio2Create failed: {:#010x}",
@@ -106,7 +112,7 @@ BackendResult<> SpeechPlayer::create_engine() {
 }
 
 void SpeechPlayer::release_engine() noexcept {
-  CComPtr<IXAudio2> old_engine;
+  ComPtr<IXAudio2> old_engine;
   IXAudio2MasteringVoice *old_mastering = nullptr;
   std::unique_ptr<EngineCallback> old_callback;
   {
@@ -204,7 +210,7 @@ void SpeechPlayer::play(std::uint64_t request_generation,
   format.wBitsPerSample = 32;
   format.nBlockAlign = static_cast<WORD>(channels * sizeof(float));
   format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
-  CComPtr<IXAudio2> current_engine;
+  ComPtr<IXAudio2> current_engine;
   {
     std::scoped_lock lock(mutex);
     current_engine = engine;
@@ -213,7 +219,7 @@ void SpeechPlayer::play(std::uint64_t request_generation,
   }
   HRESULT hr = current_engine->CreateSourceVoice(
       &utterance.voice, &format, 0, XAUDIO2_DEFAULT_FREQ_RATIO, &utterance);
-  current_engine.Release();
+  current_engine.Reset();
   if (FAILED(hr) || utterance.voice == nullptr) {
     logger.error("CreateSourceVoice failed: {:#010x}",
                  static_cast<std::uint32_t>(hr));

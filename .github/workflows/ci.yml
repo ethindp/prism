@@ -65,6 +65,8 @@ jobs:
             xbox:
               - 'source/backends/gdk_speech.cpp'
               - 'source/speech_player.*'
+              - 'cmake/PrismPlatformXbox.cmake'
+              - 'cmake/xbox-toolchain.cmake'
               - '.github/actions/install-gdk/**'
             linux:
               - 'source/backends/speech_dispatcher.cpp'

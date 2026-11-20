@@ -10,10 +10,11 @@
 #include <XSpeechSynthesizer.h>
 #ifndef PRISM_XBOX
 #include "../optional_library.h"
+#include <objidl.h>
+#include <xmllite.h>
 #endif
 #include <algorithm>
 #include <array>
-#include <atlbase.h>
 #include <atomic>
 #include <bitset>
 #include <cmath>
@@ -23,9 +24,9 @@
 #include <deque>
 #include <dr_wav/dr_wav.h>
 #include <fmt/format.h>
+#include <iterator>
 #include <limits>
 #include <mutex>
-#include <objidl.h>
 #include <simdutf.h>
 #include <string>
 #include <string_view>
@@ -33,11 +34,13 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <wrl/client.h>
 #include <xaudio2.h>
-#include <xmllite.h>
 
 namespace {
+#ifndef PRISM_XBOX
 using tstring = std::basic_string<TCHAR>;
+#endif
 using tstring_view = std::basic_string_view<TCHAR>;
 constexpr float DEFAULT_PARAMETER = 0.5F;
 constexpr std::size_t NO_VOICE = std::numeric_limits<std::size_t>::max();
@@ -249,6 +252,107 @@ public:
   StreamGuard &operator=(StreamGuard &&) = delete;
 };
 
+#ifdef PRISM_XBOX
+// XmlLite is unavailable on Xbox, so the SSML is written by hand.
+constexpr std::size_t MAX_LANGUAGE_TAG_LENGTH = 255;
+constexpr std::size_t MAX_ESCAPE_GROWTH = 6;
+constexpr std::size_t SSML_OVERHEAD = 512;
+
+constexpr bool is_allowed_text_character(char32_t value) noexcept {
+  if (value < 0x20)
+    return value == U'\t' || value == U'\n' || value == U'\r';
+  if (value >= 0x7F && value <= 0x9F)
+    return false;
+  if (value >= 0xFDD0 && value <= 0xFDEF)
+    return false;
+  return (value & 0xFFFEU) != 0xFFFEU;
+}
+
+bool is_allowed_text(std::string_view text) {
+  if (!simdutf::validate_utf8(text.data(), text.size()))
+    return false;
+  std::u32string code_points(
+      simdutf::utf32_length_from_utf8(text.data(), text.size()), U'\0');
+  code_points.resize(simdutf::convert_valid_utf8_to_utf32(
+      text.data(), text.size(), code_points.data()));
+  return std::ranges::all_of(code_points, is_allowed_text_character);
+}
+
+bool append_escaped_text(fmt::memory_buffer &out, std::string_view text) {
+  if (!is_allowed_text(text))
+    return false;
+  const auto put = [&out](std::string_view piece) {
+    out.append(piece.data(), piece.data() + piece.size());
+  };
+  for (const char c : text) {
+    switch (c) {
+    case '&':
+      put("&amp;");
+      break;
+    case '<':
+      put("&lt;");
+      break;
+    case '>':
+      put("&gt;");
+      break;
+    case '"':
+      put("&quot;");
+      break;
+    case '\'':
+      put("&apos;");
+      break;
+    case '\r':
+      put("&#xD;");
+      break;
+    default:
+      out.push_back(c);
+    }
+  }
+  return true;
+}
+
+bool is_plain_language_tag(std::string_view language) noexcept {
+  if (language.empty() || language.size() > MAX_LANGUAGE_TAG_LENGTH ||
+      language.front() == '-' || language.back() == '-' ||
+      !simdutf::validate_ascii(language.data(), language.size()))
+    return false;
+  return std::ranges::all_of(language, [](char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '-';
+  });
+}
+
+std::string make_ssml(std::string_view text, std::string_view language,
+                      float rate, float pitch, const LogSource &log) {
+  if (!is_plain_language_tag(language)) {
+    log.error("Cannot build SSML: the language is not a plain BCP 47 tag");
+    return {};
+  }
+  if (!std::isfinite(rate) || !std::isfinite(pitch)) {
+    log.error("Cannot build SSML: the rate or pitch is not finite");
+    return {};
+  }
+  if (text.size() >
+      (std::string{}.max_size() - SSML_OVERHEAD) / MAX_ESCAPE_GROWTH) {
+    log.error("Cannot build SSML: the text is too long");
+    return {};
+  }
+  fmt::memory_buffer ssml;
+  ssml.reserve(SSML_OVERHEAD + text.size());
+  fmt::format_to(std::back_inserter(ssml),
+                 R"(<speak version="1.0" xml:lang="{}" )"
+                 R"(xmlns="http://www.w3.org/2001/10/synthesis">)"
+                 R"(<prosody rate="{:.4f}" pitch="{:+.4f}st">)",
+                 language, rate, pitch);
+  if (!append_escaped_text(ssml, text)) {
+    log.error("Cannot build SSML: the text is not valid UTF-8 or holds a "
+              "character SSML cannot carry");
+    return {};
+  }
+  fmt::format_to(std::back_inserter(ssml), "</prosody></speak>");
+  return fmt::to_string(ssml);
+}
+#else
 tstring widen(std::string_view text) {
   if (text.empty())
     return {};
@@ -271,18 +375,17 @@ std::string make_ssml(std::string_view text, std::string_view language,
   const auto wide_rate = widen(fmt::format("{:.4f}", rate));
   const auto wide_pitch = widen(fmt::format("{:+.4f}st", pitch));
   constexpr auto ns = _T("http://www.w3.org/2001/10/synthesis");
-  CComPtr<IStream> stream;
-  CComPtr<IXmlWriter> writer;
-  CComPtr<IXmlWriterOutput> output;
+  Microsoft::WRL::ComPtr<IStream> stream;
+  Microsoft::WRL::ComPtr<IXmlWriter> writer;
+  Microsoft::WRL::ComPtr<IXmlWriterOutput> output;
   if (failed(CreateStreamOnHGlobal(nullptr, TRUE, &stream),
              "CreateStreamOnHGlobal", log) ||
-      failed(CreateXmlWriter(__uuidof(IXmlWriter),
-                             reinterpret_cast<void **>(&writer), nullptr),
-             "CreateXmlWriter", log) ||
-      failed(CreateXmlWriterOutputWithEncodingName(stream, nullptr, _T("utf-8"),
-                                                   &output),
+      failed(CreateXmlWriter(IID_PPV_ARGS(&writer), nullptr), "CreateXmlWriter",
+             log) ||
+      failed(CreateXmlWriterOutputWithEncodingName(stream.Get(), nullptr,
+                                                   _T("utf-8"), &output),
              "CreateXmlWriterOutputWithEncodingName", log) ||
-      failed(writer->SetOutput(output), "IXmlWriter::SetOutput", log) ||
+      failed(writer->SetOutput(output.Get()), "IXmlWriter::SetOutput", log) ||
       failed(writer->WriteStartElement(nullptr, _T("speak"), ns),
              "Writing the speak element", log) ||
       failed(writer->WriteAttributeString(nullptr, _T("version"), nullptr,
@@ -322,6 +425,7 @@ std::string make_ssml(std::string_view text, std::string_view language,
     return {};
   return result;
 }
+#endif
 } // namespace
 
 #ifdef PRISM_CONSOLE
@@ -663,7 +767,7 @@ public:
     if (!gdk_api().available)
       return features |= IS_SPEECH_ENGINE;
     XSpeechSynthesizerHandle probe_synth{};
-    CComPtr<IXAudio2> probe_audio;
+    Microsoft::WRL::ComPtr<IXAudio2> probe_audio;
     const bool speech_ok =
         SUCCEEDED(gdk_api().XSpeechSynthesizerCreate(&probe_synth)) &&
         probe_synth != nullptr;

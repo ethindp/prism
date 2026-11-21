@@ -55,8 +55,8 @@ runs:
           Write-Error "vcvarsall.bat could not set up $env:MSVC_ARCH"
           exit 1
         }
-        # Visual Studio's own clang matches its STL, which rejects older standalone LLVM installs.
-        $llvm = Join-Path $vs "VC\Tools\Llvm\x64\bin"
+        # Visual Studio's own clang matches its STL, which rejects older standalone LLVM installs, so those leave PATH.
+        $llvm = (Join-Path $vs "VC\Tools\Llvm\x64\bin").TrimEnd("\")
         foreach ($name in "PATH", "INCLUDE", "LIB", "LIBPATH", "VSINSTALLDIR") {
           $line = $variables | Where-Object { $_ -match "^$name=" } | Select-Object -First 1
           if (-not $line) {
@@ -65,7 +65,13 @@ runs:
           }
           $value = $line.Substring($name.Length + 1)
           if ($name -eq "PATH" -and (Test-Path -LiteralPath (Join-Path $llvm "clang.exe"))) {
-            $value = "$llvm;$value"
+            $entries = @($value -split ";" | Where-Object {
+              $_ -and ($_.TrimEnd("\") -eq $llvm -or -not (Test-Path -LiteralPath (Join-Path $_ "clang.exe")))
+            })
+            if ($entries.TrimEnd("\") -notcontains $llvm) {
+              $entries += $llvm
+            }
+            $value = $entries -join ";"
           }
           "$($name.ToLower())=$value" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         }

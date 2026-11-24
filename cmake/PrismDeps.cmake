@@ -21,7 +21,7 @@ function(prism_declare_dependency NAME)
     PD
     "HEADER_ONLY;BUNDLED_ONLY"
     "PACKAGE;ALT_PACKAGE;MIN_VERSION;BUNDLED_ROOT;LICENSE;LANGUAGE"
-    "SYSTEM_TARGETS;ALT_SYSTEM_TARGETS;BUNDLED_SOURCES;BUNDLED_INCLUDES"
+    "SYSTEM_TARGETS;ALT_SYSTEM_TARGETS;BUNDLED_SOURCES;BUNDLED_INCLUDES;BUNDLED_DEFINITIONS"
     ${ARGN})
   if(PD_UNPARSED_ARGUMENTS)
     message(
@@ -197,10 +197,20 @@ function(prism_declare_dependency NAME)
       target_include_directories(${_impl} SYSTEM ${_vis}
                                  "$<BUILD_INTERFACE:${_abs}>")
     endforeach()
+    # Definitions every user of the bundled copy compiles with, the dependency's
+    # own sources included. They rename its symbols so that a program can link a
+    # static Prism alongside its own copy of the library.
+    if(PD_BUNDLED_DEFINITIONS)
+      target_compile_definitions(${_impl} ${_vis} ${PD_BUNDLED_DEFINITIONS})
+    endif()
     if(NOT _alias_target STREQUAL ${_impl})
       target_include_directories(
         ${_alias_target} SYSTEM
         INTERFACE "$<TARGET_PROPERTY:${_impl},INTERFACE_INCLUDE_DIRECTORIES>")
+      if(PD_BUNDLED_DEFINITIONS)
+        target_compile_definitions(${_alias_target}
+                                   INTERFACE ${PD_BUNDLED_DEFINITIONS})
+      endif()
     endif()
     set(_where "bundled ${PD_BUNDLED_ROOT}")
   endif()
@@ -223,6 +233,11 @@ prism_declare_dependency(
   src/os.cc
   BUNDLED_INCLUDES
   include
+  # fmt's own hook: every symbol moves into fmt::prism, and code still names it
+  # fmt::.
+  BUNDLED_DEFINITIONS
+  "FMT_BEGIN_NAMESPACE=namespace fmt { inline namespace prism {"
+  "FMT_END_NAMESPACE=} }"
   LICENSE
   LICENSES/fmt)
 prism_declare_dependency(
@@ -243,6 +258,9 @@ prism_declare_dependency(
   hwy/timer.cc
   BUNDLED_INCLUDES
   .
+  # Highway has no namespace hook, but hwy is only ever its namespace.
+  BUNDLED_DEFINITIONS
+  hwy=prism_hwy
   LICENSE
   LICENSES/highway)
 prism_declare_dependency(
@@ -259,8 +277,32 @@ prism_declare_dependency(
   simdutf.cpp
   BUNDLED_INCLUDES
   include
+  BUNDLED_DEFINITIONS
+  simdutf=prism_simdutf
   LICENSE
   LICENSES/simdutf)
+# The amalgamation always builds simdutf's C API, whose extern "C" functions no
+# namespace can rename. Nothing in Prism calls them, so only the bundled object
+# is compiled with each one, as simdutf_c.h declares it, given a prism_ prefix.
+get_target_property(_prism_simdutf_type prism_dep_simdutf TYPE)
+if(_prism_simdutf_type STREQUAL "OBJECT_LIBRARY")
+  file(STRINGS "${PRISM_SOURCE_ROOT}/third_party/simdutf/include/simdutf_c.h"
+       _prism_simdutf_c_lines REGEX "simdutf_[A-Za-z0-9_]+\\(")
+  set(_prism_simdutf_c_renames "")
+  foreach(_line IN LISTS _prism_simdutf_c_lines)
+    string(REGEX MATCHALL "simdutf_[A-Za-z0-9_]+\\(" _calls "${_line}")
+    foreach(_call IN LISTS _calls)
+      string(REGEX REPLACE "\\($" "" _name "${_call}")
+      list(APPEND _prism_simdutf_c_renames "${_name}=prism_${_name}")
+    endforeach()
+  endforeach()
+  list(REMOVE_DUPLICATES _prism_simdutf_c_renames)
+  target_compile_definitions(prism_dep_simdutf
+                             PRIVATE ${_prism_simdutf_c_renames})
+  unset(_prism_simdutf_c_lines)
+  unset(_prism_simdutf_c_renames)
+endif()
+unset(_prism_simdutf_type)
 prism_declare_dependency(
   concurrentqueue
   PACKAGE
@@ -276,18 +318,12 @@ prism_declare_dependency(
   third_party/concurrentqueue
   BUNDLED_INCLUDES
   include
+  # Header-only, so it cannot clash at link time, but a program using another
+  # version would break the one-definition rule.
+  BUNDLED_DEFINITIONS
+  moodycamel=prism_moodycamel
   LICENSE
   LICENSES/concurrentqueue)
-prism_declare_dependency(
-  dr_wav
-  BUNDLED_ONLY
-  HEADER_ONLY
-  BUNDLED_ROOT
-  third_party/dr_wav
-  BUNDLED_INCLUDES
-  include
-  LICENSE
-  LICENSES/dr_wav)
 prism_declare_dependency(
   moderncom
   BUNDLED_ONLY

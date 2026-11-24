@@ -5,6 +5,7 @@
 #include "../backend_catalog.h"
 #include "../speech_player.h"
 #include "../utils.h"
+#include "../wav.h"
 #include <XGameRuntimeInit.h>
 #include <XPackage.h>
 #include <XSpeechSynthesizer.h>
@@ -22,10 +23,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
-#define DRWAV_API static
-#define DRWAV_PRIVATE static
-#define DR_WAV_IMPLEMENTATION
-#include <dr_wav/dr_wav.h>
 #include <fmt/format.h>
 #include <iterator>
 #include <limits>
@@ -571,30 +568,19 @@ class GdkSpeechBackend final : public GdkBackendBase {
     auto bytes = synthesize_wave_unlocked(text, current_rate, current_pitch);
     if (!bytes)
       return std::unexpected(bytes.error());
-    drwav wav{};
-    if (drwav_init_memory(&wav, bytes->data(), bytes->size(), nullptr) == 0)
-      return std::unexpected(BackendError::InvalidAudioFormat);
-    if (wav.channels == 0 || wav.sampleRate == 0 ||
-        wav.totalPCMFrameCount >
-            std::numeric_limits<std::size_t>::max() / wav.channels) {
-      drwav_uninit(&wav);
+    const auto pcm = parse_wav(*bytes);
+    if (!pcm) {
+      logger.error("GDK returned an unusable WAV stream ({})",
+                   std::to_underlying(pcm.error()));
       return std::unexpected(BackendError::InvalidAudioFormat);
     }
-    const auto frames_requested = wav.totalPCMFrameCount;
-    const std::size_t sample_count =
-        static_cast<std::size_t>(frames_requested) * wav.channels;
+    const auto &format = pcm->format();
     SynthesizedAudio result{
-        .samples = std::vector<float>(sample_count),
-        .channels = wav.channels,
-        .sample_rate = wav.sampleRate,
-        .bit_depth = wav.bitsPerSample,
+        .samples = pcm->to_f32(),
+        .channels = format.channels(),
+        .sample_rate = format.sample_rate(),
+        .bit_depth = format.bits_per_sample(),
     };
-    const auto frames_read = drwav_read_pcm_frames_f32(&wav, frames_requested,
-                                                       result.samples.data());
-    result.samples.resize(static_cast<std::size_t>(frames_read) * wav.channels);
-    drwav_uninit(&wav);
-    if (frames_read == 0 && frames_requested != 0)
-      return std::unexpected(BackendError::InvalidAudioFormat);
     cached_channels = result.channels;
     cached_sample_rate = result.sample_rate;
     cached_bit_depth = result.bit_depth;

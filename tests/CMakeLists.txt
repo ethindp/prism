@@ -25,6 +25,34 @@ function(prism_add_test TEST_NAME)
   gtest_discover_tests(${TEST_NAME})
 endfunction()
 
+# Tests of Prism's internals, built from its sources, since a shared Prism
+# exports only the C API.
+function(prism_add_internal_test TEST_NAME)
+  add_executable(${TEST_NAME} ${ARGN})
+  target_link_libraries(${TEST_NAME} PRIVATE GTest::gtest_main prism_common
+                                             prism_dep_highway)
+  if(MSVC)
+    target_compile_options(${TEST_NAME} PRIVATE /W4)
+  else()
+    target_compile_options(${TEST_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+  endif()
+  if(WIN32 AND BUILD_SHARED_LIBS)
+    # A shared GoogleTest lands in bin/, where Windows does not look for it.
+    add_custom_command(
+      TARGET ${TEST_NAME}
+      POST_BUILD
+      COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_RUNTIME_DLLS:${TEST_NAME}> $<TARGET_FILE_DIR:${TEST_NAME}>
+      COMMAND_EXPAND_LISTS)
+  endif()
+  gtest_discover_tests(${TEST_NAME})
+endfunction()
+
+prism_add_internal_test(
+  prism_wav_tests unit/wav_test.cpp ${PRISM_SOURCE_ROOT}/source/wav.cpp
+  ${PRISM_SOURCE_ROOT}/source/simd_kernels.cpp)
+
 if(WIN32)
   set(PRISM_TEST_PLATFORM "win32")
 elseif(IOS)

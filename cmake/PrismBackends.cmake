@@ -677,6 +677,10 @@ message(STATUS "Prism backends: ${_s}")
 # A static link only pulls an archive member in when something references it,
 # and nothing references a backend's object, so prism.cpp does. MSVC is told per
 # object with /include:; elsewhere prism.cpp takes each anchor's address.
+if(ANDROID)
+  # source/backends/android/jni_module.cpp, which keeps Djinni's JNI glue.
+  list(APPEND PRISM_BACKEND_ANCHORS jni_module)
+endif()
 set(_anchors "")
 if(MSVC)
   foreach(_name IN LISTS PRISM_BACKEND_ANCHORS)

@@ -102,7 +102,6 @@ jobs:
               - 'source/*.h'
               - 'third_party/simdutf/**'
               - 'third_party/concurrentqueue/**'
-              - 'third_party/dr_wav/**'
               - 'third_party/highway/**'
               - 'third_party/fmt/**'
               - 'CMakeLists.txt'

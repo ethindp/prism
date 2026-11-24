@@ -6,6 +6,7 @@
 #include "../backend_catalog.h"
 #include "../logging.h"
 #include "../utils.h"
+#include "../wav.h"
 #include <MemoryBuffer.h>
 #include <algorithm>
 #include <cmath>
@@ -15,10 +16,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <deque>
-#define DRWAV_API static
-#define DRWAV_PRIVATE static
-#define DR_WAV_IMPLEMENTATION
-#include <dr_wav/dr_wav.h>
 #include <exception>
 #include <fmt/format.h>
 #include <fmt/xchar.h>
@@ -218,26 +215,16 @@ std::vector<std::uint8_t> read_stream(const SpeechSynthesisStream &stream) {
 }
 
 std::optional<DecodedAudio> decode_wave(std::span<const std::uint8_t> bytes) {
-  drwav wav{};
-  if (drwav_init_memory(&wav, bytes.data(), bytes.size(), nullptr) == 0)
+  const auto pcm = parse_wav(bytes);
+  if (!pcm)
     return std::nullopt;
-  DecodedAudio audio{
-      .samples = {},
-      .channels = wav.channels,
-      .sample_rate = wav.sampleRate,
-      .bit_depth = wav.bitsPerSample,
+  const auto &format = pcm->format();
+  return DecodedAudio{
+      .samples = pcm->to_f32(),
+      .channels = format.channels(),
+      .sample_rate = format.sample_rate(),
+      .bit_depth = format.bits_per_sample(),
   };
-  if (wav.channels == 0 || wav.sampleRate == 0) {
-    drwav_uninit(&wav);
-    return std::nullopt;
-  }
-  audio.samples.resize(static_cast<std::size_t>(wav.totalPCMFrameCount) *
-                       wav.channels);
-  const auto frames = drwav_read_pcm_frames_f32(&wav, wav.totalPCMFrameCount,
-                                                audio.samples.data());
-  audio.samples.resize(static_cast<std::size_t>(frames) * wav.channels);
-  drwav_uninit(&wav);
-  return audio;
 }
 
 AudioFrame make_frame(std::span<const float> samples) {
@@ -538,16 +525,16 @@ private:
     const auto bytes = run_on_mta([&] {
       return read_stream(synth.SynthesizeTextToStreamAsync(_T(" ")).get());
     });
-    drwav wav{};
-    if (drwav_init_memory(&wav, bytes.data(), bytes.size(), nullptr) == 0) {
-      logger.error("cache_audio_format: WAV parse error");
+    const auto pcm = parse_wav(bytes);
+    if (!pcm) {
+      logger.error("cache_audio_format: WAV parse error ({})",
+                   std::to_underlying(pcm.error()));
       return std::unexpected(BackendError::InvalidAudioFormat);
     }
-    cached_channels = wav.channels;
-    cached_sample_rate = wav.sampleRate;
-    cached_bit_depth = wav.bitsPerSample;
+    cached_channels = pcm->format().channels();
+    cached_sample_rate = pcm->format().sample_rate();
+    cached_bit_depth = pcm->format().bits_per_sample();
     format_cached = true;
-    drwav_uninit(&wav);
     return {};
   } catch (const hresult_error &e) {
     logger.error("cache_audio_format failed: {}", e.message());

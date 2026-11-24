@@ -36,7 +36,7 @@ if(WIN32 AND NOT PRISM_XBOX)
       ${PRISM_MIDL_COMPILER} /nologo /env ${PRISM_MIDL_ENV} /client stub /cstub
       "${PRISM_GEN_DIR}/nvda_controller.c" /header
       "${PRISM_GEN_DIR}/nvda_controller.h" /server none /prefix all
-      "nvdaController_" /acf "${PRISM_SOURCE_ROOT}/idl/nvdaController.acf"
+      "prism_nvdaController_" /acf "${PRISM_SOURCE_ROOT}/idl/nvdaController.acf"
       "${PRISM_SOURCE_ROOT}/idl/nvdaController.idl"
     DEPENDS "${PRISM_SOURCE_ROOT}/idl/nvdaController.idl"
             "${PRISM_SOURCE_ROOT}/idl/nvdaController.acf"

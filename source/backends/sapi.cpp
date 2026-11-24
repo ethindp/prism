@@ -7,6 +7,7 @@
 #include "../logging.h"
 #include "../speech_player.h"
 #include "../utils.h"
+#include "../wav.h"
 #include <algorithm>
 #include <array>
 #include <atlbase.h>
@@ -19,10 +20,6 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
-#define DRWAV_API static
-#define DRWAV_PRIVATE static
-#define DR_WAV_IMPLEMENTATION
-#include <dr_wav/dr_wav.h>
 #include <future>
 #include <limits>
 #include <mmreg.h>
@@ -62,18 +59,6 @@ struct ComApartmentGuard {
   ComApartmentGuard(ComApartmentGuard &&) = delete;
   ComApartmentGuard &operator=(ComApartmentGuard &&) = delete;
 };
-
-template <class T>
-const T *lifetime_as_array(const void *p PRISM_LIFETIMEBOUND,
-                           [[maybe_unused]] std::size_t n) noexcept {
-#ifdef __cpp_lib_start_lifetime_as
-  static_assert(__cpp_lib_start_lifetime_as >= 202207L,
-                "__cpp_lib_start_lifetime_as must be >= 202207L");
-  return std::start_lifetime_as_array<T>(p, n);
-#else
-  return reinterpret_cast<const T *>(p);
-#endif
-}
 
 constexpr WAVEFORMATEX FALLBACK_FORMAT{
     .wFormatTag = WAVE_FORMAT_PCM,
@@ -463,36 +448,15 @@ private:
     if (FAILED(hr))
       return std::unexpected(hr == E_ABORT ? BackendError::NotSpeaking
                                            : BackendError::SpeakFailure);
-    const std::size_t channels = format.nChannels;
-    const std::size_t block_align = format.nBlockAlign;
-    const std::size_t bit_depth = format.wBitsPerSample;
-    if (channels == 0 || block_align == 0 || bit_depth % 8 != 0)
-      return std::unexpected(BackendError::InvalidAudioFormat);
-    const auto bytes = capture->bytes();
-    const std::size_t total_samples = bytes.size() / block_align * channels;
-    const auto *data = reinterpret_cast<const std::uint8_t *>(bytes.data());
-    std::vector<float> samples(total_samples);
-    switch (bit_depth) {
-    case 8:
-      drwav_u8_to_f32(samples.data(), data, total_samples);
-      break;
-    case 16:
-      drwav_s16_to_f32(samples.data(),
-                       lifetime_as_array<drwav_int16>(data, total_samples),
-                       total_samples);
-      break;
-    case 24:
-      drwav_s24_to_f32(samples.data(), data, total_samples);
-      break;
-    case 32:
-      drwav_s32_to_f32(samples.data(),
-                       lifetime_as_array<drwav_int32>(data, total_samples),
-                       total_samples);
-      break;
-    default:
+    const auto pcm_format = WavFormat::from_wave_format(
+        format.wFormatTag, format.nChannels, format.nSamplesPerSec,
+        format.wBitsPerSample, format.nBlockAlign);
+    if (!pcm_format) {
+      logger.error("SAPI output format is unusable ({})",
+                   std::to_underlying(pcm_format.error()));
       return std::unexpected(BackendError::InvalidAudioFormat);
     }
-    return samples;
+    return PcmView::make(*pcm_format, capture->bytes()).to_f32();
   }
 
   void render(const SpeakJob &job) {

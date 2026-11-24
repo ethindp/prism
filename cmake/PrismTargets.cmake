@@ -18,8 +18,8 @@ target_include_directories(
 target_link_libraries(
   prism_common
   INTERFACE prism::dep_iface::fmt prism::dep_iface::simdutf
-            prism::dep_iface::concurrentqueue prism::dep_iface::dr_wav
-            prism::dep_iface::moderncom prism::dep_iface::highway)
+            prism::dep_iface::concurrentqueue prism::dep_iface::moderncom
+            prism::dep_iface::highway)
 set(PRISM_PUBLIC_DEFINES
     NOMINMAX
     $<$<STREQUAL:$<TARGET_PROPERTY:prism,TYPE>,STATIC_LIBRARY>:PRISM_STATIC>)
@@ -45,6 +45,7 @@ set(_prism_sources
     source/power_notifier.cpp
     source/prism.cpp
     source/utils.cpp
+    source/wav.cpp
     source/backends/custom_backend.cpp)
 if(PRISM_CONSOLE)
   list(APPEND _prism_sources source/plugin_loader_stub.cpp)
@@ -61,6 +62,8 @@ endif()
 if(ANDROID)
   file(GLOB_RECURSE _android_srcs CONFIGURE_DEPENDS
        "${PRISM_SOURCE_ROOT}/source/backends/android/*.cpp")
+  # jni_module.cpp builds it, so a static link keeps it.
+  list(FILTER _android_srcs EXCLUDE REGEX "/jni/TtsBackendModule\\.cpp$")
   list(APPEND _prism_sources ${_android_srcs})
 endif()
 file(GLOB_RECURSE _prism_headers CONFIGURE_DEPENDS
@@ -111,18 +114,14 @@ if(PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
 else()
   set(PRISM_LINK_VIS PRIVATE)
 endif()
+# A static Prism is linked like any other archive. Objects that nothing calls
+# into, such as each backend's self-registration, are kept by the anchors
+# source/prism.cpp references (see PrismBackends.cmake), so the linker takes
+# only the bundled dependency code Prism uses.
 add_library(prism_iface INTERFACE)
-if(PRISM_LIB_TYPE STREQUAL "STATIC_LIBRARY")
-  target_link_libraries(
-    prism_iface
-    INTERFACE
-      "$<BUILD_INTERFACE:$<LINK_LIBRARY:WHOLE_ARCHIVE,prism>>"
-      "$<INSTALL_INTERFACE:$<LINK_LIBRARY:WHOLE_ARCHIVE,prism::_prism_lib>>")
-else()
-  target_link_libraries(
-    prism_iface INTERFACE "$<BUILD_INTERFACE:prism>"
-                          "$<INSTALL_INTERFACE:prism::_prism_lib>")
-endif()
+target_link_libraries(
+  prism_iface INTERFACE "$<BUILD_INTERFACE:prism>"
+                        "$<INSTALL_INTERFACE:prism::_prism_lib>")
 set_target_properties(prism PROPERTIES EXPORT_NAME _prism_lib)
 set_target_properties(prism_iface PROPERTIES EXPORT_NAME prism)
 add_library(prism::_prism_lib ALIAS prism)

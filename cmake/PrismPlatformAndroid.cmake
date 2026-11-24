@@ -9,6 +9,7 @@ target_include_directories(
     "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/source/backends/android>"
     "$<BUILD_INTERFACE:${PRISM_SOURCE_ROOT}/source/backends/android/jni>")
 target_link_options(prism PRIVATE "-Wl,-z,max-page-size=16384")
+# Builds the generated jni/TtsBackendModule.cpp.
 set_source_files_properties(
-  "${PRISM_SOURCE_ROOT}/source/backends/android/jni/TtsBackendModule.cpp"
+  "${PRISM_SOURCE_ROOT}/source/backends/android/jni_module.cpp"
   PROPERTIES COMPILE_OPTIONS -Wno-unused-parameter)

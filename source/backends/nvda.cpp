@@ -25,7 +25,8 @@ void __RPC_USER MIDL_user_free(_Pre_maybenull_ _Post_invalid_ void *p) {
     std::free(p);
 }
 
-error_status_t __stdcall nvdaController_onSsmlMarkReached(const wchar_t *mark) {
+error_status_t __stdcall
+prism_nvdaController_onSsmlMarkReached(const wchar_t *mark) {
   std::shared_lock sl(ssml_mark_reached_callback_mtx);
   if (ssml_mark_reached_callback == nullptr) {
     return ERROR_CALL_NOT_IMPLEMENTED;
@@ -33,7 +34,7 @@ error_status_t __stdcall nvdaController_onSsmlMarkReached(const wchar_t *mark) {
   return ssml_mark_reached_callback(mark);
 }
 
-error_status_t __stdcall nvdaController_setOnSsmlMarkReachedCallback(
+error_status_t __stdcall prism_nvdaController_setOnSsmlMarkReachedCallback(
     onSsmlMarkReachedFuncType callback) {
   {
     std::unique_lock ul(ssml_mark_reached_callback_mtx);
@@ -133,11 +134,11 @@ public:
       return features |= IS_SCREEN_READER;
     }
     RpcStringFree(&string_binding);
-    if (server_supports_interface(handle,
-                                  nvdaController_NvdaController_v1_0_c_ifspec))
+    if (server_supports_interface(
+            handle, prism_nvdaController_NvdaController_v1_0_c_ifspec))
       features |= IS_SUPPORTED_AT_RUNTIME;
-    if (server_supports_interface(handle,
-                                  nvdaController_NvdaController3_v1_0_c_ifspec))
+    if (server_supports_interface(
+            handle, prism_nvdaController_NvdaController3_v1_0_c_ifspec))
       features |= SUPPORTS_IS_SPEAKING;
     RpcBindingFree(&handle);
     return features |= IS_SCREEN_READER;
@@ -172,14 +173,14 @@ public:
     if (status != RPC_S_OK) {
       return std::unexpected(BackendError::BackendNotAvailable);
     }
-    if (nvdaController_testIfRunning(binding) != ERROR_SUCCESS ||
+    if (prism_nvdaController_testIfRunning(binding) != ERROR_SUCCESS ||
         !server_supports_interface(
-            binding, nvdaController_NvdaController_v1_0_c_ifspec)) {
+            binding, prism_nvdaController_NvdaController_v1_0_c_ifspec)) {
       RpcBindingFree(&binding);
       return std::unexpected(BackendError::BackendNotAvailable);
     }
     if (server_supports_interface(
-            binding, nvdaController_NvdaController3_v1_0_c_ifspec)) {
+            binding, prism_nvdaController_NvdaController3_v1_0_c_ifspec)) {
       supports_is_speaking.test_and_set();
     }
     controller_handle = binding;
@@ -190,7 +191,8 @@ public:
     if (controller_handle == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
     if (interrupt) {
-      if (const auto status = nvdaController_cancelSpeech(controller_handle);
+      if (const auto status =
+              prism_nvdaController_cancelSpeech(controller_handle);
           status != ERROR_SUCCESS)
         return std::unexpected(rpc_error(status));
     }
@@ -203,7 +205,7 @@ public:
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
     if (const auto status =
-            nvdaController_speakText(controller_handle, wstr.c_str());
+            prism_nvdaController_speakText(controller_handle, wstr.c_str());
         status != ERROR_SUCCESS)
       return std::unexpected(rpc_error(status));
     return {};
@@ -220,8 +222,8 @@ public:
             reinterpret_cast<char16_t *>(wstr.data()));
         res == 0)
       return std::unexpected(BackendError::InvalidUtf8);
-    if (const auto status =
-            nvdaController_brailleMessage(controller_handle, wstr.c_str());
+    if (const auto status = prism_nvdaController_brailleMessage(
+            controller_handle, wstr.c_str());
         status != ERROR_SUCCESS)
       return std::unexpected(rpc_error(status));
     return {};
@@ -238,7 +240,8 @@ public:
   BackendResult<> stop() override {
     if (controller_handle == nullptr)
       return std::unexpected(BackendError::BackendNotAvailable);
-    if (const auto status = nvdaController_cancelSpeech(controller_handle);
+    if (const auto status =
+            prism_nvdaController_cancelSpeech(controller_handle);
         status != ERROR_SUCCESS)
       return std::unexpected(rpc_error(status));
     return {};
@@ -251,7 +254,7 @@ public:
       return std::unexpected(BackendError::NotImplemented);
     BOOLEAN speaking = FALSE;
     if (const auto status =
-            nvdaController_isSpeaking(controller_handle, &speaking);
+            prism_nvdaController_isSpeaking(controller_handle, &speaking);
         status != ERROR_SUCCESS)
       return std::unexpected(rpc_error(status));
     return static_cast<bool>(speaking);

@@ -41,7 +41,8 @@ constexpr std::uint16_t EXTENSIBLE_EXTRA_SIZE = 22;
 // two bytes.
 constexpr std::array<std::uint8_t, 14> SUBFORMAT_SUFFIX = {
     0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80,
-    0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71};
+    0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71,
+};
 constexpr std::uint32_t SPEAKER_FRONT_LEFT = 0x1;
 constexpr std::uint32_t SPEAKER_FRONT_RIGHT = 0x2;
 constexpr std::uint32_t SPEAKER_FRONT_CENTER = 0x4;
@@ -83,9 +84,10 @@ std::int32_t load_s24(const std::byte *p) noexcept {
   const auto b0 = std::to_integer<std::uint32_t>(p[0]);
   const auto b1 = std::to_integer<std::uint32_t>(p[1]);
   const auto b2 = std::to_integer<std::uint32_t>(p[2]);
-  // The sample in the top 24 bits, then shifted down to sign-extend it.
-  return std::bit_cast<std::int32_t>((b0 << 8U) | (b1 << 16U) | (b2 << 24U)) >>
-         8;
+  // Flipping bit 23 offsets the sample by 2^23, so taking that back off leaves
+  // it sign-extended without shifting a signed value.
+  const std::uint32_t raw = b0 | (b1 << 8U) | (b2 << 16U);
+  return static_cast<std::int32_t>(raw ^ 0x800000U) - 0x800000;
 }
 
 float decode_one(WavSampleFormat format, const std::byte *p) noexcept {

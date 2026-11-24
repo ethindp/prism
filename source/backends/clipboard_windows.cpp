@@ -79,8 +79,13 @@ public:
     auto *const destination = static_cast<char16_t *>(GlobalLock(memory.get()));
     if (destination == nullptr)
       return std::unexpected(BackendError::MemoryFailure);
-    simdutf::convert_valid_utf8_to_utf16(text.data(), text.size(), destination);
-    destination[length] = u'\0';
+    const auto written = simdutf::convert_valid_utf8_to_utf16(
+        text.data(), text.size(), destination);
+    if (written != length) {
+      GlobalUnlock(memory.get());
+      return std::unexpected(BackendError::InvalidUtf8);
+    }
+    destination[written] = u'\0';
     GlobalUnlock(memory.get());
     // SetClipboardData needs an owner window. It is destroyed before returning,
     // since nothing here pumps its messages.

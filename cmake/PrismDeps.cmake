@@ -281,12 +281,9 @@ prism_declare_dependency(
 prism_declare_dependency(
   dr_wav
   BUNDLED_ONLY
-  LANGUAGE
-  C
+  HEADER_ONLY
   BUNDLED_ROOT
   third_party/dr_wav
-  BUNDLED_SOURCES
-  wav.c
   BUNDLED_INCLUDES
   include
   LICENSE

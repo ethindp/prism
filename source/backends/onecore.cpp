@@ -15,6 +15,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <deque>
+#define DRWAV_API static
+#define DRWAV_PRIVATE static
+#define DR_WAV_IMPLEMENTATION
 #include <dr_wav/dr_wav.h>
 #include <exception>
 #include <fmt/format.h>
